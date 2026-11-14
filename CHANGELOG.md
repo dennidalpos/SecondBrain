@@ -2,7 +2,18 @@
 
 Formato [Keep a Changelog](https://keepachangelog.com/it-IT/1.1.0/). La numerazione segue il file `VERSION`. Questo registro cambia solo quando accetti un cambio di versione: vedi [Cambiare versione](docs/uso-quotidiano.md).
 
-> Versione corrente: **2.15.0**, numerazione reimpostata il 2026-11-04 con le funzionalità attuali conservate. Le sezioni seguenti mantengono la cronologia dei rilasci precedenti.
+> Versione corrente: **2.16.0**, numerazione reimpostata il 2026-11-04 con le funzionalità attuali conservate. Le sezioni seguenti mantengono la cronologia dei rilasci precedenti.
+
+## [2.16.0] - 2026-11-14
+
+A run closes in a fixed order and removes only its own registered temporary files, and accepted tasks are counted apart from process successes.
+
+### Added
+- Runner: `status.json` counts carry `accepted` (tasks with verified acceptance) next to `succeeded` and `failed` (process outcomes); the Run card and the Registry run list show both (#641).
+- Runner: each run has a `tmp/` folder and a `temp-manifest.json` where its temporary outputs are registered as they are created (today the prompt copy of each task). At closure only registered files of that run, still inside `tmp/`, unchanged, regenerable, not referenced by a resume point or report, not locked and not behind a junction are removed; every other file stays and `status.json` `cleanup` lists it with its reason (#605).
+
+### Changed
+- Runner closure runs in a fixed order recorded in `status.json` `finalization.steps`: run state, pending tracker writes, task outcomes, then cleanup. A cleanup failure is reported in `cleanup` and never changes the task outcomes or the exit code (#606).
 
 ## [2.15.0] - 2026-11-14
 

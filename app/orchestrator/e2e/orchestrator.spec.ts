@@ -241,6 +241,8 @@ test("a queue run is followed live, survives closing the window and is found aga
   await expect(page.locator("#run-results tr").filter({ hasText: "E2E-1" })).toContainText("finished");
   // #613: the process finished, but the task is only in progress: its acceptance is shown as open, apart from the process outcome.
   await expect(page.locator("#run-results tr").filter({ hasText: "E2E-1" }).locator("td").nth(4)).toHaveText("open");
+  // #641: the reopened task counts as a process success, not as accepted.
+  await expect(page.locator("#run-counts")).toContainText("(1 riusciti, 0 non riusciti) · 0 accepted");
   await expect(page.locator("#run-steps")).toContainText("npm test");
   expect(readTracker().tasks.find((t) => t.id === "E2E-1")?.status).toBe("in_progress");
   await page.locator('.steps button[data-tab="queue"]').click();
@@ -268,6 +270,7 @@ test("registry: every task with its tool badge, archived tasks and the runner hi
   const finished = page.locator("#reg-run-rows tr").first();
   const folder = ((await finished.locator("td .mono").textContent()) ?? "").trim();
   expect(folder).toMatch(/runner-run-/);
+  await expect(page.locator("#reg-run-rows tr").filter({ hasText: "accepted" }).first()).toContainText(/\d+ ok, \d+ ko\) · \d+ accepted/);
   await expect(finished.locator("td").nth(1)).not.toContainText(/running|interrupted|unknown/);
   const orphanId = "29991231-235959-runner-run-e2eorphan";
   const orphanFolder = path.join(path.dirname(folder), orphanId);

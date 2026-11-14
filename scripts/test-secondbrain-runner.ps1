@@ -10,6 +10,7 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Host.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Tracker.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.TaskRunner.psm1')
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.RunnerStatus.psm1')
 . (Join-Path $PSScriptRoot 'test-helpers.ps1')
 $script:runnerChecks=0
 # Per-phase timing (seconds), printed with the summary so slow phases show up in the Full report.
@@ -380,6 +381,8 @@ switch($Mode){
     $doneRecord=@($done.data.tasks)[0]
     Assert-Runner ($done.code -eq 0 -and $doneRecord.id -eq 'R-3' -and $doneRecord.statusAfter -eq 'done' -and !$doneRecord.parked) ('a done task is not parked: '+$done.text)
     Assert-Runner ($doneRecord.process -eq 'succeeded' -and $doneRecord.acceptance -eq 'verified' -and !$doneRecord.reopened) ('a task closed with passed evidence from the attempt has verified acceptance (#613): '+($doneRecord|ConvertTo-Json -Compress))
+    $doneCounts=(Read-SBJson ([string]$done.data.status) $null).counts
+    Assert-Runner ($doneCounts.succeeded -eq 1 -and $doneCounts.accepted -eq 1 -and $doneCounts.failed -eq 0) ('status.json counts a verified task as accepted next to succeeded (#641): '+($doneCounts|ConvertTo-Json -Compress))
     $doneTask=Get-FixtureTask 'R-3'
     Assert-Runner ($null -eq $doneTask -or $doneTask.execution -eq 'autonomous') 'a done task keeps execution autonomous'
     $blocked=Invoke-Runner @('-Run','-MaxTasks','1','-AgentArguments','blocked')
@@ -631,7 +634,7 @@ $r|ConvertTo-Json -Compress
     Assert-Runner ($quiet.code -eq 0 -and @($quietEvents|Where-Object {$_.event -eq 'stalled'}).Count -eq 1 -and @($quiet.data.tasks)[0].state -eq 'finished') ('a silent agent raises one stall notice and is not killed: '+$quiet.err)
     # #612: the queue is fixed when the run starts; a follow-up an agent creates mid-run (ready, autonomous, P0) waits for a later run.
     $t2=Read-SBJson $trackerPath2 $null
-    foreach($fid in @('F-1','F-2','P-1','A-1','A-2')){
+    foreach($fid in @('F-1','F-2','P-1','A-1','A-2','C-1')){
         $seqF=[int]$t2.extensions.lastSeq+1
         $newTask=New-SBTrackerTask @{id=$fid;title=('Task '+$fid);status='todo'} $identity2 'fixture' 'history/seed/report.md' (Get-SBTextHash 'Synthetic provenance') 'fixture'
         $newTask.seq=$seqF;$newTask.title='#'+$seqF.ToString('000')+' — Task '+$fid;$newTask.priority='P2';$newTask.execution='autonomous';$newTask.extensions=@{stream='evoluzione-team'}
@@ -649,6 +652,48 @@ $r|ConvertTo-Json -Compress
     $qs=$uStatus.quota
     Assert-Runner ($qs -and @(@('provider','state','source','observedAt','reason')|Where-Object {!$qs.Contains($_)}).Count -eq 0 -and ($qs.state -ne 'unknown' -or $qs.reason)) ('status.json quota carries the five fields: '+($qs|ConvertTo-Json -Compress -Depth 4))
     Assert-Runner (@($uStatus.results)[0].process -eq 'succeeded' -and @($uStatus.results)[0].acceptance -eq 'unverified' -and @($uStatus.results)[0].statusAfter -eq 'in_progress') 'status.json results carry process, task status and acceptance separately'
+    Assert-Runner ($uStatus.counts.succeeded -eq 1 -and $uStatus.counts.accepted -eq 0 -and $uStatus.counts.failed -eq 0) ('a reopened task counts as succeeded but not accepted (#641): '+($uStatus.counts|ConvertTo-Json -Compress))
+    # #606: closure order is state, pending writes, outcomes, cleanup; #605: the registered prompt copy is removed with the empty tmp folder.
+    $uFinal=$uStatus.finalization;$uClean=$uStatus.cleanup;$uRun=Split-Path ([string]$unverified.data.status)
+    Assert-Runner ($uFinal -and (@($uFinal.steps) -join ',') -ceq 'state,pending-writes,outcomes,cleanup' -and $uFinal.pendingWrites -eq 'done' -and $uFinal.outcomes.recorded -eq 1 -and $uStatus.phase -eq 'closed') ('closure runs state, pending writes, outcomes, then cleanup: '+($uFinal|ConvertTo-Json -Compress -Depth 4))
+    Assert-Runner ($uClean.state -eq 'done' -and @($uClean.removed).Count -eq 1 -and [string]@($uClean.removed)[0] -match '^tmp/prompt-\d+-\d+\.txt$' -and $uClean.tmpRemoved -and !(Test-Path -LiteralPath (Join-Path $uRun 'tmp')) -and $unverified.data.cleanup.state -eq 'done') ('closure removes only the registered prompt copy: '+($uClean|ConvertTo-Json -Compress -Depth 4))
+    Assert-Runner (@('status.json','events.jsonl','temp-manifest.json','MANIFEST.json'|Where-Object {!(Test-Path -LiteralPath (Join-Path $uRun $_))}).Count -eq 0) 'closure keeps status, events and manifests of the run'
+    # A cleanup failure is reported apart: the task outcome, the counts and the exit code stay as they were.
+    $savedCleanRoot=$env:SECONDBRAIN_TEST_ROOT
+    try{
+        if(!$env:SECONDBRAIN_TEST_ROOT){$env:SECONDBRAIN_TEST_ROOT=$fixture}
+        $env:SB_RUNNER_TEST_CLEANUP_FAIL='1'
+        $cleanFail=Invoke-Runner2 @('-Run','-AgentPath',$fake,'-AgentArguments','doneunverified','-TaskIds','C-1')
+    }finally{Remove-Item Env:SB_RUNNER_TEST_CLEANUP_FAIL -ErrorAction SilentlyContinue;$env:SECONDBRAIN_TEST_ROOT=$savedCleanRoot}
+    $cfStatus=Read-SBJson ([string]$cleanFail.data.status) $null;$cfRecord=@($cleanFail.data.tasks)[0]
+    Assert-Runner ($cleanFail.code -eq 0 -and $cfRecord.id -eq 'C-1' -and $cfRecord.process -eq 'succeeded' -and $cfStatus.counts.succeeded -eq 1 -and @($cfStatus.results).Count -eq 1 -and $cfStatus.state -eq 'finished') ('a failed cleanup leaves the task outcome and the exit code intact: '+$cleanFail.text)
+    Assert-Runner ($cfStatus.cleanup.state -eq 'failed' -and $cfStatus.cleanup.error -and (@($cfStatus.finalization.steps) -join ',') -ceq 'state,pending-writes,outcomes,cleanup' -and @(Get-ChildItem -LiteralPath (Join-Path (Split-Path ([string]$cleanFail.data.status)) 'tmp') -File).Count -eq 1) ('the cleanup failure is recorded separately and its files stay: '+($cfStatus.cleanup|ConvertTo-Json -Compress -Depth 4))
+    # #605 unit cases: only registered, unchanged, unlocked, unreferenced, regenerable files of the run inside tmp/ go.
+    $cr=Join-Path $fixture 'cleanup-run';[void][IO.Directory]::CreateDirectory($cr)
+    $ct=New-SBRunTempManifest $cr 'run-a'
+    $mk={param([string]$Name,[string]$Text) $p=Join-Path $ct $Name;[IO.File]::WriteAllText($p,$Text);$p}
+    $pOk=& $mk 'ok.txt' 'a';$pMod=& $mk 'mod.txt' 'b';$pLock=& $mk 'lock.txt' 'c';$pForeign=& $mk 'foreign.txt' 'd';$pRef=& $mk 'ref.txt' 'e';$pKeep=& $mk 'keep.txt' 'f';$pEv=& $mk 'evidence-1.txt' 'g'
+    foreach($p in @($pOk,$pMod,$pLock,$pForeign,$pRef,$pEv)){[void](Register-SBRunTemp $cr $p -Regenerable)}
+    [void](Register-SBRunTemp $cr $pKeep)
+    & $mk 'unregistered.txt' 'h'|Out-Null
+    Assert-Runner ($null -eq (Register-SBRunTemp $cr (Join-Path $cr 'resume.json') -Regenerable)) 'a file outside tmp/ is never registered'
+    $other=Join-Path $fixture 'cleanup-other';[void][IO.Directory]::CreateDirectory($other);[IO.File]::WriteAllText((Join-Path $other 'j.txt'),'j')
+    New-Item -ItemType Junction -Path (Join-Path $ct 'jn') -Target $other|Out-Null
+    Assert-Runner ($null -eq (Register-SBRunTemp $cr (Join-Path $ct 'jn/j.txt') -Regenerable)) 'a file behind a junction is never registered'
+    [IO.File]::AppendAllText($pMod,'changed')
+    [IO.File]::WriteAllText((Join-Path $cr 'resume.json'),(ConvertTo-SBJson @{note='see tmp/ref.txt'}))
+    $cm=Read-SBJson (Get-SBRunTempManifestPath $cr) $null
+    foreach($e in @($cm.entries)){if($e.path -eq 'tmp/foreign.txt'){$e.runId='run-b'}}
+    $cm.entries=@($cm.entries)+@([ordered]@{path='tmp/jn/j.txt';runId='run-a';length=1;sha256=(Get-SBFileHash (Join-Path $other 'j.txt'));regenerable=$true},[ordered]@{path='resume.json';runId='run-a';length=1;sha256='x';regenerable=$true})
+    [IO.File]::WriteAllText((Get-SBRunTempManifestPath $cr),(ConvertTo-SBJson $cm))
+    $held=[IO.File]::Open($pLock,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
+    try{$cc=Invoke-SBRunTempCleanup $cr 'run-a'}finally{$held.Dispose()}
+    $why=@{};foreach($x in @($cc.preserved)){$why[[string]$x.path]=[string]$x.reason}
+    Assert-Runner ((@($cc.removed) -join ',') -ceq 'tmp/ok.txt' -and !(Test-Path -LiteralPath $pOk)) ('only the eligible file is removed: '+($cc|ConvertTo-Json -Compress -Depth 4))
+    Assert-Runner ($why['tmp/mod.txt'] -eq 'modified' -and $why['tmp/lock.txt'] -eq 'locked' -and $why['tmp/foreign.txt'] -eq 'foreign' -and $why['tmp/ref.txt'] -eq 'referenced' -and $why['tmp/keep.txt'] -eq 'not-regenerable' -and $why['tmp/evidence-1.txt'] -eq 'protected' -and $why['tmp/jn/j.txt'] -eq 'junction' -and $why['resume.json'] -eq 'outside-boundary') ('each preserved case keeps its reason: '+($why|ConvertTo-Json -Compress))
+    Assert-Runner (@($pMod,$pLock,$pForeign,$pRef,$pKeep,$pEv,(Join-Path $ct 'unregistered.txt'),(Join-Path $other 'j.txt'),(Join-Path $cr 'resume.json')|Where-Object {!(Test-Path -LiteralPath $_)}).Count -eq 0 -and !$cc.tmpRemoved -and $cc.state -eq 'done') 'preserved, unregistered, junction-target and resume files stay with the tmp folder'
+    Assert-Runner ((Invoke-SBRunTempCleanup (Join-Path $fixture 'no-run') 'run-a').state -eq 'none') 'a run without a manifest has nothing to clean'
+    [IO.Directory]::Delete((Join-Path $ct 'jn'))
     $failedAttempt=Invoke-Runner2 @('-Run','-AgentPath',$fake,'-AgentArguments','fail','-TaskIds','A-2')
     $fRecord=@($failedAttempt.data.tasks)[0]
     Assert-Runner ($fRecord.process -eq 'failed' -and $fRecord.acceptance -eq 'open' -and !$fRecord.reopened) ('a failed process leaves the acceptance open: '+($fRecord|ConvertTo-Json -Compress))

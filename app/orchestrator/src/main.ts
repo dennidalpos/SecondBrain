@@ -36,7 +36,7 @@ interface RunStatusFile {
   state: string; phase: string; pid: number; startedAt: string; updatedAt: string; finishedAt: string | null;
   lastAgentEventAt: string | null; lastAgentEvent: { kind: string; summary: string; time: string } | null;
   task: { id: string; seq: number; title: string; position: number; total: number; startedAt: string; folder: string } | null;
-  counts: { total: number; done: number; succeeded: number; failed: number }; stopReason: string | null; stallMinutes: number; folder: string; quota?: QuotaReading | null;
+  counts: { total: number; done: number; succeeded: number; accepted?: number; failed: number }; stopReason: string | null; stallMinutes: number; folder: string; quota?: QuotaReading | null;
   quotaWait?: { resumeAt: string; source: string; since: string; attempt: number; deadline: string; taskId: string } | null;
 }
 /** The newest resume point a quota stop left and no run used yet (runner-status.ps1, #554): run-ready-tasks.ps1 -Resume <runId> continues it. */
@@ -671,7 +671,7 @@ function renderStatus(rep: RunReport) {
   if (!s) return;
   state.run.startedAt = s.startedAt;
   $("run-folder").textContent = rep.folder ?? s.folder ?? "—";
-  $("run-counts").textContent = `${s.counts.done} di ${s.counts.total} task (${s.counts.succeeded} riusciti, ${s.counts.failed} non riusciti)` + (s.stopReason ? ` · arresto: ${s.stopReason}${!rep.active && s.finishedAt ? " (run chiuso il " + new Date(s.finishedAt).toLocaleString() + ")" : ""}` : "") + (s.quota ? ` · ${quotaLabel(s.quota)}` : "");
+  $("run-counts").textContent = `${s.counts.done} di ${s.counts.total} task (${s.counts.succeeded} riusciti, ${s.counts.failed} non riusciti)` + (s.counts.accepted !== undefined ? ` · ${s.counts.accepted} accepted` : "") + (s.stopReason ? ` · arresto: ${s.stopReason}${!rep.active && s.finishedAt ? " (run chiuso il " + new Date(s.finishedAt).toLocaleString() + ")" : ""}` : "") + (s.quota ? ` · ${quotaLabel(s.quota)}` : "");
   $("run-task").textContent = s.task ? `[${s.task.position}/${s.task.total}] #${s.task.seq} ${s.task.id} — ${s.task.title}` : s.quotaWait && rep.active ? `In attesa del ripristino dei limiti, poi riprende da ${s.quotaWait.taskId}` : rep.active ? `Fase: ${s.phase}` : "Nessun task in corso";
   renderClock();
 }

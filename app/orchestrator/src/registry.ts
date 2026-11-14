@@ -14,7 +14,7 @@ interface RegistryTask {
 interface RegistryPage { total: number; offset: number; limit: number; nextOffset: number | null; tools: Record<string, number>; tasks: RegistryTask[] }
 interface RunSummary {
   runId: string; state: string; verdict: string; provider: string; model: string | null; effort: string | null; startedAt: string; finishedAt: string | null;
-  counts: { total: number; done: number; succeeded: number; failed: number } | null; stopReason: string | null; folder: string; results: { id: string; seq: number; state: string }[];
+  counts: { total: number; done: number; succeeded: number; accepted?: number; failed: number } | null; stopReason: string | null; folder: string; results: { id: string; seq: number; state: string }[];
 }
 
 const STATUS_LABEL: Record<string, string> = { todo: "da fare", in_progress: "in corso", blocked: "bloccato", done: "fatto", cancelled: "annullato", unknown: "sconosciuto" };
@@ -128,7 +128,7 @@ export async function refreshRuns() {
   $("reg-runs-empty").hidden = r.runs.length > 0;
   $("reg-run-rows").replaceChildren(...r.runs.map((x) => {
     const tr = el("tr");
-    const counts = x.counts ? `${x.counts.done}/${x.counts.total} (${x.counts.succeeded} ok, ${x.counts.failed} ko)` : "—";
+    const counts = x.counts ? `${x.counts.done}/${x.counts.total} (${x.counts.succeeded} ok, ${x.counts.failed} ko)` + (x.counts.accepted !== undefined ? ` · ${x.counts.accepted} accepted` : "") : "—";
     const tasks = x.results.map((t) => `#${t.seq} ${t.state}`).join(", ") || "—";
     [fmtDate(x.startedAt), finishCell(x), toolBadge(x.provider || "unknown"), [x.model, x.effort].filter(Boolean).join(" · ") || "predefiniti della CLI",
       counts, x.stopReason ?? "—", tasks, el("span", { className: "mono small" }, x.folder)].forEach((c) => tr.append(el("td", {}, c)));

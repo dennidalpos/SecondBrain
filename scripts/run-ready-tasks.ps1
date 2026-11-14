@@ -37,7 +37,10 @@ is refused while the first is alive. The stop file (default stop.flag in the run
 (-AllowCustomModel accepts a model the probe does not list). -AgentPath and -AgentArguments stay as an advanced override.
 Each task record keeps the process outcome (process: succeeded or failed) apart from the task acceptance (acceptance: verified when the
 agent closed the task as done with passed evidence recorded during the attempt, unverified when it closed it without, open otherwise);
-an unverified closure is reopened as in_progress with the reason (event reopened, #613).
+an unverified closure is reopened as in_progress with the reason (event reopened, #613). status.json counts carry accepted (tasks with
+verified acceptance) next to succeeded and failed (process outcomes, #641).
+Closure (#605/#606): run state, pending writes, outcomes, then cleanup of the files registered in the run's temp-manifest.json (tmp/);
+status.json finalization and cleanup record the order and the result, and a cleanup failure never changes outcomes or the exit code.
 -TaskIds runs only the named ready tasks, in the given order, after the same selection rules. -Events writes progress as one JSON
 object per line on standard error (for the desktop orchestrator). -StopFile <path> ends the run before the next task when the file exists.
 #>
@@ -154,11 +157,34 @@ function Initialize-RunnerInvocation{
 }
 function Close-RunnerState([string]$State){
     # Final status of the run and closure of its work folder (the retention clock starts).
+    # #606: the order is run state, pending writes, task outcomes, then cleanup (finalization.steps records it). Logs, evidence, resume
+    # points and backups stay; a cleanup failure is recorded in status.json (cleanup) apart from the task outcomes and the exit code.
     if(!$script:runStatus){return}
     # The power request ends with the run (normal end, stop, failure); a killed runner loses it with its process.
     $power=$script:runStatus.powerRequest
     if($power -and $power.acquired -and !$power.released){$power.released=(Exit-SBRunnerPowerRequest);$power.releasedAt=(Get-SBNow).ToString('o')}
-    $script:runStatus.state=$State;$script:runStatus.phase='closed';$script:runStatus.finishedAt=(Get-SBNow).ToString('o')
+    $final=[ordered]@{steps=@();pendingWrites=$null;outcomes=$null}
+    $script:runStatus.finalization=$final
+    $script:runStatus.state=$State;$script:runStatus.phase='finalizing';$script:runStatus.finishedAt=(Get-SBNow).ToString('o')
+    Save-RunnerState -Force;$final.steps+='state'
+    # Pending writes: tracker updates of this run deferred behind another writer are applied before the outcomes are final.
+    $results=@($script:runStatus.results)
+    if($results.Count){
+        $final.pendingWrites='done'
+        $checkouts=@(@($plans|ForEach-Object {$_.target.path})|Where-Object {$_}|Select-Object -Unique)
+        foreach($c in $checkouts){
+            try{if((Invoke-RunnerChild (@($knowledge,'-FlushPending','-CheckoutPath',$c)+$configArgs)) -ne 0){$final.pendingWrites='failed'}}catch{$final.pendingWrites='failed'}
+        }
+    }else{$final.pendingWrites='skipped'}
+    $final.steps+='pending-writes'
+    $final.outcomes=[ordered]@{recorded=$results.Count;accepted=$script:runStatus.counts.accepted}
+    Save-RunnerState -Force;$final.steps+='outcomes'
+    # Cleanup last: only the registered temporary files of this run (#605); it never changes the recorded outcomes.
+    $simulateCleanupFailure=[bool]($env:SECONDBRAIN_TEST_ROOT -and $env:SB_RUNNER_TEST_CLEANUP_FAIL)
+    $reports=@($results|ForEach-Object {if($_.folder){Join-Path ([string]$_.folder) 'report.json'}})
+    $cleanup=try{Invoke-SBRunTempCleanup $script:runStatus.folder $script:runStatus.runId $reports -SimulateFailure:$simulateCleanupFailure}catch{[ordered]@{state='failed';removed=@();preserved=@();failed=@();error=$_.Exception.Message}}
+    $script:runStatus.cleanup=$cleanup;$script:lastCleanup=$cleanup;$final.steps+='cleanup'
+    $script:runStatus.phase='closed'
     Save-RunnerState -Force
     try{& pwsh -NoProfile -File (Join-Path $PSScriptRoot 'work.ps1') -Repository $script:runStatus.repository -Category report -Slug $script:runSlug -Close @configArgs|Out-Null}catch{[void]$_}
     $script:runStatus=$null
@@ -327,10 +353,14 @@ $script:runStatus=[ordered]@{
     repository=$runIdentity;checkout=$targets[0].path;provider=$Provider;model=$Model;effort=$Effort
     startedAt=(Get-SBNow).ToString('o');updatedAt=$null;finishedAt=$null;lastRunnerEventAt=$null;lastAgentEventAt=$null;lastAgentEvent=$null
     timeoutMinutes=$TimeoutMinutes;stallMinutes=$StallMinutes;stopFile=$StopFile;folder=$runFolder
-    task=$null;counts=[ordered]@{total=$totalSelected;done=0;succeeded=0;failed=0};stopReason=$null;results=@()
+    task=$null;counts=[ordered]@{total=$totalSelected;done=0;succeeded=0;accepted=0;failed=0};stopReason=$null;results=@()
     resolvedModel=$null;resolvedEffort=$null;quota=$null;quotaObserved=$null;resumedFrom=$(if($script:resumeFrom){$script:resumeFrom.path}else{$null})
     powerRequest=$null;waitForReset=[bool]$WaitForReset;maxWaitHours=$(if($WaitForReset){$MaxWaitHours}else{$null});quotaWait=$null
+    finalization=$null;cleanup=$null
 }
+# #605: temporary outputs of the run go to <run folder>/tmp and are registered as they are created; closure removes only those.
+$script:lastCleanup=$null
+$script:runTemp=try{New-SBRunTempManifest $runFolder $script:runStatus.runId}catch{$null}
 function Read-RunnerQuota{
     # Quota read now (never reused from an earlier read): Codex session files, else the newest observation an agent reported on this workstation.
     $observation=Get-SBRunnerQuotaObservation $config.brainRoot $config.workstationId $Provider
@@ -455,6 +485,10 @@ foreach($plan in $plans){
         if($interrupted){
             $prompt+="`nRipresa: una sessione precedente su questo task si e fermata per limite di quota. Prima di tutto leggi $($interrupted.folder) (agent-output.jsonl, report.json) e lo stato Git del checkout, conserva il lavoro gia fatto e prosegui dal punto interrotto senza ripeterlo."
         }
+        # The prompt as sent, kept for the run only (regenerable from the tracker): registered so closure removes it (#605).
+        if($script:runTemp){
+            try{$promptFile=Join-Path $script:runTemp ("prompt-$($task.seq)-"+(Get-SBNow).LocalDateTime.ToString('HHmmssfff')+'.txt');[IO.File]::WriteAllText($promptFile,$prompt,$utf8);[void](Register-SBRunTemp $runFolder $promptFile -Regenerable -Purpose 'prompt')}catch{[void]$_}
+        }
         # One process through the shared loop: every agent line is kept at once, summarized as a progress line and counted as activity.
         $agentRun=Invoke-SBAgentProcess -Executable $resolved -Arguments $AgentArguments -Prompt $prompt -WorkingDirectory $checkout -Environment $agentEnv `
             -TimeoutSeconds $timeoutSeconds -StallMinutes $StallMinutes -OutputLog (Join-Path $root 'agent-output.jsonl') `
@@ -530,7 +564,7 @@ foreach($plan in $plans){
         $ok=($record.state -eq 'finished' -and $record.exitCode -eq 0)
         # -WaitForReset (#564): an attempt interrupted by the plan limit is not counted while the run waits; it counts only if the run does not resume it.
         $countLater=($stopReason -eq 'quota' -and $WaitForReset)
-        if(!$countLater){$script:runStatus.counts.done++;if($ok){$script:runStatus.counts.succeeded++}else{$script:runStatus.counts.failed++}}
+        if(!$countLater){$script:runStatus.counts.done++;if($ok){$script:runStatus.counts.succeeded++}else{$script:runStatus.counts.failed++};if($record.acceptance -eq 'verified'){$script:runStatus.counts.accepted++}}
         $script:runStatus.results=@($script:runStatus.results)+@([ordered]@{id=[string]$record.id;seq=$record.seq;state=$record.state;process=$record.process;statusAfter=$record.statusAfter;acceptance=$record.acceptance;folder=$root})
         $script:runStatus.task=$null
         Show-RunnerLine 'runner.progress.done' @($position,$totalSelected,$task.seq,$record.state,$code,$record.statusBefore,$record.statusAfter,$record.seconds) @{record=$record}
@@ -543,7 +577,7 @@ foreach($plan in $plans){
                 Set-RunnerResumeConsumed (Join-Path $runFolder 'resume.json')
                 continue
             }
-            $script:runStatus.counts.done++;if($ok){$script:runStatus.counts.succeeded++}else{$script:runStatus.counts.failed++}
+            $script:runStatus.counts.done++;if($ok){$script:runStatus.counts.succeeded++}else{$script:runStatus.counts.failed++};if($record.acceptance -eq 'verified'){$script:runStatus.counts.accepted++}
             if($wait -eq 'requested'){$stopReason='requested'}
         }
         if($stopReason){break}
@@ -557,5 +591,5 @@ if($stopReason){Show-RunnerLine 'runner.progress.stop' @($stopReason) @{reason=$
 Show-RunnerLine 'runner.progress.summary' @($results.Count,($results.Count-$failed),$failed,@($skipped|Where-Object {!$_.Contains('id')}).Count)
 $runState=if($stopReason -eq 'requested'){'stopped'}else{'finished'}
 }finally{Close-RunnerState $runState}
-ConvertTo-SBJson @{run=$true;provider=$Provider;model=$Model;effort=$Effort;stopReason=$stopReason;status=$script:runStatusPath;tasks=$results;skipped=$skipped}
+ConvertTo-SBJson @{run=$true;provider=$Provider;model=$Model;effort=$Effort;stopReason=$stopReason;status=$script:runStatusPath;tasks=$results;skipped=$skipped;cleanup=$script:lastCleanup}
 exit $(if($failed -gt 0){1}else{0})

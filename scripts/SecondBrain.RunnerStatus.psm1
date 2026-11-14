@@ -305,4 +305,98 @@ function Exit-SBRunnerPowerRequest {
     try{[void][SecondBrain.RunnerPower]::CloseHandle($handle)}catch{[void]$_}
     $true
 }
-Export-ModuleMember -Function @('Enter-SBRunnerPowerRequest','Exit-SBRunnerPowerRequest','Get-SBRunnerRunList','Get-SBRunnerHeartbeatSeconds','Get-SBRunnerRunSlug','Get-SBRunnerReportRoot','Get-SBRunnerStatusFiles','Save-SBRunnerStatus','Add-SBRunnerEventLine','Get-SBProcessStartTicks','Test-SBRunnerProcessAlive','Get-SBRunnerVerdict','Read-SBRunnerStatusFile','Get-SBRunnerStatus','Find-SBActiveRunner','Get-SBRunnerQuotaObservation','Get-SBRunnerResumePoint','Get-SBRunnerResumeSummary','Limit-SBRunnerText','ConvertTo-SBAgentEvent','Get-SBAgentFinalOutput')
+# #605: temporary outputs of a run. The runner registers each file it creates under <run folder>/tmp in temp-manifest.json (owner run,
+# size, hash, regenerable); at closure only registered files that are still inside tmp/, owned by the run, unchanged, regenerable, not
+# referenced, not locked and not behind a junction are removed. Everything else stays and is listed with its reason. The run's status,
+# events, resume points, reports, agent output and evidence are never candidates.
+$script:SBRunTempProtected=@('status.json','events.jsonl','resume.json','report.json','MANIFEST.json','temp-manifest.json','agent-output.json','agent-output.jsonl','agent-error.txt','stop.flag')
+function Get-SBRunTempManifestPath([string]$RunFolder) { Join-Path $RunFolder 'temp-manifest.json' }
+function Test-SBRunTempInside([string]$Path,[string]$Root) {
+    $full=[IO.Path]::GetFullPath($Path);$prefix=[IO.Path]::GetFullPath($Root).TrimEnd('\','/')+[IO.Path]::DirectorySeparatorChar
+    $full.StartsWith($prefix,[StringComparison]::OrdinalIgnoreCase)
+}
+function Test-SBRunTempReparse([string]$Path,[string]$Root) {
+    # True when the path or any folder from it up to the root (included) is a reparse point (junction or symbolic link).
+    $top=[IO.Path]::GetFullPath($Root).TrimEnd('\','/');$current=[IO.Path]::GetFullPath($Path).TrimEnd('\','/')
+    while($current -and $current.Length -ge $top.Length){
+        if([IO.File]::Exists($current) -or [IO.Directory]::Exists($current)){
+            if([IO.File]::GetAttributes($current) -band [IO.FileAttributes]::ReparsePoint){return $true}
+        }
+        if($current -ieq $top){break}
+        $current=[IO.Path]::GetDirectoryName($current)
+    }
+    $false
+}
+function Save-SBRunTempManifest([string]$RunFolder,$Manifest) {
+    $path=Get-SBRunTempManifestPath $RunFolder
+    $temp=$path+'.'+(New-SBId)+'.tmp'
+    [IO.File]::WriteAllText($temp,(ConvertTo-SBJson $Manifest),[Text.UTF8Encoding]::new($false))
+    [IO.File]::Move($temp,$path,$true)
+}
+function New-SBRunTempManifest([string]$RunFolder,[string]$RunId) {
+    # Creates <run folder>/tmp and an empty manifest owned by the run; returns the tmp folder.
+    $tmp=Join-Path $RunFolder 'tmp'
+    [void][IO.Directory]::CreateDirectory($tmp)
+    Save-SBRunTempManifest $RunFolder ([ordered]@{schemaVersion=1;runId=$RunId;root='tmp';createdAt=(Get-SBNow).ToString('o');entries=@();cleanup=$null})
+    $tmp
+}
+function Register-SBRunTemp([string]$RunFolder,[string]$Path,[switch]$Regenerable,[string]$Purpose='') {
+    # Records one file the run has just created under tmp/. Returns the entry, or $null when the file is outside tmp/, missing or behind
+    # a junction (it is then never a cleanup candidate). Registering the same path again refreshes its hash.
+    $manifest=Read-SBJson (Get-SBRunTempManifestPath $RunFolder) $null
+    if($manifest -isnot [Collections.IDictionary] -or $manifest.schemaVersion -ne 1){return $null}
+    $tmp=Join-Path $RunFolder 'tmp';$full=[IO.Path]::GetFullPath($Path)
+    if(!(Test-SBRunTempInside $full $tmp) -or ![IO.File]::Exists($full) -or (Test-SBRunTempReparse $full $RunFolder)){return $null}
+    $relative=[IO.Path]::GetRelativePath([IO.Path]::GetFullPath($RunFolder),$full).Replace('\','/')
+    $entry=[ordered]@{path=$relative;runId=[string]$manifest.runId;length=([IO.FileInfo]::new($full)).Length;sha256=(Get-SBFileHash $full);regenerable=[bool]$Regenerable;purpose=$Purpose;registeredAt=(Get-SBNow).ToString('o')}
+    $manifest.entries=@(@($manifest.entries)|Where-Object {$_ -and [string]$_.path -cne $relative})+@($entry)
+    Save-SBRunTempManifest $RunFolder $manifest
+    $entry
+}
+function Invoke-SBRunTempCleanup([string]$RunFolder,[string]$RunId,[string[]]$ReferenceFiles=@(),[switch]$SimulateFailure) {
+    # Bounded cleanup at closure. state: none (no manifest), done, partial (some removals failed) or failed (the cleanup itself could
+    # not run). Never throws: the caller records the result apart from the task outcomes. The manifest keeps the result.
+    $result=[ordered]@{state='done';removed=@();preserved=@();failed=@();tmpRemoved=$false;error=$null;finishedAt=$null}
+    try{
+        $manifestPath=Get-SBRunTempManifestPath $RunFolder
+        if(![IO.File]::Exists($manifestPath)){$result.state='none';$result.finishedAt=(Get-SBNow).ToString('o');return $result}
+        if($SimulateFailure){$result.state='failed';$result.error='simulated cleanup failure';$result.finishedAt=(Get-SBNow).ToString('o');return $result}
+        $manifest=Read-SBJson $manifestPath $null
+        if($manifest -isnot [Collections.IDictionary] -or $manifest.schemaVersion -ne 1){$result.state='failed';$result.error='manifest-invalid';$result.finishedAt=(Get-SBNow).ToString('o');return $result}
+        $tmp=Join-Path $RunFolder 'tmp'
+        # References: the run's resume points and the given reports; a registered file they name is kept.
+        $references=[Text.StringBuilder]::new()
+        $sources=@([IO.Directory]::EnumerateFiles($RunFolder,'resume.json',[IO.SearchOption]::TopDirectoryOnly))+@($ReferenceFiles|Where-Object {$_})
+        foreach($source in $sources){if([IO.File]::Exists($source)){try{[void]$references.AppendLine((Read-SBText $source).Replace('\\','/').Replace('\','/'))}catch{[void]$_}}}
+        $referenceText=$references.ToString()
+        foreach($entry in @($manifest.entries)){
+            if(!$entry){continue}
+            $relative=[string]$entry.path;$reason=$null;$full=$null
+            if($relative){$full=[IO.Path]::GetFullPath((Join-Path $RunFolder $relative))}
+            $leaf=if($full){Split-Path $full -Leaf}else{''}
+            if(!$full -or !(Test-SBRunTempInside $full $tmp)){$reason='outside-boundary'}
+            elseif($leaf -in $script:SBRunTempProtected -or $leaf -match 'evidence'){$reason='protected'}
+            elseif([string]$entry.runId -cne $RunId -or [string]$manifest.runId -cne $RunId){$reason='foreign'}
+            elseif(![IO.File]::Exists($full)){$reason='missing'}
+            elseif(Test-SBRunTempReparse $full $RunFolder){$reason='junction'}
+            elseif(!$entry.regenerable){$reason='not-regenerable'}
+            elseif(([IO.FileInfo]::new($full)).Length -ne [long]$entry.length -or (Get-SBFileHash $full) -ne [string]$entry.sha256){$reason='modified'}
+            elseif($referenceText.Contains($relative) -or $referenceText.Contains($full.Replace('\','/'))){$reason='referenced'}
+            else{try{$stream=[IO.File]::Open($full,[IO.FileMode]::Open,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None);$stream.Dispose()}catch{$reason='locked'}}
+            if($reason){$result.preserved+=,([ordered]@{path=$relative;reason=$reason});continue}
+            try{[IO.File]::Delete($full);$result.removed+=,$relative}
+            catch [IO.IOException]{$result.preserved+=,([ordered]@{path=$relative;reason='locked'})}
+            catch{$result.failed+=,([ordered]@{path=$relative;error=$_.Exception.Message})}
+        }
+        # The tmp folder the run created goes only when nothing is left in it (unregistered files keep it).
+        if([IO.Directory]::Exists($tmp) -and !(Test-SBRunTempReparse $tmp $RunFolder) -and !@([IO.Directory]::EnumerateFileSystemEntries($tmp)).Count){
+            try{[IO.Directory]::Delete($tmp);$result.tmpRemoved=$true}catch{[void]$_}
+        }
+        if($result.failed.Count){$result.state='partial'}
+        $result.finishedAt=(Get-SBNow).ToString('o')
+        $manifest.cleanup=$result
+        try{Save-SBRunTempManifest $RunFolder $manifest}catch{[void]$_}
+    }catch{$result.state='failed';$result.error=$_.Exception.Message;$result.finishedAt=(Get-SBNow).ToString('o')}
+    $result
+}
+Export-ModuleMember -Function @('New-SBRunTempManifest','Register-SBRunTemp','Invoke-SBRunTempCleanup','Get-SBRunTempManifestPath','Enter-SBRunnerPowerRequest','Exit-SBRunnerPowerRequest','Get-SBRunnerRunList','Get-SBRunnerHeartbeatSeconds','Get-SBRunnerRunSlug','Get-SBRunnerReportRoot','Get-SBRunnerStatusFiles','Save-SBRunnerStatus','Add-SBRunnerEventLine','Get-SBProcessStartTicks','Test-SBRunnerProcessAlive','Get-SBRunnerVerdict','Read-SBRunnerStatusFile','Get-SBRunnerStatus','Find-SBActiveRunner','Get-SBRunnerQuotaObservation','Get-SBRunnerResumePoint','Get-SBRunnerResumeSummary','Limit-SBRunnerText','ConvertTo-SBAgentEvent','Get-SBAgentFinalOutput')
