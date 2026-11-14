@@ -187,6 +187,13 @@ try {
     $orphanBytes=Get-SBFileHash $orphanNew.path
     $orphanDiscard=Invoke-PendingCli 'knowledge.ps1' @('-DiscardPending',$orphanNew.id)
     Assert-Pending ($orphanDiscard.code -eq 0 -and $orphanDiscard.data.previousState -eq 'invalid' -and (Get-SBFileHash (Join-Path $orphanDiscard.data.archive ($orphanNew.id+'.json'))) -eq $orphanBytes -and !@(Get-SBPendingWrites $brain|Where-Object id -eq $orphanNew.id).Count -and (Test-Path -LiteralPath $conflict.path)) '#563: -DiscardPending retires the invalid task.new with its original bytes and leaves other entries in the queue'
+    # A follow-up whose source task does not exist (for example a #seq given where an ID is needed) is terminal too and can be discarded.
+    $orphanFollow=New-SBPendingWrite -BrainRoot $brain -Repository $identity -Operation task.new -Arguments @{Title='Orphan follow-up';Id='';Description='';Priority='P3';Execution='autonomous';DependsOn=@();Acceptance=@('never applied');ProvenanceReference='context.md';ProvenancePointer='test';FollowUpOf='#9999'} -Config $cfg
+    $followResult=Complete-SBPendingSubmission $orphanFollow $cfg
+    $followEntry=@(Get-SBPendingWrites $brain|Where-Object id -eq $orphanFollow.id)
+    Assert-Pending (!$followResult.applied -and $followResult.state -eq 'invalid' -and $followEntry.Count -eq 1 -and $followEntry[0].state -eq 'invalid') 'a task.new with an unknown follow-up source gets an invalid receipt'
+    $followDiscard=Invoke-PendingCli 'knowledge.ps1' @('-DiscardPending',$orphanFollow.id)
+    Assert-Pending ($followDiscard.code -eq 0 -and $followDiscard.data.previousState -eq 'invalid' -and !@(Get-SBPendingWrites $brain|Where-Object id -eq $orphanFollow.id).Count) 'the invalid follow-up request is discarded'
 
     # #588: user decision records (decisions.json) through decisions.ps1, the queue, the tracker link and MCP get_decisions.
     Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Decisions.psm1')

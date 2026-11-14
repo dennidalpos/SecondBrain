@@ -69,7 +69,7 @@ function Test-SBPendingCandidateValidationError($Failure) {
     foreach($code in @('tracker.dependency.missing','tracker.dependency.cycle','tracker.dependency.unmanaged',
                        'tracker.schema.invalid','tracker.related.schema','tracker.related.missing',
                        'tracker.related.declaration','tracker.related.identity','tracker.date.invalid',
-                       'tracker.id.duplicate','tracker.identity.unmanaged')){
+                       'tracker.id.duplicate','tracker.identity.unmanaged','tracker.followup.missing')){
         if(Test-SBError $Failure $code){return $true}
     }
     $false
