@@ -47,6 +47,8 @@ Unresolved findings (#611): the prompt names findings.json in the attempt folder
 acceptance) is matched first (existing ID named by the agent, same normalized title of an open task, earlier follow-up of the same
 source), otherwise created as a follow-up with -FollowUpOf and a dossier report history/runner-findings-<attempt>/report.md as provenance.
 report.json findings counts matched, created, deferred, invalid and failed; invalid findings are never turned into tasks.
+Findings whose dossier report is still queued behind another writer are reported as deferred (provenance-deferred) and created after the
+closing -FlushPending; report.json then shows the final action of each (#646).
 -TaskIds runs only the named ready tasks, in the given order, after the same selection rules. -Events writes progress as one JSON
 object per line on standard error (for the desktop orchestrator). -StopFile <path> ends the run before the next task when the file exists.
 #>
@@ -183,6 +185,17 @@ function Close-RunnerState([string]$State){
         foreach($c in $checkouts){
             try{if((Invoke-RunnerChild (@($knowledge,'-FlushPending','-CheckoutPath',$c)+$configArgs)) -ne 0){$final.pendingWrites='failed'}}catch{$final.pendingWrites='failed'}
         }
+        # #646: findings deferred behind the writer are created now that the queue is flushed; report.json shows each final action.
+        foreach($d in @($script:deferredFindings)){
+            try{
+                $again=Invoke-RunnerFindings $d.task $d.root $d.checkout $d.plan
+                if($again.deferred -gt 0){try{[void](Invoke-RunnerChild (@($knowledge,'-FlushPending','-CheckoutPath',$d.checkout)+$configArgs))}catch{[void]$_}}
+                $rp=Join-Path $d.root 'report.json'
+                $rec=Read-SBJson $rp $null
+                if($rec){$rec.findings=$again;[IO.File]::WriteAllText($rp,(ConvertTo-SBJson $rec),[Text.UTF8Encoding]::new($false))}
+                foreach($r in @($script:runStatus.results|Where-Object {[string]$_.id -eq [string]$d.task.id})){$r.findings=$again}
+            }catch{$final.pendingWrites='failed'}
+        }
         # #643: an outcome that rested on a deferred update is read again from the tracker, so it reflects the write actually applied.
         $final.deferred=@()
         foreach($d in @($script:deferredUpdates)){
@@ -237,7 +250,7 @@ function Invoke-RunnerFindings($Task,[string]$Root,[string]$Checkout,$Plan){
     $out=[ordered]@{present=$read.present;error=$read.error;matched=0;created=0;deferred=0;invalid=0;failed=0;items=@()}
     if(!$read.present -or $read.error){return $out}
     $tasks=@();if($Plan.source){$tr=Read-SBJson $Plan.source $null;if($tr){$tasks=@($tr.tasks)}}
-    $sourceId=[string]$Task.id;$provenance=$null;$seen=@{}
+    $sourceId=[string]$Task.id;$provenance=$null;$seen=@{};$provenanceDeferred=$false
     foreach($f in @($read.findings)){
         $item=[ordered]@{index=$f.index;title=$f.title;action=$null;taskId=$null;rule=$null;reason=$f.reason}
         if(!$f.valid){$item.action='invalid';$out.invalid++;$out.items+=,$item;continue}
@@ -249,6 +262,10 @@ function Invoke-RunnerFindings($Task,[string]$Root,[string]$Checkout,$Plan){
             # cite it with its hash and a #finding-<n> pointer; a deferred save is applied before the follow-ups are created.
             $slug=('runner-findings-'+(Split-Path $Root -Leaf)) -replace '[^a-zA-Z0-9_-]','-'
             $rel="history/$slug/report.md"
+            # #646: a retry after the closing flush finds the report already applied; the text is deterministic per attempt, so it is reused.
+            if(Test-Path -LiteralPath (Join-Path (Split-Path $Plan.source) $rel) -PathType Leaf){$provenance=$rel}
+        }
+        if(!$provenance -and $Plan.source){
             $lines=@("# Runner findings: $sourceId (#$($Task.seq))",'',"Run $($script:runStatus.runId); attempt folder $(Split-Path $Root -Leaf). Unresolved problems reported by the agent; follow-ups cite the matching section.")
             foreach($v in @($read.findings|Where-Object valid)){$lines+=@('',"## Finding $($v.index)",'',"<a id=`"finding-$($v.index)`"></a>",'',"- Title: $($v.title)","- Reproduction: $($v.reproduction)","- Evidence: $($v.evidence)",'- Acceptance:')+@($v.acceptance|ForEach-Object {"  - $_"})}
             $reportFile=Join-Path $Root 'findings-report.md'
@@ -256,8 +273,15 @@ function Invoke-RunnerFindings($Task,[string]$Root,[string]$Checkout,$Plan){
             $saved=Invoke-RunnerTaskUpdate @('-SaveFile',$rel,'-ContentPath',$reportFile,'-ExpectedHash','absent','-CheckoutPath',$Checkout)
             if($saved -eq 'deferred'){try{[void](Invoke-RunnerChild (@($knowledge,'-FlushPending','-CheckoutPath',$Checkout)+$configArgs))}catch{[void]$_}}
             if(Test-Path -LiteralPath (Join-Path (Split-Path $Plan.source) $rel) -PathType Leaf){$provenance=$rel}
+            elseif($saved -eq 'deferred'){$provenanceDeferred=$true}
         }
-        if(!$provenance){$item.action='failed';$item.reason='provenance-not-saved';$out.failed++;$out.items+=,$item;continue}
+        if(!$provenance){
+            # #646: a report save still queued behind another writer cannot be cited yet: the finding is reported as deferred and created
+            # again after the closing flush (findings.json stays in the attempt folder), never lost.
+            if($provenanceDeferred){$item.action='deferred';$item.reason='provenance-deferred';$out.deferred++}
+            else{$item.action='failed';$item.reason='provenance-not-saved';$out.failed++}
+            $out.items+=,$item;continue
+        }
         $description="Follow-up of $sourceId (#$($Task.seq)), recorded by the runner (run $($script:runStatus.runId)).`nReproduction: $($f.reproduction)`nEvidence: $($f.evidence)"
         $criteria=@($f.acceptance|ForEach-Object {$_.Replace(';',',')})
         $created=Invoke-RunnerTaskUpdate @('-NewTask',$f.title,'-Description',$description,'-Acceptance',($criteria -join ';'),'-Provenance',$provenance,'-ProvenancePointer',('#finding-'+$f.index),'-FollowUpOf',$sourceId,'-CheckoutPath',$Checkout)
@@ -285,7 +309,7 @@ function Invoke-RunnerChild([string[]]$ScriptArgs){
     }finally{$p.Dispose()}
 }
 $configArgs=if($ConfigPath){@('-ConfigPath',$ConfigPath)}else{@()}
-$script:deferredUpdates=@();$script:testWriterHold=$null;$script:lastUpdateOutput=$null
+$script:deferredUpdates=@();$script:deferredFindings=@();$script:testWriterHold=$null;$script:lastUpdateOutput=$null
 $knowledge=Join-Path $PSScriptRoot 'knowledge.ps1'
 if(!$Run){Initialize-RunnerInvocation}
 # One repository only: the given checkout. When it is not the SecondBrain checkout, prompts carry the absolute SecondBrain tool paths.
@@ -614,6 +638,9 @@ foreach($plan in $plans){
         }
         # #611: unresolved findings survive the attempt as matched tasks or linked follow-ups (they wait for a later run, #612).
         $record.findings=Invoke-RunnerFindings $task $root $checkout $plan
+        if($record.findings.deferred -gt 0 -and @($record.findings.items|Where-Object {$_.reason -eq 'provenance-deferred'}).Count){
+            $script:deferredFindings=@($script:deferredFindings)+@([pscustomobject]@{task=$task;root=$root;checkout=$checkout;plan=$plan})
+        }
         # Limits only from the agent's final error envelope with the provider's own texts (a timed-out agent keeps its timeout state).
         # quota stops the run and leaves a resume point; throttled (transient rate limit) waits briefly and the run goes on.
         $limit=if($state -ne 'timeout'){Get-SBAgentLimitState -Provider $Provider -Output $outText -ErrorOutput $errText -ExitCode $code}else{$null}

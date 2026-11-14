@@ -161,6 +161,16 @@ switch($Mode){
         Set-FakeInProgress 'Fake agent findings'
         [Console]::Out.Write((@{type='result';is_error=$false;result='findings written'}|ConvertTo-Json -Compress));exit 0
     }
+    # #646: two different new problems, so two follow-ups are created one after the other (queued behind a held writer in the test).
+    'findings2' {
+        $file=if($prompt -match 'findings file (.+?findings\.json) as'){$Matches[1]}else{[Console]::Error.WriteLine('no findings path');exit 5}
+        $data=[ordered]@{findings=@(
+            [ordered]@{title='Queued follow-up alpha';reproduction='r-alpha';evidence='e-alpha';acceptance=@('alpha is fixed')},
+            [ordered]@{title='Queued follow-up beta';reproduction='r-beta';evidence='e-beta';acceptance=@('beta is fixed')})}
+        [IO.File]::WriteAllText($file,($data|ConvertTo-Json -Depth 6),[Text.UTF8Encoding]::new($false))
+        Set-FakeInProgress 'Fake agent findings2'
+        [Console]::Out.Write((@{type='result';is_error=$false;result='findings written'}|ConvertTo-Json -Compress));exit 0
+    }
     # #610: the agent opens a decision on another queued task (SB_RUNNER_FAKE_DECISION_TASK) in its dossier, then marks its task in progress.
     'opendecision' {
         $at=[DateTimeOffset]::UtcNow.ToString('o')
@@ -657,7 +667,7 @@ $r|ConvertTo-Json -Compress
     Assert-Runner ($quiet.code -eq 0 -and @($quietEvents|Where-Object {$_.event -eq 'stalled'}).Count -eq 1 -and @($quiet.data.tasks)[0].state -eq 'finished') ('a silent agent raises one stall notice and is not killed: '+$quiet.err)
     # #612: the queue is fixed when the run starts; a follow-up an agent creates mid-run (ready, autonomous, P0) waits for a later run.
     $t2=Read-SBJson $trackerPath2 $null
-    foreach($fid in @('F-1','F-2','P-1','A-1','A-2','C-1','D-1','D-2','D-3','D-4','D-5','W-1','G-1')){
+    foreach($fid in @('F-1','F-2','P-1','A-1','A-2','C-1','D-1','D-2','D-3','D-4','D-5','W-1','G-1','H-1')){
         $seqF=[int]$t2.extensions.lastSeq+1
         $newTask=New-SBTrackerTask @{id=$fid;title=('Task '+$fid);status='todo'} $identity2 'fixture' 'history/seed/report.md' (Get-SBTextHash 'Synthetic provenance') 'fixture'
         $newTask.seq=$seqF;$newTask.title='#'+$seqF.ToString('000')+' — Task '+$fid;$newTask.priority='P2';$newTask.execution='autonomous';$newTask.extensions=@{stream='evoluzione-team'}
@@ -705,6 +715,19 @@ $r|ConvertTo-Json -Compress
     Assert-Runner ($held.code -eq 0 -and $hRecord.reopened -eq 'deferred' -and $hRecord.acceptance -eq 'unverified') ('the reopen update is deferred behind the held writer: '+$held.text)
     Assert-Runner ($hStatus.finalization.pendingWrites -eq 'done' -and (@($hStatus.finalization.steps) -join ',') -ceq 'state,pending-writes,outcomes,cleanup' -and @($hStatus.finalization.deferred).Count -eq 1 -and @($hStatus.finalization.deferred)[0].applied -and @($hStatus.finalization.deferred)[0].statusAfter -eq 'in_progress') ('closure applies the deferred write before the outcomes: '+($hStatus.finalization|ConvertTo-Json -Compress -Depth 4))
     Assert-Runner ($hTask.status -eq 'in_progress' -and [string]$hTask.extensions.stateReason -match '#613' -and @($hStatus.results)[0].statusAfter -eq 'in_progress' -and @($hStatus.results)[0].deferredApplied -eq $true) ('the task outcome reflects the applied write: '+($hTask|ConvertTo-Json -Compress -Depth 3))
+    # #646: two follow-ups created one after the other while the writer is held: both are created after the flush, or the conflict is
+    # reported per finding without loss; report.json findings shows the final action of each.
+    $savedHold2=$env:SECONDBRAIN_TEST_ROOT
+    try{
+        if(!$env:SECONDBRAIN_TEST_ROOT){$env:SECONDBRAIN_TEST_ROOT=$fixture}
+        $env:SB_RUNNER_TEST_HOLD_WRITER='1'
+        $held2=Invoke-Runner2 @('-Run','-AgentPath',$fake,'-AgentArguments','findings2','-TaskIds','H-1')
+    }finally{Remove-Item Env:SB_RUNNER_TEST_HOLD_WRITER -ErrorAction SilentlyContinue;$env:SECONDBRAIN_TEST_ROOT=$savedHold2}
+    $h2Report=Read-SBJson (Join-Path ([string]@($held2.data.tasks)[0].folder) 'report.json') $null;$h2f=$h2Report.findings
+    $h2Tasks=@((Read-SBJson $trackerPath2 $null).tasks|Where-Object {[string]$_.title -match 'Queued follow-up (alpha|beta)'})
+    Assert-Runner ($held2.code -eq 0 -and $h2f.present -and @($h2f.items).Count -eq 2 -and @($h2f.items|Where-Object {$_.action}).Count -eq 2) ('queued follow-ups: every finding reports a final action: '+(ConvertTo-SBJson $h2f))
+    Assert-Runner ($h2Tasks.Count -eq 2 -and $h2f.created -eq 2 -and $h2f.failed -eq 0 -and $h2f.deferred -eq 0 -and @($h2f.items|Where-Object {$_.action -eq 'created' -and $_.taskId}).Count -eq 2) ('queued follow-ups: both are created after the closing flush and report.json shows the final action: '+(ConvertTo-SBJson $h2f)+' tasks='+$h2Tasks.Count)
+    Assert-Runner (@($h2Tasks|Where-Object {$_.extensions.followUpOf -eq 'H-1'}).Count -eq 2) 'queued follow-ups: both link their source task'
     # #611: findings are matched before any follow-up is created; a new problem becomes one linked follow-up with reproduction,
     # evidence, acceptance and a dossier report as provenance; the invalid entry is reported, not created.
     $fRun=Invoke-Runner2 @('-Run','-AgentPath',$fake,'-AgentArguments','findings','-TaskIds','G-1')
