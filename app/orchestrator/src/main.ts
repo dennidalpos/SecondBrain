@@ -6,7 +6,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { open } from "@tauri-apps/plugin-dialog";
 import { $, busy, call, el, fmtDuration, onBusyClick, input, option, select, setError, since, baseName, type AgentCaps, type AgentStatus, type LightChoice, type Source } from "./common";
 import { initRegistry, showRegistry } from "./registry";
-import { analyzeMany, analyzeTask, initAnalysis, openAnalysis, storedAnalysis, verdictOf, VERDICT_LABEL } from "./analysis";
+import { analyzeMany, analyzeTask, initAnalysis, openAnalysis, openEnrichment, storedAnalysis, verdictOf, VERDICT_LABEL } from "./analysis";
 
 interface ClientInfo { name: string; confidence: string; provider: string | null; runnable: boolean; reason: string | null }
 interface PreviewTask { id: string; seq: number; priority: string | null; title: string }
@@ -481,9 +481,16 @@ function renderSkipped() {
     });
     const again = has ? el("button", { textContent: "Rifai", className: "ghost", title: "Nuova analisi da zero", disabled: !can || state.analyzing }) : "";
     if (again) onBusyClick(again, async () => { $("q-analysis-state").textContent = `Nuova analisi di ${id}…`; await analyzeTask(id); $("q-analysis-state").textContent = ""; });
+    // #645: the light model proposes only the missing detail of an incomplete task; the proposal opens in the same dialog to apply or reject.
+    const enrich = el("button", { textContent: "Enrich", className: "ghost", title: "Propose the missing detail (description, acceptance, stream, requirements)", disabled: state.analyzing || !currentLight() });
+    onBusyClick(enrich, async () => {
+      $("q-analysis-state").textContent = `Enrichment of ${id} with ${currentLight()?.label ?? "—"}…`;
+      await openEnrichment(id);
+      $("q-analysis-state").textContent = "";
+    });
     const reason = el("span", { title: s.reason }, reasonText(s.reason), s.stateReason ? el("div", { className: "muted small clamp", title: s.stateReason }, s.stateReason) : "");
     const tr = el("tr");
-    [cb, s.seq != null ? String(s.seq) : "—", id, s.title ?? "", reason, badge, el("span", { className: "row-actions" }, action, again)].forEach((c) => tr.append(el("td", {}, c)));
+    [cb, s.seq != null ? String(s.seq) : "—", id, s.title ?? "", reason, badge, el("span", { className: "row-actions" }, action, again, enrich)].forEach((c) => tr.append(el("td", {}, c)));
     return tr;
   }));
   updateAnalyzeButton();

@@ -655,6 +655,22 @@ if('trackers' -in $Groups){
             Check ($eTask.extensions.enrichment.status -eq 'proposed' -and $eTask.extensions.enrichment.sha256 -ceq ('A'*64) -and $eTask.extensions.enrichment.path -like '*/proposal.json') ('the enrichment pointer is stored on the task: '+(ConvertTo-SBJson $eTask.extensions.enrichment))
             $refusedPointer=$false;try{[void](Update-SBTrackerTask -BrainRoot $brain -Identity $identity -TaskId 'T-1' -Enrichment @{path='C:/abs/proposal.json';sha256=('a'*64);status='proposed'} -WhatIf)}catch{$refusedPointer=$_.Exception.Message -match 'enrichment|arricchimento'}
             Check $refusedPointer 'an absolute or malformed enrichment pointer is refused'
+            # #645: apply writes only the proposal's fields and marks it applied; reject only marks it rejected; a changed proposal is refused.
+            $enrDir=Join-Path $brain 'enrich-645-test';[void][IO.Directory]::CreateDirectory($enrDir);$enrFile=Join-Path $enrDir 'proposal.json'
+            try{
+                [IO.File]::WriteAllText($enrFile,(ConvertTo-SBJson ([ordered]@{kind='task-enrichment';taskId='T-1';status='proposed';proposal=[ordered]@{description='Proposed description';acceptance=@('First criterion','Second criterion')}})),[Text.UTF8Encoding]::new($false))
+                $enrTask=@{id='T-1';extensions=@{enrichment=@{path='enrich-645-test/proposal.json';sha256=(Get-SBFileHash $enrFile);status='proposed';at='2026-11-14T10:10:10Z'}}}
+                $applyU=New-SBEnrichmentUpdate -BrainRoot $brain -Task $enrTask -Action apply
+                Check (($applyU.Keys|Sort-Object) -join ',' -ceq 'Acceptance,Description,Enrichment' -and $applyU.Enrichment.status -eq 'applied' -and $applyU.Description -eq 'Proposed description' -and @($applyU.Acceptance).Count -eq 2) ('apply carries only the proposal fields and the applied pointer: '+(ConvertTo-SBJson $applyU))
+                $rejectU=New-SBEnrichmentUpdate -BrainRoot $brain -Task $enrTask -Action reject
+                Check (($rejectU.Keys -join ',') -ceq 'Enrichment' -and $rejectU.Enrichment.status -eq 'rejected') ('reject changes only the pointer status: '+(ConvertTo-SBJson $rejectU))
+                $appliedTask=@{id='T-1';extensions=@{enrichment=@{path='enrich-645-test/proposal.json';sha256=$enrTask.extensions.enrichment.sha256;status='applied'}}}
+                $refusedState=$false;try{[void](New-SBEnrichmentUpdate -BrainRoot $brain -Task $appliedTask -Action apply)}catch{$refusedState=$_.Exception.Message -match 'already applied|già applied'}
+                Check $refusedState 'an already applied proposal cannot be applied again'
+                [IO.File]::AppendAllText($enrFile,' ')
+                $refusedHash=$false;try{[void](New-SBEnrichmentUpdate -BrainRoot $brain -Task $enrTask -Action apply)}catch{$refusedHash=$_.Exception.Message -match 'changed|cambiata'}
+                Check $refusedHash 'a proposal whose hash changed is refused and nothing is applied'
+            }finally{Remove-Item -LiteralPath $enrDir -Recurse -Force -ErrorAction SilentlyContinue}
             Check ($i1.extensions.readiness.schemaVersion -eq 1 -and @($i1.extensions.readiness.checks).Count -eq 8 -and !$i2.Contains('extensions') -and (ConvertTo-SBJson @((& $strip $i1),$i2)) -ceq $impBefore) ('import adds readiness in extensions only and leaves the rest byte-identical: '+(ConvertTo-SBJson $impData))
         }finally{Remove-Item -LiteralPath $decisionsPath -Force -ErrorAction SilentlyContinue}
     }finally{foreach($v in $executorVars){[Environment]::SetEnvironmentVariable($v,$savedExecutor[$v],'Process')}}

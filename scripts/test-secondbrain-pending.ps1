@@ -246,6 +246,30 @@ try {
     Assert-Pending ($again.code -eq 2) '#588: an answered decision cannot be answered again'
     $relink=Invoke-PendingCli 'knowledge.ps1' @('-CheckoutPath',$checkout,'-UpdateTaskId','T-2','-Decision',$decisionId)
     Assert-Pending ($relink.code -ne 0) '#588: linking an answered decision is refused'
+    # #645: the reviewed apply and reject of a stored enrichment proposal through the CLI.
+    $enrDir=Join-Path $brain 'enrich-645-cli';[void][IO.Directory]::CreateDirectory($enrDir);$enrFile=Join-Path $enrDir 'proposal.json'
+    $writeProposal={param([string]$TaskId,[string]$Text) [IO.File]::WriteAllText($enrFile,(ConvertTo-SBJson ([ordered]@{kind='task-enrichment';taskId=$TaskId;status='proposed';proposal=[ordered]@{description=$Text}})),[Text.UTF8Encoding]::new($false))}
+    $taskOf={param([string]$Id) @((Read-SBJson $trackerPath $null).tasks|Where-Object id -eq $Id)[0]}
+    & $writeProposal 'T-1' 'Enriched description of T-1'
+    $recorded=Invoke-PendingCli 'knowledge.ps1' @('-CheckoutPath',$checkout,'-UpdateTaskId','T-1','-EnrichmentFile',$enrFile)
+    $t1Before=& $taskOf 'T-1'
+    Assert-Pending ($recorded.code -eq 0 -and $t1Before.extensions.enrichment.status -eq 'proposed') '#645: the proposal pointer is recorded as proposed'
+    $noAuth=Invoke-PendingCli 'knowledge.ps1' @('-CheckoutPath',$checkout,'-UpdateTaskId','T-1','-ApplyEnrichment')
+    Assert-Pending ($noAuth.code -ne 0 -and (& $taskOf 'T-1').extensions.enrichment.status -eq 'proposed') '#645: apply without the authorization text is refused'
+    & $writeProposal 'T-1' 'Edited after it was recorded'
+    $changed=Invoke-PendingCli 'knowledge.ps1' @('-CheckoutPath',$checkout,'-UpdateTaskId','T-1','-ApplyEnrichment','-EnrichmentAuthorization','Owner OK')
+    Assert-Pending ($changed.code -ne 0 -and [string](& $taskOf 'T-1').description -ne 'Edited after it was recorded' -and (& $taskOf 'T-1').extensions.enrichment.status -eq 'proposed') '#645: a proposal whose hash changed is refused and nothing is applied'
+    $rejected=Invoke-PendingCli 'knowledge.ps1' @('-CheckoutPath',$checkout,'-UpdateTaskId','T-1','-RejectEnrichment')
+    $t1Rejected=& $taskOf 'T-1'
+    Assert-Pending ($rejected.code -eq 0 -and $t1Rejected.extensions.enrichment.status -eq 'rejected' -and [string]$t1Rejected.description -ceq [string]$t1Before.description -and (@($t1Rejected.acceptance) -join '|') -ceq (@($t1Before.acceptance) -join '|')) '#645: reject changes only the pointer status'
+    $rejectAgain=Invoke-PendingCli 'knowledge.ps1' @('-CheckoutPath',$checkout,'-UpdateTaskId','T-1','-RejectEnrichment')
+    Assert-Pending ($rejectAgain.code -ne 0) '#645: a rejected proposal cannot be decided again'
+    & $writeProposal 'T-2' 'Enriched description of T-2'
+    $recorded2=Invoke-PendingCli 'knowledge.ps1' @('-CheckoutPath',$checkout,'-UpdateTaskId','T-2','-EnrichmentFile',$enrFile)
+    $applied=Invoke-PendingCli 'knowledge.ps1' @('-CheckoutPath',$checkout,'-UpdateTaskId','T-2','-ApplyEnrichment','-EnrichmentAuthorization','Owner OK')
+    $t2After=& $taskOf 'T-2'
+    Assert-Pending ($recorded2.code -eq 0 -and $applied.code -eq 0 -and [string]$t2After.description -ceq 'Enriched description of T-2' -and $t2After.extensions.enrichment.status -eq 'applied') '#645: apply writes the proposal field and marks the pointer applied'
+    Remove-Item -LiteralPath $enrDir -Recurse -Force -ErrorAction SilentlyContinue
     $mcpAnswered=(Invoke-SBMcpToolCall $brain 'get_decisions' @{repository=$identity;status='open'})|ConvertFrom-Json -AsHashtable
     Assert-Pending (@($mcpAnswered.decisions).Count -eq 0) '#588: MCP status filter leaves out answered decisions'
     # Durable decision: the answer needs a lesson, appended to memory.md with the ID.

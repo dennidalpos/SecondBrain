@@ -22,7 +22,7 @@ param([Parameter(ParameterSetName='Tasks')][switch]$Tasks,[Parameter(ParameterSe
     [Parameter(Mandatory,ParameterSetName='TaskNew')][string]$NewTask,[Parameter(ParameterSetName='TaskNew')][string]$TaskId,[Parameter(ParameterSetName='TaskNew')][Parameter(ParameterSetName='TaskUpdate')][AllowEmptyString()][string]$Description,
     [Parameter(ParameterSetName='TaskNew')][Parameter(ParameterSetName='TaskUpdate')][string]$Priority='P2',[Parameter(ParameterSetName='TaskNew')][Parameter(ParameterSetName='TaskUpdate')][ValidateSet('autonomous','user_required','unspecified')][string]$Execution='autonomous',
     [Parameter(ParameterSetName='TaskNew')][Parameter(ParameterSetName='TaskUpdate')][AllowEmptyCollection()][AllowEmptyString()][string[]]$DependsOn=@(),[Parameter(Mandatory,ParameterSetName='TaskNew')][Parameter(ParameterSetName='TaskUpdate')][string[]]$Acceptance,
-    [Parameter(ParameterSetName='TaskUpdate')][string]$DecisionsFile,[Parameter(ParameterSetName='TaskUpdate')][string]$EnrichmentFile,[Parameter(ParameterSetName='TaskUpdate')][string[]]$Evidence,
+    [Parameter(ParameterSetName='TaskUpdate')][string]$DecisionsFile,[Parameter(ParameterSetName='TaskUpdate')][string]$EnrichmentFile,[Parameter(ParameterSetName='TaskUpdate')][switch]$ApplyEnrichment,[Parameter(ParameterSetName='TaskUpdate')][switch]$RejectEnrichment,[Parameter(ParameterSetName='TaskUpdate')][string]$EnrichmentAuthorization,[Parameter(ParameterSetName='TaskUpdate')][string[]]$Evidence,
     [Parameter(Mandatory,ParameterSetName='Registry')][switch]$Registry,[Parameter(ParameterSetName='Registry')][string]$Tool,[Parameter(ParameterSetName='Registry')][string]$TaskStatus,
     [Parameter(ParameterSetName='Registry')][ValidateSet('include','exclude','only')][string]$Archived='include',[Parameter(ParameterSetName='Registry')][string]$Filter,
     [Parameter(ParameterSetName='Registry')][ValidateRange(0,[int]::MaxValue)][int]$Page=0,[Parameter(ParameterSetName='Registry')][ValidateRange(0,500)][int]$PageSize=50,
@@ -199,6 +199,20 @@ try{
             $full=[IO.Path]::GetFullPath($EnrichmentFile);Assert-SBPlainPath $full
             $relative=[IO.Path]::GetRelativePath($brain,$full).Replace('\','/')
             $arguments.Enrichment=@{path=$relative;sha256=(Get-SBFileHash $full);status='proposed';at=(Get-SBNow).ToString('o')}
+        }
+        # #645: a reviewed apply or reject of the stored proposal. Apply needs the person's explicit authorization text and writes only the
+        # proposal's own fields; reject changes only the pointer status. Both refuse a proposal whose file hash changed.
+        if($ApplyEnrichment -or $RejectEnrichment){
+            if($ApplyEnrichment -and $RejectEnrichment){throw (New-SBError 'tracker.update.empty')}
+            if($ApplyEnrichment -and [string]::IsNullOrWhiteSpace($EnrichmentAuthorization)){throw (New-SBError 'tracker.enrichment.authorization')}
+            $resolvedTracker=Resolve-SBTracker -BrainRoot $brain -Identity $working -AllowedOwners @()
+            $trackerData=Read-SBJson $resolvedTracker.path $null
+            $enrichId=Resolve-SBTrackerTaskId $UpdateTaskId @($trackerData.tasks)
+            $enrichTask=@($trackerData.tasks|Where-Object {[string]$_.id -ceq $enrichId})
+            if($enrichTask.Count -ne 1){throw (New-SBError 'tracker.task.notfound' @($UpdateTaskId))}
+            $enrichUpdate=New-SBEnrichmentUpdate -BrainRoot $brain -Task $enrichTask[0] -Action $(if($ApplyEnrichment){'apply'}else{'reject'})
+            $arguments=@{TaskId=$enrichId}
+            foreach($k in $enrichUpdate.Keys){$arguments[$k]=$enrichUpdate[$k]}
         }
         if($arguments.Count -eq 1){throw (New-SBError 'tracker.update.empty')}
         $submission=New-SBPendingWrite -BrainRoot $brain -Repository $working -Operation task.update -Arguments $arguments -Config $config -SessionId $SessionId

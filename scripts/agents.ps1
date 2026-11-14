@@ -28,7 +28,7 @@ Without a mode the script lists the modes and exits 2.
 param([switch]$Probe,[ValidateSet('claude','codex','gemini')][string[]]$Provider,[switch]$Clients,
     [switch]$Directives,[string]$RepositoryPath,[string]$DirectivesFile,[string]$ProposalPath,
     [ValidatePattern('^$|^[0-9A-Fa-f]{64}$')][string]$ExpectedProposalHash,[string]$Authorization,[switch]$Apply,
-    [switch]$Analyze,[ValidateSet('directives','task','task-enrich','task-view','task-resolve','task-apply')][string]$Kind,[string]$Model,[string]$Effort,[switch]$AllowCustomModel,
+    [switch]$Analyze,[ValidateSet('directives','task','task-enrich','task-enrich-view','task-view','task-resolve','task-apply')][string]$Kind,[string]$Model,[string]$Effort,[switch]$AllowCustomModel,
     [string]$TaskId,[string]$AnalysisPath,[string]$AnswersFile,[ValidateRange(60,3600)][int]$TimeoutSeconds=600,
     [string]$ConfigPath,[ValidateSet('en','it')][string]$Language)
 if($Language){$env:SECONDBRAIN_LANG=$Language}
@@ -239,6 +239,26 @@ try{
                     $out.pointer=if($written -and $written.exitCode -eq 5){'deferred'}else{'recorded'}
                     ConvertTo-SBJson $out
                 }finally{Close-AgentsWork $repo $slug}
+                exit 0
+            }
+            'task-enrich-view' {
+                # #645: read-only view of the stored enrichment proposal of a task: the pointer, whether the file still has the recorded
+                # hash, and the proposal record. The reviewed apply or reject is knowledge.ps1 -ApplyEnrichment / -RejectEnrichment.
+                if(!$TaskId){throw (New-SBError 'agents.analysis.task')}
+                $context=Get-AgentsTaskContext $repo $TaskId
+                $raw=if($context.task['extensions'] -is [Collections.IDictionary]){$context.task['extensions']['enrichment']}else{$null}
+                $view=[ordered]@{taskId=[string]$context.task['id'];seq=$context.task['seq'];title=[string]$context.task['title'];pointer=$null;hashMatches=$false;proposal=$null}
+                if($raw){
+                    $pointer=$raw
+                    $file=[IO.Path]::GetFullPath((Join-Path $brain ([string]$pointer['path'])))
+                    if(!$file.StartsWith([IO.Path]::GetFullPath($brain),[StringComparison]::OrdinalIgnoreCase)){throw (New-SBError 'tracker.enrichment.invalid')}
+                    $view.pointer=$pointer
+                    if(Test-Path -LiteralPath $file -PathType Leaf){
+                        $view.hashMatches=((Get-SBFileHash $file) -ieq [string]$pointer['sha256'])
+                        $view.proposal=Read-SBJson $file $null
+                    }
+                }
+                ConvertTo-SBJson $view
                 exit 0
             }
             'task-view' {

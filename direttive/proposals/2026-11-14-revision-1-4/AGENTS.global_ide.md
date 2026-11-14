@@ -44,4 +44,5 @@ Revision 1.4 — 2026-11-14. These principles apply across projects. Project cho
 
 - Review the diff and git status --ignored; report results, evidence, and limits.
 - Update the tracker and move completed tasks to history in the same transaction.
+- End with the next steps: name the next prompt (by `sb` command) and the next tasks, or say there are none.
 - Add a memory entry only for a new durable decision, on one line ("Decision: … — Reason: …"); never log task progress. In context.md replace the current state instead of extending it, at most about 1,500 characters per section. Then run secondbrain.ps1 -Sync and -Check; use `sb compact` for semantic rewrites.

@@ -108,6 +108,7 @@ function render() {
   const primary = $<HTMLButtonElement>("an-primary");
   primary.hidden = false;
   primary.onclick = null;
+  $<HTMLButtonElement>("an-secondary").hidden = true;
   if (v.applied) {
     body.append(el("p", { className: "ok-note" }, `Risultato già applicato il ${new Date(v.applied.at).toLocaleString()} (${v.applied.state === "deferred" ? "in coda di scrittura" : "scritto nel tracker"}).`));
     primary.hidden = true;
@@ -230,4 +231,94 @@ export async function analyzeMany(ids: string[], progress: (done: number, total:
     await analyzeTask(ids[i], true);
   }
   progress(ids.length, ids.length, "");
+}
+
+// Enrichment proposal of the light model (#608, #645): the task keeps only a pointer; this dialog shows the proposal and the person applies
+// or rejects it. Apply writes only the proposal's own fields; reject changes only the pointer status; a proposal whose file changed is refused.
+interface EnrichPointer { path: string; sha256: string; status: "proposed" | "applied" | "rejected"; at?: string }
+interface EnrichRecord {
+  summary: string; gaps: string[]; discarded: string[]; questions: unknown[]; provider: string; model: string | null; effort: string | null;
+  proposal: { description?: string; acceptance?: string[]; stream?: string; requires?: string[] };
+}
+interface EnrichView { taskId: string; seq: number; title: string; pointer: EnrichPointer | null; hashMatches: boolean; proposal: EnrichRecord | null }
+
+/** Shows the stored proposal of a task, or asks the light model for one when the task has none (or only a rejected one). */
+export async function openEnrichment(taskId: string, errorId = "q-error"): Promise<void> {
+  let view = await call<EnrichView>("view_task_enrichment", { repo: hooks.repo(), taskId }, errorId);
+  if (!view) return;
+  if (!view.pointer || view.pointer.status === "rejected") {
+    const args = lightArgs();
+    if (!args) { setError(errorId, "No agent is ready for the analysis: detect agents or choose the light model in the settings."); return; }
+    const run = await call<{ called: boolean }>("enrich_task", { repo: hooks.repo(), taskId, ...args }, errorId);
+    if (!run) return;
+    if (!run.called) { setError(errorId, `Task ${taskId} is already complete: there is nothing to enrich.`); return; }
+    view = await call<EnrichView>("view_task_enrichment", { repo: hooks.repo(), taskId }, errorId);
+    if (!view) return;
+    hooks.onChange();
+  }
+  showEnrichment(view);
+}
+
+function showEnrichment(view: EnrichView) {
+  const p = view.pointer;
+  const rec = view.proposal;
+  setError("an-error", null);
+  $("an-title").textContent = `#${view.seq} ${view.title}`;
+  $("an-meta").textContent = rec ? `Enrichment proposal from ${rec.provider}${rec.model ? " · " + rec.model : ""}${rec.effort ? " · " + rec.effort : ""} · ${p?.status ?? "none"}` : "No enrichment proposal";
+  $("an-reason").textContent = rec ? `Missing detail: ${rec.gaps.join(", ") || "none"}` : "";
+  $("an-summary").textContent = rec?.summary ?? "";
+  const body = $("an-body");
+  body.replaceChildren();
+  const primary = $<HTMLButtonElement>("an-primary");
+  const secondary = $<HTMLButtonElement>("an-secondary");
+  primary.onclick = null;
+  secondary.onclick = null;
+  secondary.hidden = true;
+  if (!p || !rec) { primary.hidden = true; return; }
+  const fields: [string, string][] = [];
+  if (rec.proposal.description) fields.push(["Description", rec.proposal.description]);
+  if (rec.proposal.acceptance?.length) fields.push(["Acceptance criteria", rec.proposal.acceptance.join("\n")]);
+  if (rec.proposal.stream) fields.push(["Stream", rec.proposal.stream]);
+  if (rec.proposal.requires?.length) fields.push(["Requirements", rec.proposal.requires.join("\n")]);
+  const table = el("table", { className: "tasks diff" }, el("thead", {}, el("tr", {}, el("th", {}, "Field"), el("th", {}, "Proposed"))));
+  const tbody = el("tbody");
+  for (const [f, v] of fields) tbody.append(el("tr", { className: "changed" }, el("td", {}, f), el("td", { className: "pre" }, v)));
+  table.append(tbody);
+  body.append(fields.length ? table : el("p", { className: "muted" }, "The model proposed no field; see its questions."));
+  if (rec.discarded.length) body.append(el("p", { className: "small muted" }, `Discarded outside the gaps: ${rec.discarded.join(", ")}`));
+  if (rec.questions.length) {
+    body.append(el("details", {}, el("summary", {}, `Questions from the model (${rec.questions.length})`),
+      el("ul", { className: "small" }, ...rec.questions.map((q) => el("li", {}, typeof q === "string" ? q : String((q as { question?: string }).question ?? JSON.stringify(q)))))));
+  }
+  const reject = (label: string) => { secondary.hidden = false; secondary.textContent = label; secondary.onclick = () => decideEnrichment(view, false); };
+  if (p.status !== "proposed") {
+    body.append(el("p", { className: "ok-note" }, `This proposal is already ${p.status}${p.at ? " on " + new Date(p.at).toLocaleString() : ""}.`));
+    primary.hidden = true;
+  } else if (!view.hashMatches) {
+    body.append(el("div", { className: "warning" }, "The proposal file changed after it was recorded: it cannot be applied. Reject it and ask for a new one."));
+    primary.hidden = true;
+    reject("Reject");
+  } else {
+    primary.hidden = false;
+    primary.disabled = false;
+    primary.textContent = "Apply to the task";
+    primary.onclick = () => decideEnrichment(view, true);
+    reject("Reject");
+  }
+  const d = $<HTMLDialogElement>("an-dialog");
+  if (!d.open) d.showModal();
+}
+
+async function decideEnrichment(view: EnrichView, apply: boolean) {
+  if (!confirm(apply ? "Apply the proposed fields to the task? Only the fields shown are written." : "Reject this proposal? The task is not changed.")) return;
+  setBusy(true, apply ? "Applying the proposal…" : "Rejecting the proposal…");
+  const r = await call<{ applied: boolean | string }>("decide_task_enrichment", {
+    repo: hooks.repo(), taskId: view.taskId, apply, authorization: "Confirmed in the desktop orchestrator " + new Date().toISOString(),
+  }, "an-error");
+  setBusy(false);
+  if (!r) return;
+  const next = await call<EnrichView>("view_task_enrichment", { repo: hooks.repo(), taskId: view.taskId }, "an-error");
+  if (next) showEnrichment(next);
+  $("an-state").textContent = r.applied === "deferred" ? "Accepted: it is applied as soon as the tracker is free." : apply ? "Proposal applied." : "Proposal rejected.";
+  hooks.onChange();
 }

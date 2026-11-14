@@ -361,6 +361,52 @@ async fn apply_task_analysis(app: AppHandle, repo: String, analysis_path: String
     script(app, "agents.ps1", args).await
 }
 
+/// Arguments of the reviewed enrichment decision (#645): apply needs the person's authorization text, reject needs none.
+fn enrichment_decision_args(repo: &str, task_id: &str, apply: bool, authorization: &str) -> Result<Vec<String>, String> {
+    if !valid_token(task_id) {
+        return Err("Invalid task ID.".into());
+    }
+    let mut args = vec!["-UpdateTaskId".into(), task_id.into(), "-CheckoutPath".into(), checkout(repo)?];
+    if apply {
+        if authorization.trim().is_empty() || authorization.len() > 300 {
+            return Err("Authorization is missing or too long.".into());
+        }
+        args.push("-ApplyEnrichment".into());
+        args.push("-EnrichmentAuthorization".into());
+        args.push(authorization.into());
+    } else {
+        args.push("-RejectEnrichment".into());
+    }
+    Ok(args)
+}
+
+#[tauri::command]
+async fn enrich_task(app: AppHandle, repo: String, task_id: String, provider: String, model: Option<String>, effort: Option<String>) -> Result<Value, String> {
+    // The light model proposes the missing detail of an incomplete task (#608); only a pointer reaches the tracker.
+    if !valid_token(&task_id) {
+        return Err("Invalid task ID.".into());
+    }
+    let mut args = vec!["-Analyze".into(), "-Kind".into(), "task-enrich".into(), "-RepositoryPath".into(), checkout(&repo)?, "-TaskId".into(), task_id];
+    analysis_args(&mut args, &provider, model, effort)?;
+    script(app, "agents.ps1", args).await
+}
+
+#[tauri::command]
+async fn view_task_enrichment(app: AppHandle, repo: String, task_id: String) -> Result<Value, String> {
+    // Read-only: the stored proposal of a task, with whether its file still has the recorded hash.
+    if !valid_token(&task_id) {
+        return Err("Invalid task ID.".into());
+    }
+    let args = vec!["-Analyze".into(), "-Kind".into(), "task-enrich-view".into(), "-RepositoryPath".into(), checkout(&repo)?, "-TaskId".into(), task_id];
+    script(app, "agents.ps1", args).await
+}
+
+#[tauri::command]
+async fn decide_task_enrichment(app: AppHandle, repo: String, task_id: String, apply: bool, authorization: String) -> Result<Value, String> {
+    let args = enrichment_decision_args(&repo, &task_id, apply, &authorization)?;
+    script(app, "knowledge.ps1", args).await
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RegistryQuery {
@@ -658,6 +704,9 @@ pub fn run() {
             view_task_analysis,
             resolve_task_analysis,
             apply_task_analysis,
+            enrich_task,
+            view_task_enrichment,
+            decide_task_enrichment,
             read_registry,
             list_runs,
             add_run_note
@@ -668,7 +717,7 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-    use super::{analysis_args, browser_args, queue_args, registry_args, repo_argument, valid_token, QueueRequest, RegistryQuery};
+    use super::{analysis_args, browser_args, enrichment_decision_args, queue_args, registry_args, repo_argument, valid_token, QueueRequest, RegistryQuery};
 
     fn queue(task_ids: &[&str], resume: Option<&str>) -> QueueRequest {
         QueueRequest {
@@ -754,6 +803,17 @@ mod tests {
         assert!(registry_args(&q(Some("vim"), None, None), "C".into()).is_err());
         assert!(registry_args(&q(None, Some("open"), None), "C".into()).is_err());
         assert!(registry_args(&q(None, None, Some("a\nb")), "C".into()).is_err());
+    }
+
+    #[test]
+    fn enrichment_decision_arguments() {
+        let dir = std::env::temp_dir().to_string_lossy().into_owned();
+        let apply = enrichment_decision_args(&dir, "T-1", true, "OK from the desktop app").unwrap();
+        assert!(apply.contains(&"-ApplyEnrichment".to_string()) && apply.windows(2).any(|w| w == ["-EnrichmentAuthorization", "OK from the desktop app"]));
+        let reject = enrichment_decision_args(&dir, "T-1", false, "").unwrap();
+        assert!(reject.contains(&"-RejectEnrichment".to_string()) && !reject.contains(&"-EnrichmentAuthorization".to_string()));
+        assert!(enrichment_decision_args(&dir, "T-1", true, "  ").is_err());
+        assert!(enrichment_decision_args(&dir, "T 1;x", false, "").is_err());
     }
 
     #[test]

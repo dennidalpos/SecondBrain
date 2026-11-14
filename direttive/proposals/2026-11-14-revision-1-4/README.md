@@ -1,6 +1,6 @@
-# Directive revision 1.4: subagent questions and PDCA for recurring defects
+# Directive revision 1.4: subagent questions, PDCA for recurring defects, next steps at close
 
-Origin: tasks #617 (decisions: unavailable question tools pause dependent work) and #618 (PDCA: conditional cycle for recurring defects and failed corrections). Owner choice of 2026-11-14: prepare the proposal only, no approval.
+Origin: tasks #617 (decisions: unavailable question tools pause dependent work), #618 (PDCA: conditional cycle for recurring defects and failed corrections) and #538 (propose next prompts and tasks at the end of every task). Owner choice of 2026-11-14: prepare the proposal only, no approval.
 
 ## Problem
 
@@ -9,7 +9,11 @@ Revision 1.3 already states the question-tool fallback (say so, ask in text, pau
 1. Nothing says that a background agent or subagent must hand its question back to the parent instead of answering it.
 2. The PDCA trigger does not name recurring defects or failed corrective attempts, so a repeated failure is retried without a hypothesis or a check.
 
+3. Composed prompts end with `next_steps`, but the common Closing work rule does not require it outside them (#538).
+
 ## Change
+
+- Closing work: new line "End with the next steps: name the next prompt (by `sb` command) and the next tasks, or say there are none."
 
 `AGENTS.global_ide.md` (4,737 bytes, two additions; limit 5,500):
 

@@ -37,7 +37,12 @@ Add-SBMessages @{
     'tracker.identity.unmanaged' = @{ it = 'Tracker di identita non gestita: attivare il repository con secondbrain.ps1 -Setup o -AddRepo'; en = 'Tracker of an unmanaged identity: activate the repository with secondbrain.ps1 -Setup or -AddRepo' }
     'tracker.id.duplicate' = @{ it = 'ID tracker duplicato: {0}; renderlo univoco'; en = 'Duplicate tracker ID: {0}; make it unique' }
     'tracker.dependency.unmanaged' = @{ it = 'Dipendenza da identita non gestita: {0}; rimuovere la dipendenza o attivare quel repository'; en = 'Dependency on an unmanaged identity: {0}; remove the dependency or activate that repository' }
-    'tracker.enrichment.invalid' = @{ it = 'Puntatore di arricchimento non valido: servono un percorso relativo a SecondBrain verso proposal.json, il suo SHA-256 e lo stato proposed, applied o rejected'; en = 'Invalid enrichment pointer: it needs a SecondBrain-relative path to proposal.json, its SHA-256 and status proposed, applied or rejected' }
+    'tracker.enrichment.authorization' = @{ it = 'Applicare una proposta di arricchimento richiede il testo di autorizzazione esplicito della persona: passare -EnrichmentAuthorization'; en = 'Applying an enrichment proposal needs the explicit authorization text of the person: pass -EnrichmentAuthorization' }
+    'tracker.enrichment.none' = @{ it = 'Il task {0} non ha una proposta di arricchimento'; en = 'Task {0} has no enrichment proposal' }
+    'tracker.enrichment.state' = @{ it = 'La proposta di arricchimento del task {0} è già {1}: solo una proposta in stato proposed può essere applicata o rifiutata'; en ='The enrichment proposal of task {0} is already {1}; only a proposed one can be applied or rejected' }
+    'tracker.enrichment.missing' = @{ it = 'File della proposta di arricchimento non trovato: {0}'; en ='Enrichment proposal file not found: {0}' }
+    'tracker.enrichment.changed' = @{ it = 'La proposta di arricchimento {0} è cambiata dopo la registrazione o non riguarda questo task: nulla è stato applicato'; en ='The enrichment proposal {0} changed after it was recorded or is not a proposal for this task; nothing was applied' }
+    'tracker.enrichment.invalid' =@{ it = 'Puntatore di arricchimento non valido: servono un percorso relativo a SecondBrain verso proposal.json, il suo SHA-256 e lo stato proposed, applied o rejected'; en = 'Invalid enrichment pointer: it needs a SecondBrain-relative path to proposal.json, its SHA-256 and status proposed, applied or rejected' }
     'tracker.followup.missing' = @{ it = 'Task di origine del follow-up non trovato: {0}; indicare l''ID di un task attivo o archiviato di questo tracker'; en = 'Follow-up source task not found: {0}; give the ID of an active or archived task of this tracker' }
     'tracker.dependency.missing' = @{ it = 'Dipendenza tracker inesistente o non verificabile: {0}; correggere l''ID o rimuovere la dipendenza'; en = 'Tracker dependency missing or not verifiable: {0}; fix the ID or remove the dependency' }
     'tracker.dependency.cycle' = @{ it = 'Ciclo nelle dipendenze tracker: {0}; rimuovere una delle dipendenze'; en = 'Cycle in tracker dependencies: {0}; remove one of the dependencies' }
@@ -1048,6 +1053,34 @@ function ConvertTo-SBTaskEnrichment($Value) {
     }
     [ordered]@{path=$path;sha256=$hash.ToUpperInvariant();status=$status;at=$at}
 }
+function New-SBEnrichmentUpdate {
+    # #645: the reviewed step after a proposal (#608). Apply returns the update fields of exactly the proposal's own fields (description,
+    # acceptance, stream, requires) plus the pointer set to applied, and the proposal file must still have the SHA-256 recorded in the pointer
+    # (a changed proposal is refused); reject returns only the pointer set to rejected and does not depend on the file.
+    param([Parameter(Mandatory)][string]$BrainRoot,[Parameter(Mandatory)]$Task,[Parameter(Mandatory)][ValidateSet('apply','reject')][string]$Action)
+    $taskId=[string]$Task['id']
+    $raw=if($Task['extensions'] -is [Collections.IDictionary]){$Task['extensions']['enrichment']}else{$null}
+    if(!$raw){throw (New-SBError 'tracker.enrichment.none' @($taskId))}
+    $pointer=ConvertTo-SBTaskEnrichment $raw
+    if($pointer.status -cne 'proposed'){throw (New-SBError 'tracker.enrichment.state' @($taskId,$pointer.status))}
+    $update=[ordered]@{}
+    if($Action -eq 'apply'){
+        # Reject never reads the file: a missing or edited proposal can still be rejected.
+        $file=[IO.Path]::GetFullPath((Join-Path $BrainRoot $pointer.path))
+        if(!(Test-Path -LiteralPath $file -PathType Leaf)){throw (New-SBError 'tracker.enrichment.missing' @($pointer.path))}
+        if((Get-SBFileHash $file) -ine $pointer.sha256){throw (New-SBError 'tracker.enrichment.changed' @($pointer.path))}
+        $record=Read-SBJson $file $null
+        if($null -eq $record -or [string]$record['kind'] -cne 'task-enrichment' -or [string]$record['taskId'] -cne $taskId -or $record['proposal'] -isnot [Collections.IDictionary]){throw (New-SBError 'tracker.enrichment.changed' @($pointer.path))}
+        $map=[ordered]@{description='Description';acceptance='Acceptance';stream='Stream';requires='Requires'}
+        foreach($name in $map.Keys){
+            $value=$record['proposal'][$name]
+            if($null -eq $value -or ($value -is [string] -and !$value.Trim()) -or ($value -is [array] -and !@($value).Count)){continue}
+            $update[$map[$name]]=if($value -is [array]){@($value|ForEach-Object {[string]$_})}else{[string]$value}
+        }
+    }
+    $update['Enrichment']=[ordered]@{path=$pointer.path;sha256=$pointer.sha256;status=$(if($Action -eq 'apply'){'applied'}else{'rejected'});at=(Get-SBNow).ToString('o')}
+    $update
+}
 function Assert-SBTrackerUpdateFields([hashtable]$Fields) {
     # Field checks shared by the single update and the batch (#595), before any tracker is read.
     if(!@((Get-SBTrackerUpdateFields)|Where-Object {$Fields.ContainsKey($_)}).Count){throw (New-SBError 'tracker.update.empty')}
@@ -1214,6 +1247,7 @@ Export-ModuleMember -Function @(
     'Assert-SBTrackerWriteData',
     'Read-SBTrackerArchive',
     'Resolve-SBTrackerTaskId',
+    'New-SBEnrichmentUpdate',
     'Move-SBTerminalTrackerTasks',
     'Get-SBTrackerRelatedData',
     'Resolve-SBTracker',
