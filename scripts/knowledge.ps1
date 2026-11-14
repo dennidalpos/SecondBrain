@@ -22,7 +22,7 @@ param([Parameter(ParameterSetName='Tasks')][switch]$Tasks,[Parameter(ParameterSe
     [Parameter(Mandatory,ParameterSetName='TaskNew')][string]$NewTask,[Parameter(ParameterSetName='TaskNew')][string]$TaskId,[Parameter(ParameterSetName='TaskNew')][Parameter(ParameterSetName='TaskUpdate')][AllowEmptyString()][string]$Description,
     [Parameter(ParameterSetName='TaskNew')][Parameter(ParameterSetName='TaskUpdate')][string]$Priority='P2',[Parameter(ParameterSetName='TaskNew')][Parameter(ParameterSetName='TaskUpdate')][ValidateSet('autonomous','user_required','unspecified')][string]$Execution='autonomous',
     [Parameter(ParameterSetName='TaskNew')][Parameter(ParameterSetName='TaskUpdate')][AllowEmptyCollection()][AllowEmptyString()][string[]]$DependsOn=@(),[Parameter(Mandatory,ParameterSetName='TaskNew')][Parameter(ParameterSetName='TaskUpdate')][string[]]$Acceptance,
-    [Parameter(ParameterSetName='TaskUpdate')][string]$DecisionsFile,[Parameter(ParameterSetName='TaskUpdate')][string[]]$Evidence,
+    [Parameter(ParameterSetName='TaskUpdate')][string]$DecisionsFile,[Parameter(ParameterSetName='TaskUpdate')][string]$EnrichmentFile,[Parameter(ParameterSetName='TaskUpdate')][string[]]$Evidence,
     [Parameter(Mandatory,ParameterSetName='Registry')][switch]$Registry,[Parameter(ParameterSetName='Registry')][string]$Tool,[Parameter(ParameterSetName='Registry')][string]$TaskStatus,
     [Parameter(ParameterSetName='Registry')][ValidateSet('include','exclude','only')][string]$Archived='include',[Parameter(ParameterSetName='Registry')][string]$Filter,
     [Parameter(ParameterSetName='Registry')][ValidateRange(0,[int]::MaxValue)][int]$Page=0,[Parameter(ParameterSetName='Registry')][ValidateRange(0,500)][int]$PageSize=50,
@@ -31,7 +31,7 @@ param([Parameter(ParameterSetName='Tasks')][switch]$Tasks,[Parameter(ParameterSe
     [Parameter(ParameterSetName='TaskUpdate')][AllowEmptyString()][string]$Awaiting,
     [Parameter(ParameterSetName='TaskUpdate')][AllowEmptyString()][string]$Decision,
     [Parameter(ParameterSetName='TaskNew')][Parameter(ParameterSetName='TaskUpdate')][AllowEmptyCollection()][AllowEmptyString()][string[]]$Requires,
-    [Parameter(Mandatory,ParameterSetName='TaskNew')][string]$Provenance,[Parameter(ParameterSetName='TaskNew')][string]$ProvenancePointer,
+    [Parameter(Mandatory,ParameterSetName='TaskNew')][string]$Provenance,[Parameter(ParameterSetName='TaskNew')][string]$ProvenancePointer,[Parameter(ParameterSetName='TaskNew')][string]$FollowUpOf,
     [Parameter(Mandatory,ParameterSetName='Renumber')][switch]$RenumberTasks,
     [Parameter(Mandatory,ParameterSetName='HistoryMigration')][switch]$MigrateHistoryMessages,
     [Parameter(Mandatory,ParameterSetName='HistoryMessages')][switch]$HistoryMessages,
@@ -194,6 +194,12 @@ try{
         if($PSBoundParameters.ContainsKey('Acceptance')){$arguments.Acceptance=@($Acceptance|ForEach-Object{$_ -split ';'}|ForEach-Object{$_.Trim()}|Where-Object{$_})}
         if($PSBoundParameters.ContainsKey('Evidence')){$arguments.Evidence=@($Evidence|ForEach-Object{$_ -split ';'}|ForEach-Object{$_.Trim()}|Where-Object{$_}|ForEach-Object{ConvertTo-SBTaskEvidence $_})}
         if($DecisionsFile){Assert-SBPlainPath $DecisionsFile;$arguments.Decisions=@(ConvertTo-SBTaskDecisions (Read-SBText $DecisionsFile))}
+        # #608: only a pointer to the light-model proposal (inside the SecondBrain checkout, e.g. a work folder) reaches the tracker.
+        if($EnrichmentFile){
+            $full=[IO.Path]::GetFullPath($EnrichmentFile);Assert-SBPlainPath $full
+            $relative=[IO.Path]::GetRelativePath($brain,$full).Replace('\','/')
+            $arguments.Enrichment=@{path=$relative;sha256=(Get-SBFileHash $full);status='proposed';at=(Get-SBNow).ToString('o')}
+        }
         if($arguments.Count -eq 1){throw (New-SBError 'tracker.update.empty')}
         $submission=New-SBPendingWrite -BrainRoot $brain -Repository $working -Operation task.update -Arguments $arguments -Config $config -SessionId $SessionId
         $result=Complete-SBPendingSubmission $submission $config $SessionId
@@ -252,6 +258,7 @@ try{
             $Acceptance=@($Acceptance|ForEach-Object{$_ -split ';'}|ForEach-Object{$_.Trim()}|Where-Object{$_})
             if($repoId -cne $working){throw (New-SBError 'tracker.write.foreign' @($repoId,$working))}
             $arguments=@{Title=$NewTask;Id=$TaskId;Description=$Description;Priority=$Priority;Execution=$Execution;DependsOn=$DependsOn;Acceptance=$Acceptance;ProvenanceReference=$Provenance;ProvenancePointer=$ProvenancePointer}
+            if($FollowUpOf){$arguments.FollowUpOf=$FollowUpOf}
             if($PSBoundParameters.ContainsKey('Requires')){
                 $required=ConvertTo-SBTaskRequires $Requires
                 if($required.Count){$arguments.Requires=@($required)}

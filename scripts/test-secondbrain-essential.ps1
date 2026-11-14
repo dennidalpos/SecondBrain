@@ -635,6 +635,27 @@ if('trackers' -in $Groups){
             Check ($u -and $u.schemaVersion -eq 1 -and @($u.checks).Count -eq 8 -and @($u.missing) -contains 'scope') ('an update re-runs the assessment on the task: '+(ConvertTo-SBJson $u))
             $imported=@(Get-SBTrackerImportReadiness @{tasks=@($rTask,$probe,@{id='T-1';title='#001 — Task 1';status='todo'})})
             Check ($imported.Count -eq 3 -and $imported[0].id -ceq 'RD-1' -and $imported[0].ready -and !$imported[1].ready -and @($imported[1].missing) -contains 'dependencies') ('the import report carries the same assessment per task: '+(ConvertTo-SBJson $imported))
+            # #609: imported tasks keep ID, seq, acceptance and provenance byte-identical; readiness goes in extensions only.
+            $impTasks=@(@{id='IM-1';seq=7;title='#007 — Imported';description='Imported scope';status='todo';execution='autonomous';acceptance=@('Kept as is');provenance=@(@{reference='history/x.md';sha256='abc'});extensions=@{stream='s'}},@{id='IM-2';seq=8;title='#008 — Closed';status='done';acceptance=@('a');provenance=@()})
+            $impBefore=ConvertTo-SBJson $impTasks
+            $impData=Add-SBTrackerImportReadiness @{tasks=$impTasks}
+            $i1=$impData.tasks[0];$i2=$impData.tasks[1]
+            $strip={param($x) $c=@{};foreach($k in $x.Keys){$c[$k]=$x[$k]};if($c.extensions){$e=@{};foreach($k in $c.extensions.Keys){if($k -ne 'readiness'){$e[$k]=$c.extensions[$k]}};$c.extensions=$e};$c}
+            # #611: a follow-up links its source and inherits its stream; an unknown source is refused.
+            $fu=New-SBTrackerTaskEntry @base -Id 'FU-1' -Title 'Follow-up synthetic problem' -Acceptance @('Fixed') -FollowUpOf 't-1'
+            $fuTask=@($fu.data.tasks|Where-Object id -eq 'FU-1')[0]
+            $srcTask=@($fu.data.tasks|Where-Object id -eq 'T-1')[0]
+            $srcStream=if($srcTask.extensions -is [Collections.IDictionary]){[string]$srcTask.extensions['stream']}else{''}
+            Check ($fuTask.extensions.followUpOf -ceq 'T-1' -and [string]$fuTask.extensions['stream'] -ceq $srcStream) ('a follow-up links its source and inherits its stream: '+(ConvertTo-SBJson $fuTask.extensions))
+            $refusedSource=$false;try{[void](New-SBTrackerTaskEntry @base -Id 'FU-2' -Title 'Follow-up of nothing' -Acceptance @('x') -FollowUpOf 'NOPE-1')}catch{$refusedSource=$_.Exception.Message -match 'NOPE-1'}
+            Check $refusedSource 'a follow-up of an unknown task is refused'
+            # #608: the enrichment pointer is validated and stored in extensions only.
+            $enr=Update-SBTrackerTask -BrainRoot $brain -Identity $identity -TaskId 'T-1' -Enrichment @{path='.runtime/hosts/h/repos/r/work/20261114-enrich-task-1-101010/proposal.json';sha256=('a'*64);status='proposed';at='2026-11-14T10:10:10Z'} -WhatIf
+            $eTask=@($enr.data.tasks|Where-Object id -eq 'T-1')[0]
+            Check ($eTask.extensions.enrichment.status -eq 'proposed' -and $eTask.extensions.enrichment.sha256 -ceq ('A'*64) -and $eTask.extensions.enrichment.path -like '*/proposal.json') ('the enrichment pointer is stored on the task: '+(ConvertTo-SBJson $eTask.extensions.enrichment))
+            $refusedPointer=$false;try{[void](Update-SBTrackerTask -BrainRoot $brain -Identity $identity -TaskId 'T-1' -Enrichment @{path='C:/abs/proposal.json';sha256=('a'*64);status='proposed'} -WhatIf)}catch{$refusedPointer=$_.Exception.Message -match 'enrichment|arricchimento'}
+            Check $refusedPointer 'an absolute or malformed enrichment pointer is refused'
+            Check ($i1.extensions.readiness.schemaVersion -eq 1 -and @($i1.extensions.readiness.checks).Count -eq 8 -and !$i2.Contains('extensions') -and (ConvertTo-SBJson @((& $strip $i1),$i2)) -ceq $impBefore) ('import adds readiness in extensions only and leaves the rest byte-identical: '+(ConvertTo-SBJson $impData))
         }finally{Remove-Item -LiteralPath $decisionsPath -Force -ErrorAction SilentlyContinue}
     }finally{foreach($v in $executorVars){[Environment]::SetEnvironmentVariable($v,$savedExecutor[$v],'Process')}}
 }

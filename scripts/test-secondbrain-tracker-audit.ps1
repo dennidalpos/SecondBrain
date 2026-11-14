@@ -78,6 +78,8 @@ try {
         [void](Invoke-SBTrackerImport -Config $f.config -ManifestPath $manifestPath -Activate)
         $current=Resolve-SBTracker -BrainRoot $f.brain -Identity $f.identity -CheckoutPath $f.checkout -AllowedOwners @('test')
         Assert-Audit ($current.data.schemaVersion -eq 1 -and $current.data.tasks[0].id -ceq 'X' -and (Get-SBFileHash $historical.source.archive) -ceq $originalHash) 'ripresa storica attiva lo schema corrente e conserva la copia esatta'
+        $importedX=$current.data.tasks[0];$manifestReadiness=@((Read-SBTrackerManifest $f.config $manifestPath).readiness)
+        Assert-Audit (([string]$importedX.status -cin @('done','cancelled') -or $importedX.extensions.readiness.schemaVersion -eq 1) -and $manifestReadiness.Count -eq 1 -and $manifestReadiness[0].id -ceq 'X') ('#609: the imported task stores readiness in extensions and the manifest reports it: '+(ConvertTo-SBJson $importedX))
         $registrationFiles=@(foreach($rootName in @('tracker-imports','tracker-migrations')){$dir=Join-Path $f.config.runtimeRoot $rootName;if(Test-Path -LiteralPath $dir){Get-ChildItem -LiteralPath $dir -File -Filter '*.json'}})
         $registrations=@(Get-SBTrackerManifestRegistrations $f.config)
         Assert-Audit ($registrationFiles.Count -eq 2 -and $registrations.Count -eq 1 -and $registrations[0].path -ceq $manifestPath) 'registri storico e corrente dello stesso manifest producono una sola registrazione'

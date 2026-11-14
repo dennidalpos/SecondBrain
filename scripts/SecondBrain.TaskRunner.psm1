@@ -109,7 +109,59 @@ function Select-SBRunnableTasks($Tasks,[int]$MaxTasks=3,[switch]$AllowComputerUs
     if($MaxTasks -gt 0 -and $sel.Count -gt $MaxTasks){$sel=@($sel[0..($MaxTasks-1)])}
     ,$sel
 }
-function New-SBTaskRunPrompt($Task,[string]$ScriptsRoot,[string]$CheckoutPath){
+function ConvertTo-SBFindingKey([string]$Title){
+    # #611: the normalized title of a finding or task (no "#NNN - " prefix with an em dash or hyphen, lower case, letters and digits only, single spaces).
+    $t=([string]$Title) -replace '^\s*#\d+\s*\p{Pd}\s*',''
+    (($t.ToLowerInvariant() -replace '[^\p{L}\p{Nd}]+',' ').Trim())
+}
+function Read-SBRunnerFindings([string]$Path){
+    # #611: findings.json written by the agent in its attempt folder. Each entry is valid (title with a letter, reproduction, evidence,
+    # at least one acceptance criterion) or invalid with its reason: invalid entries are reported, never turned into tasks.
+    $out=[ordered]@{present=$false;error=$null;findings=@()}
+    if(!$Path -or !(Test-Path -LiteralPath $Path -PathType Leaf)){return $out}
+    $out.present=$true
+    $data=try{Get-Content -LiteralPath $Path -Raw -Encoding utf8|ConvertFrom-Json -AsHashtable -Depth 20}catch{$null}
+    if($data -isnot [Collections.IDictionary] -or $data['findings'] -isnot [Collections.IList]){$out.error='unreadable';return $out}
+    $i=0
+    foreach($f in @($data['findings'])){
+        $i++
+        $entry=[ordered]@{index=$i;title=$null;key=$null;reproduction=$null;evidence=$null;acceptance=@();existing=$null;valid=$false;reason=$null}
+        if($f -isnot [Collections.IDictionary]){$entry.reason='not-an-object';$out.findings+=,$entry;continue}
+        $entry.title=([string]$f['title']).Trim();$entry.reproduction=([string]$f['reproduction']).Trim();$entry.evidence=([string]$f['evidence']).Trim()
+        $entry.acceptance=@(@($f['acceptance'])|ForEach-Object {([string]$_).Trim()}|Where-Object {$_})
+        $entry.existing=if($f['existing']){([string]$f['existing']).Trim()}else{$null}
+        $entry.key=ConvertTo-SBFindingKey $entry.title
+        $missing=@()
+        if($entry.title -notmatch '\p{L}' -or $entry.title.Length -gt 200){$missing+='title'}
+        if(!$entry.reproduction){$missing+='reproduction'}
+        if(!$entry.evidence){$missing+='evidence'}
+        if(!$entry.acceptance.Count){$missing+='acceptance'}
+        if($missing.Count){$entry.reason='missing:'+($missing -join ',')}else{$entry.valid=$true}
+        $out.findings+=,$entry
+    }
+    $out
+}
+function Find-SBFollowUpMatch($Finding,$Tasks,[string]$SourceId){
+    # #611: duplicate detection before any follow-up is created, deterministic only: the existing task the agent names (any status but
+    # cancelled), an open task with the same normalized title, or an earlier follow-up of the same source with the same title (not cancelled).
+    $field={param($o,[string]$n) if($o -is [Collections.IDictionary]){$o[$n]}else{Get-SBRunnerValue $o $n}}
+    $all=@(@($Tasks)|Where-Object {$_})
+    if($Finding.existing){
+        $hit=@($all|Where-Object {[string](& $field $_ 'id') -ieq $Finding.existing -and [string](& $field $_ 'status') -ne 'cancelled'})
+        if($hit.Count){return [ordered]@{id=[string](& $field $hit[0] 'id');rule='explicit'}}
+    }
+    foreach($t in $all){
+        $status=[string](& $field $t 'status')
+        if($status -eq 'cancelled' -or [string](& $field $t 'id') -ieq $SourceId){continue}
+        $ext=& $field $t 'extensions'
+        $sameSource=$ext -and [string](& $field $ext 'followUpOf') -ieq $SourceId
+        if((ConvertTo-SBFindingKey ([string](& $field $t 'title'))) -ceq $Finding.key -and ($status -ne 'done' -or $sameSource)){
+            return [ordered]@{id=[string](& $field $t 'id');rule=$(if($sameSource){'follow-up'}else{'title'})}
+        }
+    }
+    $null
+}
+function New-SBTaskRunPrompt($Task,[string]$ScriptsRoot,[string]$CheckoutPath,[string]$FindingsPath){
     $id=Get-SBRunnerValue $Task 'id'
     # With a scripts root and a checkout (multi-repository run) the agent starts in a product checkout, where scripts/knowledge.ps1 does not exist:
     # the extra line gives it the absolute SecondBrain tools and the checkout that resolves the dossier.
@@ -128,6 +180,7 @@ function New-SBTaskRunPrompt($Task,[string]$ScriptsRoot,[string]$CheckoutPath){
         'Perimetro: lavora solo sul repository di questo checkout e sul suo tracker; non leggere, prendere o aggiornare task di altri repository e non usare -All, -AllDossiers, all=true e non indicare -Repository di un altro repository.',
         'Divieti: nessun commit, push, pubblicazione o cancellazione; nessuna applicazione di SYS05 o di pulizie; nessun altro task. Se serve una conferma o una prova live, fermati e riporta il limite nello stato del task senza chiuderlo.',
         'Closing as done needs evidence: pass -Evidence "<check>|passed" for each verified criterion in the same update; a task closed as done without passed evidence from this session is reopened by the runner.',
+        $(if($FindingsPath){"Unresolved problems: before ending, write every actionable problem you found and did not resolve to the findings file $FindingsPath as {`"findings`":[{`"title`":`"...`",`"reproduction`":`"...`",`"evidence`":`"...`",`"acceptance`":[`"...`"],`"existing`":`"<task id or null>`"}]}. Name an existing task in existing when it already covers the problem. Do not create follow-up tasks yourself: the runner matches existing tasks and records linked follow-ups."}else{$null}),
         'Chiudi con un riepilogo breve: esito per criterio, verifiche eseguite, limiti.'
     ).Where({$_}) -join "`n"
 }
@@ -146,4 +199,4 @@ function Get-SBRunnerAcceptance($Task,[DateTimeOffset]$AttemptStartedAt) {
     }
     'unverified'
 }
-Export-ModuleMember -Function @('Get-SBRunnerOpenDecisions','Get-SBRunnerAcceptance','Get-SBRunnerValue','Test-SBProjectIsolation','Assert-SBProjectIsolation','Get-SBRunnerExcludedStreams','Test-SBRunnableTask','Get-SBRunnerExclusionReason','Get-SBRunnerExclusions','Select-SBRunnableTasks','New-SBTaskRunPrompt','Get-SBRunnerScopeVariables','Get-SBRunnerReadScope','Assert-SBRunnerReadScope')
+Export-ModuleMember -Function @('Get-SBRunnerOpenDecisions','Get-SBRunnerAcceptance','Get-SBRunnerValue','Test-SBProjectIsolation','Assert-SBProjectIsolation','Get-SBRunnerExcludedStreams','Test-SBRunnableTask','Get-SBRunnerExclusionReason','Get-SBRunnerExclusions','Select-SBRunnableTasks','New-SBTaskRunPrompt','ConvertTo-SBFindingKey','Read-SBRunnerFindings','Find-SBFollowUpMatch','Get-SBRunnerScopeVariables','Get-SBRunnerReadScope','Assert-SBRunnerReadScope')

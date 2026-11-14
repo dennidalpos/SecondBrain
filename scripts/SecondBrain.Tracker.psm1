@@ -37,6 +37,8 @@ Add-SBMessages @{
     'tracker.identity.unmanaged' = @{ it = 'Tracker di identita non gestita: attivare il repository con secondbrain.ps1 -Setup o -AddRepo'; en = 'Tracker of an unmanaged identity: activate the repository with secondbrain.ps1 -Setup or -AddRepo' }
     'tracker.id.duplicate' = @{ it = 'ID tracker duplicato: {0}; renderlo univoco'; en = 'Duplicate tracker ID: {0}; make it unique' }
     'tracker.dependency.unmanaged' = @{ it = 'Dipendenza da identita non gestita: {0}; rimuovere la dipendenza o attivare quel repository'; en = 'Dependency on an unmanaged identity: {0}; remove the dependency or activate that repository' }
+    'tracker.enrichment.invalid' = @{ it = 'Puntatore di arricchimento non valido: servono un percorso relativo a SecondBrain verso proposal.json, il suo SHA-256 e lo stato proposed, applied o rejected'; en = 'Invalid enrichment pointer: it needs a SecondBrain-relative path to proposal.json, its SHA-256 and status proposed, applied or rejected' }
+    'tracker.followup.missing' = @{ it = 'Task di origine del follow-up non trovato: {0}; indicare l''ID di un task attivo o archiviato di questo tracker'; en = 'Follow-up source task not found: {0}; give the ID of an active or archived task of this tracker' }
     'tracker.dependency.missing' = @{ it = 'Dipendenza tracker inesistente o non verificabile: {0}; correggere l''ID o rimuovere la dipendenza'; en = 'Tracker dependency missing or not verifiable: {0}; fix the ID or remove the dependency' }
     'tracker.dependency.cycle' = @{ it = 'Ciclo nelle dipendenze tracker: {0}; rimuovere una delle dipendenze'; en = 'Cycle in tracker dependencies: {0}; remove one of the dependencies' }
     'tracker.related.declaration' = @{ it = 'Dichiarazione tracker correlato non valida: {0}'; en = 'Invalid related tracker declaration: {0}' }
@@ -806,6 +808,7 @@ function New-SBTrackerTaskEntry {
         [string]$ProvenancePointer,
         [hashtable]$Extensions=@{},
         [AllowEmptyCollection()][AllowEmptyString()][string[]]$Requires=@(),
+        [string]$FollowUpOf,
         [string]$BackupRoot,
         [switch]$WhatIf,
         $Executor
@@ -824,6 +827,13 @@ function New-SBTrackerTaskEntry {
     $seq=(Get-SBTrackerLastSeq (Join-SBTrackerArchive $next $archive.data))+1
     if(!$Id){$Id='TASK-'+$seq.ToString('000')}
     if(@(@($next.tasks)+@($archive.data.tasks)|Where-Object {$_.id -ieq $Id}).Count){throw (New-SBError 'tracker.task.exists' @($Id))}
+    if($FollowUpOf){
+        # #611: a follow-up links its source task (active or archived) and inherits its stream unless one is given.
+        $origin=@(@($next.tasks)+@($archive.data.tasks)|Where-Object {$_.id -ieq $FollowUpOf})
+        if(!$origin.Count){throw (New-SBError 'tracker.followup.missing' @($FollowUpOf))}
+        $Extensions=@{}+$Extensions;$Extensions.followUpOf=[string]$origin[0].id
+        if(!$Extensions.ContainsKey('stream') -and $origin[0].extensions -is [Collections.IDictionary] -and $origin[0].extensions['stream']){$Extensions.stream=[string]$origin[0].extensions['stream']}
+    }
     # Provenance is a real file: dossier-relative or absolute reference; compute its hash here.
     $dossierDir=Split-Path $target.path
     $sourcePath=if([IO.Path]::IsPathFullyQualified($ProvenanceReference)){$ProvenanceReference}else{Join-Path $dossierDir (($ProvenanceReference -split '#',2)[0])}
@@ -1009,6 +1019,7 @@ function Update-SBTrackerTask {
         [string[]]$Acceptance,
         $Decisions,
         [AllowEmptyString()][string]$Decision,
+        $Enrichment,
         [string]$BackupRoot,
         [switch]$WhatIf,
         [string]$WorkingRepository,
@@ -1025,7 +1036,18 @@ function Update-SBTrackerTask {
     if($edit.closing){$result.closureAdvice=Get-SBClosureAdvice (Split-Path $target.path)}
     $result
 }
-function Get-SBTrackerUpdateFields {@('Status','StateReason','Priority','Execution','DependsOn','Stream','Awaiting','Requires','Evidence','Description','Acceptance','Decisions','Decision')}
+function Get-SBTrackerUpdateFields {@('Status','StateReason','Priority','Execution','DependsOn','Stream','Awaiting','Requires','Evidence','Description','Acceptance','Decisions','Decision','Enrichment')}
+function ConvertTo-SBTaskEnrichment($Value) {
+    # #608: pointer to a light-model proposal kept in a work folder: SecondBrain-relative path, SHA-256 of proposal.json, status and time.
+    # Only the pointer reaches the tracker; the proposal is applied, if ever, through a reviewed update.
+    $field={param($o,[string]$n) if($o -is [Collections.IDictionary]){$o[$n]}elseif($null -ne $o -and $o.PSObject.Properties[$n]){$o.$n}else{$null}}
+    $path=([string](& $field $Value 'path')).Replace('\','/')
+    $hash=[string](& $field $Value 'sha256');$status=[string](& $field $Value 'status');$at=[string](& $field $Value 'at')
+    if(!$path -or [IO.Path]::IsPathRooted($path) -or $path -match '(^|/)\.\.(/|$)' -or $path -notmatch '/proposal\.json$' -or $hash -notmatch '^[A-Fa-f0-9]{64}$' -or $status -cnotin @('proposed','applied','rejected')){
+        throw (New-SBError 'tracker.enrichment.invalid')
+    }
+    [ordered]@{path=$path;sha256=$hash.ToUpperInvariant();status=$status;at=$at}
+}
 function Assert-SBTrackerUpdateFields([hashtable]$Fields) {
     # Field checks shared by the single update and the batch (#595), before any tracker is read.
     if(!@((Get-SBTrackerUpdateFields)|Where-Object {$Fields.ContainsKey($_)}).Count){throw (New-SBError 'tracker.update.empty')}
@@ -1033,6 +1055,7 @@ function Assert-SBTrackerUpdateFields([hashtable]$Fields) {
     if($Fields.ContainsKey('Priority') -and $Fields.Priority -cnotin @('P0','P1','P2','P3','P4')){throw (New-SBError 'tracker.priority.invalid')}
     if($Fields.ContainsKey('Execution') -and $Fields.Execution -cnotin @('autonomous','user_required','unspecified')){throw (New-SBError 'tracker.execution.invalid')}
     if($Fields.ContainsKey('Requires')){[void](ConvertTo-SBTaskRequires $Fields.Requires)}
+    if($Fields.ContainsKey('Enrichment')){[void](ConvertTo-SBTaskEnrichment $Fields.Enrichment)}
 }
 function Edit-SBTrackerTaskFields($Target,$Archive,[string]$TaskId,[hashtable]$Fields,$Executor) {
     # Applies one update to the in-memory tracker and archive; the caller saves (one task: Update-SBTrackerTask; several: Invoke-SBTrackerTaskBatch).
@@ -1079,6 +1102,7 @@ function Edit-SBTrackerTaskFields($Target,$Archive,[string]$TaskId,[hashtable]$F
     if($Fields.ContainsKey('DependsOn')){
         $task.dependencies=ConvertTo-SBTrackerDependencies @($Fields.DependsOn) $next $Archive.data
     }
+    if($Fields.ContainsKey('Enrichment')){$task.extensions.enrichment=ConvertTo-SBTaskEnrichment $Fields.Enrichment}
     if($Fields.ContainsKey('Evidence') -and $Fields.Evidence){if(!$task.ContainsKey('evidence')){$task.evidence=@()};$task.evidence+=@(@($Fields.Evidence)|ForEach-Object {ConvertTo-SBTaskEvidence $_})}
     # #607: every update of an open task (CLI, MCP, batch, the app's analysis) re-runs the same readiness assessment.
     if([string]$task.status -cnotin @('done','cancelled')){[void](Set-SBTaskReadiness $task (@($next.tasks)+@($Archive.data.tasks)) (Split-Path $Target.path) $Target.identity)}

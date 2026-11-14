@@ -41,6 +41,12 @@ an unverified closure is reopened as in_progress with the reason (event reopened
 verified acceptance) next to succeeded and failed (process outcomes, #641).
 Closure (#605/#606): run state, pending writes, outcomes, then cleanup of the files registered in the run's temp-manifest.json (tmp/);
 status.json finalization and cleanup record the order and the result, and a cleanup failure never changes outcomes or the exit code.
+A runner status update still deferred behind another writer is applied by the closing -FlushPending and read back from the tracker
+(finalization.deferred, results deferredApplied, #643).
+Unresolved findings (#611): the prompt names findings.json in the attempt folder; each valid finding (title, reproduction, evidence,
+acceptance) is matched first (existing ID named by the agent, same normalized title of an open task, earlier follow-up of the same
+source), otherwise created as a follow-up with -FollowUpOf and a dossier report history/runner-findings-<attempt>/report.md as provenance.
+report.json findings counts matched, created, deferred, invalid and failed; invalid findings are never turned into tasks.
 -TaskIds runs only the named ready tasks, in the given order, after the same selection rules. -Events writes progress as one JSON
 object per line on standard error (for the desktop orchestrator). -StopFile <path> ends the run before the next task when the file exists.
 #>
@@ -169,12 +175,23 @@ function Close-RunnerState([string]$State){
     $script:runStatus.state=$State;$script:runStatus.phase='finalizing';$script:runStatus.finishedAt=(Get-SBNow).ToString('o')
     Save-RunnerState -Force;$final.steps+='state'
     # Pending writes: tracker updates of this run deferred behind another writer are applied before the outcomes are final.
+    if($script:testWriterHold){Exit-SBOperation $script:testWriterHold;$script:testWriterHold=$null}
     $results=@($script:runStatus.results)
     if($results.Count){
         $final.pendingWrites='done'
         $checkouts=@(@($plans|ForEach-Object {$_.target.path})|Where-Object {$_}|Select-Object -Unique)
         foreach($c in $checkouts){
             try{if((Invoke-RunnerChild (@($knowledge,'-FlushPending','-CheckoutPath',$c)+$configArgs)) -ne 0){$final.pendingWrites='failed'}}catch{$final.pendingWrites='failed'}
+        }
+        # #643: an outcome that rested on a deferred update is read again from the tracker, so it reflects the write actually applied.
+        $final.deferred=@()
+        foreach($d in @($script:deferredUpdates)){
+            $after=$null
+            foreach($p in @($plans|Where-Object {$_.source})){$tr=Read-SBJson $p.source $null;if($tr){$hit=@($tr.tasks|Where-Object {[string]$_.id -eq $d.id});if($hit.Count -eq 1){$after=[string]$hit[0].status}}}
+            $applied=($null -ne $after -and $after -eq $d.status)
+            foreach($r in @($script:runStatus.results|Where-Object {[string]$_.id -eq $d.id})){if($null -ne $after){$r.statusAfter=$after};$r.deferredApplied=$applied}
+            $final.deferred+=[ordered]@{id=$d.id;status=$d.status;statusAfter=$after;applied=$applied}
+            if(!$applied){$final.pendingWrites='failed'}
         }
     }else{$final.pendingWrites='skipped'}
     $final.steps+='pending-writes'
@@ -202,9 +219,57 @@ function Invoke-RunnerTaskUpdate([string[]]$UpdateArgs){
     $previous=$env:SECONDBRAIN_EXECUTOR
     try{
         $env:SECONDBRAIN_EXECUTOR=(ConvertTo-Json ([ordered]@{tool=$Provider;mode='runner';model=$(if($script:runStatus){$script:runStatus.resolvedModel});effort=$(if($script:runStatus){$script:runStatus.resolvedEffort});runId=$(if($script:runStatus){$script:runStatus.runId})}) -Compress)
-        $null=(& pwsh -NoProfile -File $knowledge @UpdateArgs @configArgs 2>&1|Out-String)
-        switch($LASTEXITCODE){0{$true}5{'deferred'}default{$false}}
+        $script:lastUpdateOutput=(& pwsh -NoProfile -File $knowledge @UpdateArgs @configArgs 2>&1|Out-String)
+        $outcome=switch($LASTEXITCODE){0{$true}5{'deferred'}default{$false}}
+        # A deferred status update is checked again at closure, after the closing -FlushPending (#643).
+        if($outcome -eq 'deferred'){
+            $i=[array]::IndexOf($UpdateArgs,'-UpdateTaskId');$s=[array]::IndexOf($UpdateArgs,'-Status')
+            if($i -ge 0 -and $s -ge 0){$script:deferredUpdates=@($script:deferredUpdates)+@([ordered]@{id=[string]$UpdateArgs[$i+1];status=[string]$UpdateArgs[$s+1]})}
+        }
+        $outcome
     }catch{$false}finally{$env:SECONDBRAIN_EXECUTOR=$previous}
+}
+function Invoke-RunnerFindings($Task,[string]$Root,[string]$Checkout,$Plan){
+    # #611: unresolved problems the agent wrote to findings.json. Each valid finding is matched against existing tasks first (explicit ID,
+    # same normalized title, earlier follow-up of the same source); otherwise a linked follow-up is created with reproduction, evidence
+    # and acceptance, its provenance a copy of the findings file saved in the dossier. Invalid findings are reported, never created.
+    $read=Read-SBRunnerFindings (Join-Path $Root 'findings.json')
+    $out=[ordered]@{present=$read.present;error=$read.error;matched=0;created=0;deferred=0;invalid=0;failed=0;items=@()}
+    if(!$read.present -or $read.error){return $out}
+    $tasks=@();if($Plan.source){$tr=Read-SBJson $Plan.source $null;if($tr){$tasks=@($tr.tasks)}}
+    $sourceId=[string]$Task.id;$provenance=$null;$seen=@{}
+    foreach($f in @($read.findings)){
+        $item=[ordered]@{index=$f.index;title=$f.title;action=$null;taskId=$null;rule=$null;reason=$f.reason}
+        if(!$f.valid){$item.action='invalid';$out.invalid++;$out.items+=,$item;continue}
+        if($seen.ContainsKey($f.key)){$item.action='matched';$item.taskId=$seen[$f.key];$item.rule='same-file';$out.matched++;$out.items+=,$item;continue}
+        $hit=Find-SBFollowUpMatch $f $tasks $sourceId
+        if($hit){$item.action='matched';$item.taskId=$hit.id;$item.rule=$hit.rule;$seen[$f.key]=$hit.id;$out.matched++;$out.items+=,$item;continue}
+        if(!$provenance -and $Plan.source){
+            # One report per attempt in the dossier (history/<slug>/report.md, the only shape a pending save accepts): the follow-ups
+            # cite it with its hash and a #finding-<n> pointer; a deferred save is applied before the follow-ups are created.
+            $slug=('runner-findings-'+(Split-Path $Root -Leaf)) -replace '[^a-zA-Z0-9_-]','-'
+            $rel="history/$slug/report.md"
+            $lines=@("# Runner findings: $sourceId (#$($Task.seq))",'',"Run $($script:runStatus.runId); attempt folder $(Split-Path $Root -Leaf). Unresolved problems reported by the agent; follow-ups cite the matching section.")
+            foreach($v in @($read.findings|Where-Object valid)){$lines+=@('',"## Finding $($v.index)",'',"<a id=`"finding-$($v.index)`"></a>",'',"- Title: $($v.title)","- Reproduction: $($v.reproduction)","- Evidence: $($v.evidence)",'- Acceptance:')+@($v.acceptance|ForEach-Object {"  - $_"})}
+            $reportFile=Join-Path $Root 'findings-report.md'
+            [IO.File]::WriteAllText($reportFile,(($lines -join "`n")+"`n"),[Text.UTF8Encoding]::new($false))
+            $saved=Invoke-RunnerTaskUpdate @('-SaveFile',$rel,'-ContentPath',$reportFile,'-ExpectedHash','absent','-CheckoutPath',$Checkout)
+            if($saved -eq 'deferred'){try{[void](Invoke-RunnerChild (@($knowledge,'-FlushPending','-CheckoutPath',$Checkout)+$configArgs))}catch{[void]$_}}
+            if(Test-Path -LiteralPath (Join-Path (Split-Path $Plan.source) $rel) -PathType Leaf){$provenance=$rel}
+        }
+        if(!$provenance){$item.action='failed';$item.reason='provenance-not-saved';$out.failed++;$out.items+=,$item;continue}
+        $description="Follow-up of $sourceId (#$($Task.seq)), recorded by the runner (run $($script:runStatus.runId)).`nReproduction: $($f.reproduction)`nEvidence: $($f.evidence)"
+        $criteria=@($f.acceptance|ForEach-Object {$_.Replace(';',',')})
+        $created=Invoke-RunnerTaskUpdate @('-NewTask',$f.title,'-Description',$description,'-Acceptance',($criteria -join ';'),'-Provenance',$provenance,'-ProvenancePointer',('#finding-'+$f.index),'-FollowUpOf',$sourceId,'-CheckoutPath',$Checkout)
+        if($created -eq $true){
+            $m=[regex]::Match([string]$script:lastUpdateOutput,'"taskId"\s*:\s*"([^"]+)"')
+            $item.action='created';$item.taskId=if($m.Success){$m.Groups[1].Value}else{$null};$out.created++
+            if($item.taskId){$seen[$f.key]=$item.taskId;$tasks+=,@{id=$item.taskId;title=$f.title;status='todo';extensions=@{followUpOf=$sourceId}}}
+        }elseif($created -eq 'deferred'){$item.action='deferred';$out.deferred++;$seen[$f.key]='(deferred)'}
+        else{$item.action='failed';$item.reason='create-refused';$out.failed++}
+        $out.items+=,$item
+    }
+    $out
 }
 function Invoke-RunnerChild([string[]]$ScriptArgs){
     # A SecondBrain CLI that can wait (the writer lock of -FlushPending): started as a process so status.json keeps its heartbeat meanwhile.
@@ -220,6 +285,7 @@ function Invoke-RunnerChild([string[]]$ScriptArgs){
     }finally{$p.Dispose()}
 }
 $configArgs=if($ConfigPath){@('-ConfigPath',$ConfigPath)}else{@()}
+$script:deferredUpdates=@();$script:testWriterHold=$null;$script:lastUpdateOutput=$null
 $knowledge=Join-Path $PSScriptRoot 'knowledge.ps1'
 if(!$Run){Initialize-RunnerInvocation}
 # One repository only: the given checkout. When it is not the SecondBrain checkout, prompts carry the absolute SecondBrain tool paths.
@@ -490,7 +556,8 @@ foreach($plan in $plans){
         $agentEnv[$scopeVariables.repository]=[string]$identity
         # The executor of this session (tool, mode, model, effort, run): the agent's tracker writes record it in the dossier ledger.
         $agentEnv['SECONDBRAIN_EXECUTOR']=(ConvertTo-Json ([ordered]@{tool=$Provider;mode='runner';model=$script:runStatus.resolvedModel;effort=$script:runStatus.resolvedEffort;runId=$script:runStatus.runId}) -Compress)
-        $prompt=if($external){New-SBTaskRunPrompt $task $PSScriptRoot $checkout}else{New-SBTaskRunPrompt $task}
+        $findingsFile=Join-Path $root 'findings.json'
+        $prompt=if($external){New-SBTaskRunPrompt $task $PSScriptRoot $checkout -FindingsPath $findingsFile}else{New-SBTaskRunPrompt $task -FindingsPath $findingsFile}
         # Resume note: the interrupted task of a -Resume, or the one this run stopped on before waiting for the reset.
         $interrupted=if($script:interruptedHere -and [string]$script:interruptedHere.id -eq [string]$task.id){$script:interruptedHere}elseif($script:resumeFrom -and $script:resumeFrom.interrupted -is [hashtable] -and [string]$script:resumeFrom.interrupted.id -eq [string]$task.id){$script:resumeFrom.interrupted}else{$null}
         if($interrupted){
@@ -524,6 +591,9 @@ foreach($plan in $plans){
         # Concurrent runners on other repositories can leave this task's dossier writes deferred: apply them now, waiting for the writer lock, so the status read below is current.
         Set-RunnerPhase 'flush'
         try{[void](Invoke-RunnerChild (@($knowledge,'-FlushPending','-CheckoutPath',$checkout)+$configArgs))}catch{[void]$_}
+        # Test-only (#643): SB_RUNNER_TEST_HOLD_WRITER inside a test run (SECONDBRAIN_TEST_ROOT) holds the writer from here to closure,
+        # so the runner's own updates of this attempt are deferred and only the closing -FlushPending applies them.
+        if($env:SECONDBRAIN_TEST_ROOT -and $env:SB_RUNNER_TEST_HOLD_WRITER -and !$script:testWriterHold){$script:testWriterHold=Enter-SBOperation $config -WaitMs 0 -LockOnly}
         $statusAfter=$null;$taskAfter=$null
         if($plan.source){$tr=Read-SBJson $plan.source $null;if($tr){$hit=@($tr.tasks|Where-Object {[string]$_.id -eq [string]$task.id});if($hit.Count -eq 1){$taskAfter=$hit[0];$statusAfter=$hit[0].status}}}
         if(!$statusAfter){
@@ -542,6 +612,8 @@ foreach($plan in $plans){
             if($record.reopened -ne $false){$record.statusAfter='in_progress';$statusAfter='in_progress'}
             Show-RunnerLine 'runner.progress.reopened' @($task.seq) @{id=[string]$task.id;seq=$task.seq;reopened=$record.reopened}
         }
+        # #611: unresolved findings survive the attempt as matched tasks or linked follow-ups (they wait for a later run, #612).
+        $record.findings=Invoke-RunnerFindings $task $root $checkout $plan
         # Limits only from the agent's final error envelope with the provider's own texts (a timed-out agent keeps its timeout state).
         # quota stops the run and leaves a resume point; throttled (transient rate limit) waits briefly and the run goes on.
         $limit=if($state -ne 'timeout'){Get-SBAgentLimitState -Provider $Provider -Output $outText -ErrorOutput $errText -ExitCode $code}else{$null}

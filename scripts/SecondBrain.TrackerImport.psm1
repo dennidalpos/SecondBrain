@@ -275,6 +275,28 @@ function Get-SBTrackerImportReadiness($Data) {
     @(@($Data.tasks)|Where-Object {$_}|ForEach-Object {$r=Get-SBTaskReadiness $_ @($Data.tasks) $null;[ordered]@{id=[string]$_.id;ready=$r.ready;missing=@($r.missing)}})
 }
 
+function Add-SBTrackerImportReadiness($Data) {
+    # #609: each open imported task gets the shared assessment in extensions.readiness and nothing else; ID, seq, acceptance and
+    # provenance must come out byte-identical, otherwise the import stops (the meaning of an imported task never changes).
+    $peers=@(@($Data.tasks)|Where-Object {$_})
+    foreach($t in $peers){
+        if([string]$t.status -cin @('done','cancelled')){continue}
+        # Fields may be absent (a task without seq): an absent field must stay absent.
+        $identity={param($x) $o=[ordered]@{};foreach($k in @('id','seq','acceptance','provenance')){$o[$k]=if($x -is [Collections.IDictionary]){if($x.Contains($k)){,$x[$k]}else{'<absent>'}}else{$p=$x.PSObject.Properties[$k];if($p){,$p.Value}else{'<absent>'}}};ConvertTo-SBJson $o}
+        $before=& $identity $t
+        $readiness=Get-SBTaskReadiness $t $peers $null
+        if($t -is [Collections.IDictionary]){
+            if(!$t.Contains('extensions') -or $null -eq $t.extensions){$t.extensions=[ordered]@{}}
+            $t.extensions.readiness=$readiness
+        }else{
+            if(!$t.PSObject.Properties['extensions'] -or $null -eq $t.extensions){$t|Add-Member -NotePropertyName extensions -NotePropertyValue ([ordered]@{}) -Force}
+            if($t.extensions -is [Collections.IDictionary]){$t.extensions.readiness=$readiness}else{$t.extensions|Add-Member -NotePropertyName readiness -NotePropertyValue $readiness -Force}
+        }
+        if((& $identity $t) -cne $before){throw (New-SBError 'trackerimport.compare.failed')}
+    }
+    $Data
+}
+
 function Invoke-SBTrackerImport {
     param($Config,[string]$Identity,[string]$SourcePath,[string]$HistoryPath='',[string]$ReviewPath='',[string]$ManifestPath='',[switch]$Activate,[scriptblock]$AfterPhase)
     $entities=@(Get-SBParaEntities $Config.brainRoot $Config.allowedOwners)
@@ -403,6 +425,7 @@ function Invoke-SBTrackerImport {
                 }
                 foreach($h in $data.history){$h.reference=$historyRef}
             }
+            $data=Add-SBTrackerImportReadiness $data
             $bytes=[Text.Encoding]::UTF8.GetBytes((ConvertTo-SBJson $data))
             [void](Write-SBFile $m.candidate $bytes (Get-SBFileHash $m.candidate) $Config.backupRoot -Recoverable)
             $m.candidateHash=Get-SBHash $bytes
@@ -417,7 +440,7 @@ function Invoke-SBTrackerImport {
             if((ConvertTo-SBJson $data.extensions.original) -cne (ConvertTo-SBJson $original)){throw (New-SBError 'trackerimport.compare.failed')}
             foreach($payload in @(Get-SBTrackerImportPayloads $m)){if((Get-SBFileHash $payload.archive) -ne $payload.sha256){throw (New-SBError 'trackerimport.copy.notidentical')}}
             $m.review=@($data.tasks|Where-Object status -eq 'unknown'|ForEach-Object id)
-            # #607: the import report carries the readiness of every imported task; the tasks themselves are unchanged (#609).
+            # #607/#609: the import report carries the readiness of every imported task; the tasks keep their meaning and store it in extensions.readiness.
             $m.readiness=@(Get-SBTrackerImportReadiness $data)
             Assert-SBTrackerImportSources $m
             . $phase 'verified'
@@ -509,6 +532,7 @@ function Get-SBTrackerImportIssues($Config) {
 
 Export-ModuleMember -Function @(
     'Get-SBTrackerImportReadiness',
+    'Add-SBTrackerImportReadiness',
     'Get-SBTrackerImportPayloads',
     'Get-SBTrackerImportPath',
     'Get-SBTrackerImportPaths',

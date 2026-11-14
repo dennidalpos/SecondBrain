@@ -20,13 +20,15 @@ reviewed proposal with approve-revision.ps1 and aligns the repository with secon
 the agent CLI (light model by default; DOC06 or REP18) in a work folder and prints its validated JSON. -Kind task-resolve -AnalysisPath
 <folder> -AnswersFile <json> gives the owner's answers and runs the next round (at most three). -Kind task-view -AnalysisPath <folder> reopens it read-only. -Kind task-apply -AnalysisPath <folder>
 -Authorization <reference> writes the reviewed result to the tracker through knowledge.ps1 -UpdateTaskId (ledger mode analysis).
+-Kind task-enrich -TaskId <id> calls the light model only when the readiness assessment finds gaps: the schema-validated proposal stays
+in proposal.json of a work folder and the task records only extensions.enrichment (path, hash, status proposed); complete tasks never call it.
 Without a mode the script lists the modes and exits 2.
 #>
 [CmdletBinding()]
 param([switch]$Probe,[ValidateSet('claude','codex','gemini')][string[]]$Provider,[switch]$Clients,
     [switch]$Directives,[string]$RepositoryPath,[string]$DirectivesFile,[string]$ProposalPath,
     [ValidatePattern('^$|^[0-9A-Fa-f]{64}$')][string]$ExpectedProposalHash,[string]$Authorization,[switch]$Apply,
-    [switch]$Analyze,[ValidateSet('directives','task','task-view','task-resolve','task-apply')][string]$Kind,[string]$Model,[string]$Effort,[switch]$AllowCustomModel,
+    [switch]$Analyze,[ValidateSet('directives','task','task-enrich','task-view','task-resolve','task-apply')][string]$Kind,[string]$Model,[string]$Effort,[switch]$AllowCustomModel,
     [string]$TaskId,[string]$AnalysisPath,[string]$AnswersFile,[ValidateRange(60,3600)][int]$TimeoutSeconds=600,
     [string]$ConfigPath,[ValidateSet('en','it')][string]$Language)
 if($Language){$env:SECONDBRAIN_LANG=$Language}
@@ -185,7 +187,7 @@ try{
     if($Analyze){
         $repo=Get-AgentsRepository $RepositoryPath
         $lang=if($env:SECONDBRAIN_LANG -eq 'en'){'en'}else{'it'}
-        if($Kind -in @('directives','task') -and @($Provider).Count -ne 1){throw (New-SBError 'agents.analysis.provider')}
+        if($Kind -in @('directives','task','task-enrich') -and @($Provider).Count -ne 1){throw (New-SBError 'agents.analysis.provider')}
         switch($Kind){
             'directives' {
                 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.AgentAnalysis.psm1')
@@ -214,6 +216,29 @@ try{
                 Save-AgentsAnalysis $analysis
                 [void](Invoke-AgentsTaskRound $repo $analysis $context)
                 ConvertTo-SBJson (Get-AgentsAnalysisView $analysis $context)
+                exit 0
+            }
+            'task-enrich' {
+                # #608: the light model only when the readiness assessment finds gaps; the validated proposal stays in a work folder and the
+                # task gets only extensions.enrichment (path, hash, status=proposed). Nothing of the proposal is applied here.
+                if(!$TaskId){throw (New-SBError 'agents.analysis.task')}
+                Import-Module (Join-Path $PSScriptRoot 'SecondBrain.AgentAnalysis.psm1')
+                Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Decisions.psm1')
+                Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Tracker.psm1')
+                $context=Get-AgentsTaskContext $repo $TaskId
+                $peers=@(Invoke-AgentsStep 'knowledge.ps1' (@('-Tasks','-CheckoutPath',[string]$repo.checkout)+$configArgs))
+                $decisions=try{(Read-SBDecisions ([string]$repo.dossier) ([string]$repo.identity)).data}catch{$null}
+                $readiness=Get-SBTaskReadiness $context.task $peers $decisions
+                if($readiness.ready){ConvertTo-SBJson ([ordered]@{called=$false;reason='ready';taskId=$context.task['id'];readiness=$readiness});exit 0}
+                $slug='enrich-task-'+[string]$context.task['seq']+'-'+(Get-SBNow).LocalDateTime.ToString('HHmmss')
+                $root=Initialize-AgentsWork $repo $slug ("Light-model enrichment proposal for task $TaskId (#608)")
+                try{
+                    $agentPath=if($env:SECONDBRAIN_TEST_ROOT -and $env:SB_AGENTS_TEST_AGENT_PATH){$env:SB_AGENTS_TEST_AGENT_PATH}else{$null}
+                    $out=Invoke-SBTaskEnrichment -Task $context.task -Tasks $peers -Decisions $decisions -Provider $Provider[0] -Model $Model -Effort $Effort -CheckoutPath ([string]$repo.checkout) -OutputFolder $root -BrainRoot $brain -AgentPath $agentPath -TimeoutSeconds $TimeoutSeconds -AllowCustomModel:$AllowCustomModel
+                    $written=Invoke-AgentsStep 'knowledge.ps1' (@('-UpdateTaskId',[string]$context.task['id'],'-EnrichmentFile',$out.proposalPath,'-CheckoutPath',[string]$repo.checkout)+$configArgs) -AllowedExit @(0,5)
+                    $out.pointer=if($written -and $written.exitCode -eq 5){'deferred'}else{'recorded'}
+                    ConvertTo-SBJson $out
+                }finally{Close-AgentsWork $repo $slug}
                 exit 0
             }
             'task-view' {

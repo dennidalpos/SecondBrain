@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Task enrichment proposal (light model, #608): fills only the gaps the readiness assessment found; never status, execution, consent, decisions or evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["taskId", "summary", "proposal", "questions"],
+  "properties": {
+    "taskId": { "type": "string" },
+    "summary": { "type": "string", "maxLength": 1200 },
+    "proposal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["description", "acceptance", "stream", "requires"],
+      "properties": {
+        "description": { "type": ["string", "null"], "maxLength": 4000 },
+        "acceptance": { "type": ["array", "null"], "maxItems": 12, "items": { "type": "string", "maxLength": 400 } },
+        "stream": { "type": ["string", "null"], "maxLength": 80 },
+        "requires": { "type": ["array", "null"], "maxItems": 4, "items": { "type": "string", "maxLength": 40 } }
+      }
+    },
+    "questions": {
+      "type": "array",
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["question", "why"],
+        "properties": {
+          "question": { "type": "string", "maxLength": 400 },
+          "why": { "type": "string", "maxLength": 400 }
+        }
+      }
+    }
+  }
+}
