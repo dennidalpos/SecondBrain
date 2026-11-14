@@ -147,6 +147,20 @@ switch($Mode){
         Set-FakeInProgress 'Fake agent followup'
         [Console]::Out.Write((@{type='result';is_error=$false;result='follow-up recorded'}|ConvertTo-Json -Compress));exit 0
     }
+    # #611: the agent writes findings.json (path from the prompt): an open-task title, an explicit existing ID, a new problem twice and
+    # an entry without evidence; then marks its task in progress.
+    'findings' {
+        $file=if($prompt -match 'findings file (.+?findings\.json) as'){$Matches[1]}else{[Console]::Error.WriteLine('no findings path');exit 5}
+        $new=[ordered]@{title='Fixture cache is not invalidated';reproduction='Run the fixture twice; the second run reads stale data';evidence='second run log shows the old hash';acceptance=@('The second run reads fresh data; no stale hash')}
+        $data=[ordered]@{findings=@(
+            [ordered]@{title='Task F-2';reproduction='r';evidence='e';acceptance=@('a')},
+            [ordered]@{title='Something already tracked';reproduction='r';evidence='e';acceptance=@('a');existing='C-1'},
+            $new,$new,
+            [ordered]@{title='No evidence here';reproduction='r';acceptance=@('a')})}
+        [IO.File]::WriteAllText($file,($data|ConvertTo-Json -Depth 6),[Text.UTF8Encoding]::new($false))
+        Set-FakeInProgress 'Fake agent findings'
+        [Console]::Out.Write((@{type='result';is_error=$false;result='findings written'}|ConvertTo-Json -Compress));exit 0
+    }
     # #610: the agent opens a decision on another queued task (SB_RUNNER_FAKE_DECISION_TASK) in its dossier, then marks its task in progress.
     'opendecision' {
         $at=[DateTimeOffset]::UtcNow.ToString('o')
@@ -268,7 +282,7 @@ switch($Mode){
     Assert-Runner ($record.statusBefore -eq 'todo' -and $record.statusAfter -eq 'in_progress') 'status after is read back from the tracker updated by the agent session'
     Assert-Folder $record 'ok'
     $output=Read-SBJson (Join-Path $record.folder 'agent-output.json') $null
-    $expectedPrompt=& {Import-Module (Join-Path $PSScriptRoot 'SecondBrain.TaskRunner.psm1') -Force;New-SBTaskRunPrompt ([pscustomobject]@{id='R-1';seq=1}) (Join-Path $brain 'scripts') $checkout}
+    $expectedPrompt=& {Import-Module (Join-Path $PSScriptRoot 'SecondBrain.TaskRunner.psm1') -Force;New-SBTaskRunPrompt ([pscustomobject]@{id='R-1';seq=1}) (Join-Path $brain 'scripts') $checkout -FindingsPath (Join-Path $record.folder 'findings.json')}
     $firstDiff=0;while($firstDiff -lt [Math]::Min($output.result.Length,$expectedPrompt.Length) -and $output.result[$firstDiff] -ceq $expectedPrompt[$firstDiff]){$firstDiff++}
     Assert-Runner ($output.result -ceq $expectedPrompt) ('the agent received the fixed prompt on stdin (lengths '+$output.result.Length+'/'+$expectedPrompt.Length+', first difference at '+$firstDiff+'; got: '+$output.result.Substring(0,[Math]::Min(60,$output.result.Length))+')')
 
@@ -643,7 +657,7 @@ $r|ConvertTo-Json -Compress
     Assert-Runner ($quiet.code -eq 0 -and @($quietEvents|Where-Object {$_.event -eq 'stalled'}).Count -eq 1 -and @($quiet.data.tasks)[0].state -eq 'finished') ('a silent agent raises one stall notice and is not killed: '+$quiet.err)
     # #612: the queue is fixed when the run starts; a follow-up an agent creates mid-run (ready, autonomous, P0) waits for a later run.
     $t2=Read-SBJson $trackerPath2 $null
-    foreach($fid in @('F-1','F-2','P-1','A-1','A-2','C-1','D-1','D-2','D-3','D-4','D-5')){
+    foreach($fid in @('F-1','F-2','P-1','A-1','A-2','C-1','D-1','D-2','D-3','D-4','D-5','W-1','G-1')){
         $seqF=[int]$t2.extensions.lastSeq+1
         $newTask=New-SBTrackerTask @{id=$fid;title=('Task '+$fid);status='todo'} $identity2 'fixture' 'history/seed/report.md' (Get-SBTextHash 'Synthetic provenance') 'fixture'
         $newTask.seq=$seqF;$newTask.title='#'+$seqF.ToString('000')+' — Task '+$fid;$newTask.priority='P2';$newTask.execution='autonomous';$newTask.extensions=@{stream='evoluzione-team'}
@@ -678,6 +692,43 @@ $r|ConvertTo-Json -Compress
     $cfStatus=Read-SBJson ([string]$cleanFail.data.status) $null;$cfRecord=@($cleanFail.data.tasks)[0]
     Assert-Runner ($cleanFail.code -eq 0 -and $cfRecord.id -eq 'C-1' -and $cfRecord.process -eq 'succeeded' -and $cfStatus.counts.succeeded -eq 1 -and @($cfStatus.results).Count -eq 1 -and $cfStatus.state -eq 'finished') ('a failed cleanup leaves the task outcome and the exit code intact: '+$cleanFail.text)
     Assert-Runner ($cfStatus.cleanup.state -eq 'failed' -and $cfStatus.cleanup.error -and (@($cfStatus.finalization.steps) -join ',') -ceq 'state,pending-writes,outcomes,cleanup' -and @(Get-ChildItem -LiteralPath (Join-Path (Split-Path ([string]$cleanFail.data.status)) 'tmp') -File).Count -eq 1) ('the cleanup failure is recorded separately and its files stay: '+($cfStatus.cleanup|ConvertTo-Json -Compress -Depth 4))
+    # #643: the writer is held from the per-task flush to closure, so the reopen update is deferred; the closing -FlushPending applies it
+    # before the outcomes are final and the recorded outcome is read back from the tracker.
+    $savedHoldRoot=$env:SECONDBRAIN_TEST_ROOT
+    try{
+        if(!$env:SECONDBRAIN_TEST_ROOT){$env:SECONDBRAIN_TEST_ROOT=$fixture}
+        $env:SB_RUNNER_TEST_HOLD_WRITER='1'
+        $held=Invoke-Runner2 @('-Run','-AgentPath',$fake,'-AgentArguments','doneunverified','-TaskIds','W-1')
+    }finally{Remove-Item Env:SB_RUNNER_TEST_HOLD_WRITER -ErrorAction SilentlyContinue;$env:SECONDBRAIN_TEST_ROOT=$savedHoldRoot}
+    $hRecord=@($held.data.tasks)[0];$hStatus=Read-SBJson ([string]$held.data.status) $null
+    $hTask=@((Read-SBJson $trackerPath2 $null).tasks|Where-Object {$_.id -eq 'W-1'})[0]
+    Assert-Runner ($held.code -eq 0 -and $hRecord.reopened -eq 'deferred' -and $hRecord.acceptance -eq 'unverified') ('the reopen update is deferred behind the held writer: '+$held.text)
+    Assert-Runner ($hStatus.finalization.pendingWrites -eq 'done' -and (@($hStatus.finalization.steps) -join ',') -ceq 'state,pending-writes,outcomes,cleanup' -and @($hStatus.finalization.deferred).Count -eq 1 -and @($hStatus.finalization.deferred)[0].applied -and @($hStatus.finalization.deferred)[0].statusAfter -eq 'in_progress') ('closure applies the deferred write before the outcomes: '+($hStatus.finalization|ConvertTo-Json -Compress -Depth 4))
+    Assert-Runner ($hTask.status -eq 'in_progress' -and [string]$hTask.extensions.stateReason -match '#613' -and @($hStatus.results)[0].statusAfter -eq 'in_progress' -and @($hStatus.results)[0].deferredApplied -eq $true) ('the task outcome reflects the applied write: '+($hTask|ConvertTo-Json -Compress -Depth 3))
+    # #611: findings are matched before any follow-up is created; a new problem becomes one linked follow-up with reproduction,
+    # evidence, acceptance and a dossier report as provenance; the invalid entry is reported, not created.
+    $fRun=Invoke-Runner2 @('-Run','-AgentPath',$fake,'-AgentArguments','findings','-TaskIds','G-1')
+    $fr=@($fRun.data.tasks)[0];$fReport=Read-SBJson (Join-Path ([string]$fr.folder) 'report.json') $null;$ff=$fReport.findings
+    $fItems=@{};foreach($x in @($ff.items)){$fItems[[int]$x.index]=$x}
+    $fT2=Read-SBJson $trackerPath2 $null
+    $fTaskF2=@($fT2.tasks|Where-Object {$_.id -eq 'F-2'})[0]
+    Assert-Runner ($fRun.code -eq 0 -and $ff.present -and $ff.matched -eq 3 -and $ff.created -eq 1 -and $ff.invalid -eq 1 -and $ff.failed -eq 0) ('findings: three matched, one created, one invalid: '+(ConvertTo-SBJson $ff))
+    Assert-Runner ($fItems[1].action -eq 'matched' -and $fItems[1].taskId -eq 'F-2' -and $fItems[1].rule -eq 'title' -and $fItems[2].taskId -eq 'C-1' -and $fItems[2].rule -eq 'explicit' -and $fItems[4].rule -eq 'same-file' -and $fItems[4].taskId -eq $fItems[3].taskId -and $fItems[5].action -eq 'invalid' -and $fItems[5].reason -eq 'missing:evidence') ('duplicate detection runs before creation (title, explicit, same file): '+(ConvertTo-SBJson $ff.items))
+    $fNew=@($fT2.tasks|Where-Object {$_.id -eq $fItems[3].taskId})
+    Assert-Runner ($fItems[3].action -eq 'created' -and $fNew.Count -eq 1 -and $fNew[0].extensions.followUpOf -eq 'G-1' -and $fNew[0].extensions.stream -eq 'evoluzione-team' -and [string]$fNew[0].description -match 'Reproduction: Run the fixture twice' -and [string]$fNew[0].description -match 'Evidence: second run log' -and (@($fNew[0].acceptance) -join '|') -ceq 'The second run reads fresh data, no stale hash' -and $fNew[0].status -eq 'todo') ('the follow-up links its source and carries reproduction, evidence and acceptance: '+(ConvertTo-SBJson $fNew))
+    $fProv=@($fNew[0].provenance)[0];$fProvPath=Join-Path $dossier2 ([string]$fProv.reference)
+    Assert-Runner ([string]$fProv.reference -match '^history/runner-findings-[A-Za-z0-9_-]+/report\.md$' -and $fProv.pointer -eq '#finding-3' -and (Test-Path -LiteralPath $fProvPath) -and (Get-SBFileHash $fProvPath) -eq $fProv.sha256 -and (Read-SBText $fProvPath).Contains('## Finding 3') -and !(Read-SBText $fProvPath).Contains('No evidence here')) ('the follow-up cites the findings report saved in the dossier: '+(ConvertTo-SBJson $fProv))
+    Assert-Runner (@($fT2.tasks|Where-Object {[string]$_.title -match 'Fixture cache is not invalidated'}).Count -eq 1 -and @($fT2.tasks|Where-Object {[string]$_.title -match 'No evidence here|Something already tracked'}).Count -eq 0 -and $fTaskF2.status -ne 'cancelled') 'no duplicate or fabricated task is created'
+    # Unit cases: an earlier follow-up of the same source matches even when done; a done unrelated task does not; cancelled never matches.
+    $fk=ConvertTo-SBFindingKey '#123 — Fixture Cache, not invalidated!'
+    Assert-Runner ($fk -ceq 'fixture cache not invalidated') ('the finding key drops the number and punctuation: '+$fk)
+    $fPeers=@(@{id='U-1';title='#001 — Same problem';status='done';extensions=@{followUpOf='SRC'}},@{id='U-2';title='#002 — Other problem';status='done'},@{id='U-3';title='#003 — Third problem';status='cancelled'})
+    $fm1=Find-SBFollowUpMatch @{key=(ConvertTo-SBFindingKey 'Same problem');existing=$null} $fPeers 'SRC'
+    $fm2=Find-SBFollowUpMatch @{key=(ConvertTo-SBFindingKey 'Other problem');existing=$null} $fPeers 'SRC'
+    $fm3=Find-SBFollowUpMatch @{key=(ConvertTo-SBFindingKey 'Third problem');existing='U-3'} $fPeers 'SRC'
+    Assert-Runner ($fm1.id -eq 'U-1' -and $fm1.rule -eq 'follow-up' -and $null -eq $fm2 -and $null -eq $fm3) ('earlier follow-up of the same source matches; done unrelated and cancelled tasks do not: '+(ConvertTo-SBJson @($fm1,$fm2,$fm3)))
+    $fBad=Join-Path $fixture 'findings-bad.json';[IO.File]::WriteAllText($fBad,'{"findings":"nope"}')
+    Assert-Runner ((Read-SBRunnerFindings $fBad).error -eq 'unreadable' -and !(Read-SBRunnerFindings (Join-Path $fixture 'none.json')).present) 'an unreadable findings file is reported and a missing one is absent'
     # #605 unit cases: only registered, unchanged, unlocked, unreferenced, regenerable files of the run inside tmp/ go.
     $cr=Join-Path $fixture 'cleanup-run';[void][IO.Directory]::CreateDirectory($cr)
     $ct=New-SBRunTempManifest $cr 'run-a'

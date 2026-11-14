@@ -265,6 +265,15 @@ switch($env:SB_FAKE_MODE){
     'retry' {if($n -eq 1){$invalid}else{$valid}}
     'invalid' {$invalid}
     'quota' {'{"type":"result","is_error":true,"result":"You''ve hit your limit · resets 5pm"}';exit 1}
+    # #608: an enrichment answer that fills description and acceptance and also proposes a stream outside the gaps; then one with a forbidden field.
+    'enrich' {
+        $answer=[ordered]@{taskId='EN-1';summary='Scope and criteria derived from the title';proposal=[ordered]@{description='Validate the fixture schema before writing';acceptance=@('Invalid fixtures are refused';'Valid fixtures are written');stream='other-stream';requires=$null};questions=@()}
+        [ordered]@{type='result';is_error=$false;result=($answer|ConvertTo-Json -Compress -Depth 6)}|ConvertTo-Json -Compress -Depth 6
+    }
+    'enrichbad' {
+        $answer=[ordered]@{taskId='EN-1';summary='s';proposal=[ordered]@{description='d';acceptance=$null;stream=$null;requires=$null;status='done'};questions=@()}
+        [ordered]@{type='result';is_error=$false;result=($answer|ConvertTo-Json -Compress -Depth 6)}|ConvertTo-Json -Compress -Depth 6
+    }
 }
 '@
 $checkout=Join-Path $fixture 'checkout'
@@ -298,5 +307,25 @@ try{
     Remove-Item -LiteralPath $statusDir -Recurse -Force
     $notReady=Get-SBAgentCapabilities -Provider claude -BrainRoot $brain -NoProbe -ConfigPaths $none
     Assert-AgentError {Invoke-SBAgentOneShot -Provider claude -Prompt 'x' -SchemaPath $schemaFile -CheckoutPath $checkout -BrainRoot $brain -AgentPath $oneShotCli -Capabilities $notReady} 'not-found' 'a CLI that is not ready is refused with its state'
+    # #608: light-model enrichment only for incomplete tasks; the proposal is schema-validated, limited to the gaps and stored, not applied.
+    $enrichCommon=@{Provider='claude';CheckoutPath=$checkout;BrainRoot=$brain;AgentPath=$oneShotCli;Capabilities=$oneShotCaps;TimeoutSeconds=120}
+    $complete=@{id='EN-0';seq=1;title='#001 — Complete synthetic task';description='Change the fixture module only.';status='todo';execution='autonomous';acceptance=@('The check passes');provenance=@(@{reference='history/seed/report.md';sha256=('A'*64)});dependencies=@();extensions=@{stream='evoluzione-team'}}
+    $env:SB_FAKE_MODE='enrich';$env:SB_FAKE_LOG=Join-Path $fixture 'oneshot-log/enrich-complete';[IO.Directory]::CreateDirectory($env:SB_FAKE_LOG)|Out-Null
+    $e0=Invoke-SBTaskEnrichment @enrichCommon -Task $complete -OutputFolder (Join-Path $fixture 'enrich-out/complete')
+    Assert-Agent (!$e0.called -and $e0.reason -eq 'ready' -and @(Get-ChildItem -LiteralPath $env:SB_FAKE_LOG -Filter 'prompt-*.txt').Count -eq 0 -and !(Test-Path -LiteralPath (Join-Path $fixture 'enrich-out/complete/proposal.json'))) 'a complete task never calls the model'
+    $gap=@{id='EN-1';seq=2;title='#002 — Validate fixture schema';status='todo';execution='autonomous';acceptance=@();provenance=@(@{reference='history/seed/report.md';sha256=('A'*64)});dependencies=@();extensions=@{stream='evoluzione-team'}}
+    $gapBefore=ConvertTo-SBJson $gap
+    $env:SB_FAKE_LOG=Join-Path $fixture 'oneshot-log/enrich-gap';[IO.Directory]::CreateDirectory($env:SB_FAKE_LOG)|Out-Null
+    $e1=Invoke-SBTaskEnrichment @enrichCommon -Task $gap -OutputFolder (Join-Path $fixture 'enrich-out/gap')
+    $stored=Read-SBJson $e1.proposalPath $null
+    $sentEnrich=Read-SBText (Join-Path $env:SB_FAKE_LOG 'prompt-1.txt')
+    Assert-Agent ($e1.called -and (@($e1.gaps) -join ',') -ceq 'description,acceptance' -and $sentEnrich -match 'You may fill only: description, acceptance' -and $sentEnrich -match 'do not invent requirements') ('the model is called with the gaps and the rules: '+(@($e1.gaps) -join ','))
+    Assert-Agent ($stored.status -eq 'proposed' -and $stored.proposal.description -ceq 'Validate the fixture schema before writing' -and @($stored.proposal.acceptance).Count -eq 2 -and !$stored.proposal.Contains('stream') -and (@($stored.discarded) -join ',') -ceq 'stream' -and $e1.sha256 -eq (Get-SBFileHash $e1.proposalPath)) ('the proposal keeps only the gaps and is stored with its hash: '+(ConvertTo-SBJson $stored))
+    Assert-Agent ((ConvertTo-SBJson $gap) -ceq $gapBefore) 'the proposal is not applied to the task'
+    $env:SB_FAKE_MODE='enrichbad';$env:SB_FAKE_LOG=Join-Path $fixture 'oneshot-log/enrich-bad';[IO.Directory]::CreateDirectory($env:SB_FAKE_LOG)|Out-Null
+    Assert-AgentError {Invoke-SBTaskEnrichment @enrichCommon -Task $gap -OutputFolder (Join-Path $fixture 'enrich-out/bad')} 'schema|schema' 'a proposal with a field outside the schema (status) is refused'
+    Assert-Agent (!(Test-Path -LiteralPath (Join-Path $fixture 'enrich-out/bad/proposal.json'))) 'no proposal is stored for an invalid answer'
+    $check=Test-SBEnrichmentProposal @{taskId='EN-1';proposal=@{description=$null;acceptance=$null;stream=$null;requires=@('teleport')};questions=@()} @('requires') 'EN-1'
+    Assert-Agent (!$check.valid -and (@($check.discarded) -join ',') -ceq 'requires' -and (@($check.errors) -join ',') -ceq 'empty') ('unknown capabilities are discarded and an empty proposal is invalid: '+(ConvertTo-SBJson $check))
 }finally{$env:SB_FAKE_MODE=$savedMode;$env:SB_FAKE_LOG=$savedLog}
 'SUCCESS AGENTS: '+$script:agentChecks+' checks; retained fixture '+$fixture

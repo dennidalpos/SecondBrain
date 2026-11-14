@@ -10,6 +10,7 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Host.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.AgentAdapters.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.RunnerStatus.psm1')
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Tracker.psm1')
 Add-SBMessages @{
     'analysis.agent.notready' = @{it='{0} non è pronto ({1}): installa o aggiorna la CLI, poi rileva di nuovo gli agenti';en='{0} is not ready ({1}): install or update the CLI, then probe the agents again'}
     'analysis.quota.exhausted' = @{it='Quota {0} esaurita fino a {1}: analisi non avviata. Scegli un altro agente o riprova dopo il ripristino';en='{0} quota exhausted until {1}: analysis not started. Pick another agent or retry after the reset'}
@@ -158,6 +159,78 @@ function Invoke-SBAgentOneShot {
     if($OutputFolder){[IO.File]::WriteAllText((Join-Path $OutputFolder 'result.json'),(ConvertTo-SBJson $outcome),$utf8)}
     $outcome
 }
+function Get-SBEnrichmentGaps($Readiness) {
+    # #608: the task fields a proposal may fill, from the readiness checks: description and stream (scope), acceptance, requires (tools).
+    $gaps=@()
+    foreach($c in @($Readiness.checks)){
+        if($c.passed){continue}
+        switch([string]$c.check){
+            'scope' {foreach($m in @($c.missing)){if($m -in @('description','stream')){$gaps+=[string]$m}}}
+            'acceptance' {$gaps+='acceptance'}
+            'tools' {$gaps+='requires'}
+        }
+    }
+    @($gaps|Select-Object -Unique)
+}
+function New-SBTaskEnrichPrompt($Task,$Readiness,[string[]]$Gaps,[string[]]$Streams=@()) {
+    # #608: one-shot prompt of the light model for an incomplete task: the task, the gaps, and what it must never do.
+    @(
+        '# Task enrichment proposal',
+        "Propose the missing detail of task $($Task['id']) of this repository. The current directory is its checkout: read code and files with your read-only tools when the detail depends on them.",
+        "The deterministic readiness assessment found these gaps: $((@($Readiness.missing)) -join ', '). You may fill only: $(if($Gaps.Count){$Gaps -join ', '}else{'nothing (answer with null fields and questions)'}); every other proposal field must be null.",
+        'Rules: derive everything from the task text, its provenance and the repository; do not invent requirements, scope, consent, approvals, decisions or evidence; do not change status, execution, priority, dependencies or waits. When the detail cannot be derived, leave the field null and ask a question instead.',
+        $(if($Streams.Count){"Known streams of this tracker: $($Streams -join ', ')."}else{$null}),
+        '',
+        '## Task (tracker JSON)',
+        (ConvertTo-SBJson $Task)
+    ).Where({$null -ne $_}) -join "`n"
+}
+function Test-SBEnrichmentProposal($Result,[string[]]$Gaps,[string]$TaskId) {
+    # #608: semantic checks after the schema: the proposal is about this task, fills only gaps, and names only known capabilities.
+    # Fields outside the gaps are discarded with their name; an empty proposal with no question is not a proposal.
+    $p=$Result['proposal'];$kept=[ordered]@{};$discarded=@()
+    foreach($name in @('description','acceptance','stream','requires')){
+        $value=$p[$name]
+        if($null -eq $value -or ($value -is [string] -and !$value.Trim()) -or ($value -is [array] -and !@($value|Where-Object {([string]$_).Trim()}).Count)){continue}
+        if($name -cnotin $Gaps){$discarded+=$name;continue}
+        if($name -eq 'requires'){
+            $known=@(Get-SBTaskRequiresValues)
+            $bad=@(@($value)|Where-Object {[string]$_ -cnotin $known})
+            if($bad.Count){$discarded+='requires';continue}
+        }
+        $kept[$name]=if($value -is [array]){@($value|ForEach-Object {([string]$_).Trim()}|Where-Object {$_})}else{([string]$value).Trim()}
+    }
+    $errors=@()
+    if([string]$Result['taskId'] -cne $TaskId){$errors+='taskId'}
+    if(!$kept.Count -and !@($Result['questions']).Count){$errors+='empty'}
+    [ordered]@{valid=($errors.Count -eq 0);errors=$errors;proposal=$kept;discarded=$discarded}
+}
+function Invoke-SBTaskEnrichment {
+    # #608: the light model only when the readiness assessment finds gaps; complete tasks never start the CLI. The answer is validated
+    # against config/analysis/enrich.schema.json and the semantic rules, then stored as proposal.json in -OutputFolder (never applied here).
+    param([Parameter(Mandatory)]$Task,$Tasks=@(),$Decisions=$null,[Parameter(Mandatory)][string]$Provider,[string]$Model,[string]$Effort,
+        [Parameter(Mandatory)][string]$CheckoutPath,[Parameter(Mandatory)][string]$OutputFolder,[string]$BrainRoot,[string]$AgentPath,$Capabilities,
+        [int]$TimeoutSeconds=600,[switch]$AllowCustomModel)
+    $readiness=Get-SBTaskReadiness $Task $Tasks $Decisions
+    $gaps=@(Get-SBEnrichmentGaps $readiness)
+    $out=[ordered]@{called=$false;taskId=[string]$Task['id'];readiness=$readiness;gaps=$gaps;proposalPath=$null;sha256=$null}
+    if($readiness.ready){$out.reason='ready';return $out}
+    $streams=@(@($Tasks)|ForEach-Object {if($_ -is [Collections.IDictionary] -and $_['extensions'] -is [Collections.IDictionary]){[string]$_.extensions['stream']}}|Where-Object {$_}|Sort-Object -Unique)
+    $prompt=New-SBTaskEnrichPrompt $Task $readiness $gaps $streams
+    $schema=Join-Path $PSScriptRoot '../config/analysis/enrich.schema.json'
+    $shot=Invoke-SBAgentOneShot -Provider $Provider -Model $Model -Effort $Effort -Prompt $prompt -SchemaPath $schema -CheckoutPath $CheckoutPath -OutputFolder $OutputFolder `
+        -BrainRoot $BrainRoot -AgentPath $AgentPath -Capabilities $Capabilities -TimeoutSeconds $TimeoutSeconds -AllowCustomModel:$AllowCustomModel
+    $out.called=$true
+    $check=Test-SBEnrichmentProposal $shot.result $gaps ([string]$Task['id'])
+    if(!$check.valid){throw (New-SBError 'analysis.output.invalid' @($Provider,$shot.attempts,($check.errors -join '; ')))}
+    $record=[ordered]@{schemaVersion=1;kind='task-enrichment';status='proposed';taskId=[string]$Task['id'];seq=$Task['seq'];createdAt=(Get-SBNow).ToString('o')
+        provider=$shot.provider;model=$shot.model;effort=$shot.effort;role=$shot.role;attempts=$shot.attempts
+        readiness=$readiness;gaps=$gaps;summary=[string]$shot.result['summary'];proposal=$check.proposal;discarded=$check.discarded;questions=@($shot.result['questions'])}
+    $path=Join-Path $OutputFolder 'proposal.json'
+    [IO.File]::WriteAllText($path,(ConvertTo-SBJson $record),[Text.UTF8Encoding]::new($false))
+    $out.proposalPath=$path;$out.sha256=Get-SBFileHash $path;$out.proposal=$record
+    $out
+}
 function Test-SBDirectiveText([string]$Text) {
     # The same portability rules approve-revision.ps1 applies to repository directive texts.
     !($Text -match '(?im)<!--\s*secondbrain:|(?<![A-Za-z0-9+.-])[A-Z]:[\\/]|(?<![\w/])/(?:Users|home)/|\{\{')
@@ -166,4 +239,4 @@ function ConvertTo-SBDirectivesMarkdown($Result) {
     # Sections of a directive proposal as the Markdown that goes into AGENTS.managed.md.
     (@($Result['sections'])|ForEach-Object {'## '+([string]$_.title).Trim()+"`n`n"+([string]$_.body).Trim()}) -join "`n`n"
 }
-Export-ModuleMember -Function @('Get-SBAnalysisSchemaPath','Get-SBLightModel','Get-SBPromptCardText','New-SBDirectivesAnalysisPrompt','New-SBTaskAnalysisPrompt','Invoke-SBAgentOneShot','Test-SBDirectiveText','ConvertTo-SBDirectivesMarkdown')
+Export-ModuleMember -Function @('Get-SBAnalysisSchemaPath','Get-SBLightModel','Get-SBPromptCardText','New-SBDirectivesAnalysisPrompt','New-SBTaskAnalysisPrompt','Invoke-SBAgentOneShot','Get-SBEnrichmentGaps','New-SBTaskEnrichPrompt','Test-SBEnrichmentProposal','Invoke-SBTaskEnrichment','Test-SBDirectiveText','ConvertTo-SBDirectivesMarkdown')
