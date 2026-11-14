@@ -38,7 +38,7 @@ try {
             $data=ConvertTo-SBTracker -SourcePath $SourcePath -Identity $Repository -HistoryPath $HistoryPath -ReviewPath $ReviewPath
             $null = @(Get-SBParaEntities $config.brainRoot $config.allowedOwners)
             Assert-SBTrackerWriteData $config.brainRoot $Repository $data
-            ConvertTo-SBJson @{mode='preview';repository=$Repository;tasks=$data.tasks.Count;review=@($data.tasks|Where-Object status -eq 'unknown'|ForEach-Object id);activationApproved=Test-SBTrackerPolicy $config.brainRoot}
+            ConvertTo-SBJson @{mode='preview';repository=$Repository;tasks=$data.tasks.Count;review=@($data.tasks|Where-Object status -eq 'unknown'|ForEach-Object id);readiness=@(Get-SBTrackerImportReadiness $data);activationApproved=Test-SBTrackerPolicy $config.brainRoot}
         }
         exit 0
     }

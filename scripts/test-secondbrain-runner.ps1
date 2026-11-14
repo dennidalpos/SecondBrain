@@ -147,6 +147,15 @@ switch($Mode){
         Set-FakeInProgress 'Fake agent followup'
         [Console]::Out.Write((@{type='result';is_error=$false;result='follow-up recorded'}|ConvertTo-Json -Compress));exit 0
     }
+    # #610: the agent opens a decision on another queued task (SB_RUNNER_FAKE_DECISION_TASK) in its dossier, then marks its task in progress.
+    'opendecision' {
+        $at=[DateTimeOffset]::UtcNow.ToString('o')
+        $record=[ordered]@{id='dec-0000d005';kind='choice';question='Which variant should the queued task use?';options=@([ordered]@{id='a';label='A';description='Variant A'},[ordered]@{id='b';label='B';description='Variant B'});context=[ordered]@{taskId=$env:SB_RUNNER_FAKE_DECISION_TASK};asked=[ordered]@{at=$at;through='structured-tool';by='fake-agent'};scope='task';status='open'}
+        $file=$env:SB_RUNNER_FAKE_DECISION_FILE;$data=Get-Content -Raw -LiteralPath $file|ConvertFrom-Json -AsHashtable;$data.decisions=@(@($data.decisions)+@($record))
+        [IO.File]::WriteAllText($file,($data|ConvertTo-Json -Depth 8),[Text.UTF8Encoding]::new($false))
+        Set-FakeInProgress 'Fake agent opendecision'
+        [Console]::Out.Write((@{type='result';is_error=$false;result='decision opened'}|ConvertTo-Json -Compress));exit 0
+    }
     # 'done' closes with passed evidence (verified acceptance); 'doneunverified' closes without evidence and is reopened by the runner (#613).
     {$_ -in @('done','blocked','doneunverified')} {
         $status=if($Mode -eq 'blocked'){'blocked'}else{'done'}
@@ -634,10 +643,11 @@ $r|ConvertTo-Json -Compress
     Assert-Runner ($quiet.code -eq 0 -and @($quietEvents|Where-Object {$_.event -eq 'stalled'}).Count -eq 1 -and @($quiet.data.tasks)[0].state -eq 'finished') ('a silent agent raises one stall notice and is not killed: '+$quiet.err)
     # #612: the queue is fixed when the run starts; a follow-up an agent creates mid-run (ready, autonomous, P0) waits for a later run.
     $t2=Read-SBJson $trackerPath2 $null
-    foreach($fid in @('F-1','F-2','P-1','A-1','A-2','C-1')){
+    foreach($fid in @('F-1','F-2','P-1','A-1','A-2','C-1','D-1','D-2','D-3','D-4','D-5')){
         $seqF=[int]$t2.extensions.lastSeq+1
         $newTask=New-SBTrackerTask @{id=$fid;title=('Task '+$fid);status='todo'} $identity2 'fixture' 'history/seed/report.md' (Get-SBTextHash 'Synthetic provenance') 'fixture'
         $newTask.seq=$seqF;$newTask.title='#'+$seqF.ToString('000')+' — Task '+$fid;$newTask.priority='P2';$newTask.execution='autonomous';$newTask.extensions=@{stream='evoluzione-team'}
+        if($fid -eq 'D-3'){$newTask.dependencies=@(@{id='D-1'})}
         $t2.tasks=@($t2.tasks)+@($newTask);$t2.extensions.lastSeq=$seqF
     }
     Put-Runner $trackerPath2 (ConvertTo-SBJson $t2)
@@ -694,6 +704,32 @@ $r|ConvertTo-Json -Compress
     Assert-Runner (@($pMod,$pLock,$pForeign,$pRef,$pKeep,$pEv,(Join-Path $ct 'unregistered.txt'),(Join-Path $other 'j.txt'),(Join-Path $cr 'resume.json')|Where-Object {!(Test-Path -LiteralPath $_)}).Count -eq 0 -and !$cc.tmpRemoved -and $cc.state -eq 'done') 'preserved, unregistered, junction-target and resume files stay with the tmp folder'
     Assert-Runner ((Invoke-SBRunTempCleanup (Join-Path $fixture 'no-run') 'run-a').state -eq 'none') 'a run without a manifest has nothing to clean'
     [IO.Directory]::Delete((Join-Path $ct 'jn'))
+    # #610: a task with an open dec- decision is parked with its reason, its dependant waits on it, independent tasks run; answering
+    # the decision makes the task eligible again, and a decision opened during a run parks a later task of the same queue.
+    $decFile=Join-Path $dossier2 'decisions.json'
+    $decAt=[DateTimeOffset]::UtcNow.ToString('o')
+    $decOpts=@([ordered]@{id='a';label='A';description='Variant A'},[ordered]@{id='b';label='B';description='Variant B'})
+    $decRecord=[ordered]@{id='dec-0000d001';kind='choice';question='Which variant should D-1 use?';options=$decOpts;context=[ordered]@{taskId='D-1'};asked=[ordered]@{at=$decAt;through='structured-tool';by='fixture'};scope='task';status='open'}
+    Put-Runner $decFile (ConvertTo-SBJson ([ordered]@{schemaVersion=1;repository=$identity2;decisions=@($decRecord)}))
+    $dPreview=Invoke-Runner2 @('-AgentPath',$fake,'-AgentArguments','ok','-MaxTasks','0')
+    $dSkip=@{};foreach($s in @($dPreview.data.skipped)){if($s.id){$dSkip[[string]$s.id]=[string]$s.reason}}
+    Assert-Runner ($dSkip['D-1'] -eq 'decision:dec-0000d001' -and $dSkip['D-3'] -eq 'dependency:D-1' -and @($dPreview.data.tasks|ForEach-Object id) -contains 'D-2' -and @($dPreview.data.tasks|ForEach-Object id) -notcontains 'D-1') ('the open decision parks the task and its dependant, independent tasks stay selectable: '+($dSkip|ConvertTo-Json -Compress))
+    $dRun=Invoke-Runner2 @('-Run','-AgentPath',$fake,'-AgentArguments','ok','-TaskIds','D-1,D-2')
+    Assert-Runner ($dRun.code -eq 0 -and (@($dRun.data.tasks|ForEach-Object id) -join ',') -ceq 'D-2' -and @($dRun.data.skipped|Where-Object {$_.id -eq 'D-1' -and $_.reason -eq 'decision:dec-0000d001'}).Count -eq 1) ('the run skips the parked task with its reason and runs the independent one: '+$dRun.text)
+    $decRecord.status='answered';$decRecord.answer=[ordered]@{optionId='a';by='user';at=[DateTimeOffset]::UtcNow.ToString('o')}
+    Put-Runner $decFile (ConvertTo-SBJson ([ordered]@{schemaVersion=1;repository=$identity2;decisions=@($decRecord)}))
+    $dAgain=Invoke-Runner2 @('-AgentPath',$fake,'-AgentArguments','ok','-TaskIds','D-1')
+    Assert-Runner ((@($dAgain.data.tasks|ForEach-Object id) -join ',') -ceq 'D-1') ('answering the decision makes the task eligible again: '+$dAgain.text)
+    $savedDec=@{file=$env:SB_RUNNER_FAKE_DECISION_FILE;task=$env:SB_RUNNER_FAKE_DECISION_TASK}
+    try{
+        $env:SB_RUNNER_FAKE_DECISION_FILE=$decFile;$env:SB_RUNNER_FAKE_DECISION_TASK='D-5'
+        $dLive=Invoke-Runner2 @('-Run','-AgentPath',$fake,'-AgentArguments','opendecision','-MaxTasks','0','-TaskIds','D-4,D-5','-Events')
+    }finally{$env:SB_RUNNER_FAKE_DECISION_FILE=$savedDec.file;$env:SB_RUNNER_FAKE_DECISION_TASK=$savedDec.task}
+    Assert-Runner ($dLive.code -eq 0 -and (@($dLive.data.tasks|ForEach-Object id) -join ',') -ceq 'D-4' -and @($dLive.data.skipped|Where-Object {$_.id -eq 'D-5' -and $_.reason -eq 'decision:dec-0000d005'}).Count -eq 1 -and $dLive.err -match '"event":"parked"') ('a decision opened during the run parks the later task and the run ends normally: '+$dLive.text)
+    # Leave the D-* tasks out of later selections.
+    $t2=Read-SBJson $trackerPath2 $null
+    foreach($x in @($t2.tasks)){if([string]$x.id -like 'D-*'){$x.execution='user_required'}}
+    Put-Runner $trackerPath2 (ConvertTo-SBJson $t2)
     $failedAttempt=Invoke-Runner2 @('-Run','-AgentPath',$fake,'-AgentArguments','fail','-TaskIds','A-2')
     $fRecord=@($failedAttempt.data.tasks)[0]
     Assert-Runner ($fRecord.process -eq 'failed' -and $fRecord.acceptance -eq 'open' -and !$fRecord.reopened) ('a failed process leaves the acceptance open: '+($fRecord|ConvertTo-Json -Compress))

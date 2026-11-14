@@ -54,8 +54,24 @@ function Get-SBRunnerValue($Object,[string]$Name){
     $p.Value
 }
 function Get-SBRunnerExcludedStreams { ,$script:SBRunnerExcludedStreams }
-function Get-SBRunnerExclusionReason($Task,[switch]$AllowComputerUse){
-    # Why a task is not runnable, as a stable code ($null when it is): status, execution, stream:<name> or awaiting:<value>.
+function Get-SBRunnerOpenDecisions([string]$TrackerPath){
+    # #610: open dec- decisions of the tracker's dossier (decisions.json), by task (context.taskId) and as a set of IDs (key '#open').
+    # An unreadable file parks nothing here: -Check reports it.
+    $map=@{'#open'=@()}
+    if(!$TrackerPath){return $map}
+    $path=Join-Path (Split-Path $TrackerPath) 'decisions.json'
+    if(![IO.File]::Exists($path)){return $map}
+    $data=$null;try{$data=[IO.File]::ReadAllText($path)|ConvertFrom-Json -AsHashtable -DateKind String}catch{return $map}
+    foreach($r in @($data['decisions'])){
+        if($r -isnot [Collections.IDictionary] -or [string]$r['status'] -ne 'open'){continue}
+        $map['#open']+=[string]$r.id
+        $context=$r['context']
+        if($context -is [Collections.IDictionary] -and [string]$context['taskId']){$k=[string]$context.taskId;if(!$map.ContainsKey($k)){$map[$k]=@()};$map[$k]+=[string]$r.id}
+    }
+    $map
+}
+function Get-SBRunnerExclusionReason($Task,[switch]$AllowComputerUse,$OpenDecisions){
+    # Why a task is not runnable, as a stable code ($null when it is): status, execution, stream:<name>, decision:<dec ids> or awaiting:<value>.
     $status=Get-SBRunnerValue $Task 'status'
     if($status -ne 'todo'){return "status:$status"}
     $execution=Get-SBRunnerValue $Task 'execution'
@@ -63,6 +79,13 @@ function Get-SBRunnerExclusionReason($Task,[switch]$AllowComputerUse){
     $ext=Get-SBRunnerValue $Task 'extensions'
     $stream=Get-SBRunnerValue $ext 'stream'
     if($stream -in $script:SBRunnerExcludedStreams){return "stream:$stream"}
+    # #610: a task with an open dec- decision (its own in decisions.json, or the one it links) is parked; answering it makes the task
+    # eligible again. Its dependants are not ready while it is open, so independent tasks keep running.
+    if($OpenDecisions){
+        $taskId=[string](Get-SBRunnerValue $Task 'id');$linked=[string](Get-SBRunnerValue $ext 'decision')
+        $ids=@(@(if($OpenDecisions.ContainsKey($taskId)){$OpenDecisions[$taskId]})+@(if($linked -and $linked -in @($OpenDecisions['#open'])){$linked})|Where-Object {$_}|Sort-Object -Unique)
+        if($ids.Count){return 'decision:'+($ids -join ',')}
+    }
     $awaiting=Get-SBRunnerValue $ext 'awaiting'
     if($awaiting -and $awaiting -notin @('structural-completion')){return "awaiting:$awaiting"}
     # Computer use needs an attended session: `claude -p` cannot approve apps, and no IDE documents a persistent pre-approval for it (Codex on Windows aside).
@@ -72,17 +95,17 @@ function Get-SBRunnerExclusionReason($Task,[switch]$AllowComputerUse){
     if((Get-SBComputerUseRequirement) -in $requires -and !$AllowComputerUse){return 'requires:computer-use'}
     $null
 }
-function Test-SBRunnableTask($Task,[switch]$AllowComputerUse){
+function Test-SBRunnableTask($Task,[switch]$AllowComputerUse,$OpenDecisions){
     # A task is runnable only when it is todo, explicitly autonomous, outside final qualification/on-request/product streams and not waiting on a person.
-    $null -eq (Get-SBRunnerExclusionReason $Task -AllowComputerUse:$AllowComputerUse)
+    $null -eq (Get-SBRunnerExclusionReason $Task -AllowComputerUse:$AllowComputerUse -OpenDecisions $OpenDecisions)
 }
-function Get-SBRunnerExclusions($Tasks,[switch]$AllowComputerUse){
+function Get-SBRunnerExclusions($Tasks,[switch]$AllowComputerUse,$OpenDecisions){
     # Ready tasks the runner will not run, each with its reason, for the preview report.
-    @($Tasks|ForEach-Object {$r=Get-SBRunnerExclusionReason $_ -AllowComputerUse:$AllowComputerUse;if($r){[ordered]@{id=[string](Get-SBRunnerValue $_ 'id');seq=Get-SBRunnerValue $_ 'seq';reason=$r}}})
+    @($Tasks|ForEach-Object {$r=Get-SBRunnerExclusionReason $_ -AllowComputerUse:$AllowComputerUse -OpenDecisions $OpenDecisions;if($r){[ordered]@{id=[string](Get-SBRunnerValue $_ 'id');seq=Get-SBRunnerValue $_ 'seq';reason=$r}}})
 }
-function Select-SBRunnableTasks($Tasks,[int]$MaxTasks=3,[switch]$AllowComputerUse){
+function Select-SBRunnableTasks($Tasks,[int]$MaxTasks=3,[switch]$AllowComputerUse,$OpenDecisions){
     $rank=@{P0=0;P1=1;P2=2;P3=3;P4=4}
-    $sel=@($Tasks|Where-Object {Test-SBRunnableTask $_ -AllowComputerUse:$AllowComputerUse}|Sort-Object @{e={$r=$rank[[string](Get-SBRunnerValue $_ 'priority')];if($null -eq $r){9}else{$r}}},@{e={[int](Get-SBRunnerValue $_ 'seq')}})
+    $sel=@($Tasks|Where-Object {Test-SBRunnableTask $_ -AllowComputerUse:$AllowComputerUse -OpenDecisions $OpenDecisions}|Sort-Object @{e={$r=$rank[[string](Get-SBRunnerValue $_ 'priority')];if($null -eq $r){9}else{$r}}},@{e={[int](Get-SBRunnerValue $_ 'seq')}})
     if($MaxTasks -gt 0 -and $sel.Count -gt $MaxTasks){$sel=@($sel[0..($MaxTasks-1)])}
     ,$sel
 }
@@ -123,4 +146,4 @@ function Get-SBRunnerAcceptance($Task,[DateTimeOffset]$AttemptStartedAt) {
     }
     'unverified'
 }
-Export-ModuleMember -Function @('Get-SBRunnerAcceptance','Get-SBRunnerValue','Test-SBProjectIsolation','Assert-SBProjectIsolation','Get-SBRunnerExcludedStreams','Test-SBRunnableTask','Get-SBRunnerExclusionReason','Get-SBRunnerExclusions','Select-SBRunnableTasks','New-SBTaskRunPrompt','Get-SBRunnerScopeVariables','Get-SBRunnerReadScope','Assert-SBRunnerReadScope')
+Export-ModuleMember -Function @('Get-SBRunnerOpenDecisions','Get-SBRunnerAcceptance','Get-SBRunnerValue','Test-SBProjectIsolation','Assert-SBProjectIsolation','Get-SBRunnerExcludedStreams','Test-SBRunnableTask','Get-SBRunnerExclusionReason','Get-SBRunnerExclusions','Select-SBRunnableTasks','New-SBTaskRunPrompt','Get-SBRunnerScopeVariables','Get-SBRunnerReadScope','Assert-SBRunnerReadScope')

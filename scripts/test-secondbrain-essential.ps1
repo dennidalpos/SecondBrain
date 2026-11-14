@@ -609,6 +609,33 @@ if('trackers' -in $Groups){
         Check (@($onlyArchived.tasks|Where-Object {!$_.archived}).Count -eq 0 -and @($onlyArchived.tasks).Count -ge 1 -and @($byTool.tasks|ForEach-Object id) -contains 'T-1' -and @($byTool.tasks|ForEach-Object id) -notcontains 'T-2') 'registry filters by archive and by tool'
         $cli=Invoke-EssentialCli @('-Registry','-Filter','T-2')
         Check ($cli.code -eq 0 -and $cli.text -match '"archived":\s*true') ('CLI registry includes archived tasks: '+$cli.text)
+        # #607: one readiness assessment on creation, update and import; ready and incomplete tasks.
+        Import-Module (Join-Path $PSScriptRoot 'SecondBrain.TrackerImport.psm1')
+        Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Decisions.psm1')
+        $decisionsPath=Join-Path $dossier 'decisions.json'
+        $opts=@(@{id='a';label='A';description='Option A'},@{id='b';label='B';description='Option B'})
+        $opened=New-SBDecisionRecord -Data (Read-SBDecisions $dossier $identity).data -Kind choice -Question 'Which option applies?' -Options $opts -Scope task -Through structured-tool -AskedBy 'fixture' -TaskId 'RD-2'
+        Put $decisionsPath (ConvertTo-SBJson $opened.data)
+        try{
+            $base=@{BrainRoot=$brain;Identity=$identity;ProvenanceReference='history/seed/report.md';WhatIf=$true}
+            $readyNew=New-SBTrackerTaskEntry @base -Id 'RD-1' -Title 'Ready synthetic task' -Description 'Change the fixture module only.' -Extensions @{stream='evoluzione-team'} -Acceptance @('The check passes') -DependsOn @('T-1')
+            $rTask=@($readyNew.data.tasks|Where-Object id -eq 'RD-1')[0];$r=$rTask.extensions.readiness
+            Check ($r.ready -and @($r.checks).Count -eq 8 -and @($r.checks|Where-Object {!$_.passed}).Count -eq 0 -and (@($r.checks|ForEach-Object check) -join ',') -ceq 'objective,scope,inputs,acceptance,dependencies,tools,authorization,decisions') ('a complete new task is ready with eight passed checks: '+(ConvertTo-SBJson $r))
+            $gapNew=New-SBTrackerTaskEntry @base -Id 'RD-2' -Title 'Gap' -Execution user_required -Acceptance @('Something')
+            $g=@($gapNew.data.tasks|Where-Object id -eq 'RD-2')[0].extensions.readiness
+            $gm=@{};foreach($c in @($g.checks)){$gm[$c.check]=@($c.missing) -join ','}
+            Check (!$g.ready -and (@($g.missing) -join ',') -ceq 'objective,scope,authorization,decisions' -and $gm.objective -ceq 'title' -and $gm.scope -ceq 'stream,description' -and $gm.authorization -ceq 'execution:user_required' -and $gm.decisions -ceq ('open:'+$opened.record.id)) ('an incomplete task reports each missing element: '+(ConvertTo-SBJson $g))
+            $probe=@{id='RD-3';title='#003 — Probe readiness task';description='d';status='todo';execution='autonomous';acceptance=@('x');provenance=@(@{reference='r';sha256='h'});dependencies=@(@{id='T-404'},@{id='C-1'});extensions=@{stream='s';requires=@('teleport');awaiting='owner-consent';decision='dec-0000beef'}}
+            $peers=@(@{id='C-1';status='cancelled'})
+            $p1=Get-SBTaskReadiness $probe $peers $null;$p2=Get-SBTaskReadiness $probe $peers $null
+            $pm=@{};foreach($c in @($p1.checks)){$pm[$c.check]=@($c.missing) -join ','}
+            Check ((ConvertTo-SBJson $p1) -ceq (ConvertTo-SBJson $p2) -and $pm.dependencies -ceq 'unknown:T-404,cancelled:C-1' -and $pm.tools -ceq 'unknown:teleport' -and $pm.authorization -ceq 'awaiting:owner-consent' -and $pm.decisions -ceq 'open:dec-0000beef') ('the assessment is deterministic and names unknown or cancelled dependencies, unknown tools, waits and linked decisions: '+(ConvertTo-SBJson $p1))
+            $updated=Update-SBTrackerTask -BrainRoot $brain -Identity $identity -TaskId 'T-1' -Description 'Synthetic scope' -WhatIf
+            $u=@($updated.data.tasks|Where-Object id -eq 'T-1')[0].extensions.readiness
+            Check ($u -and $u.schemaVersion -eq 1 -and @($u.checks).Count -eq 8 -and @($u.missing) -contains 'scope') ('an update re-runs the assessment on the task: '+(ConvertTo-SBJson $u))
+            $imported=@(Get-SBTrackerImportReadiness @{tasks=@($rTask,$probe,@{id='T-1';title='#001 — Task 1';status='todo'})})
+            Check ($imported.Count -eq 3 -and $imported[0].id -ceq 'RD-1' -and $imported[0].ready -and !$imported[1].ready -and @($imported[1].missing) -contains 'dependencies') ('the import report carries the same assessment per task: '+(ConvertTo-SBJson $imported))
+        }finally{Remove-Item -LiteralPath $decisionsPath -Force -ErrorAction SilentlyContinue}
     }finally{foreach($v in $executorVars){[Environment]::SetEnvironmentVariable($v,$savedExecutor[$v],'Process')}}
 }
 if('workflows' -in $Groups){

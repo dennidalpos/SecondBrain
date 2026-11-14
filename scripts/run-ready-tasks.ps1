@@ -99,6 +99,7 @@ Add-SBMessages @{
     'runner.progress.power' = @{en='Power request held for this run: the computer does not go to sleep while it is idle ({0})'}
     'runner.progress.powerfailed' = @{en='Power request not acquired ({0}): the computer may go to sleep during the run'}
     'runner.progress.reopened' = @{en='  #{0}: closed as done without passed evidence from this attempt; reopened as in progress (a successful exit is not completion)'}
+    'runner.progress.parked' = @{en='  #{0}: parked, an open decision waits for the user ({1}); the run goes on with the next independent task'}
     'runner.progress.powerrefused' = @{en='The run does not start: the power request was not acquired ({0}) and the computer could go to sleep during the run. Run again with -AllowNoPowerRequest to run without this protection'}
     'runner.progress.powerunsupported' = @{en='Power request not supported on this platform: the run goes on without it'}
     'runner.progress.omitted' = @{it='  Opzioni non disponibili nella CLI installata e omesse: {0}';en='  Options missing from the installed CLI and left out: {0}'}
@@ -260,9 +261,11 @@ function Read-RunnerTasks($Target,$Index,$Count){
         else{$detail+=(Invoke-Json (@($knowledge,'-Task',[string]$r.seq,'-CheckoutPath',$checkout)+$configArgs)).task}
     }
     # Ready tasks left out are reported with a reason: the runner filters (status, execution, stream, awaiting) or the -MaxTasks cut.
-    $excluded=@(Get-SBRunnerExclusions $detail -AllowComputerUse:$allowComputerUse)
-    $all=Select-SBRunnableTasks $detail 0 -AllowComputerUse:$allowComputerUse
-    $picked=Select-SBRunnableTasks $detail $MaxTasks -AllowComputerUse:$allowComputerUse
+    # #610: tasks with an open dec- decision are parked (reason decision:<ids>); the rest of the queue is selected as usual.
+    $openDecisions=Get-SBRunnerOpenDecisions $(if($source.Count -eq 1){[string]$source[0].source}else{''})
+    $excluded=@(Get-SBRunnerExclusions $detail -AllowComputerUse:$allowComputerUse -OpenDecisions $openDecisions)
+    $all=Select-SBRunnableTasks $detail 0 -AllowComputerUse:$allowComputerUse -OpenDecisions $openDecisions
+    $picked=Select-SBRunnableTasks $detail $MaxTasks -AllowComputerUse:$allowComputerUse -OpenDecisions $openDecisions
     if($TaskIds.Count){
         # Explicit queue: the named runnable tasks in the given order; the others are reported as not queued, unknown IDs as not ready.
         $byRunnable=@{};foreach($t in @($all)){$byRunnable[[string]$t.id]=$t}
@@ -449,6 +452,14 @@ foreach($plan in $plans){
     while($taskIndex -lt $queue.Count){
         $task=$queue[$taskIndex]
         if($StopFile -and (Test-Path -LiteralPath $StopFile)){$stopReason='requested';break}
+        # #610: a decision opened on a queued task during the run (for example by an earlier task) parks it now; independent tasks go on.
+        # Answering it makes the task eligible for a later run: this queue is not reopened.
+        $liveReason=Get-SBRunnerExclusionReason $task -AllowComputerUse:$allowComputerUse -OpenDecisions (Get-SBRunnerOpenDecisions ([string]$plan.source))
+        if($liveReason -and $liveReason.StartsWith('decision:')){
+            $skipped+=,[ordered]@{repository=$plan.target.identity;id=[string]$task.id;seq=$task.seq;reason=$liveReason}
+            Show-RunnerLine 'runner.progress.parked' @($task.seq,$liveReason.Substring(9)) @{id=[string]$task.id;seq=$task.seq;reason=$liveReason}
+            $taskIndex++;continue
+        }
         # Quota read before every task: exhausted with a future reset stops here (nothing started), or waits for the reset with
         # -WaitForReset; unknown and available proceed.
         $quotaNow=Read-RunnerQuota

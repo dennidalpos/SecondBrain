@@ -270,6 +270,11 @@ function Get-SBTrackerReferenceChanges($Config,$Area,[string]$Original,[string]$
     }
 }
 
+function Get-SBTrackerImportReadiness($Data) {
+    # #607: the shared readiness assessment of each imported task (decisions of a foreign tracker are not known here), id, ready and missing.
+    @(@($Data.tasks)|Where-Object {$_}|ForEach-Object {$r=Get-SBTaskReadiness $_ @($Data.tasks) $null;[ordered]@{id=[string]$_.id;ready=$r.ready;missing=@($r.missing)}})
+}
+
 function Invoke-SBTrackerImport {
     param($Config,[string]$Identity,[string]$SourcePath,[string]$HistoryPath='',[string]$ReviewPath='',[string]$ManifestPath='',[switch]$Activate,[scriptblock]$AfterPhase)
     $entities=@(Get-SBParaEntities $Config.brainRoot $Config.allowedOwners)
@@ -412,6 +417,8 @@ function Invoke-SBTrackerImport {
             if((ConvertTo-SBJson $data.extensions.original) -cne (ConvertTo-SBJson $original)){throw (New-SBError 'trackerimport.compare.failed')}
             foreach($payload in @(Get-SBTrackerImportPayloads $m)){if((Get-SBFileHash $payload.archive) -ne $payload.sha256){throw (New-SBError 'trackerimport.copy.notidentical')}}
             $m.review=@($data.tasks|Where-Object status -eq 'unknown'|ForEach-Object id)
+            # #607: the import report carries the readiness of every imported task; the tasks themselves are unchanged (#609).
+            $m.readiness=@(Get-SBTrackerImportReadiness $data)
             Assert-SBTrackerImportSources $m
             . $phase 'verified'
         }
@@ -501,6 +508,7 @@ function Get-SBTrackerImportIssues($Config) {
 }
 
 Export-ModuleMember -Function @(
+    'Get-SBTrackerImportReadiness',
     'Get-SBTrackerImportPayloads',
     'Get-SBTrackerImportPath',
     'Get-SBTrackerImportPaths',

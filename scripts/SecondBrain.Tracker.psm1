@@ -733,6 +733,59 @@ function ConvertTo-SBTaskDecisions($Value) {
     })
 }
 
+# #607: one deterministic readiness assessment for every creation path (CLI -NewTask, MCP task.new), every task update (CLI, MCP, the
+# app's analysis) and the import report. Eight checks, each passed or with the missing elements as stable codes: objective (a meaningful
+# title), scope (stream and description), inputs (provenance with hash), acceptance, dependencies (all known, none cancelled), tools
+# (known required capabilities), authorization (autonomous, not awaiting anyone) and decisions (no open dec- decision on the task).
+# Same task, tasks and decisions give the same result: no clock, no model. The result is stored on the task as extensions.readiness.
+function Get-SBTaskReadiness($Task,$Tasks=$null,$Decisions=$null) {
+    $field={param($o,[string]$n) if($o -is [Collections.IDictionary]){if($o.Contains($n)){$o[$n]}else{$null}}elseif($null -ne $o -and $o.PSObject.Properties[$n]){$o.$n}else{$null}}
+    $ext=& $field $Task 'extensions'
+    $checks=[Collections.Generic.List[object]]::new()
+    $add={param([string]$Name,[string[]]$Missing) $list=@($Missing|Where-Object {$_});$checks.Add([ordered]@{check=$Name;passed=($list.Count -eq 0);missing=$list})}
+    $title=([string](& $field $Task 'title')) -replace ('^#\d+'+[regex]::Escape($script:SBTrackerSeqSeparator)),''
+    & $add 'objective' $(if($title.Trim().Length -lt 8 -or $title -notmatch '\p{L}{3}' -or @($title.Trim() -split '\s+').Count -lt 2){'title'})
+    $description=[string](& $field $Task 'description')
+    & $add 'scope' @($(if(![string](& $field $ext 'stream')){'stream'}),$(if(!$description.Trim()){'description'}))
+    $provenance=@(& $field $Task 'provenance'|Where-Object {$_ -and [string](& $field $_ 'reference') -and [string](& $field $_ 'sha256')})
+    & $add 'inputs' $(if(!$provenance.Count){'provenance'})
+    $acceptance=@(& $field $Task 'acceptance'|Where-Object {([string]$_).Trim()})
+    & $add 'acceptance' $(if(!$acceptance.Count){'acceptance'})
+    $depMissing=@()
+    foreach($dependency in @(& $field $Task 'dependencies'|Where-Object {$_})){
+        $depId=[string](& $field $dependency 'id')
+        if($null -eq $Tasks){continue}
+        $hit=@(@($Tasks)|Where-Object {$_ -and [string](& $field $_ 'id') -ceq $depId})
+        if(!$hit.Count){$depMissing+='unknown:'+$depId}elseif([string](& $field $hit[0] 'status') -eq 'cancelled'){$depMissing+='cancelled:'+$depId}
+    }
+    & $add 'dependencies' $depMissing
+    $known=@(Get-SBComputerUseRequiresValues)
+    & $add 'tools' @(@(& $field $ext 'requires'|Where-Object {$_})|Where-Object {[string]$_ -cnotin $known}|ForEach-Object {'unknown:'+$_})
+    $execution=[string](& $field $Task 'execution');$awaiting=[string](& $field $ext 'awaiting')
+    & $add 'authorization' @($(if($execution -cne 'autonomous'){'execution:'+$(if($execution){$execution}else{'missing'})}),$(if($awaiting){'awaiting:'+$awaiting}))
+    $taskId=[string](& $field $Task 'id');$open=@()
+    $records=@(if($Decisions){@(& $field $Decisions 'decisions')|Where-Object {$_}})
+    foreach($record in $records){
+        $context=& $field $record 'context'
+        if([string](& $field $record 'status') -eq 'open' -and $taskId -and [string](& $field $context 'taskId') -ceq $taskId){$open+=[string](& $field $record 'id')}
+    }
+    $linked=[string](& $field $ext 'decision')
+    if($linked -and $linked -cnotin $open){
+        $record=@($records|Where-Object {[string](& $field $_ 'id') -ceq $linked})
+        if(!$record.Count -or [string](& $field $record[0] 'status') -eq 'open'){$open+=$linked}
+    }
+    & $add 'decisions' @($open|Sort-Object -Unique|ForEach-Object {'open:'+$_})
+    $missing=@($checks|Where-Object {!$_.passed}|ForEach-Object {$_.check})
+    [ordered]@{schemaVersion=1;ready=($missing.Count -eq 0);missing=$missing;checks=@($checks)}
+}
+function Set-SBTaskReadiness($Task,$Tasks,[string]$Dossier,[string]$Repository) {
+    # Stores the assessment on a hashtable task (extensions.readiness); an unreadable decisions.json is reported, never ignored.
+    if($Task.extensions -isnot [Collections.IDictionary]){$Task.extensions=@{}}
+    $decisions=if($Dossier){(Read-SBDecisions $Dossier $Repository).data}else{$null}
+    $Task.extensions.readiness=Get-SBTaskReadiness $Task $Tasks $decisions
+    $Task.extensions.readiness
+}
+
 # Create a task with the next sequential number (never reused) and a "#NNN - " title.
 # Requires an already numbered tracker: run Invoke-SBTrackerRenumber first for historical trackers.
 function New-SBTrackerTaskEntry {
@@ -784,6 +837,7 @@ function New-SBTrackerTaskEntry {
         extensions=$Extensions
     }
     if($Description){$task.description=$Description}
+    [void](Set-SBTaskReadiness $task (@($next.tasks)+@($archive.data.tasks)) $dossierDir $target.identity)
     $next.tasks+=,$task
     if($null -eq $next.extensions){$next.extensions=@{}}
     $next.extensions.lastSeq=$seq
@@ -1026,6 +1080,8 @@ function Edit-SBTrackerTaskFields($Target,$Archive,[string]$TaskId,[hashtable]$F
         $task.dependencies=ConvertTo-SBTrackerDependencies @($Fields.DependsOn) $next $Archive.data
     }
     if($Fields.ContainsKey('Evidence') -and $Fields.Evidence){if(!$task.ContainsKey('evidence')){$task.evidence=@()};$task.evidence+=@(@($Fields.Evidence)|ForEach-Object {ConvertTo-SBTaskEvidence $_})}
+    # #607: every update of an open task (CLI, MCP, batch, the app's analysis) re-runs the same readiness assessment.
+    if([string]$task.status -cnotin @('done','cancelled')){[void](Set-SBTaskReadiness $task (@($next.tasks)+@($Archive.data.tasks)) (Split-Path $Target.path) $Target.identity)}
     $closing=$Fields.ContainsKey('Status') -and $Fields.Status -eq 'done'
     if($closing -and !$wasDone){Set-SBTaskClosure $next $TaskId}
     $record=New-SBTaskRunRecord -Task $task -Before $before -Executor $Executor
@@ -1148,6 +1204,8 @@ Export-ModuleMember -Function @(
     'Set-SBTrackerTaskStatus',
     'Get-SBClosureMemoryPending',
     'New-SBTrackerTaskEntry',
+    'Get-SBTaskReadiness',
+    'Set-SBTaskReadiness',
     'Invoke-SBTrackerRenumber',
     'Get-SBTrackerHistoryMessages',
     'Invoke-SBTrackerHistoryMigration',
