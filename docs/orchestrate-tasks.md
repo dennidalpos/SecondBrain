@@ -1,31 +1,19 @@
-# orchestrate-tasks.ps1: sequential task queue with `claude -p`
+# orchestrate-tasks.ps1: sequential task queue on a queue branch
 
 [Italiano](orchestrate-tasks.it.md)
 
-`scripts/orchestrate-tasks.ps1` runs the autonomous tracker tasks of one repository one at a time, each in a fresh `claude -p` process, and commits locally after each. It is independent of `run-ready-tasks.ps1`: use it when the tasks themselves change the runner.
+`scripts/orchestrate-tasks.ps1` runs the autonomous tracker tasks of one repository one at a time, each in a fresh headless agent process (Claude Code, Codex or Gemini CLI through `SecondBrain.AgentAdapters`), and commits locally after each. It is independent of `run-ready-tasks.ps1`: use it when the tasks themselves change the runner.
 
-- Finds the checkout (Git root of the current directory), SecondBrain (`SECONDBRAIN_HOME`, else the folder above the script) and the dossier (Git `origin` identity in `01-projects/*/repository.json`); creates its work folder with `work.ps1` when `-WorkDir` is omitted.
-- Preview by default; `-Run` starts a pinned copy of the script. Defaults: `-Model sonnet -Effort medium -PermissionMode acceptEdits`, an explicit `-AllowedTools` list, `-DisallowedTools` for git commit, push, tag, reset, clean, rebase, `rm`, `Remove-Item`, 45 minutes per task.
-- Per task: clean tree required, task marked `in_progress`, session run, a `done` without evidence reopened, a task that ends without a result parked as `user_required`, then a local commit of the changed paths (never a push). Quota limits wait for the reset (`-MaxWaitHours`) and retry; three consecutive failures stop the run.
-- Tasks that need a screen (computer-use) or an installer are skipped by `-ExcludePattern`; `-IncludeExcluded` lifts that, and such a session ends parked.
-- State: `status.json`, `events.jsonl`, `stop.flag` in the work folder.
-
-## Prompt: create the launcher agent in any repository
-
-```text
-Create the project subagent "task-runner" in .claude/agents/task-runner.md of this repository (frontmatter: name task-runner, description "Launches and monitors the sequential task orchestrator for this repository (one claude -p session per tracker task, local commit after each). Use only when the parent explicitly asks to start or check it.", tools "*"). Do not launch it and do not commit the file.
-
-Role: you launch and monitor $env:SECONDBRAIN_HOME\scripts\orchestrate-tasks.ps1 (if the variable is not set, report it and stop). The script runs the autonomous tracker tasks of the current repository one at a time, each in a fresh `claude -p`, with a local commit after each. You do not execute tasks and you do not change product code. The script finds the checkout, the dossier (from the origin identity) and the work folder by itself, and with -Run it runs a pinned copy of itself.
-
-The agent body must prescribe:
-1. Inputs from the caller (if missing, report what is missing and stop; do not ask the user): model, effort, MaxTasks (0 = no limit), timeout per task in minutes, maximum hours of waiting for the quota limit, and whether to lift the screen-task filter (-IncludeExcluded, default no). Script defaults: sonnet, medium, 45 minutes, 6 hours. Permissions are granted by the caller upstream; -AllowedTools and -DisallowedTools are script parameters and the default forbids git commit, push, tag, reset, clean, rebase, rm and Remove-Item in the task sessions.
-2. Start: preview without -Run from the repository root and report the tasks selected and the tasks skipped by the filter; if none is selected, report and stop. Then check that `git status --porcelain` is empty (the script ignores .claude/agents/) and that no orchestrator is alive (status.json of the latest task-run folder: phase running with a live pid = stop and report). Launch detached with Start-Process pwsh -NoProfile -File <script> -Run with the received parameters, from the repository root; record the pid and the work folder.
-3. Monitoring: read status.json and the tail of events.jsonl of the work folder at long intervals (several minutes, waits in the background, never tight polling). Phases: running, waiting-quota (waitingUntil), finished. stop.flag in the work folder stops the run before the next task: create it only if the caller asks. If the process is gone and the phase is still running (for example a Claude update cut it), report and restart once with the same parameters: the script reselects the tasks that are still open.
-4. Report at every stop and at the end: per task the outcome, commit hash (git log), tracker status afterwards, evidence; then skipped, failed and parked (user_required) tasks with the reason from events.jsonl, quota state and the work folder path. Report only what you read from status.json, events.jsonl, git and the tracker.
-5. Rules: never commit, push, publish or delete yourself (the script commits locally only the paths changed by the task and never pushes); dossier writes only through SecondBrain scripts, normally none; do not delegate to other agents.
-
-If a .claude/agents/task-runner.md already exists, do not overwrite it: compare it and propose the differences.
-```
+- Finds the checkout (Git root of the current directory), SecondBrain (`SECONDBRAIN_HOME`, else the folder above the script) and the dossier (Git `origin` identity in `repository.json` under `01-projects`, `02-areas` or `03-resources`); creates its work folder with `work.ps1` (`.runtime/hosts/<host>/repos/<repo>/report/<date>-task-run`).
+- Preview by default. `-Run` creates a `queue/<yyyyMMdd-HHmm>` branch (or `-Branch`; never `master` or `main`; skipped when already on a `queue/*` branch), then starts a pinned copy of the script. No push, ever.
+- `-Provider claude|codex|gemini` (default `claude`), `-Model`, `-Effort`, `-AgentPath`, 45 minutes per task. Tool access of the task sessions: `-PermissionMode acceptEdits`, an explicit `-AllowedTools` list and a `-DisallowedTools` list (git commit, push, tag, reset, clean, rebase, `rm`, `Remove-Item`). Changing any of the three needs `-ConfirmExtendedTools` (Claude Code only); the profile, the confirmation and the time are recorded in `status.json`.
+- Per task: clean tree required (except the interrupted task on resume), task marked `in_progress`, session run, a `done` without evidence reopened, a task that ends without a result parked as `user_required`, a local commit of the changed paths (the rollback point), run evidence offered to the tracker, then the health check: tracker readable, `knowledge.ps1 -Tasks`, `test-secondbrain.ps1 -Quick`, `secondbrain.ps1 -Check` (`-HealthChecks` selects a subset). A failed check stops the run with a `NOTICE.txt`; nothing is reverted, reset, cleaned or stashed.
+- Selection: autonomous, `todo` or `in_progress`, dependencies done, not in the excluded streams of the runner, not waiting for a person, not screen-bound (`-ExcludePattern`, lifted by `-IncludeExcluded`). Tasks that edit the orchestrator or the runner themselves (`-SelfPattern`) are ordered last.
+- Quota limits wait for the reset (`-MaxWaitHours`) and retry; three consecutive failures stop the run. On Windows the run holds a system-required power request (no idle sleep); if it is refused the run does not start unless `-AllowNoPowerRequest`.
+- `-Status` prints the latest run (phase, pid alive, interrupted, current task, counters, notice, last events); `-Stop` creates `stop.flag` so the run ends before the next task.
+- Resume: a run cut while `running` (pid gone) is resumed by running `-Run` again. The work folder and counters come from `status.json`; the interrupted task goes first, its dirty tree is accepted for that task only, and its prompt says to continue the partial work.
+- `-InstallAgent -Provider claude|codex|gemini` writes a context-free supervisor agent definition into the checkout and never overwrites an existing file. Only the Claude Code format (`.claude/agents/task-queue-supervisor.md`) is verified; the Codex and Gemini files are plain definitions to adapt.
+- Limits: the SecondBrain scripts cannot be pinned (the brain root is the parent of `scripts/` and the dossier write guard refuses junctions), so their SHA-256 manifest is taken at start and a change is reported as `scripts-changed` after each task. Evidence is refused by the tracker for a task the session already closed (it is archived); the run evidence then stays in the work folder. Extended tool access works with Claude Code only. The quota is not read before each task.
 
 ## Note: full permissions for the runner
 
