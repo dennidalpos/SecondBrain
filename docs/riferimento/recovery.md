@@ -36,7 +36,7 @@ pwsh -NoProfile -File scripts/recover.ps1 -ManifestPath $manifestPath
 
 Apply only after reviewing the preview under the relevant authorization. Recovery validates every destination before writes, reverses recorded operations and preserves originals. Later edits are not overwritten. It does not rewrite SECONDBRAIN_HOME.
 
-Tracker imports have a separate import-tracker RollbackManifest procedure. A verified preparation is not yet the authoritative committed tracker.
+Tracker imports have a separate import-tracker RollbackManifest procedure. A verified preparation is not yet the authoritative committed tracker. Tracker merges into an existing dossier tracker have their own journal (`tracker-merge-<id>` under backupRoot); an unfinished one is reported by Check and is undone with `import-tracker.ps1 -RollbackMerge <manifest> -Apply`.
 
 ## Repository retirement
 

@@ -11,7 +11,7 @@ Reads (-Check) take no blocking locks: an active writer or pending transaction a
 -Setup -Status: binding, IDE and latest selection receipt status (read-only, exit 0).
 -Setup -Unbind <repo|path|ideId|ideName>[,..]: unbinds managed repositories and IDE integrations with proposal, confirmation (-Yes or -Interactive) and preview, like activation; -Apply applies it. Dossiers and IDE files are not deleted.
 -Setup -SetupProfile Solo: one person, local checkout, no shared root and no share ACLs (rejects -TeamRoot and a checkout on a network drive). -Setup -SetupProfile Studio -TeamRoot <UNC>: shared authoritative root, workstation state local (SECONDBRAIN_STATE_ROOT), access by the share's ACLs. The result reports profile, sharedRoot, acl and state.
-Zero footprint: by default nothing is written into a repository. Instructions reach the agents from the user-scope IDE text and MCP. -Setup -RepositoryFiles AGENTS.md[,CLAUDE.md,GEMINI.md] (none = clear) opts a selected repository in; Sync then manages only those files.
+Repository files: a newly activated repository gets AGENTS.md (managed block) and the CLAUDE.md/GEMINI.md pointers, created when absent; text outside the managed blocks is kept. -Setup -RepositoryFiles AGENTS.md[,CLAUDE.md,GEMINI.md] chooses the files, none opts out; a repeated activation keeps the earlier choice and Sync manages only the chosen files.
 -ResolveBlock <repo|path> [-File <name>]: preview of a managed block edited by hand (diff); -Resolution Generated|Preserve -ApplyResolve restores the generated block keeping the previous content (backup, previousBlock, or the lines added by hand with Preserve).
 Portable operations and contracts: docs/riferimento/portable-brain.md.
 .EXAMPLE

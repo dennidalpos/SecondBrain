@@ -95,7 +95,7 @@ Setup can select repositories and supported IDE integrations interactively. MCP 
 
 | Integration | What is implemented | What to verify separately |
 |---|---|---|
-| Repository instructions | By default nothing is written into a newly activated repository (instructions load from the user-scope IDE text and MCP; repositories bound before 2.8.0 keep their managed files); managed AGENTS.md blocks and CLAUDE.md/GEMINI.md pointers only after an explicit `-RepositoryFiles` choice, with a guided `-ResolveBlock` for hand-edited blocks | Loading in a new agent session |
+| Repository instructions | A newly activated repository gets a managed AGENTS.md block and CLAUDE.md/GEMINI.md pointers, created when absent, with text outside the managed blocks kept; `-RepositoryFiles` chooses the files (`none` opts out, a repeated activation keeps the earlier choice; repositories bound before 2.8.0 keep their managed files); guided `-ResolveBlock` for hand-edited blocks | Loading in a new agent session |
 | MCP configuration | Client-specific preview and pairing | Actual tool exposure, profile and popup behavior |
 | MCP server | Thirteen tools, including runner status, user decisions and reviewed dossier-write preview and submission | Client consent and the local receipt for each write |
 | Memory collection | Guided envelopes, per-turn Permit CLI and a native bridge | Current implementation limits and live qualification |

@@ -5,6 +5,7 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Host.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Knowledge.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Prompts.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.TrackerImport.psm1')
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.TrackerMerge.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Sources.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Para.psm1')
@@ -71,7 +72,7 @@ Add-SBMessages @{
     'portable.observed.manual' = @{ en = 'Observed revision and hash are recorded only for manual surfaces: {0}' }
     'portable.observed.pair' = @{ en = 'revision (e.g. 1.0) and SHA-256 hash must be given together: {0}' }
     'portable.selection.empty' = @{ en = 'No repository or IDE selected: give -Select, -Ides, -AllIdes or -Interactive' }
-    'portable.prompt.files' = @{ en = 'Instruction files to manage in the repositories (AGENTS.md, CLAUDE.md, GEMINI.md comma-separated, none = nothing; Enter = no change: by default nothing is written into the repository)' }
+    'portable.prompt.files' = @{ en = 'Instruction files to manage in the repositories (AGENTS.md, CLAUDE.md, GEMINI.md comma-separated, none = nothing; Enter = no change: a newly activated repository gets all three, a bound one keeps its earlier choice)' }
     'portable.files.invalid' = @{ en = 'Invalid repository instruction file: {0} (allowed: AGENTS.md, CLAUDE.md, GEMINI.md or none)' }
     'portable.files.pointer' = @{ en = 'CLAUDE.md and GEMINI.md import AGENTS.md: list it together with them' }
     'portable.resolve.target' = @{ en = 'Repository not managed on this workstation or ambiguous: {0}' }
@@ -137,10 +138,12 @@ function New-SBPortableRepositoryBody($Revision,[string]$BrainRoot,[string]$Doss
     if($body -match '(?im)<!--\s*secondbrain:|(?<![A-Za-z0-9+.-])[A-Z]:[\\/]|(?<![\w/])/(?:Users|home)/|\{\{'){throw (New-SBError 'portable.directives.nonportable')}
     @($stamp)+@($body.Trim()) -join "`n"
 }
-# Zero footprint (#484): a repository activated from now on gets nothing written into its checkout by default. Instructions reach the
-# agents through the user-scope IDE text and MCP; a binding lists the repository files it may manage (repositoryFiles) only after an
-# explicit choice. Bindings created before the field existed keep their files (see Get-SBBindingRepositoryFiles).
+# Repository files: a binding lists the files it may manage (repositoryFiles). A repository activated for the first time gets all of them
+# by default (AGENTS.md block plus CLAUDE.md/GEMINI.md pointers, created when absent; text outside the managed blocks is never touched);
+# an explicit choice (-RepositoryFiles, 'none' to opt out) and the choice of a repeated activation win. Bindings created before the
+# field existed keep their files (see Get-SBBindingRepositoryFiles).
 $script:SBRepositoryFileNames=@('AGENTS.md')+$script:SBRepositoryPointerFiles
+function Get-SBDefaultRepositoryFiles {@($script:SBRepositoryFileNames)}
 function ConvertTo-SBRepositoryFiles([string[]]$Values) {
     $names=@($Values|ForEach-Object {([string]$_) -split ','}|ForEach-Object {$_.Trim()}|Where-Object {$_})
     if($names.Count -eq 1 -and $names[0] -ieq 'none'){return @()}
@@ -182,28 +185,6 @@ function Get-SBSetupDossierConflicts([string]$BrainRoot,[string]$PersonalRoot,$R
                 teamDossier=(Resolve-SBParaPath $BrainRoot $team.path);message=(Get-SBMessage 'portable.setup.dossier.conflict')}
         }
     }
-}
-# The checkout's own tracker, in the order Resolve-SBTracker uses: tracker.md is enough by itself; JSON
-# candidates count only when they parse as an object. compatible = valid schema-1 tracker once its
-# repository is realigned to the target identity (the import keeps ids, seq, evidence and provenance).
-function Get-SBCheckoutTrackerSource([string]$CheckoutPath,[string]$Identity) {
-    foreach($name in @('tracker.json','tracker.md','tasks.json','legacy-tasks.json')){
-        $path=Join-Path $CheckoutPath $name
-        if(!(Test-Path -LiteralPath $path -PathType Leaf)){continue}
-        if($name -eq 'tracker.md'){return @{path=$name;compatible=$false}}
-        $data=try{Read-SBJson $path $null}catch{$null}
-        if($data -isnot [Collections.IDictionary]){continue}
-        $compatible=$false
-        if($data.Contains('schemaVersion') -and $data.schemaVersion -eq 1){
-            $copy=ConvertTo-SBJson $data|ConvertFrom-Json -AsHashtable -DateKind String
-            $original=if($copy.Contains('repository')){[string]$copy.repository}else{''}
-            Remove-SBOriginDependencyRepository @($copy['tasks']) $original
-            $copy.repository=$Identity
-            $compatible=try{[bool](Test-SBTrackerData $copy $Identity @($Identity) (Join-Path $PSScriptRoot '../config/tracker.schema.json'))}catch{$false}
-        }
-        return @{path=$name;compatible=$compatible}
-    }
-    $null
 }
 function Invoke-SBHostActivation {
     param([string]$BrainRoot,[string]$SelectionPath,[string]$SessionId,[switch]$Apply,[switch]$RegisterEnvironment,
@@ -256,7 +237,18 @@ function Invoke-SBHostActivation {
             }
         }
         $trackerSource=if(!$existing.Count){Get-SBCheckoutTrackerSource $asset.path $identity}else{$null}
-        $requiresImport=($null -ne $trackerSource)
+        $trackerMerge=$null
+        if($existing.Count){
+            # An existing dossier with its own tracker never imports over it: the checkout tracker is previewed as a merge (conflicts reported, nothing written).
+            $dossierRecord=Read-SBJson (Join-Path $dossier 'repository.json') @{}
+            if($dossierRecord.ContainsKey('tracker') -and (Test-Path -LiteralPath (Join-Path $dossier 'tracker.json') -PathType Leaf)){
+                $trackerSource=Get-SBCheckoutTrackerSource $asset.path $identity
+                if($trackerSource){
+                    $trackerMerge=try{(Get-SBTrackerMergePlan $BrainRoot $identity $dossier (Join-Path $asset.path $trackerSource.path)).summary}catch{@{status='unplannable';error=$_.Exception.Message}}
+                }
+            }
+        }
+        $requiresImport=(!$existing.Count -and $null -ne $trackerSource)
         if(!$existing.Count){
             $metadata=New-SBParaMetadata ('project-'+(Get-SBTextHash $identity).Substring(0,20).ToLowerInvariant()) 'project' $asset.name
             $repo=@{schemaVersion=1;identity=$identity}
@@ -271,14 +263,14 @@ function Invoke-SBHostActivation {
         $managedHash='absent'
         # Files SecondBrain may manage in the checkout: only an explicit choice; a repeated activation keeps the earlier one.
         $previousBinding=@($configuration.bindings|Where-Object {$_.path -ieq $asset.path})|Select-Object -First 1
-        $repositoryFiles=if($choice.ContainsKey('repositoryFiles')){@(ConvertTo-SBRepositoryFiles @($choice.repositoryFiles))}else{@(Get-SBBindingRepositoryFiles $previousBinding)}
+        $repositoryFiles=if($choice.ContainsKey('repositoryFiles')){@(ConvertTo-SBRepositoryFiles @($choice.repositoryFiles))}elseif($previousBinding){@(Get-SBBindingRepositoryFiles $previousBinding)}else{@(Get-SBDefaultRepositoryFiles)}
         $existingBlock=if('AGENTS.md' -in $repositoryFiles -and $asset.agentsHash -ne 'absent'){Get-SBManagedContent ((Read-SBText (Join-Path $asset.path 'AGENTS.md')) -replace "`r`n","`n") 'repository'}else{$null}
         if($null -ne $existingBlock){
             if(!$choice.ContainsKey('approveExistingBlock') -or !$choice.approveExistingBlock){throw (New-SBError 'portable.block.review')}
             $managedHash=Get-SBTextHash $existingBlock
         }
         $newBindings+=@{path=$asset.path;identity=$identity;remoteIdentity=$current.remoteIdentity;fingerprint=$current.fingerprint;dossier=$dossierRelative;managedHash=$managedHash;repositoryFiles=@($repositoryFiles);status=$(if($requiresImport){'tracker-import-required'}else{'managed'})}
-        $plans+=@{identity=$identity;path=$asset.path;dossier=$dossierRelative;trackerImportRequired=$requiresImport;trackerSource=$trackerSource;repositoryFiles=@($repositoryFiles)}
+        $plans+=@{identity=$identity;path=$asset.path;dossier=$dossierRelative;trackerImportRequired=$requiresImport;trackerSource=$trackerSource;trackerMerge=$trackerMerge;repositoryFiles=@($repositoryFiles)}
     }
     $selectedIDEs=@()
     foreach($choice in $selection.ides){
@@ -562,7 +554,8 @@ function Invoke-SBSetup {
     $directiveAreas=if($approvedRevision){@(Get-SBParaEntities $brain @()|Where-Object {(Test-SBRepoDossier $_) -and !$_.archived})}else{@()}
     foreach($asset in $chosen){
         # A checkout whose AGENTS.md SecondBrain does not manage is never read for blocks or approvals.
-        $effectiveFiles=if($filesSpecified){$repositoryFilesChosen}else{@(Get-SBBindingRepositoryFiles (@($bindings|Where-Object {$_.path -ieq $asset.path})|Select-Object -First 1))}
+        $effectiveBinding=@($bindings|Where-Object {$_.path -ieq $asset.path})|Select-Object -First 1
+        $effectiveFiles=if($filesSpecified){$repositoryFilesChosen}elseif($effectiveBinding){@(Get-SBBindingRepositoryFiles $effectiveBinding)}else{@(Get-SBDefaultRepositoryFiles)}
         if('AGENTS.md' -notin $effectiveFiles){continue}
         $existingBlock=if($asset.agentsHash -ne 'absent'){Get-SBManagedContent ((Read-SBText (Join-Path $asset.path 'AGENTS.md')) -replace "`r`n","`n") 'repository'}else{$null}
         if($null -eq $existingBlock){continue}
@@ -1050,6 +1043,7 @@ function Invoke-SBPortableSync {
         foreach($issue in @(Get-SBCuratedReferenceIssues $Config.brainRoot $entities)){$issues+=@{kind='curated-reference';detail=$issue}}
         foreach($issue in @(Get-SBTrackerAuthorityIssues $Config.brainRoot $entities)){$issues+=@{kind='tracker-authority';detail=$issue}}
         foreach($issue in @(Get-SBTrackerImportIssues $Config)){$issues+=@{kind='tracker-import';detail=$issue}}
+        foreach($issue in @(Get-SBTrackerMergeIssues $Config)){$issues+=@{kind='tracker-merge';detail=$issue}}
         if(@($entities|Where-Object id -eq 'resource-authoritative-sources').Count){
             foreach($issue in @(Get-SBSourceChecks (Read-SBSourceRegistry $Config.brainRoot) $Config -IncludeDossiers)){$issues+=@{kind='authoritative-source';detail=$issue}}
         }
@@ -1084,6 +1078,7 @@ Export-ModuleMember -Function @(
     'Invoke-SBSetupUnbind',
     'ConvertTo-SBRepositoryFiles',
     'Get-SBBindingRepositoryFiles',
+    'Get-SBDefaultRepositoryFiles',
     'Invoke-SBRepositoryBlockResolve',
     'Invoke-SBPortableSync'
 )

@@ -32,6 +32,7 @@ try {
     $userScope=Get-SBPortableGlobal $productRoot
     Assert-Quick ($userScope.Contains('knowledge.ps1 -Startup') -and $userScope.Contains('get_startup_context') -and $userScope.Contains('SECONDBRAIN_HOME')) 'le istruzioni di ambito utente caricano il contesto senza file nel repository'
     Assert-Quick (@(ConvertTo-SBRepositoryFiles 'none').Count -eq 0 -and (@(ConvertTo-SBRepositoryFiles 'agents.md,CLAUDE.md') -join ',') -ceq 'AGENTS.md,CLAUDE.md' -and @(Get-SBBindingRepositoryFiles @{identity='x';repositoryFiles=@()}).Count -eq 0 -and @(Get-SBBindingRepositoryFiles $null).Count -eq 0) 'un binding con scelta vuota, o nessun binding, non gestisce alcun file del repository'
+    Assert-Quick ((@(Get-SBDefaultRepositoryFiles) -join ',') -ceq 'AGENTS.md,CLAUDE.md,GEMINI.md') 'a repository activated for the first time defaults to AGENTS.md, CLAUDE.md and GEMINI.md'
     Assert-Quick ((@(Get-SBBindingRepositoryFiles @{identity='x'}) -join ',') -ceq 'AGENTS.md,CLAUDE.md,GEMINI.md') 'un binding precedente a repositoryFiles continua a gestire AGENTS.md, CLAUDE.md e GEMINI.md'
     foreach($file in Get-ChildItem -LiteralPath $PSScriptRoot -File|Where-Object Extension -in @('.ps1','.psm1')){
         $tokens=$null;$errors=$null
@@ -275,5 +276,15 @@ try {
     # Only Core reads the system clock or creates GUIDs outside the tests.
     $direct=@(Get-ChildItem -LiteralPath $PSScriptRoot -File|Where-Object {$_.Extension -in '.ps1','.psm1' -and $_.Name -notlike 'test-*' -and $_.Name -ne 'SecondBrain.Core.psm1'}|Select-String -Pattern 'Get-Date|\[Date[Tt]ime(Offset)?\]::(Now|UtcNow)|NewGuid|Get-Random')
     Assert-Quick ($direct.Count -eq 0) ('nessun orologio o GUID diretto fuori da Core e dai test'+$(if($direct.Count){': '+$direct[0].Filename+':'+$direct[0].LineNumber}))
+    # Tracker merge: messages keyed, source detection moved with the merge module, no Git needed for detection.
+    Import-Module (Join-Path $PSScriptRoot 'SecondBrain.TrackerMerge.psm1') -Force
+    Assert-Quick ((Get-SBMessage 'trackermerge.conflict.seq' @(3,'ONB-3')) -match 'Sequence number 3 already belongs to task ONB-3') 'tracker merge: conflict messages come from Add-SBMessages keys'
+    $mergeProbe=Join-Path ([IO.Path]::GetTempPath()) ('sb-merge-probe-'+[guid]::NewGuid().ToString('N'))
+    try{
+        [void][IO.Directory]::CreateDirectory($mergeProbe)
+        [IO.File]::WriteAllText((Join-Path $mergeProbe 'tasks.json'),'{"tasks":[]}')
+        $probe=Get-SBCheckoutTrackerSource $mergeProbe 'github.com/test/probe'
+        Assert-Quick ($probe.path -ceq 'tasks.json' -and !$probe.compatible -and $null -eq (Get-SBCheckoutTrackerSource (Join-Path $mergeProbe 'absent') 'github.com/test/probe')) 'tracker merge: checkout tracker source detection'
+    }finally{if(Test-Path -LiteralPath $mergeProbe){Remove-Item -LiteralPath $mergeProbe -Recurse -Force}}
     'SUCCESS QUICK: '+$script:quickChecks+' verifiche pure (nessun Git, nessun processo figlio).'
 } finally { }

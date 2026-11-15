@@ -1293,6 +1293,8 @@ Export-ModuleMember -Function @(
     'New-SBTrackerTask',
     'Read-SBTrackerReview',
     'ConvertTo-SBTracker',
+    'ConvertTo-SBTrackerHistoryRecord',
+    'Get-SBTrackerLastSeq',
     'Remove-SBOriginDependencyRepository',
     'Convert-SBTrackerLocation',
     'Get-SBCuratedReferenceIssues',

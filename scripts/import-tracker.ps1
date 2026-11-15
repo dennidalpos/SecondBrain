@@ -6,6 +6,9 @@ param(
     [Parameter(Mandatory,ParameterSetName='Prepare')][string]$SourcePath,
     [Parameter(ParameterSetName='Prepare')][string]$HistoryPath,
     [Parameter(ParameterSetName='Prepare')][string]$ReviewPath,
+    [Parameter(ParameterSetName='Prepare')][switch]$Merge,
+    [Parameter(ParameterSetName='Prepare')][string]$PlanSha256,
+    [Parameter(Mandatory,ParameterSetName='RollbackMerge')][string]$RollbackMerge,
     [Parameter(Mandatory,ParameterSetName='Resume')][string]$ResumeManifest,
     [Parameter(Mandatory,ParameterSetName='Rollback')][string]$RollbackManifest,
     [Parameter(ParameterSetName='Prepare')][Parameter(ParameterSetName='Resume')][switch]$Activate,
@@ -19,13 +22,39 @@ trap { if (Test-SBWriteDeniedError $_) { Write-SBWriteDeniedDiagnostic $_ $PSCom
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Para.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Tracker.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.TrackerImport.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.TrackerMerge.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Add-SBMessages @{
     'importtracker.source.diverged' = @{ en = 'Source differs from the authoritative tracker' }
+    'importtracker.merge.applied' = @{ en = 'Tracker merge applied: {0} tasks added; manifest={1}' }
+    'importtracker.merge.uptodate' = @{ en = 'Tracker merge not needed: the dossier tracker already holds the checkout tracker' }
+    'importtracker.merge.rolledback' = @{ en = 'Tracker merge rolled back' }
+    'importtracker.merge.confirm' = @{ en = 'Merge not applied: confirm the previewed plan with -PlanSha256 {0}' }
+    'importtracker.merge.options' = @{ en = '-Merge cannot be combined with -HistoryPath or -ReviewPath' }
 }
 $config=Read-SBConfiguration $ConfigPath
 $lock=Enter-SBOperation $config $SessionId -ReadOnly:(!$Apply)
 try {
+    if($Merge -and ($HistoryPath -or $ReviewPath)){throw (New-SBError 'importtracker.merge.options')}
+    if($RollbackMerge){
+        if(!$Apply){ConvertTo-SBJson (Read-SBTrackerMergeManifest $config $RollbackMerge);exit 0}
+        Restore-SBTrackerMerge $config $RollbackMerge;Get-SBMessage 'importtracker.merge.rolledback';exit 0
+    }
+    if($Merge){
+        $area=@(Get-SBParaEntities $config.brainRoot $config.allowedOwners|Where-Object {(Test-SBRepoDossier $_) -and !$_.archived -and $_.status -eq 'active' -and $_.repository -ceq $Repository})
+        if($area.Count -ne 1){throw (New-SBError 'trackerimport.area.ambiguous')}
+        if(!$Apply){
+            $plan=Get-SBTrackerMergePlan $config.brainRoot $Repository (Resolve-SBParaPath $config.brainRoot $area[0].path) $SourcePath
+            ConvertTo-SBJson (@{mode='merge-preview'}+$plan.summary);exit 0
+        }
+        if(!$PlanSha256){
+            $plan=Get-SBTrackerMergePlan $config.brainRoot $Repository (Resolve-SBParaPath $config.brainRoot $area[0].path) $SourcePath
+            [Console]::Error.WriteLine((Get-SBMessage 'importtracker.merge.confirm' @($plan.summary.planSha256)));exit 2
+        }
+        $manifest=Invoke-SBTrackerMerge -Config $config -Identity $Repository -SourcePath $SourcePath -PlanSha256 $PlanSha256
+        if($manifest){Get-SBMessage 'importtracker.merge.applied' @((Read-SBTrackerMergeManifest $config $manifest).added.Count,$manifest)}else{Get-SBMessage 'importtracker.merge.uptodate'}
+        exit 0
+    }
     if(!$Apply){
         if($ResumeManifest -or $RollbackManifest){
             $manifestPath=if($ResumeManifest){$ResumeManifest}else{$RollbackManifest}

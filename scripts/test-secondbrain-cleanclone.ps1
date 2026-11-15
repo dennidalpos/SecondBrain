@@ -46,13 +46,13 @@ try{
     Assert-Clean ($preview.code -eq 0 -and $preview.data -and !(Test-Path -LiteralPath (Join-Path $clone '.runtime/hosts'))) 'Setup preview discovers the project and writes nothing'
     $apply=Invoke-Pwsh $setup @('-Setup','-Roots',$project,'-Select',$project,'-Yes','-Apply','-NoRegisterEnvironment')
     Assert-Clean ($apply.code -eq 0 -and (Test-Path -LiteralPath (Join-Path $clone '.runtime/hosts'))) 'Setup with -Roots activates the selected repository'
-    # #484: the default Setup leaves the client repository untouched; instruction files appear only after an explicit choice.
-    $leftover=@(Get-ChildItem -LiteralPath $project -Force|Where-Object Name -notin @('.git','README.md')|ForEach-Object Name)
-    Assert-Clean ($leftover.Count -eq 0) ('Setup by default writes nothing into the repository: '+($leftover -join ', '))
-    $zeroStartup=Invoke-Pwsh (Join-Path $clone 'scripts/knowledge.ps1') @('-Startup','-Profile','Slim','-CheckoutPath',$project)
-    Assert-Clean ($zeroStartup.code -eq 0 -and $zeroStartup.data -and $zeroStartup.data.repository -ceq $identity -and !(Test-Path -LiteralPath (Join-Path $project 'AGENTS.md'))) 'Startup resolves the repository from Git without any file in the checkout'
-    $optIn=Invoke-Pwsh $setup @('-Setup','-Roots',$project,'-Select',$project,'-RepositoryFiles','AGENTS.md','-Yes','-Apply','-NoRegisterEnvironment')
-    Assert-Clean ($optIn.code -eq 0 -and (Test-Path -LiteralPath (Join-Path $project 'AGENTS.md')) -and !(Test-Path -LiteralPath (Join-Path $project 'CLAUDE.md'))) 'Setup with -RepositoryFiles AGENTS.md writes the approved repository instructions only'
+    # The default Setup creates the instruction files of a newly activated repository: AGENTS.md block plus the CLAUDE.md and GEMINI.md pointers; nothing else is added.
+    $leftover=@(Get-ChildItem -LiteralPath $project -Force|Where-Object Name -notin @('.git','README.md')|ForEach-Object Name|Sort-Object)
+    Assert-Clean (($leftover -join ',') -ceq 'AGENTS.md,CLAUDE.md,GEMINI.md') ('Setup by default creates the three instruction files and nothing else: '+($leftover -join ', '))
+    $defaultStartup=Invoke-Pwsh (Join-Path $clone 'scripts/knowledge.ps1') @('-Startup','-Profile','Slim','-CheckoutPath',$project)
+    Assert-Clean ($defaultStartup.code -eq 0 -and $defaultStartup.data -and $defaultStartup.data.repository -ceq $identity) 'Startup resolves the repository from Git and the instruction files'
+    $optOut=Invoke-Pwsh $setup @('-Setup','-Roots',$project,'-Select',$project,'-RepositoryFiles','none','-Yes','-Apply','-NoRegisterEnvironment')
+    Assert-Clean ($optOut.code -eq 0) 'Setup with -RepositoryFiles none opts the repository out of managed files'
 
     $knowledge=Join-Path $clone 'scripts/knowledge.ps1'
     $startup=Invoke-Pwsh $knowledge @('-Startup','-Profile','Slim','-CheckoutPath',$project)

@@ -133,14 +133,14 @@ if('portable' -in $Groups){
     $discoveryPath=Join-Path $brain '.runtime/discovery.json'
     $discovery=Invoke-SBHostDiscovery -BrainRoot $brain -Roots @($repo) -ReportPath $discoveryPath
     $selectionPath=Join-Path $brain '.runtime/selection.json'
-    $selection=@{schemaVersion=1;confirmed=$false;confirmation='fixture';reportPath=$discoveryPath;reportSha256=(Get-SBFileHash $discoveryPath);repositories=@(@{id=$discovery.repositories[0].id});ides=@()}
+    $selection=@{schemaVersion=1;confirmed=$false;confirmation='fixture';reportPath=$discoveryPath;reportSha256=(Get-SBFileHash $discoveryPath);repositories=@(@{id=$discovery.repositories[0].id;repositoryFiles=@()});ides=@()}
     Put $selectionPath (ConvertTo-SBJson $selection)
     Reject {Invoke-SBHostActivation $brain $selectionPath -Apply} 'activation without confirmation rejected'
     $selection.confirmed=$true;Put $selectionPath (ConvertTo-SBJson $selection)
     $one=Invoke-SBHostActivation $brain $selectionPath -Apply
     $two=Invoke-SBHostActivation $brain $selectionPath -Apply
     Check ($one.applied -and $two.applied -and (Read-SBJson $one.configuration $null).bindings.Count -eq 1) 'activation is idempotent on one synthetic checkout'
-    # #484 zero footprint: the default activation and Sync leave the checkout byte-identical; files are written only after an explicit choice.
+    # Explicit opt-out (repositoryFiles empty, #484): activation and Sync leave the checkout byte-identical; files are written only after an explicit choice.
     $treeOf={param($root) @(Get-ChildItem -LiteralPath $root -Recurse -Force -File|Where-Object {$_.FullName -notmatch '[\\/]\.git[\\/]'}|Sort-Object FullName|ForEach-Object {$_.FullName+'|'+(Get-SBFileHash $_.FullName)}) -join "`n"}
     $treeBefore=& $treeOf $repo
     # Writes go through the copied CLI (its own registry); reads run in-process.
@@ -338,14 +338,14 @@ if('portable' -in $Groups){
             $preview=(& pwsh -NoProfile -File $setupScript -Setup -Roots $repo -Select $repo -McpTargets cursor -Yes -NoRegisterEnvironment)|ConvertFrom-Json -AsHashtable
             Check ($LASTEXITCODE -eq 0 -and $preview.mcp.preview -and $preview.mcp.targets[0].ConfigFile -eq $cursorConfig -and !(Test-Path -LiteralPath $cursorConfig)) 'setup previews the MCP destination without pairing'
             $beforeRefusal=@($previewPaths|ForEach-Object {Get-SBFileHash $_})
-            # Answers: repository instruction files (Enter keeps the zero-footprint default, #484), then a refusal.
+            # Answers: repository instruction files (Enter keeps the earlier choice), then a refusal.
             $interactiveOutput=((@('','skip')|& pwsh -NoProfile -File $setupScript -Setup -Roots $repo -Select $repo -McpTargets cursor -Yes -Interactive -Apply -NoRegisterEnvironment) -join "`n")
             $afterRefusal=@($previewPaths|ForEach-Object {Get-SBFileHash $_})
             $activationAt=$interactiveOutput.IndexOf('Workstation activation preview')
             $previewAt=$interactiveOutput.IndexOf('User-level MCP pairing preview')
             $resultAt=$interactiveOutput.IndexOf('"stage": "preview"')
             Check ($LASTEXITCODE -eq 0 -and $activationAt -ge 0 -and $previewAt -gt $activationAt -and $resultAt -gt $previewAt -and ($beforeRefusal -join ',') -eq ($afterRefusal -join ',')) 'interactive setup previews activation and MCP and leaves files untouched on refusal'
-            # Answers: repository instruction files (Enter keeps the default, #484), then APPLICA.
+            # Answers: repository instruction files (Enter keeps the earlier choice), then APPLICA.
             $setupOutput=((@('','APPLICA')|& pwsh -NoProfile -File $setupScript -Setup -Roots $repo -Select $repo -McpTargets cursor -Interactive -NoRegisterEnvironment) -join "`n")
             $setup=$setupOutput.Substring($setupOutput.LastIndexOf("`n{`n")+1)|ConvertFrom-Json -AsHashtable
             Check ($LASTEXITCODE -eq 0 -and $setup.applied -and $setup.check.mode -eq 'sync' -and $setup.mcp.permissionConfigurationComplete -and [IO.File]::Exists($setup.setupReport)) 'setup applies sync, named approvals and a persistent report in an isolated profile'

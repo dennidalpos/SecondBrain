@@ -1,11 +1,12 @@
 #requires -Version 7.5
-param([ValidateSet('All','Source','References','Graph','Para','Greenfield','Onboard')][string]$Case='All')
+param([ValidateSet('All','Source','References','Graph','Para','Greenfield','Onboard','Merge')][string]$Case='All')
 $ErrorActionPreference='Stop'
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Access.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Para.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Tracker.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.TrackerImport.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.TrackerMerge.psm1') -Force
 # Get-SBHostId: imported here rather than reached through another module (the Mcp split no longer loads Host as a side effect).
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Host.psm1') -Force
 . (Join-Path $PSScriptRoot 'test-helpers.ps1')
@@ -272,7 +273,7 @@ try {
         Assert-Audit ($LASTEXITCODE -eq 0 -and (Get-SBFileHash $manifest) -eq $before -and (Test-Path -LiteralPath (Join-Path $f.dir 'repository.json')) -and !(Test-Path -LiteralPath (Join-Path $f.brain '.runtime/access/para-transaction.json'))) 'CLI recupera insieme dossier e manifest esterno'
         Assert-Audit (@(Get-SBTrackerImportIssues $f.config).Count -eq 0) 'Check coerente dopo recupero transazionale'
     }
-    if($Case -in @('All','Onboard')){
+    if($Case -in @('All','Onboard','Merge')){
         # Onboarding a checkout that already has its own schema-1 tracker: activation must require the import
         # (no empty dossier tracker), and the import must keep ids, seq, status, evidence and provenance.
         Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Portable.psm1') -Force
@@ -312,6 +313,75 @@ try {
         Assert-Audit ($imported.repository -ceq $onboardIdentity -and $imported.extensions.original.repository -ceq 'github.com/old/onboard' -and $imported.extensions.lastSeq -eq 7) 'identita riallineata, originale in extensions.original'
         Assert-Audit ($byId.Count -eq 2 -and $byId['ONB-7'].seq -eq 7 -and $byId['ONB-3'].seq -eq 3 -and $byId['ONB-7'].status -ceq 'done' -and $byId['ONB-3'].status -ceq 'todo') 'id, seq e stato conservati'
         Assert-Audit ($byId['ONB-7'].evidence[0].reference -ceq 'tests/run.log' -and $byId['ONB-7'].provenance[0].reference -ceq 'docs/plan.md' -and $byId['ONB-3'].dependencies[0].id -ceq 'ONB-7' -and !$byId['ONB-3'].dependencies[0].ContainsKey('repository')) 'evidenze, provenienza e dipendenze conservate'
+        # Merge into the now existing dossier: the checkout brings a tracker again, with one changed task, one sequence collision and one new task.
+        $taskSeven=$sourceTracker.tasks[0];$taskThree=$sourceTracker.tasks[1]
+        $changedThree=@{}+$taskThree;$changedThree.title=('#003'+$sep+'Open, renamed in the checkout');$changedThree.dependencies=@()
+        $newNine=@{id='ONB-9';seq=9;title=('#009'+$sep+'New in the checkout');status='todo';execution='autonomous';priority='P2';dependencies=@(@{id='ONB-3'});acceptance=@('merged');evidence=@();provenance=$provenance;extensions=@{}}
+        $collision=@{id='ONB-10';seq=3;title=('#003'+$sep+'Collides');status='todo';execution='autonomous';priority=$null;dependencies=@();acceptance=@();evidence=@();provenance=$provenance;extensions=@{}}
+        Put-Audit $trackerPath (ConvertTo-SBJson @{schemaVersion=1;repository='github.com/old/onboard';updatedAt='2026-11-02T10:00:00Z';history=@();extensions=@{lastSeq=10};tasks=@($taskSeven,$changedThree,$newNine,$collision)})
+        $dossierTracker=Join-Path $onboardDir 'tracker.json';$beforeHash=Get-SBFileHash $dossierTracker
+        try{
+            $env:SECONDBRAIN_STATE_ROOT=$null
+            $discovery=Invoke-SBHostDiscovery -BrainRoot $f.brain -Roots @($onboard) -ReportPath $reportPath
+            $asset=@($discovery.repositories|Where-Object {$_.kind -ne 'bare'})[0]
+            Put-Audit $selectionPath (ConvertTo-SBJson @{schemaVersion=1;confirmed=$true;confirmation='synthetic merge onboarding';reportPath=$reportPath;reportSha256=(Get-SBFileHash $reportPath);repositories=@(@{id=$asset.id});ides=@()})
+            $activation=Invoke-SBHostActivation -BrainRoot $f.brain -SelectionPath $selectionPath -Apply
+            $plan=$activation.repositories[0]
+            Assert-Audit (!$plan.trackerImportRequired -and $plan.trackerSource.path -ceq 'tracker.json' -and $plan.trackerMerge.status -ceq 'conflicts') 'activation of an existing dossier previews a merge, not an import'
+            Assert-Audit (@($plan.trackerMerge.added) -ceq 'ONB-9' -and @($plan.trackerMerge.identical) -ceq 'ONB-7' -and @($plan.trackerMerge.conflicts).Count -eq 2) 'merge preview lists added, identical and conflicting tasks'
+            $kinds=@($plan.trackerMerge.conflicts|ForEach-Object {$_.id+':'+$_.kind}|Sort-Object)
+            Assert-Audit ($kinds[0] -ceq 'ONB-10:seq' -and $kinds[1] -ceq 'ONB-3:content') ('conflict kinds: '+($kinds -join ','))
+            $hostConfig=Read-SBConfiguration $activation.configuration -BrainRoot $f.brain;$hostConfig.allowedOwners=@('test')
+        }finally{$env:SECONDBRAIN_STATE_ROOT=$savedState}
+        Assert-Audit ((Get-SBFileHash $dossierTracker) -ceq $beforeHash) 'merge preview writes nothing'
+        $mergeBinding=@($hostConfig.bindings|Where-Object {Test-SBSamePath $_.path $onboard})[0]
+        Assert-Audit ($mergeBinding.status -ceq 'managed' -and @(Get-SBTrackerMergeIssues $hostConfig).Count -eq 1 -and (@(Get-SBTrackerMergeIssues $hostConfig)[0]) -match 'pending') 'check reports the unresolved merge'
+        $cli=Join-Path $f.brain 'scripts/import-tracker.ps1'
+        $cliArgs=@('-NoProfile','-File',$cli,'-ConfigPath',$activation.configuration,'-Repository',$onboardIdentity,'-SourcePath',$trackerPath,'-Merge')
+        $preview=(& pwsh @cliArgs)|ConvertFrom-Json -AsHashtable
+        Assert-Audit ($LASTEXITCODE -eq 0 -and $preview.mode -ceq 'merge-preview' -and $preview.status -ceq 'conflicts' -and $preview.planSha256) 'CLI merge preview reports conflicts'
+        $null=@(& pwsh @cliArgs -Apply 2>&1)
+        Assert-Audit ($LASTEXITCODE -eq 2 -and (Get-SBFileHash $dossierTracker) -ceq $beforeHash) 'apply without the plan hash is refused'
+        $null=@(& pwsh @cliArgs -Apply -PlanSha256 $preview.planSha256 2>&1)
+        Assert-Audit ($LASTEXITCODE -ne 0 -and (Get-SBFileHash $dossierTracker) -ceq $beforeHash) 'apply with conflicts is refused and the tracker stays as it was'
+        $null=@(& pwsh @cliArgs -Apply -PlanSha256 ('0'*64) 2>&1)
+        Assert-Audit ($LASTEXITCODE -ne 0 -and (Get-SBFileHash $dossierTracker) -ceq $beforeHash) 'apply with another plan hash is refused'
+        # Resolve the conflicts in the checkout; the history record and lastSeq travel with the merge.
+        $historyRecord=@{reference='docs/checkout-history.md';sha256=('b'*64);description='Checkout history note';code='tracker.history.note';messageArgs=@()}
+        Put-Audit $trackerPath (ConvertTo-SBJson @{schemaVersion=1;repository='github.com/old/onboard';updatedAt='2026-11-02T10:00:00Z';history=@($historyRecord);extensions=@{lastSeq=9};tasks=@($taskSeven,$taskThree,$newNine)})
+        $preview=(& pwsh @cliArgs)|ConvertFrom-Json -AsHashtable
+        Assert-Audit ($preview.status -ceq 'ready' -and @($preview.added) -ceq 'ONB-9' -and $preview.historyAdded -eq 1 -and @($preview.conflicts).Count -eq 0) 'resolved checkout tracker previews as ready'
+        $applied=@(& pwsh @cliArgs -Apply -PlanSha256 $preview.planSha256)
+        Assert-Audit ($LASTEXITCODE -eq 0 -and ($applied -join "`n") -match 'manifest=(?<m>.+)$') ('merge applied: '+($applied -join ' '))
+        $mergeManifest=($applied -join "`n") -replace '(?s).*manifest=',''
+        $merged=Read-SBJson $dossierTracker $null
+        $mergedById=@{};foreach($task in $merged.tasks){$mergedById[$task.id]=$task}
+        Assert-Audit ($mergedById.Count -eq 3 -and $mergedById['ONB-9'].seq -eq 9 -and $mergedById['ONB-9'].provenance[0].reference -ceq 'docs/plan.md' -and $mergedById['ONB-3'].title -ceq ('#003'+$sep+'Open') -and $merged.extensions.lastSeq -eq 9) 'merge keeps ids, seq, provenance and existing tasks'
+        Assert-Audit (@($merged.history|Where-Object reference -ceq 'docs/checkout-history.md').Count -eq 1 -and $merged.extensions.trackerMerges[0].sourceSha256 -ceq (Get-SBFileHash $trackerPath) -and $merged.extensions.original.repository -ceq 'github.com/old/onboard') 'merge records history and a receipt and keeps the first import original'
+        $archived=@(Get-ChildItem -LiteralPath (Join-Path $onboardDir 'history') -Recurse -File -Filter 'tracker.json'|Where-Object {$_.FullName -match 'tracker-merge-'})
+        Assert-Audit ($archived.Count -eq 1 -and (Get-SBFileHash $archived[0].FullName) -ceq (Get-SBFileHash $trackerPath) -and (Test-Path -LiteralPath $trackerPath)) 'source archived by hash; checkout tracker untouched'
+        Assert-Audit (@(Get-SBTrackerMergeIssues $hostConfig).Count -eq 0) 'check is clean once the merge is applied'
+        $again=(& pwsh @cliArgs)|ConvertFrom-Json -AsHashtable
+        Assert-Audit ($again.status -ceq 'up-to-date' -and $again.identical.Count -eq 3) 'a second preview finds nothing to merge'
+        # Rollback restores the exact bytes and removes what the merge created.
+        $postHash=Get-SBFileHash $dossierTracker
+        & pwsh -NoProfile -File $cli -ConfigPath $activation.configuration -RollbackMerge $mergeManifest -Apply|Out-Null
+        Assert-Audit ($LASTEXITCODE -eq 0 -and (Get-SBFileHash $dossierTracker) -ceq $beforeHash -and !(Test-Path -LiteralPath $archived[0].FullName) -and (Read-SBTrackerMergeManifest $hostConfig $mergeManifest).phase -ceq 'rolled_back') 'rollback restores the tracker and removes the archive'
+        # A merged task later changed in the dossier is not a conflict; a rollback after later edits is refused.
+        $preview=(& pwsh @cliArgs)|ConvertFrom-Json -AsHashtable
+        $applied=@(& pwsh @cliArgs -Apply -PlanSha256 $preview.planSha256)
+        $mergeManifest=($applied -join "`n") -replace '(?s).*manifest=',''
+        $edited=Read-SBJson $dossierTracker $null
+        foreach($task in $edited.tasks){if($task.id -ceq 'ONB-9'){$task.status='in_progress'}}
+        Put-Audit $dossierTracker (ConvertTo-SBJson $edited)
+        $later=(& pwsh @cliArgs)|ConvertFrom-Json -AsHashtable
+        Assert-Audit ($later.status -ceq 'up-to-date' -and @($later.alreadyMerged) -ceq 'ONB-9' -and @($later.conflicts).Count -eq 0) 'task changed in the dossier after the merge is reported as already merged'
+        $null=@(& pwsh -NoProfile -File $cli -ConfigPath $activation.configuration -RollbackMerge $mergeManifest -Apply 2>&1)
+        Assert-Audit ($LASTEXITCODE -ne 0 -and (Read-SBTrackerMergeManifest $hostConfig $mergeManifest).phase -ceq 'completed') 'rollback is refused after later changes to the tracker'
+        # An interrupted merge (prepared journal) is reported by check.
+        $stalled=Read-SBTrackerMergeManifest $hostConfig $mergeManifest;$stalled.phase='prepared'
+        Put-Audit $mergeManifest (ConvertTo-SBJson $stalled)
+        Assert-Audit (@(Get-SBTrackerMergeIssues $hostConfig|Where-Object {$_ -match 'incomplete'}).Count -eq 1) 'check reports an incomplete merge journal'
     }
     $success=$true
     'SUCCESS TRACKER AUDIT: '+$script:auditChecks+' verifiche; runtime='+$PSVersionTable.PSVersion

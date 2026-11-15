@@ -59,6 +59,21 @@ Manifest phases are pending/prepared/copied/verified/references_updated/original
 
 Optional ReviewPath binds repository/sourceSha256 and explicit task status/dependency decisions with reasons. Its exact bytes/hash remain in manifest/history. It classifies imported data; it does not qualify application acceptance.
 
+## Merge into an existing dossier tracker
+
+When the dossier already exists and declares its own tracker, activation never imports over it. If the checkout also has a tracker (same candidate files and order as the import), the activation report keeps the binding `managed` and adds `trackerSource` plus `trackerMerge`: `status` (`ready`, `conflicts`, `up-to-date`, or `unplannable` with an `error`), `added`, `identical`, `alreadyMerged`, `conflicts` (each with `id`, `kind` and `detail`), `historyAdded`, the source and target hashes and `planSha256`. Nothing is written by the preview. `sb check` reports `tracker-merge` issues for a bound repository whose checkout tracker still has unmerged tasks or conflicts, and for a merge journal that did not complete.
+
+The plan converts the source with the same conversion as the import (schema 1 passes through unchanged). A source task whose ID is new is added with its `seq`, evidence, provenance and dependencies untouched; a task identical to the dossier one (active or archived; the `extensions.readiness` assessment is ignored) needs nothing. Conflicts are never overwritten and block the apply: the same ID with other content (`content`, listing the differing fields), a `seq` already owned by another task (`seq`), a source task with status `unknown` (`review`), a history record with the same `reference` but other content (`history`), or a merged tracker that fails the schema or graph checks (`invalid`). New history records are appended, `extensions.lastSeq` never drops, and a history note and an `extensions.trackerMerges` receipt (source hash, archive, task hashes) are recorded. A task whose source version was merged earlier and then changed in the dossier is reported as `alreadyMerged`, not as a conflict.
+
+```powershell
+./scripts/import-tracker.ps1 -ConfigPath $cfg -Repository <identity> -SourcePath <checkout>/tracker.json -Merge
+./scripts/import-tracker.ps1 -ConfigPath $cfg -Repository <identity> -SourcePath <checkout>/tracker.json -Merge -Apply -PlanSha256 <planSha256 of the preview>
+./scripts/import-tracker.ps1 -ConfigPath $cfg -RollbackMerge $manifest
+./scripts/import-tracker.ps1 -ConfigPath $cfg -RollbackMerge $manifest -Apply
+```
+
+Apply needs the `planSha256` of a preview of the current state (it covers the source and dossier tracker bytes); without it, or after either file changed, it is refused. Apply copies the source bytes to `history/tracker-merge-<hash>/` in the dossier, backs up `tracker.json` under backupRoot (`tracker-merge-<id>/`, verified by hash) and writes both in one PARA transaction. The checkout tracker is left in place. `-RollbackMerge` restores the verified backup and removes the files the merge created, and is refused when the dossier tracker changed after the merge. Limits: a dossier without a declared tracker still uses the import; sources that convert to `unknown` tasks (legacy files with unresolved dependencies) cannot be merged until they are reviewed; there is no partial apply of the non-conflicting tasks.
+
 <a id="spostamenti-para"></a>
 
 ## PARA moves and diagnostics

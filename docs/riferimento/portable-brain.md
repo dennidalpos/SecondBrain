@@ -25,7 +25,7 @@ Discover can save a runtime report; MaxDirectories/ResumePath support bounded re
 | Roots / MaxDirectories | Bound discovery |
 | Select / All | Select confirmed repository candidates |
 | Ides / AllIdes | Select confirmed client integrations |
-| RepositoryFiles | Opt a selected repository in to managed files (`AGENTS.md`, `CLAUDE.md`, `GEMINI.md` pointers; `none` clears). Default for a newly activated repository: nothing is written into it; instructions load from the user-scope IDE text and MCP. A binding created before 2.8.0 (no `repositoryFiles` field) keeps managing all three files as before. A repeated setup keeps the earlier choice |
+| RepositoryFiles | Choose the managed files of a selected repository (`AGENTS.md`, `CLAUDE.md`, `GEMINI.md` pointers; `none` opts out). Default for a newly activated repository: all three, created when absent; text outside the managed blocks is kept, and an existing custom AGENTS.md, CLAUDE.md or GEMINI.md only gains the managed block. A repository whose dossier already exists is bound to it as is. A binding created before 2.8.0 (no `repositoryFiles` field) keeps managing all three files as before. A repeated setup keeps the earlier choice |
 | ApproveExistingBlocks | Record review of differing existing managed blocks (only for repositories opted in to `AGENTS.md`) |
 | ResolveBlock | Guided resolution of a managed block edited by hand: preview with diff; `-Resolution Generated\|Preserve -ApplyResolve` restores the generated block and keeps the previous content (backup, `previousBlock`, or the lines added by hand with `Preserve`) |
 | Yes | Record noninteractive confirmation already obtained from the user |
