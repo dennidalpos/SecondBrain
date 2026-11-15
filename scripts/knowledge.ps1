@@ -188,9 +188,9 @@ try{
         foreach($field in @('Status','StateReason','Priority','Execution','DependsOn','Stream','Awaiting','Decision','Requires','Description')){
             if($PSBoundParameters.ContainsKey($field)){$arguments[$field]=$PSBoundParameters[$field]}
         }
-        # With pwsh -File, lists arrive as one string: ';' separates acceptance criteria; evidence is reference|outcome.
+        # With pwsh -File, lists arrive as one string: ';' separates acceptance criteria; evidence is reference|outcome, appended only; ';' separates entries, so a reference cannot contain ';' (commas are kept as they are).
         if($PSBoundParameters.ContainsKey('Acceptance')){$arguments.Acceptance=@($Acceptance|ForEach-Object{$_ -split ';'}|ForEach-Object{$_.Trim()}|Where-Object{$_})}
-        if($PSBoundParameters.ContainsKey('Evidence')){$arguments.Evidence=@($Evidence|ForEach-Object{$_ -split ';'}|ForEach-Object{$_.Trim()}|Where-Object{$_}|ForEach-Object{ConvertTo-SBTaskEvidence $_})}
+        if($PSBoundParameters.ContainsKey('Evidence')){$arguments.Evidence=@(ConvertTo-SBTaskEvidenceList $Evidence)}
         if($DecisionsFile){Assert-SBPlainPath $DecisionsFile;$arguments.Decisions=@(ConvertTo-SBTaskDecisions (Read-SBText $DecisionsFile))}
         # #608: only a pointer to the light-model proposal (inside the SecondBrain checkout, e.g. a work folder) reaches the tracker.
         if($EnrichmentFile){

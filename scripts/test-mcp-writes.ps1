@@ -77,6 +77,11 @@ try {
     Check (!$f5Ext.ContainsKey('awaiting')) 'empty awaiting removes the field'
     # evidence: "reference|outcome" strings or {reference, outcome} objects appended to the task, as knowledge.ps1 -Evidence.
     Reject {F5-Plan 'task.update' @{taskId='F5-1';evidence='README|passed'}} 'MCP task update requires evidence as an array'
+    Reject {F5-Plan 'task.update' @{taskId='F5-1';evidence=@()}} 'MCP task update rejects an empty evidence array (evidence is append-only)'
+    Reject {F5-Plan 'task.update' @{taskId='F5-1';evidence=''}} 'MCP task update rejects an empty evidence string'
+    Check (@(ConvertTo-SBTaskEvidenceList 'a,b|passed')[0].reference -ceq 'a,b') 'CLI evidence keeps a comma inside the reference'
+    Check (@(ConvertTo-SBTaskEvidenceList 'x|passed;y|failed').Count -eq 2) 'CLI evidence splits entries on semicolons'
+    foreach($badEv in @('','a;b','a|passed;b','a|great')){Reject {[void](ConvertTo-SBTaskEvidenceList $badEv)} ('CLI evidence refuses: '+$badEv)}
     Reject {F5-Plan 'task.update' @{taskId='F5-1';evidence=@('README|great')}} 'MCP task update rejects an unknown evidence outcome'
     Reject {F5-Plan 'task.update' @{taskId='F5-1';evidence=@(@{reference='README';outcome='passed';extra=1})}} 'MCP task update rejects extra evidence fields'
     $f5Ev=F5-Plan 'task.update' @{taskId='F5-1';evidence=@('scripts/test-mcp-writes.ps1|passed',@{reference='README.md';outcome='partial'})}

@@ -15,7 +15,7 @@ Add-SBMessages @{
     'tracker.batch.changed' = @{ en = 'The tracker changed after the batch was prepared: run the command again' }
     'tracker.update.empty' = @{ en = 'Specify at least one field to update: -Status, -Priority, -Execution, -DependsOn, -Stream, -Awaiting, -Requires, -StateReason, -Description, -Acceptance, -Decisions or -Evidence' }
     'tracker.decisions.invalid' = @{ en = 'Invalid decisions: every entry needs question and answer (text); fix the decisions JSON file' }
-    'tracker.evidence.invalid' = @{ en = 'Invalid evidence: use reference|outcome with outcome passed, failed, partial or unverified' }
+    'tracker.evidence.invalid' = @{ en = 'Invalid evidence: use reference|outcome with outcome passed, failed, partial or unverified; entries are separated by semicolons and each needs |outcome, so a reference cannot contain a semicolon; evidence is append-only' }
     'tracker.priority.invalid' = @{ en = 'Invalid priority: use P0, P1, P2, P3 or P4' }
     'tracker.execution.invalid' = @{ en = 'Invalid execution mode: use autonomous, user_required or unspecified' }
     'tracker.requires.invalid' = @{ en = 'Invalid required capability: {0} (allowed: {1})' }
@@ -731,6 +731,13 @@ function ConvertTo-SBTaskEvidence($Value) {
     if(!$parts[0].Trim() -or $outcome -notin @('passed','failed','partial','unverified')){throw (New-SBError 'tracker.evidence.invalid')}
     @{reference=$parts[0].Trim();outcome=$outcome;observedAt=(Get-SBNow).ToString('o')}
 }
+function ConvertTo-SBTaskEvidenceList($Values) {
+    # CLI evidence: ';' separates entries (pwsh -File delivers lists as one string). Every entry needs an explicit |outcome, so a reference holding ';' is refused instead of becoming garbled unverified entries; commas stay in the reference. Evidence is append-only: an empty list is refused.
+    $entries=@(@($Values)|ForEach-Object{([string]$_) -split ';'}|ForEach-Object{$_.Trim()}|Where-Object{$_})
+    if(!$entries.Count){throw (New-SBError 'tracker.evidence.invalid')}
+    foreach($entry in $entries){if($entry -notmatch '^[^|]+\|[^|]+$'){throw (New-SBError 'tracker.evidence.invalid')}}
+    @($entries|ForEach-Object{ConvertTo-SBTaskEvidence $_})
+}
 function ConvertTo-SBTaskDecisions($Value) {
     # Owner decisions recorded on a task (extensions.decisions): {questionId, question, answer, at, decidedBy}, from objects or a JSON text.
     $items=if($Value -is [string]){if($Value.Trim()){@($Value|ConvertFrom-Json -AsHashtable)}else{@()}}else{@($Value)}
@@ -1274,6 +1281,7 @@ Export-ModuleMember -Function @(
     'Set-SBTaskClosure',
     'Get-SBClosureAdvice',
     'ConvertTo-SBTaskEvidence',
+    'ConvertTo-SBTaskEvidenceList',
     'ConvertTo-SBTaskDecisions',
     'Get-SBTaskRequiresValues',
     'ConvertTo-SBTaskRequires'
