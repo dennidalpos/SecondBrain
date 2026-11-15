@@ -95,6 +95,32 @@ Reject-Obs {Read-SBAccountObservationReceipt $brain $outsideReceipt2 'claude-des
 Reject-Obs {Read-SBAccountObservationReceipt $brain (Join-Path $receiptDir 'missing.json') 'claude-desktop-a' 'work'} 'missing receipt rejected'
 $notJson=Join-Path $receiptDir 'broken.json';[IO.File]::WriteAllText($notJson,'{broken')
 Reject-Obs {Read-SBAccountObservationReceipt $brain $notJson 'claude-desktop-a' 'work'} 'malformed receipt rejected'
+# Guide: deterministic checks automated; what a person must do comes with the steps and the exact text.
+$fileDir=Join-Path $root 'ide-files';[void][IO.Directory]::CreateDirectory($fileDir)
+$alignedFile=Join-Path $fileDir 'aligned.md';$staleFile=Join-Path $fileDir 'stale.md';$noBlockFile=Join-Path $fileDir 'noblock.md'
+[IO.File]::WriteAllText($alignedFile,"<!-- secondbrain:global:begin -->`n"+$global.Trim()+"`n<!-- secondbrain:global:end -->`n")
+[IO.File]::WriteAllText($staleFile,"<!-- secondbrain:global:begin -->`nRevisione 0.9 old`n<!-- secondbrain:global:end -->`n")
+[IO.File]::WriteAllText($noBlockFile,"personal text only`n")
+$guideMap=@{schemaVersion=1;workstationId=$hostId;ides=@(
+    @{name='File aligned';id='file-aligned';mode='file';instructions=$alignedFile},
+    @{name='File stale';id='file-stale';mode='file';instructions=$staleFile},
+    @{name='File without block';id='file-noblock';mode='file';instructions=$noBlockFile},
+    @{name='File missing';id='file-missing';mode='file';instructions=(Join-Path $fileDir 'missing.md')},
+    @{name='Claude account instructions';id='acct-old';mode='manual';accountAlias='work';profile='default';observedHash=('0'*64);observedRevision='0.9'},
+    @{name='Continue';id='manual-new';mode='manual';accountAlias='work';profile='default'},
+    @{name='Claude Desktop';id='claude-desktop-a';mode='manual';accountAlias='work';profile='default'},
+    @{name='Hidden';id='hidden';mode='manual';accountAlias='x';selected=$false})}
+$guide=Get-SBIdeGuide $guideMap $global @($store.observations) $brain $hostId
+$byId=@{};foreach($item in $guide.items){$byId[($item.ide -replace '^.*\[([^,\]]+).*$','$1')]=$item}
+Assert-Obs ($guide.expectedHash -ceq $expected -and $guide.pasteText -ceq $global.Trim() -and $guide.expectedRevision -ceq '1.0') 'guide carries revision, hash and the exact text to paste'
+Assert-Obs ($byId.Count -eq 7 -and !$byId.ContainsKey('hidden')) 'guide skips integrations that are not selected'
+Assert-Obs (($byId['file-aligned'].automated -join ' ') -match 'aligned' -and $byId['file-aligned'].steps.Count -eq 3 -and ($byId['file-aligned'].steps -join ' ') -notmatch 'Sync') 'aligned file: checked automatically, only the new-session proof is left to the person'
+Assert-Obs (($byId['file-stale'].automated -join ' ') -match 'found revision 0.9, expected 1.0' -and ($byId['file-stale'].steps[0] -match 'secondbrain.ps1 -Sync')) 'stale file block: reported with revisions and the Sync command'
+Assert-Obs (($byId['file-noblock'].automated -join ' ') -match 'without the secondbrain:global block' -and ($byId['file-missing'].automated -join ' ') -match 'file missing') 'file without block or missing file reported automatically'
+Assert-Obs (($byId['acct-old'].automated -join ' ') -match 'observed revision 0.9' -and ($byId['acct-old'].steps -join "`n") -match 'Settings, then the profile' -and ($byId['acct-old'].steps -join "`n") -match ('revision=1.0\|hash='+$expected)) 'stale account text: where to paste it for that client and the exact declaration command with revision and hash'
+Assert-Obs (($byId['manual-new'].steps -join "`n") -match 'Continue configuration' -and $byId['manual-new'].complete -eq $false) 'manual client without an observation gets its own location and pending state'
+Assert-Obs ($byId['claude-desktop-a'].complete -and $byId['claude-desktop-a'].steps.Count -eq 0) 'integration with a valid new-session observation needs nothing'
+Assert-Obs ($guide.pending -eq 6) 'guide counts the integrations that still need action'
 # No IDE file or credential store is touched by this module.
 Assert-Obs (@(Get-ChildItem -LiteralPath $root -Recurse -File|Where-Object {$_.FullName -notmatch '[\\/]\.runtime[\\/]' -and $_.Name -notin @('outside.txt','outside-receipt.json')}).Count -eq 0) 'only runtime files were written'
 'SUCCESS IDE OBSERVATION: '+$script:obsChecks+' checks; retained fixture '+$root

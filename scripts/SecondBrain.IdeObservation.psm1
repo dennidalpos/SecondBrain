@@ -92,4 +92,74 @@ function Remove-SBStaleIdeObservations($Map,[string]$BrainRoot,[string]$BackupRo
     if($Apply -and $stale.Count){Save-SBIdeObservationStore $store @($store.observations|Where-Object {$_.ideId -cin $active}) $BackupRoot}
     @{state=$(if(!$stale.Count){'unchanged'}elseif($Apply){'pruned'}else{'preview'});removed=@($stale|ForEach-Object ideId)}
 }
-Export-ModuleMember -Function @('Get-SBIdeObservationStorePath','Get-SBIdeObservationPackage','Register-SBIdeObservation','Remove-SBStaleIdeObservations','Read-SBIdeObservationStore')
+# Guide: everything deterministic is checked here (file block against the generated text, account text hash against the observed
+# one, observation receipts); what only a person can do is returned as an action with the steps for that client. Read-only.
+$script:SBIdeGuideWhere=@{
+    'Claude account instructions'='Claude app or claude.ai: Settings, then the profile or personal preferences (custom instructions) field.'
+    'VS Code'='Your chat extension''s custom-instructions setting (user settings or a user-level instructions file); the location depends on the extension and version.'
+    'Android Studio'='Settings, then the AI assistant''s rules or custom-instructions page; the location depends on the plugin and version.'
+    'Continue'='The user-level Continue configuration (rules); the location depends on the version.'
+    'JetBrains AI'='Settings, then the AI Assistant rules or custom-instructions page; the location depends on the version.'
+}
+Add-SBMessages @{
+    'ideguide.file.aligned' = @{ en = 'file block aligned (revision {0}); loading in a session is not certified by the file' }
+    'ideguide.file.stale' = @{ en = 'file block out of date (found revision {0}, expected {1})' }
+    'ideguide.file.noblock' = @{ en = 'file without the secondbrain:global block (revision {0})' }
+    'ideguide.file.missing' = @{ en = 'instructions file missing: {0}' }
+    'ideguide.manual.stale' = @{ en = 'account text out of date (observed revision {0}, expected {1})' }
+    'ideguide.manual.unobserved' = @{ en = 'no valid observation of the account text' }
+    'ideguide.observed' = @{ en = 'new-session observation valid' }
+    'ideguide.loading.unobserved' = @{ en = 'loading in a new session not observed' }
+    'ideguide.step.sync' = @{ en = 'Run: pwsh -NoProfile -File scripts/secondbrain.ps1 -Sync (rewrites only the managed block; review conflicts it reports).' }
+    'ideguide.step.paste' = @{ en = 'Open {0} and replace the previous SecondBrain text with the text below, or add it if there is none. Where: {1}' }
+    'ideguide.step.paste.generic' = @{ en = 'Apply the text below in the instructions setting of this client; check the client documentation for the exact place in your version.' }
+    'ideguide.step.new' = @{ en = 'Open a NEW session in the client and profile of this integration (not an old conversation) and check that the active account is the declared one; do not share credentials.' }
+    'ideguide.step.quote' = @{ en = 'Ask the session to quote the line starting with "Revision {0}" and say whether the SecondBrain instructions are loaded.' }
+    'ideguide.step.record' = @{ en = 'Record the observation: pwsh -NoProfile -File scripts/ide-observation.ps1 -Operation Package -IdeId {0} prints the steps and the receipt template; register it with -Operation Register (preview, then -PreviewSha256 and -Apply).' }
+    'ideguide.step.declare' = @{ en = 'Declare the pasted account text (preview first, then add -Yes -Apply): pwsh -NoProfile -File scripts/secondbrain.ps1 -Setup -Roots <your roots> -IdeAccount "{0}|{1}|revision={2}|hash={3}" -PreviewOnly' }
+}
+function Get-SBIdeGuide($Map,[string]$GlobalText,$Observations,[string]$BrainRoot,[string]$WorkstationId) {
+    $expected=$GlobalText.Trim()
+    $revision=if($expected -match 'Revisi(?:on|one) (\d+(?:\.\d+)+)'){$Matches[1]}else{'unknown'}
+    $hash=Get-SBTextHash $expected
+    $wanted="<!-- secondbrain:global:begin -->`n"+$expected+"`n<!-- secondbrain:global:end -->"
+    $items=@()
+    foreach($ide in $Map.ides){
+        if($ide.ContainsKey('selected') -and !$ide.selected){continue}
+        $label=$ide.name+$(if($ide.ContainsKey('id')){' ['+$ide.id+$(if($ide.ContainsKey('accountAlias') -and $ide.accountAlias){', alias '+$ide.accountAlias})+']'})
+        $automated=@();$steps=@();$needsPaste=$false
+        $observed=Test-SBIDEObservation $ide $hash @($Observations) $BrainRoot $WorkstationId
+        if($ide.mode -eq 'file'){
+            if(!(Test-Path -LiteralPath ([string]$ide.instructions) -PathType Leaf)){
+                $automated+=(Get-SBMessage 'ideguide.file.missing' @([string]$ide.instructions));$steps+=(Get-SBMessage 'ideguide.step.sync')
+            }else{
+                $text=(Read-SBText $ide.instructions) -replace "`r`n","`n"
+                $block=Get-SBManagedContent $text 'global'
+                $found=if($null -ne $block -and $block -match 'Revisi(?:on|one) (\d+(?:\.\d+)+)'){$Matches[1]}else{'none'}
+                if($null -ne $block -and $block -ceq $wanted){$automated+=(Get-SBMessage 'ideguide.file.aligned' @($found))}
+                else{
+                    $automated+=$(if($null -eq $block){Get-SBMessage 'ideguide.file.noblock' @($found)}else{Get-SBMessage 'ideguide.file.stale' @($found,$revision)})
+                    $steps+=(Get-SBMessage 'ideguide.step.sync')
+                }
+            }
+        }else{
+            if($ide.ContainsKey('observedHash') -and $ide.observedHash -and [string]$ide.observedHash -cne $hash){
+                $automated+=(Get-SBMessage 'ideguide.manual.stale' @($(if($ide.ContainsKey('observedRevision') -and $ide.observedRevision){$ide.observedRevision}else{'unknown'}),$revision));$needsPaste=$true
+            }elseif(!$observed){$automated+=(Get-SBMessage 'ideguide.manual.unobserved');$needsPaste=$true}
+        }
+        if($observed){$automated+=(Get-SBMessage 'ideguide.observed')}
+        else{
+            $automated+=(Get-SBMessage 'ideguide.loading.unobserved')
+            if($needsPaste){
+                $where=$script:SBIdeGuideWhere[[string]$ide.name]
+                $steps+=$(if($where){Get-SBMessage 'ideguide.step.paste' @($ide.name,$where)}else{Get-SBMessage 'ideguide.step.paste.generic'})
+                $steps+=(Get-SBMessage 'ideguide.step.declare' @($ide.name,$(if($ide.ContainsKey('accountAlias') -and $ide.accountAlias){$ide.accountAlias}else{'<alias>'}),$revision,$hash))
+            }
+            $steps+=(Get-SBMessage 'ideguide.step.new');$steps+=(Get-SBMessage 'ideguide.step.quote' @($revision))
+            $steps+=(Get-SBMessage 'ideguide.step.record' @($ide.id))
+        }
+        $items+=[ordered]@{ide=$label;automated=@($automated);steps=@($steps);complete=[bool](!$steps.Count)}
+    }
+    [ordered]@{expectedRevision=$revision;expectedHash=$hash;items=@($items);pending=@($items|Where-Object {!$_.complete}).Count;pasteText=$expected}
+}
+Export-ModuleMember -Function @('Get-SBIdeObservationStorePath','Get-SBIdeObservationPackage','Register-SBIdeObservation','Remove-SBStaleIdeObservations','Read-SBIdeObservationStore','Get-SBIdeGuide')

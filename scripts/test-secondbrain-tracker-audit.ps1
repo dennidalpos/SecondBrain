@@ -364,7 +364,6 @@ try {
         $again=(& pwsh @cliArgs)|ConvertFrom-Json -AsHashtable
         Assert-Audit ($again.status -ceq 'up-to-date' -and $again.identical.Count -eq 3) 'a second preview finds nothing to merge'
         # Rollback restores the exact bytes and removes what the merge created.
-        $postHash=Get-SBFileHash $dossierTracker
         & pwsh -NoProfile -File $cli -ConfigPath $activation.configuration -RollbackMerge $mergeManifest -Apply|Out-Null
         Assert-Audit ($LASTEXITCODE -eq 0 -and (Get-SBFileHash $dossierTracker) -ceq $beforeHash -and !(Test-Path -LiteralPath $archived[0].FullName) -and (Read-SBTrackerMergeManifest $hostConfig $mergeManifest).phase -ceq 'rolled_back') 'rollback restores the tracker and removes the archive'
         # A merged task later changed in the dossier is not a conflict; a rollback after later edits is refused.

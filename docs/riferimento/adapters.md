@@ -12,6 +12,14 @@ pwsh -NoProfile -File scripts/ide-map.ps1 -Verify
 
 The verifier compares selected instruction files with the expected generated global block. Manual integrations require an observation receipt. Exit codes are 0 aligned/verified within scope, 1 pending alignment/qualification or missing map, 2 error.
 
+## Guided verification
+
+~~~powershell
+pwsh -NoProfile -File scripts/ide-map.ps1 -Guide
+~~~
+
+`-Guide` is read-only and exits like `-Verify`. It checks automatically everything that is deterministic: the managed `secondbrain:global` block of each file-based integration against the generated text (aligned, out of date with both revisions, no block, missing file), the declared account text of each manual integration against the approved hash (out of date with both revisions), and the observation receipts. For each integration that still needs a person it prints the steps for that client, and once at the end the exact text to copy: a file block that is out of date is fixed with `secondbrain.ps1 -Sync`; an account text is pasted where the client keeps its custom instructions (the location is named for the known clients and depends on the version) and then declared with the printed `-Setup -IdeAccount` command, which carries the revision and hash so nothing is typed by hand; every integration then needs a new-session observation (open a new session, check the account, ask it to quote the revision line) recorded with `ide-observation.ps1`. What cannot be derived from the files, namely the active account, the loaded instructions and the write scope, is never marked verified by the guide.
+
 The host map is generated from active bindings/discovery. Do not manually mark a client/account verified. A file can be aligned while account/loading remains unverified; record both outcomes.
 
 ## Surface-specific workflow
