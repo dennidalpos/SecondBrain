@@ -11,6 +11,10 @@ $script:promptChecks=0
 function Assert-Prompts($Condition,[string]$Message){if(!$Condition){throw 'FAIL PROMPTS: '+$Message};$script:promptChecks++;'PASS PROMPTS: '+$Message}
 $catalog=Read-SBWorkflowCatalog $brain -ValidateBodies -ValidateReferences
 $prompts=@($catalog.prompts)
+# #617: the question rule in generated prompts covers the missing-tool fallback and subagents.
+$ruleSource=Get-Content -LiteralPath (Join-Path $PSScriptRoot 'SecondBrain.Prompts.psm1') -Raw
+Assert-Prompts ($ruleSource -match "rule='[^']*structured question tool[^']*capability is missing[^']*numbered options[^']*pause the dependent work") '#617: without a question tool the capability is reported, the fallback is text and dependent work pauses'
+Assert-Prompts ($ruleSource -match "rule='[^']*subagent returns its question to the parent and never answers it") '#617: subagent questions go to the parent, never answered by the subagent'
 Assert-Prompts ($prompts.Count -ge 80) ('catalogo unico con '+$prompts.Count+' prompt')
 Assert-Prompts (@($prompts.code|Select-Object -Unique).Count -eq $prompts.Count) 'codici univoci'
 Assert-Prompts (@($prompts.id|Select-Object -Unique).Count -eq $prompts.Count) 'ID univoci'
