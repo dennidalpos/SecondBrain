@@ -6,14 +6,14 @@ Set-StrictMode -Version Latest
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Add-SBMessages @{
-    'decision.invalid' = @{it='Decisione non valida: {0}';en='Invalid decision record: {0}'}
-    'decision.notfound' = @{it='Nessuna decisione con ID {0} in questo dossier';en='No decision with ID {0} in this dossier'}
-    'decision.state' = @{it='La decisione {0} e {1}: solo una decisione aperta si puo rispondere o ritirare';en='Decision {0} is {1}: only an open decision can be answered or withdrawn'}
-    'decision.answer.required' = @{it='La risposta richiede esattamente uno fra -Option e -Text, dato dalla persona';en='An answer needs exactly one of -Option or -Text, given by the user'}
-    'decision.answer.option' = @{it='L opzione {0} non e fra le opzioni della decisione {1}';en='Option {0} is not one of the options of decision {1}'}
-    'decision.lesson.required' = @{it=('Una decisione durevole richiede -Lesson nella forma "Decision: ... '+[char]0x2014+' Reason: ..." per memory.md');en=('A durable decision needs -Lesson in the form "Decision: ... '+[char]0x2014+' Reason: ..." for memory.md')}
-    'decision.supersedes' = @{it='La decisione {0} puo sostituire solo una decisione durevole con risposta di questo dossier';en='Decision {0} can only supersede an answered durable decision of this dossier'}
-    'decision.link.invalid' = @{it='Collegamento del task alla decisione {0} non valido: {1}';en='Task link to decision {0} is not valid: {1}'}
+    'decision.invalid' = @{ en = 'Invalid decision record: {0}' }
+    'decision.notfound' = @{ en = 'No decision with ID {0} in this dossier' }
+    'decision.state' = @{ en = 'Decision {0} is {1}: only an open decision can be answered or withdrawn' }
+    'decision.answer.required' = @{ en = 'An answer needs exactly one of -Option or -Text, given by the user' }
+    'decision.answer.option' = @{ en = 'Option {0} is not one of the options of decision {1}' }
+    'decision.lesson.required' = @{ en = ('A durable decision needs -Lesson in the form "Decision: ... '+[char]0x2014+' Reason: ..." for memory.md') }
+    'decision.supersedes' = @{ en = 'Decision {0} can only supersede an answered durable decision of this dossier' }
+    'decision.link.invalid' = @{ en = 'Task link to decision {0} is not valid: {1}' }
 }
 
 $script:SBDecisionKinds=@('choice','confirm','approval')

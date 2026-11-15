@@ -7,11 +7,11 @@ Set-StrictMode -Version Latest
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Add-SBMessages @{
-    'private.invalid' = @{it='Asset privato non valido in {0}: {1}';en='Invalid private asset in {0}: {1}'}
-    'private.collision' = @{it='L asset privato {0} collide con un asset pubblico o di un altro dossier ({1})';en='Private asset {0} collides with a public or other-dossier asset ({1})'}
-    'private.reference' = @{it='{0} cita {1}, che non e un asset pubblico ne di questo dossier';en='{0} references {1}, which is neither public nor in this dossier'}
-    'private.public.reference' = @{it='Il file pubblico {0} cita l asset privato {1}';en='Public file {0} references private asset {1}'}
-    'private.notfound' = @{it='Nessun asset privato {0} per questo repository';en='No private asset {0} for this repository'}
+    'private.invalid' = @{ en = 'Invalid private asset in {0}: {1}' }
+    'private.collision' = @{ en = 'Private asset {0} collides with a public or other-dossier asset ({1})' }
+    'private.reference' = @{ en = '{0} references {1}, which is neither public nor in this dossier' }
+    'private.public.reference' = @{ en = 'Public file {0} references private asset {1}' }
+    'private.notfound' = @{ en = 'No private asset {0} for this repository' }
 }
 $script:SBPrivateTags=@('role','context','inputs','decisions','procedure','constraints','exit_criteria','output_format')
 $script:SBPrivateRequired=@('role','context','inputs','procedure','constraints','exit_criteria','output_format')

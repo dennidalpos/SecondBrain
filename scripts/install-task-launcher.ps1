@@ -17,7 +17,7 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Access.psm1')
 Add-SBMessages @{
-    'launcher.template.missing' = @{it='Modello del lanciatore non trovato: {0}';en='Launcher template not found: {0}'}
+    'launcher.template.missing' = @{ en = 'Launcher template not found: {0}' }
 }
 $template=Join-Path $PSScriptRoot 'templates/run-tasks.launcher.ps1'
 if(!(Test-Path -LiteralPath $template)){throw (New-SBError 'launcher.template.missing' $template)}

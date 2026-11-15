@@ -6,18 +6,18 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Host.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Trace.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Add-SBMessages @{
-    'setupstatus.exit.inactive'     = @{ it = 'Uscita 1: la postazione non è attivata; eseguire sb setup per attivarla'; en = 'Exit 1: the workstation is not activated; run sb setup to activate it' }
-    'setupstatus.exit.recommended'  = @{ it = 'Uscita 1: {0} funzionalità raccomandate non ancora attive (vedere recommended e le voci con recommended=true); non è un errore'; en = 'Exit 1: {0} recommended features are not enabled yet (see recommended and the entries with recommended=true); this is not an error' }
-    'setupstatus.exit.ok'           = @{ it = 'Uscita 0: attivata e nessuna funzionalità da raccomandare'; en = 'Exit 0: activated and nothing to recommend' }
-    'setupstatus.env.reason'        = @{ it = 'Il lanciatore dei task e l''hook di pubblicazione richiedono SECONDBRAIN_HOME.'; en = 'The task launcher and the publication hook require SECONDBRAIN_HOME.' }
-    'setupstatus.mcp.reason'        = @{ it = 'IDE rilevato senza server MCP SecondBrain: l''agent non vede dossier e prompt.'; en = 'IDE detected without the SecondBrain MCP server: the agent cannot reach dossiers and prompts.' }
-    'setupstatus.trace.reason'      = @{ it = 'Claude Code rilevato: l''hook Stop segnala la compattazione; non concede alcun permesso di scrittura.'; en = 'Claude Code detected: the Stop hook signals compaction; it grants no write permission.' }
-    'setupstatus.resources.reason'  = @{ it = 'Aggiorna le fonti autorevoli all''avvio della sessione se l''ultimo controllo ha piu di 14 giorni.'; en = 'Refreshes the authoritative sources at session start when the last check is older than 14 days.' }
-    'setupstatus.publication.reason' = @{ it = 'Il repository ha un remote: l''hook pre-push esegue la scansione di pubblicazione prima di ogni push.'; en = 'The repository has a remote: the pre-push hook runs the publication scan before every push.' }
-    'setupstatus.launcher.reason'   = @{ it = 'Permette di eseguire i task pronti con il runner; richiede SECONDBRAIN_HOME.'; en = 'Lets the runner execute ready tasks; requires SECONDBRAIN_HOME.' }
-    'setupstatus.activity.reason'   = @{ it = 'Registro attivita di team, facoltativo: richiede un''informativa e una ritenzione dichiarate.'; en = 'Optional team activity register: requires a declared privacy notice and retention.' }
-    'setupstatus.account.reason'    = @{ it = 'Le istruzioni dell''account non sono un file: vanno incollate a mano (testo in istruzioni-globali.md) e provate con una ricevuta di osservazione; senza, le direttive globali non valgono nelle chat.'; en = 'Account instructions are not a file: paste them by hand (text in istruzioni-globali.md) and prove them with an observation receipt; otherwise the global directives do not apply in chats.' }
-    'setupstatus.blocked.inactive'  = @{ it = 'Postazione non attivata: eseguire prima SYS03.'; en = 'Workstation not activated: run SYS03 first.' }
+    'setupstatus.exit.inactive'     = @{ en = 'Exit 1: the workstation is not activated; run sb setup to activate it' }
+    'setupstatus.exit.recommended'  = @{ en = 'Exit 1: {0} recommended features are not enabled yet (see recommended and the entries with recommended=true); this is not an error' }
+    'setupstatus.exit.ok'           = @{ en = 'Exit 0: activated and nothing to recommend' }
+    'setupstatus.env.reason'        = @{ en = 'The task launcher and the publication hook require SECONDBRAIN_HOME.' }
+    'setupstatus.mcp.reason'        = @{ en = 'IDE detected without the SecondBrain MCP server: the agent cannot reach dossiers and prompts.' }
+    'setupstatus.trace.reason'      = @{ en = 'Claude Code detected: the Stop hook signals compaction; it grants no write permission.' }
+    'setupstatus.resources.reason'  = @{ en = 'Refreshes the authoritative sources at session start when the last check is older than 14 days.' }
+    'setupstatus.publication.reason' = @{ en = 'The repository has a remote: the pre-push hook runs the publication scan before every push.' }
+    'setupstatus.launcher.reason'   = @{ en = 'Lets the runner execute ready tasks; requires SECONDBRAIN_HOME.' }
+    'setupstatus.activity.reason'   = @{ en = 'Optional team activity register: requires a declared privacy notice and retention.' }
+    'setupstatus.account.reason'    = @{ en = 'Account instructions are not a file: paste them by hand (text in istruzioni-globali.md) and prove them with an observation receipt; otherwise the global directives do not apply in chats.' }
+    'setupstatus.blocked.inactive'  = @{ en = 'Workstation not activated: run SYS03 first.' }
 }
 function New-SBFeature([string]$Id,[string]$State,[string]$Evidence,[string]$Command,[string[]]$Prerequisites=@(),[string]$Risk='low',[bool]$Recommended=$false,[string]$ReasonKey,[string]$Scope='') {
     [ordered]@{id=$Id;scope=$Scope;state=$State;evidence=$Evidence;enableCommand=$Command;prerequisites=@($Prerequisites);risk=$Risk;recommended=$Recommended;reason=$(if($ReasonKey){Get-SBMessage $ReasonKey}else{''})}

@@ -40,21 +40,21 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Access.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Host.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Add-SBMessages @{
-    'cleanup.regenerable.exclusive' = @{ it = 'Regenerable e Migrate non sono combinabili con ManifestPath, ListStageRecords, ListRuntime, ProposeRuntime, RuntimeReport o tra loro'; en = 'Regenerable and Migrate cannot be combined with ManifestPath, ListStageRecords, ListRuntime, ProposeRuntime, RuntimeReport or each other' }
-    'cleanup.sessions.active' = @{ it = 'Sessioni di accesso attive o non verificabili: pulizia sospesa ({0})'; en = 'Access sessions active or not verifiable: cleanup suspended ({0})' }
-    'cleanup.modes.exclusive' = @{ it = 'ListStageRecords, ListRuntime, ProposeRuntime e RuntimeReport non sono combinabili'; en = 'ListStageRecords, ListRuntime, ProposeRuntime and RuntimeReport cannot be combined' }
-    'cleanup.readonly.modes' = @{ it = 'ListStageRecords e ListRuntime sono in sola lettura: non combinabili con Apply o ManifestPath'; en = 'ListStageRecords and ListRuntime are read-only: not combinable with Apply or ManifestPath' }
-    'cleanup.report.md' = @{ it = 'Il rapporto si salva in un file .md'; en = 'The report is saved to a .md file' }
-    'cleanup.proposal.json' = @{ it = 'La proposta si salva in un nuovo file .json'; en = 'The proposal is saved to a new .json file' }
-    'cleanup.manifest.required' = @{ it = 'Pulizia richiede un manifest locale esplicito; nessuna selezione per eta o nome'; en = 'Cleanup requires an explicit local manifest; no selection by age or name' }
-    'cleanup.manifest.unreviewed' = @{ it = 'Manifest non revisionato o riferimenti non verificati'; en = 'Manifest not reviewed or references not verified' }
-    'cleanup.apply.authorization' = @{ it = 'Apply richiede Authorization con riferimento alla richiesta esplicita dell utente'; en = 'Apply requires Authorization referencing the user''s explicit request' }
-    'cleanup.data.protected' = @{ it = 'Dato operativo attivo protetto'; en = 'Active operational data protected' }
-    'cleanup.manifest.content' = @{ it = 'Contenuto assente, duplicato o modificato nel manifest'; en = 'Content missing, duplicated or modified in the manifest' }
-    'cleanup.transaction.pending' = @{ it = 'Transazione pendente: pulizia sospesa'; en = 'Pending transaction: cleanup suspended' }
-    'cleanup.state.preview' = @{ it = 'La migrazione dello stato locale richiede -Migrate -LocalState e consente solo l anteprima'; en = 'Local state migration requires -Migrate -LocalState and is preview only' }
-    'cleanup.state.override' = @{ it = 'Impostare SECONDBRAIN_STATE_ROOT per confrontare le posizioni'; en = 'Set SECONDBRAIN_STATE_ROOT to compare locations' }
-    'cleanup.install.preview' = @{ it = 'ListInstallBackups è una modalità separata di sola lettura'; en = 'ListInstallBackups is a separate read-only mode' }
+    'cleanup.regenerable.exclusive' = @{ en = 'Regenerable and Migrate cannot be combined with ManifestPath, ListStageRecords, ListRuntime, ProposeRuntime, RuntimeReport or each other' }
+    'cleanup.sessions.active' = @{ en = 'Access sessions active or not verifiable: cleanup suspended ({0})' }
+    'cleanup.modes.exclusive' = @{ en = 'ListStageRecords, ListRuntime, ProposeRuntime and RuntimeReport cannot be combined' }
+    'cleanup.readonly.modes' = @{ en = 'ListStageRecords and ListRuntime are read-only: not combinable with Apply or ManifestPath' }
+    'cleanup.report.md' = @{ en = 'The report is saved to a .md file' }
+    'cleanup.proposal.json' = @{ en = 'The proposal is saved to a new .json file' }
+    'cleanup.manifest.required' = @{ en = 'Cleanup requires an explicit local manifest; no selection by age or name' }
+    'cleanup.manifest.unreviewed' = @{ en = 'Manifest not reviewed or references not verified' }
+    'cleanup.apply.authorization' = @{ en = 'Apply requires Authorization referencing the user''s explicit request' }
+    'cleanup.data.protected' = @{ en = 'Active operational data protected' }
+    'cleanup.manifest.content' = @{ en = 'Content missing, duplicated or modified in the manifest' }
+    'cleanup.transaction.pending' = @{ en = 'Pending transaction: cleanup suspended' }
+    'cleanup.state.preview' = @{ en = 'Local state migration requires -Migrate -LocalState and is preview only' }
+    'cleanup.state.override' = @{ en = 'Set SECONDBRAIN_STATE_ROOT to compare locations' }
+    'cleanup.install.preview' = @{ en = 'ListInstallBackups is a separate read-only mode' }
 }
 # Writer busy beyond the wait limit: exit 3 (the message identifies the owner).
 trap { if (Test-SBWriteDeniedError $_) { Write-SBWriteDeniedDiagnostic $_ $PSCommandPath $PSBoundParameters; exit 4 }; if (Test-SBBusyError $_) { [Console]::Error.WriteLine($_.Exception.Message); exit 3 }; break }
@@ -106,7 +106,11 @@ try {
         if($Regenerable -or $ManifestPath -or $ListStageRecords -or $ListRuntime -or $ProposeRuntime -or $RuntimeReport -or $CheckRuntime){throw (New-SBError 'cleanup.regenerable.exclusive')}
         $segment=Get-SBRuntimeRepoSegment $Repository
         $plan=Get-SBRuntimeMigrationPlan $config.brainRoot $config.workstationId $segment $MinAgeMinutes
-        $summary=@{applied=$false;scope='runtime-migrate';hostId=$config.workstationId;segment=$segment;moves=@($plan.moves);skipped=@($plan.skipped);files=$plan.files;bytes=$plan.bytes}
+        # 3.0 (English-only): the removed "language" key of the workstation configuration is dropped here, after a verified backup.
+        $removedConfigKeys=@('language')
+        $rawConfig=Read-SBJson $config.configPath $null
+        $droppedKeys=@($removedConfigKeys|Where-Object {$rawConfig -is [Collections.IDictionary] -and $rawConfig.Contains($_)})
+        $summary=@{applied=$false;scope='runtime-migrate';hostId=$config.workstationId;segment=$segment;moves=@($plan.moves);skipped=@($plan.skipped);files=$plan.files;bytes=$plan.bytes;configKeys=@($droppedKeys)}
         if(!$Apply){$summary.note='Anteprima: nessuna cartella spostata. Con -Apply e -Authorization si eseguono solo gli spostamenti elencati (rename sullo stesso volume, nessuna copia, nessuna cancellazione di contenuti).';ConvertTo-SBJson $summary;exit 0}
         if(!$Authorization){throw (New-SBError 'cleanup.apply.authorization')}
         if(Test-Path -LiteralPath (Get-SBTransactionMarkerPath $config.brainRoot)){throw (New-SBError 'cleanup.transaction.pending')}
@@ -118,9 +122,15 @@ try {
         $stream=[IO.FileStream]::new($registryPath,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
         try{$stream.Write([Text.UTF8Encoding]::new($false).GetBytes((ConvertTo-SBJson $record)));$stream.Flush($true)}finally{$stream.Dispose()}
         $result=Invoke-SBRuntimeMigration $config.brainRoot $plan
+        if($droppedKeys.Count){
+            foreach($key in $droppedKeys){$rawConfig.Remove($key)}
+            $configBytes=[Text.UTF8Encoding]::new($false).GetBytes((ConvertTo-SBJson $rawConfig))
+            Write-SBFile $config.configPath $configBytes (Get-SBFileHash $config.configPath) $config.backupRoot -BackupDirty|Out-Null
+            $record.configKeysRemoved=@($droppedKeys)
+        }
         $record.moved=@($result.moved);$record.failed=@($result.failed);$record.removedEmpty=@($result.removedEmpty);$record.status=if($result.failed.Count){'partial'}else{'completed'}
         [IO.File]::WriteAllText($registryPath,(ConvertTo-SBJson $record),[Text.UTF8Encoding]::new($false))
-        $summary.applied=[bool]($result.moved.Count -gt 0 -and !$result.failed.Count);$summary.moved=@($result.moved);$summary.failed=@($result.failed);$summary.removedEmpty=@($result.removedEmpty);$summary.registry=$registryPath;$summary.authorization=$Authorization
+        $summary.applied=[bool](($result.moved.Count -gt 0 -or $droppedKeys.Count) -and !$result.failed.Count);$summary.moved=@($result.moved);$summary.failed=@($result.failed);$summary.removedEmpty=@($result.removedEmpty);$summary.registry=$registryPath;$summary.authorization=$Authorization
         if($result.failed.Count){$summary.status='partial'}
         ConvertTo-SBJson $summary
         exit $(if($result.failed.Count){1}else{0})

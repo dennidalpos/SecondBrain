@@ -7,8 +7,8 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Host.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Add-SBMessages @{
-    'ideobs.invalid' = @{it='Osservazione IDE: dato non valido ({0})';en='IDE observation: invalid data ({0})'}
-    'ideobs.preview' = @{it='Osservazione IDE: hash dell anteprima mancante o diverso; eseguire una nuova anteprima';en='IDE observation: preview hash missing or different; run a new preview'}
+    'ideobs.invalid' = @{ en = 'IDE observation: invalid data ({0})' }
+    'ideobs.preview' = @{ en = 'IDE observation: preview hash missing or different; run a new preview' }
 }
 $script:SBIdeObservationFields=@('ideId','workstationId','profile','environment','accountAlias','accountVerified','observedAt','observedHash','loadingVerified','sessionId','evidencePath','evidenceSha256')
 

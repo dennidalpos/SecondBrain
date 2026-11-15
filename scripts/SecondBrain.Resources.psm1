@@ -6,8 +6,8 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Access.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Sources.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Add-SBMessages @{
-    'resources.root.missing' = @{ it = 'Cartella 03-resources assente'; en = '03-resources folder missing' }
-    'resources.sync.archived' = @{ it = 'Registro fonti archiviato: sincronizzazione non eseguita'; en = 'Source registry archived: sync not performed' }
+    'resources.root.missing' = @{ en = '03-resources folder missing' }
+    'resources.sync.archived' = @{ en = 'Source registry archived: sync not performed' }
 }
 $script:ResourceControlName='CONTROL.json'
 $script:ResourceIndexName='INDEX.md'

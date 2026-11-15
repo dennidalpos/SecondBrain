@@ -6,13 +6,13 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Host.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Add-SBMessages @{
-    'computeruse.app.invalid' = @{it='Identificatore di app non valido: {0}. Usare l''ID dell''app senza spazi, apici o caratteri di controllo (separare più ID con virgola o punto e virgola)';en='Invalid app identifier: {0}. Use the app ID without spaces, quotes or control characters (separate several IDs with a comma or semicolon)'}
-    'computeruse.apply.hash.missing' = @{it='Applicazione rifiutata: manca -PreviewSha256. Eseguire prima l''anteprima senza -Apply e riusare il valore previewSha256';en='Apply refused: -PreviewSha256 is missing. Run the preview without -Apply first and reuse its previewSha256 value'}
-    'computeruse.appid.required' = @{it='Manca -AppId: indicare almeno un ID app dopo -CodexApps';en='-AppId is missing: give at least one app ID after -CodexApps'}
-    'computeruse.usage' = @{it='Nessuna modalità indicata. Usare -Table (tabella delle capacità per IDE) oppure -CodexApps -AppId <id>[,<id>] (anteprima della pre-approvazione Codex; aggiungere -Apply -PreviewSha256 <hash> per scriverla)';en='No mode given. Use -Table (capability table per IDE) or -CodexApps -AppId <id>[,<id>] (preview of the Codex pre-approval; add -Apply -PreviewSha256 <hash> to write it)'}
-    'computeruse.toml.ambiguous' = @{it='Configurazione Codex ambigua per always_allowed_app_ids: modificarla a mano';en='Ambiguous Codex configuration for always_allowed_app_ids: edit it by hand'}
-    'computeruse.apply.preview' = @{it='Applicazione rifiutata: -PreviewSha256 non corrisponde all''anteprima corrente. Rieseguire l''anteprima e usare il nuovo previewSha256';en='Apply refused: -PreviewSha256 does not match the current preview. Rerun the preview and use the new previewSha256'}
-    'computeruse.platform' = @{it='La pre-approvazione di Codex per computer use e documentata solo per Windows';en='Codex computer-use pre-approval is documented for Windows only'}
+    'computeruse.app.invalid' = @{ en = 'Invalid app identifier: {0}. Use the app ID without spaces, quotes or control characters (separate several IDs with a comma or semicolon)' }
+    'computeruse.apply.hash.missing' = @{ en = 'Apply refused: -PreviewSha256 is missing. Run the preview without -Apply first and reuse its previewSha256 value' }
+    'computeruse.appid.required' = @{ en = '-AppId is missing: give at least one app ID after -CodexApps' }
+    'computeruse.usage' = @{ en = 'No mode given. Use -Table (capability table per IDE) or -CodexApps -AppId <id>[,<id>] (preview of the Codex pre-approval; add -Apply -PreviewSha256 <hash> to write it)' }
+    'computeruse.toml.ambiguous' = @{ en = 'Ambiguous Codex configuration for always_allowed_app_ids: edit it by hand' }
+    'computeruse.apply.preview' = @{ en = 'Apply refused: -PreviewSha256 does not match the current preview. Rerun the preview and use the new previewSha256' }
+    'computeruse.platform' = @{ en = 'Codex computer-use pre-approval is documented for Windows only' }
 }
 $script:SBCodexTable='computer_use.windows'
 $script:SBCodexKey='always_allowed_app_ids'

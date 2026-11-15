@@ -323,6 +323,22 @@ $staleRejected=$false
 try{Write-SBFile $indexPath ([Text.Encoding]::UTF8.GetBytes('stale edit')) $oldIndexHash $cliBackups -Recoverable|Out-Null}
 catch{$staleRejected=Test-SBError $_ 'core.concurrent.modified'}
 Assert-Runtime ($staleRejected -and (Get-SBFileHash $indexPath) -eq $indexJournal[0].deployedHash) 'scrittura rigenerabile rifiuta un hash precedente obsoleto'
+# English-only (3.0): -Migrate drops the removed "language" key; preview changes nothing, Apply keeps a verified backup.
+$configBefore=Read-SBText $cliConfig
+$withLanguage=Read-SBJson $cliConfig $null
+$withLanguage.language='it'
+Write-RuntimeFixture $cliConfig (ConvertTo-SBJson $withLanguage)
+$languageHash=Get-SBFileHash $cliConfig
+$languagePreview=(& pwsh -NoProfile -File (Join-Path $cliScripts 'cleanup.ps1') -Migrate)|ConvertFrom-Json -AsHashtable
+Assert-Runtime ($LASTEXITCODE -eq 0 -and !$languagePreview.applied -and @($languagePreview.configKeys) -ceq 'language' -and (Get-SBFileHash $cliConfig) -ceq $languageHash) 'Migrate preview lists the removed language key and changes nothing'
+$null=& pwsh -NoProfile -File (Join-Path $cliScripts 'cleanup.ps1') -Migrate -Apply 2>&1
+Assert-Runtime ($LASTEXITCODE -ne 0 -and (Get-SBFileHash $cliConfig) -ceq $languageHash) 'Migrate Apply without authorization is refused'
+$null=& pwsh -NoProfile -File (Join-Path $cliScripts 'cleanup.ps1') -Migrate -Apply -Authorization 'synthetic language key removal' 2>&1
+$migratedConfig=Read-SBJson $cliConfig $null
+$languageBackup=@(Get-ChildItem -LiteralPath $cliBackups -Recurse -File -ErrorAction SilentlyContinue|Where-Object {(Get-SBFileHash $_.FullName) -ceq $languageHash})
+Assert-Runtime ($LASTEXITCODE -eq 0 -and !$migratedConfig.ContainsKey('language') -and $migratedConfig.workstationId -ceq $withLanguage.workstationId) 'Migrate Apply removes the language key and keeps the rest of the configuration'
+Assert-Runtime ($languageBackup.Count -ge 1) 'Migrate Apply keeps a backup of the configuration with identical bytes'
+Write-RuntimeFixture $cliConfig $configBefore
 $originalStateRoot=$env:SECONDBRAIN_STATE_ROOT
 $originalProfile=$env:USERPROFILE
 try{

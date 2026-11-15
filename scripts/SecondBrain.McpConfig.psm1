@@ -3,7 +3,7 @@ Set-StrictMode -Version Latest
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Add-SBMessages @{
-    'mcp.pair.scope' = @{ it = 'Ambito non supportato per {0}: {1}'; en = 'Unsupported scope for {0}: {1}' }
+    'mcp.pair.scope' = @{ en = 'Unsupported scope for {0}: {1}' }
 }
 function Get-SBMcpReadOnlyToolNames {
     # Compatibility entry point: recovery-enabled tools no longer qualify as read-only.
@@ -28,11 +28,11 @@ function Test-SBClaudeCodeRegistration([string]$ConfigFile) {
     $false
 }
 Add-SBMessages @{
-    'mcp.pair.json' = @{ it = 'Configurazione MCP non è JSON rigoroso (errori o commenti), nessuna modifica: {0}. Inserisci a mano il frammento mostrato da mcp-server.ps1 -Pair.'; en = 'MCP configuration is not strict JSON (errors or comments), no change made: {0}. Add by hand the fragment shown by mcp-server.ps1 -Pair.' }
-    'mcp.pair.toml' = @{ it = 'TOML ambiguo o non supportato, nessuna modifica: {0}'; en = 'Ambiguous or unsupported TOML, no change made: {0}' }
-    'mcp.pair.permissions.conflict' = @{ it = 'Regola esistente concede consenso a check_publication; nessuna modifica: {0}'; en = 'Existing rule approves check_publication; no change made: {0}' }
-    'mcp.pair.permissions.scope' = @{ it = 'Selezionare un solo ambito di approvazione MCP'; en = 'Select only one MCP permission scope' }
-    'mcp.pair.root' = @{ it = 'Configurazione MCP con radice non oggetto, nessuna modifica: {0}'; en = 'MCP configuration with a non-object root, no change made: {0}' }
+    'mcp.pair.json' = @{ en = 'MCP configuration is not strict JSON (errors or comments), no change made: {0}. Add by hand the fragment shown by mcp-server.ps1 -Pair.' }
+    'mcp.pair.toml' = @{ en = 'Ambiguous or unsupported TOML, no change made: {0}' }
+    'mcp.pair.permissions.conflict' = @{ en = 'Existing rule approves check_publication; no change made: {0}' }
+    'mcp.pair.permissions.scope' = @{ en = 'Select only one MCP permission scope' }
+    'mcp.pair.root' = @{ en = 'MCP configuration with a non-object root, no change made: {0}' }
 }
 # Private pairing helpers.
 function Read-SBMcpSettings([string]$Path) {

@@ -15,11 +15,10 @@ pwsh -NoProfile -File scripts/ide-observation.ps1 -Operation Package -IdeId clau
 param(
     [Parameter(Mandatory)][ValidateSet('Package','Register','Prune')][string]$Operation,
     [string]$IdeId,[string]$InputPath,[string]$PreviewSha256,
-    [string]$ConfigPath,[string]$SessionId,[switch]$Apply,[ValidateSet('it','en')][string]$Language
+    [string]$ConfigPath,[string]$SessionId,[switch]$Apply
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
-if($Language){$env:SECONDBRAIN_LANG=$Language}
 foreach($m in 'Core','Access','Host','IdeObservation'){Import-Module (Join-Path $PSScriptRoot ('SecondBrain.'+$m+'.psm1'))}
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 $config=Read-SBConfiguration $ConfigPath -ReadOnly:(!$Apply)

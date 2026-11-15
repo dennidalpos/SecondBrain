@@ -6,8 +6,8 @@ The catalog contains 121 prompt cards in 17 categories, in two groups (current r
 
 ~~~text
 sb prompt list
-sb prompt ambito test
-sb prompt mostra DEV01
+sb prompt area test
+sb prompt show DEV01
 sb prompt DEV01: add PDF export
 ~~~
 
@@ -17,9 +17,9 @@ See the generated [English catalog](../direttive/prompts/README.md) or [Italian 
 
 `sb prompt` (`scripts/prompts.ps1`) reads the current folder and names its location: a **managed repository** (dossier, tracker and runner available), a **repository not onboarded** (reduced mode), the **SecondBrain checkout**, or **no project** (outside a Git checkout). The home screen then shows two command groups, **repository commands** and **SecondBrain activation and maintenance**, with the maintenance group first in the SecondBrain checkout and outside a project.
 
-**Standard starting chain:** `sb prompt MEM08` (repository state, SecondBrain alignment when managed, proposed next tasks), then `sb prompt REP01` or `sb runner`, and `sb prompt MEM03` when the work is done; `sb prompt MEM07` resumes work stopped by a usage limit, also from another account. `sb stop` (MEM09) stops the agent before a limit, saves a handoff report in the dossier and leaves the task in progress, so `sb prompt MEM07` can resume it from another IDE or account. When `sb attiva` (SYS03) activates a repository that has its own tracker, it imports it with `import-tracker.ps1`; without a tracker it runs a reconnaissance and creates the tasks you approve. Every composed prompt ends with `<next_steps>`: two to four next prompts and ready tasks, proposed as a multiple choice.
+**Standard starting chain:** `sb prompt MEM08` (repository state, SecondBrain alignment when managed, proposed next tasks), then `sb prompt REP01` or `sb runner`, and `sb prompt MEM03` when the work is done; `sb prompt MEM07` resumes work stopped by a usage limit, also from another account. `sb stop` (MEM09) stops the agent before a limit, saves a handoff report in the dossier and leaves the task in progress, so `sb prompt MEM07` can resume it from another IDE or account. When `sb activate` (SYS03) activates a repository that has its own tracker, it imports it with `import-tracker.ps1`; without a tracker it runs a reconnaissance and creates the tasks you approve. Every composed prompt ends with `<next_steps>`: two to four next prompts and ready tasks, proposed as a multiple choice.
 
-**Without onboarding** a repository still works: repository prompts are composed without a dossier and carry a `<degraded>` block. Not available: startup context and memory, tracker and ready tasks in the next steps, runner and Orchestrator, MEM03 handoff reports and the runner resume, memory and tracker writes, sync of the managed `AGENTS.md` block, applicable authoritative sources, SYS05 compaction and `-Check` of that repository. Central prompts and MEM/SYS writes still need a dossier. Onboarding stays optional (`sb attiva`, SYS03).
+**Without onboarding** a repository still works: repository prompts are composed without a dossier and carry a `<degraded>` block. Not available: startup context and memory, tracker and ready tasks in the next steps, runner and Orchestrator, MEM03 handoff reports and the runner resume, memory and tracker writes, sync of the managed `AGENTS.md` block, applicable authoritative sources, SYS05 compaction and `-Check` of that repository. Central prompts and MEM/SYS writes still need a dossier. Onboarding stays optional (`sb activate`, SYS03).
 
 ## Card structure
 
@@ -36,7 +36,7 @@ See the generated [English catalog](../direttive/prompts/README.md) or [Italian 
 
 Composition combines the objective, repository context and card in XML with `task`, `context`, `operating_rules` and `next_steps`. The card organizes the task; it does not grant permissions. A read-only audit proposes changes without applying them. Write workflows remain subject to the user's authorization and current IDE mode.
 
-`sb prompt mostra` shows the source card. Display language follows `-Language`, `SECONDBRAIN_LANG` and the configured language fallback; MCP calls accept `language: en|it`. The indexes are generated, not edited by hand.
+`sb prompt show` shows the source card. Prompt texts and messages are English; the `-Language` option, `SECONDBRAIN_LANG` and the MCP `language` argument were removed in 3.0. The indexes are generated, not edited by hand.
 
 ## Categories
 

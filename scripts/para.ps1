@@ -35,30 +35,30 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Para.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.TrackerImport.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Add-SBMessages @{
-    'paracli.policy.invalid' = @{ it = 'Policy condivisa non valida: config/shared.json'; en = 'Invalid shared policy: config/shared.json' }
-    'paracli.project.fields' = @{ it = 'Titolo, obiettivo e criteri di completamento richiesti'; en = 'Title, objective and completion criteria required' }
-    'paracli.area.unknown' = @{ it = 'Dossier repository o area attiva inesistente'; en = 'Active repository dossier or area does not exist' }
-    'paracli.project.folder' = @{ it = 'Cartella progetto gia presente'; en = 'Project folder already present' }
-    'paracli.resource.fields' = @{ it = 'Titolo e obiettivo richiesti'; en = 'Title and objective required' }
-    'paracli.id.present' = @{ it = 'Identificatore gia presente'; en = 'Identifier already present' }
-    'paracli.resource.folder' = @{ it = 'Cartella risorsa gia presente'; en = 'Resource folder already present' }
-    'paracli.entity.archived' = @{ it = 'Entita archiviata: ripristinarla prima di cambiarne lo stato'; en = 'Entity archived: restore it before changing its status' }
-    'paracli.status.invalid' = @{ it = 'Stato non valido per {0}: ammessi {1}'; en = 'Invalid status for {0}: allowed {1}' }
-    'paracli.status.same' = @{ it = 'Stato gia impostato'; en = 'Status already set' }
-    'paracli.entity.unknown' = @{ it = 'Entita PARA inesistente'; en = 'PARA entity does not exist' }
-    'paracli.entity.archivedalready' = @{ it = 'Entita gia archiviata'; en = 'Entity already archived' }
-    'paracli.entity.activealready' = @{ it = 'Entita gia attiva'; en = 'Entity already active' }
-    'paracli.archive.blocked' = @{ it = 'Stato o Progetti attivi impediscono archiviazione'; en = 'Status or active Projects prevent archiving' }
-    'paracli.destination.exists' = @{ it = 'Destinazione gia esistente'; en = 'Destination already exists' }
-    'paracli.migrate.plan' = @{ it = 'Anteprima migrazione ({0} dossier): rilanciare con -Apply per spostarli in 01-projects'; en = 'Migration preview ({0} dossiers): rerun with -Apply to move them to 01-projects' }
-    'paracli.migrate.done' = @{ it = 'Migrati {0} dossier in 01-projects'; en = 'Migrated {0} dossiers to 01-projects' }
-    'paracli.migrate.dirty' = @{ it = 'Dossier non migrabile ({0}): {1}'; en = 'Dossier cannot be migrated ({0}): {1}' }
-    'paracli.customer.required' = @{ it = 'Indicare -Customer con un nome valido (una riga, al massimo 120 caratteri) oppure -Clear'; en = 'Provide -Customer with a valid name (single line, at most 120 characters) or -Clear' }
-    'paracli.customer.none' = @{ it = 'Nessun dossier repository corrisponde a -Only'; en = 'No repository dossier matches -Only' }
-    'paracli.customer.plan' = @{ it = 'Anteprima cliente ({0} dossier): rilanciare con -Apply per scrivere repository.json (id PARA e task invariati)'; en = 'Customer preview ({0} dossiers): rerun with -Apply to write repository.json (PARA ids and tasks unchanged)' }
-    'paracli.customer.done' = @{ it = 'Cliente assegnato a {0} dossier; id PARA, identita e task verificati invariati'; en = 'Customer assigned to {0} dossiers; PARA ids, identities and tasks verified unchanged' }
-    'paracli.customer.diverged' = @{ it = 'Verifica post-scrittura fallita: identificatori divergenti per {0}'; en = 'Post-write check failed: identifiers diverge for {0}' }
-    'paracli.tracker.changed' = @{ it = 'Tracker modificato durante la preparazione dello spostamento'; en = 'Tracker modified while preparing the move' }
+    'paracli.policy.invalid' = @{ en = 'Invalid shared policy: config/shared.json' }
+    'paracli.project.fields' = @{ en = 'Title, objective and completion criteria required' }
+    'paracli.area.unknown' = @{ en = 'Active repository dossier or area does not exist' }
+    'paracli.project.folder' = @{ en = 'Project folder already present' }
+    'paracli.resource.fields' = @{ en = 'Title and objective required' }
+    'paracli.id.present' = @{ en = 'Identifier already present' }
+    'paracli.resource.folder' = @{ en = 'Resource folder already present' }
+    'paracli.entity.archived' = @{ en = 'Entity archived: restore it before changing its status' }
+    'paracli.status.invalid' = @{ en = 'Invalid status for {0}: allowed {1}' }
+    'paracli.status.same' = @{ en = 'Status already set' }
+    'paracli.entity.unknown' = @{ en = 'PARA entity does not exist' }
+    'paracli.entity.archivedalready' = @{ en = 'Entity already archived' }
+    'paracli.entity.activealready' = @{ en = 'Entity already active' }
+    'paracli.archive.blocked' = @{ en = 'Status or active Projects prevent archiving' }
+    'paracli.destination.exists' = @{ en = 'Destination already exists' }
+    'paracli.migrate.plan' = @{ en = 'Migration preview ({0} dossiers): rerun with -Apply to move them to 01-projects' }
+    'paracli.migrate.done' = @{ en = 'Migrated {0} dossiers to 01-projects' }
+    'paracli.migrate.dirty' = @{ en = 'Dossier cannot be migrated ({0}): {1}' }
+    'paracli.customer.required' = @{ en = 'Provide -Customer with a valid name (single line, at most 120 characters) or -Clear' }
+    'paracli.customer.none' = @{ en = 'No repository dossier matches -Only' }
+    'paracli.customer.plan' = @{ en = 'Customer preview ({0} dossiers): rerun with -Apply to write repository.json (PARA ids and tasks unchanged)' }
+    'paracli.customer.done' = @{ en = 'Customer assigned to {0} dossiers; PARA ids, identities and tasks verified unchanged' }
+    'paracli.customer.diverged' = @{ en = 'Post-write check failed: identifiers diverge for {0}' }
+    'paracli.tracker.changed' = @{ en = 'Tracker modified while preparing the move' }
 }
 $config=Read-SBConfiguration $ConfigPath
 if(!$BackupRoot){$BackupRoot=$config.backupRoot}

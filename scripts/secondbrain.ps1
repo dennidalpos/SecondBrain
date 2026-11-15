@@ -79,10 +79,8 @@ param(
     [Parameter(ParameterSetName='Check')][Parameter(ParameterSetName='Sync')][string]$Repository,
     [string]$ConfigPath,[string]$ObservationPath,
     [string]$SessionId,
-    [ValidateRange(0,600)][int]$WaitSeconds,
-    [ValidateSet('en','it')][string]$Language
+    [ValidateRange(0,600)][int]$WaitSeconds
 )
-if($Language){$env:SECONDBRAIN_LANG=$Language}
 $ErrorActionPreference = 'Stop'
 # Maximum writer-lock wait (default 60 s, or lockWaitSeconds in config/shared.json); exit 3 only on timeout.
 if ($PSBoundParameters.ContainsKey('WaitSeconds')) { $env:SECONDBRAIN_LOCK_WAIT_SECONDS = [string]$WaitSeconds }
@@ -94,15 +92,15 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Portable.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Pending.psm1')
 Add-SBMessages @{
-    'cli.setup.all.removed' = @{ it = '-All non esiste piu: usare -AllIdes per selezionare tutti gli IDE'; en = '-All no longer exists: use -AllIdes to select every IDE' }
-    'cli.setup.team.root' = @{ it = '-TeamRoot richiede una radice UNC raggiungibile'; en = '-TeamRoot requires a reachable UNC root' }
-    'cli.setup.team.mode' = @{ it = '-TeamRoot richiede -PreviewOnly, -Interactive oppure -Yes -Apply'; en = '-TeamRoot requires -PreviewOnly, -Interactive or -Yes -Apply' }
-    'cli.setup.profile.solo' = @{ it = 'Il profilo Solo non usa una radice condivisa: togliere -TeamRoot (usare -SetupProfile Studio per la radice condivisa) e lanciare Setup da un checkout su disco locale'; en = 'The Solo profile uses no shared root: drop -TeamRoot (use -SetupProfile Studio for a shared root) and run Setup from a checkout on a local drive' }
-    'cli.setup.profile.studio' = @{ it = 'Il profilo Studio richiede -TeamRoot con la radice UNC condivisa (stato locale in SECONDBRAIN_STATE_ROOT)'; en = 'The Studio profile requires -TeamRoot with the shared UNC root (local state in SECONDBRAIN_STATE_ROOT)' }
-    'cli.setup.conflict' = @{ it = '-Status/-Unbind non accettano: -{0}'; en = '-Status/-Unbind do not accept: -{0}' }
-    'cli.alternatives' = @{ it = '-Status e -Unbind sono alternativi'; en = '-Status and -Unbind are alternatives' }
-    'cli.newproject.git' = @{ it = 'git init non riuscito nella cartella del nuovo progetto'; en = 'git init failed in the new project folder' }
-    'cli.status.readonly' =@{ it = '-Status e di sola lettura: -Apply, -Yes e -Interactive non si applicano'; en = '-Status is read-only: -Apply, -Yes and -Interactive do not apply' }
+    'cli.setup.all.removed' = @{ en = '-All no longer exists: use -AllIdes to select every IDE' }
+    'cli.setup.team.root' = @{ en = '-TeamRoot requires a reachable UNC root' }
+    'cli.setup.team.mode' = @{ en = '-TeamRoot requires -PreviewOnly, -Interactive or -Yes -Apply' }
+    'cli.setup.profile.solo' = @{ en = 'The Solo profile uses no shared root: drop -TeamRoot (use -SetupProfile Studio for a shared root) and run Setup from a checkout on a local drive' }
+    'cli.setup.profile.studio' = @{ en = 'The Studio profile requires -TeamRoot with the shared UNC root (local state in SECONDBRAIN_STATE_ROOT)' }
+    'cli.setup.conflict' = @{ en = '-Status/-Unbind do not accept: -{0}' }
+    'cli.alternatives' = @{ en = '-Status and -Unbind are alternatives' }
+    'cli.newproject.git' = @{ en = 'git init failed in the new project folder' }
+    'cli.status.readonly' =@{ en = '-Status is read-only: -Apply, -Yes and -Interactive do not apply' }
 }
 
 if ($All) { [Console]::Error.WriteLine((Get-SBMessage 'cli.setup.all.removed')); exit 2 }

@@ -72,28 +72,28 @@ const state = {
   timers: { events: 0, status: 0, clock: 0, find: 0 },
 };
 
-const WAIT_SOURCE_LABEL: Record<string, string> = { "runner-observation": "segnalato dall'agente", "codex-session": "dalle sessioni di Codex", message: "dal messaggio di limite", recheck: "orario non noto: nuovo controllo" };
+const WAIT_SOURCE_LABEL: Record<string, string> = { "runner-observation": "reported by the agent", "codex-session": "from the Codex sessions", message: "from the limit message", recheck: "time unknown: checked again" };
 const RUN_VERDICT_LABEL: Record<string, string> = {
-  idle: "Inattivo", starting: "Avvio…", working: "In lavoro", stalled: "Possibile stallo", waiting: "In attesa del ripristino", finished: "Concluso", orphaned: "Interrotto", none: "Inattivo",
+  idle: "Idle", starting: "Starting…", working: "Working", stalled: "Possibly stalled", waiting: "Waiting for the reset", finished: "Finished", orphaned: "Interrupted", none: "Idle",
 };
-const STATUS_LABEL: Record<AgentStatus, string> = { ready: "pronto", "not-found": "non installato", "not-responding": "non risponde" };
-const ORIGIN_LABEL: Record<string, string> = { path: "", search: "trovato fuori dal PATH", package: "dal pacchetto Store" };
-const SOURCE_LABEL: Record<Source, string> = { probe: "dalla CLI", config: "dalla configurazione", fallback: "tabella di riserva" };
-const REASON_LABEL: Record<string, string> = { "no-headless-cli": "nessuna CLI pilotabile dal runner", "cli-not-found": "CLI non installata", "cli-not-responding": "CLI non risponde" };
-const STATUS_TEXT: Record<string, string> = { blocked: "bloccato", unknown: "stato sconosciuto", in_progress: "in corso", done: "fatto", cancelled: "annullato" };
+const STATUS_LABEL: Record<AgentStatus, string> = { ready: "ready", "not-found": "not installed", "not-responding": "not responding" };
+const ORIGIN_LABEL: Record<string, string> = { path: "", search: "found outside PATH", package: "from the Store package" };
+const SOURCE_LABEL: Record<Source, string> = { probe: "from the CLI", config: "from the configuration", fallback: "fallback table" };
+const REASON_LABEL: Record<string, string> = { "no-headless-cli": "no CLI the runner can drive", "cli-not-found": "CLI not installed", "cli-not-responding": "CLI not responding" };
+const STATUS_TEXT: Record<string, string> = { blocked: "blocked", unknown: "unknown status", in_progress: "in progress", done: "done", cancelled: "cancelled" };
 /** Readable reason of a runner exclusion (stable codes from SecondBrain.TaskRunner.psm1 and run-ready-tasks.ps1). */
 function reasonText(code: string): string {
   const [kind, value = ""] = code.split(/:(.*)/s, 2);
   switch (kind) {
-    case "execution": return value === "user_required" ? "richiede la persona (user_required)" : "modalità di esecuzione non indicata";
-    case "status": return STATUS_TEXT[value] ?? "stato " + value;
-    case "stream": return "flusso escluso dal runner: " + value;
-    case "awaiting": return "in attesa: " + value;
-    case "requires": return "richiede l'uso del computer";
-    case "dependency": return "dipende da " + value.split(",").join(", ");
-    case "not-ready": return "non pronto (dipendenze o stato)";
-    case "not-queued": return "non in coda";
-    case "max-tasks": return "oltre il limite di task";
+    case "execution": return value === "user_required" ? "requires the person (user_required)" : "execution mode not set";
+    case "status": return STATUS_TEXT[value] ?? "status " + value;
+    case "stream": return "stream excluded by the runner: " + value;
+    case "awaiting": return "awaiting: " + value;
+    case "requires": return "requires computer use";
+    case "dependency": return "depends on " + value.split(",").join(", ");
+    case "not-ready": return "not ready (dependencies or status)";
+    case "not-queued": return "not queued";
+    case "max-tasks": return "beyond the task limit";
     default: return code;
   }
 }
@@ -131,7 +131,7 @@ async function loadSettings() {
   state.settings = s;
   input("s-home").value = s.secondbrainHome;
   input("s-pwsh").value = s.pwshPath;
-  input("s-home").placeholder = state.launch?.secondbrainHome ? "automatica: " + state.launch.secondbrainHome : "SECONDBRAIN_HOME";
+  input("s-home").placeholder = state.launch?.secondbrainHome ? "automatic: " + state.launch.secondbrainHome : "SECONDBRAIN_HOME";
   input("s-pwsh").placeholder = state.launch?.pwsh ?? "pwsh";
   renderLightSettings();
 }
@@ -144,22 +144,22 @@ function currentLight(): LightChoice | null {
   const explicit = Boolean(s?.lightProvider) && s?.lightProvider === provider;
   const model = explicit ? s?.lightModel ?? "" : "";
   const effort = explicit ? s?.lightEffort ?? "" : "";
-  const shownModel = model || a.light?.model || (a.configured.model ? `predefinito della CLI (${a.configured.model})` : "predefinito della CLI");
+  const shownModel = model || a.light?.model || (a.configured.model ? `CLI default (${a.configured.model})` : "CLI default");
   const shownEffort = effort || a.light?.effort || "";
   return { provider, model, effort, label: `${a.name} · ${shownModel}${shownEffort ? " · " + shownEffort : ""}` };
 }
 function renderLightLabels() {
   const l = currentLight();
-  const text = l ? `Analisi con ${l.label} (modello leggero, sola lettura).` : "Nessun agente pronto per le analisi.";
+  const text = l ? `Analysis with ${l.label} (light model, read-only).` : "No agent is ready for the analyses.";
   $("dir-light").textContent = text;
   $("q-light").textContent = text;
   $<HTMLButtonElement>("dir-propose").disabled = !l || !state.repo;
-  $<HTMLButtonElement>("dir-propose").title = l ? "" : "Installa o rileva un agente (Coda → Rileva di nuovo) oppure scegli il modello leggero nelle impostazioni.";
+  $<HTMLButtonElement>("dir-propose").title = l ? "" : "Install or detect an agent (Queue → Detect again) or choose the light model in the settings.";
 }
 function renderLightSettings() {
   const s = state.settings;
   const prov = select("s-light-provider");
-  prov.replaceChildren(option("", "Agente scelto nella coda"), ...state.agents.filter((a) => a.status === "ready").map((a) => option(a.provider, a.name)));
+  prov.replaceChildren(option("", "Agent chosen in the queue"), ...state.agents.filter((a) => a.status === "ready").map((a) => option(a.provider, a.name)));
   prov.value = s?.lightProvider && [...prov.options].some((o) => o.value === s.lightProvider) ? s.lightProvider : "";
   renderLightModelOptions();
   renderLightLabels();
@@ -168,10 +168,10 @@ function renderLightModelOptions() {
   const s = state.settings;
   const a = state.agents.find((x) => x.provider === select("s-light-provider").value);
   const model = select("s-light-model"), effort = select("s-light-effort");
-  const lightDefault = a?.light?.model ? `leggero predefinito (${a.light.model})` : "leggero predefinito";
+  const lightDefault = a?.light?.model ? `light default (${a.light.model})` : "light default";
   model.replaceChildren(option("", lightDefault), ...(a?.supports.model ? a.models.map((m) => option(m.id, m.label)) : []));
   if (a?.light?.model && ![...model.options].some((o) => o.value === a.light!.model)) model.append(option(a.light.model, a.light.model));
-  effort.replaceChildren(option("", a?.light?.effort ? `predefinito (${a.light.effort})` : "predefinito"), ...(a?.supports.effort ? a.efforts.map((e) => option(e.id, e.id)) : []));
+  effort.replaceChildren(option("", a?.light?.effort ? `default (${a.light.effort})` : "default"), ...(a?.supports.effort ? a.efforts.map((e) => option(e.id, e.id)) : []));
   model.disabled = effort.disabled = !a;
   if (a && s?.lightProvider === a.provider) {
     if ([...model.options].some((o) => o.value === s.lightModel)) model.value = s.lightModel ?? "";
@@ -182,11 +182,11 @@ select("s-light-provider").addEventListener("change", renderLightModelOptions);
 onBusyClick($("s-light-save"), async () => {
   const provider = select("s-light-provider").value;
   const s = await call<Settings>("save_light_model", { provider, model: provider ? select("s-light-model").value : "", effort: provider ? select("s-light-effort").value : "" }, "s-error");
-  if (s) { state.settings = s; $("s-light-info").textContent = "Modello leggero salvato."; renderLightLabels(); }
+  if (s) { state.settings = s; $("s-light-info").textContent = "Light model saved."; renderLightLabels(); }
 });
 onBusyClick($("s-save"), async () => {
   const ok = await call<Settings>("save_settings", { secondbrainHome: input("s-home").value, pwshPath: input("s-pwsh").value }, "s-error");
-  if (ok) { $("s-info").textContent = "Impostazioni salvate."; state.launch = await call<Launch>("get_launch_context"); probeAgents(); }
+  if (ok) { $("s-info").textContent = "Settings saved."; state.launch = await call<Launch>("get_launch_context"); probeAgents(); }
 });
 
 // 1. Repository
@@ -194,12 +194,12 @@ async function renderRecent() {
   const list = (await call<{ path: string; exists: boolean }[]>("list_recent_repos")) ?? [];
   $("recent-empty").hidden = list.length > 0;
   $("recent").replaceChildren(...list.map((r) => {
-    const openBtn = el("button", { textContent: "Apri", disabled: !r.exists, title: r.path });
+    const openBtn = el("button", { textContent: "Open", disabled: !r.exists, title: r.path });
     onBusyClick(openBtn, () => { input("repo-path").value = r.path; return loadRepository(); });
-    const removeBtn = el("button", { textContent: "Rimuovi", className: "ghost", title: "Togli dall'elenco (il checkout non viene toccato)" });
+    const removeBtn = el("button", { textContent: "Remove", className: "ghost", title: "Remove from the list (the checkout is not touched)" });
     removeBtn.dataset.remove = r.path;
     onBusyClick(removeBtn, async () => {
-      if (!confirm(`Togliere dall'elenco ${r.path}?\nIl checkout e il suo dossier non vengono toccati.`)) return;
+      if (!confirm(`Remove ${r.path} from the list?\nThe checkout and its dossier are not touched.`)) return;
       await call("remove_recent_repo", { path: r.path }, "repo-error");
       await renderRecent();
     });
@@ -207,12 +207,12 @@ async function renderRecent() {
     return el("li", { className: current ? "current" : "" },
       el("span", { className: "recent-name" }, baseName(r.path)),
       el("span", { className: "muted small mono recent-path" }, r.path),
-      r.exists ? (current ? el("span", { className: "tag" }, "in uso") : "") : el("span", { className: "tag warn" }, "non trovato"),
+      r.exists ? (current ? el("span", { className: "tag" }, "in use") : "") : el("span", { className: "tag warn" }, "not found"),
       openBtn, removeBtn);
   }));
 }
 onBusyClick($("repo-browse"), async () => {
-  const dir = await open({ directory: true, multiple: false, title: "Checkout del repository" });
+  const dir = await open({ directory: true, multiple: false, title: "Repository checkout" });
   if (typeof dir === "string") input("repo-path").value = dir;
 });
 $("repo-load").addEventListener("click", () => loadRepository());
@@ -221,8 +221,8 @@ input("repo-path").addEventListener("keydown", (e) => { if (e.key === "Enter") l
 async function loadRepository(): Promise<boolean> {
   const path = input("repo-path").value.trim();
   if (!path) return false;
-  // Spinner on «Carica» whoever starts the load (button, Enter, recent list, startup); a second load while one runs is ignored.
-  return (await busy($<HTMLButtonElement>("repo-load"), () => doLoadRepository(path), "Caricamento…")) ?? false;
+  // Spinner on «Load» whoever starts the load (button, Enter, recent list, startup); a second load while one runs is ignored.
+  return (await busy($<HTMLButtonElement>("repo-load"), () => doLoadRepository(path), "Loading…")) ?? false;
 }
 async function doLoadRepository(path: string): Promise<boolean> {
   setError("repo-error", null);
@@ -231,7 +231,7 @@ async function doLoadRepository(path: string): Promise<boolean> {
     const info = await call<{ repositories: { identity: string; dossier: string; tracker: string; agents: string }[] }>("resolve_repository", { path }, "repo-error");
     const repo = info?.repositories?.[0];
     if (!repo) {
-      if (info) setError("repo-error", "Checkout non associato a un dossier SecondBrain attivo. Registralo con secondbrain.ps1 -AddRepo.");
+      if (info) setError("repo-error", "Checkout not linked to an active SecondBrain dossier. Register it with secondbrain.ps1 -AddRepo.");
       return false;
     }
     state.repo = path; state.identity = repo.identity;
@@ -239,7 +239,7 @@ async function doLoadRepository(path: string): Promise<boolean> {
     $("repo-tracker").textContent = repo.tracker ?? "";
     const facts = $("repo-info");
     facts.replaceChildren(
-      el("dt", {}, "Identità"), el("dd", {}, repo.identity),
+      el("dt", {}, "Identity"), el("dd", {}, repo.identity),
       el("dt", {}, "Dossier"), el("dd", { className: "mono small" }, repo.dossier),
       el("dt", {}, "Tracker"), el("dd", { className: "mono small" }, repo.tracker ?? "—"),
       el("dt", {}, "AGENTS.md"), el("dd", { className: "mono small" }, repo.agents ?? "—"));
@@ -261,14 +261,14 @@ function setProposal(p: { proposalPath: string; proposalHash: string } | null, n
   $("dir-state").textContent = note;
 }
 onBusyClick($("dir-import"), async () => {
-  const file = await open({ multiple: false, title: "Testo delle direttive da importare", filters: [{ name: "Markdown", extensions: ["md"] }] });
+  const file = await open({ multiple: false, title: "Directive text to import", filters: [{ name: "Markdown", extensions: ["md"] }] });
   if (typeof file !== "string") return;
   const text = await call<string>("read_text_file", { path: file }, "dir-error");
   if (text === null) return;
   const area = $<HTMLTextAreaElement>("dir-text");
-  if (area.value.trim() && !confirm("Sostituire il testo nell'editor con quello del file?")) return;
+  if (area.value.trim() && !confirm("Replace the editor text with the file's text?")) return;
   area.value = text;
-  setProposal(null, `Testo importato da ${file}: crea l'anteprima per proporlo.`);
+  setProposal(null, `Text imported from ${file}: create the preview to propose it.`);
 });
 // Proposal of the light model (agents.ps1 -Analyze -Kind directives, DOC06): it surveys the checkout read-only and proposes only what the
 // global block, the common block and AGENTS.md do not already say. The text reaches the editor only when the person chooses so.
@@ -276,26 +276,26 @@ onBusyClick($("dir-propose"), async () => {
   const l = currentLight();
   if (!state.repo || !l) return;
   setError("dir-error", null);
-  $("dir-state").textContent = `Ricognizione del repository con ${l.label}: può richiedere qualche minuto…`;
+  $("dir-state").textContent = `Surveying the repository with ${l.label}: this can take a few minutes…`;
   const started = Date.now();
   const r = await call<DirectivesProposal>("analyze_directives", { repo: state.repo, provider: l.provider, model: l.model || null, effort: l.effort || null }, "dir-error");
   if (!r) { $("dir-state").textContent = ""; return; }
   state.directiveProposal = r;
-  $("dir-state").textContent = `Proposta pronta in ${fmtDuration((Date.now() - started) / 1000)}: rileggila e scegli se usarla.`;
+  $("dir-state").textContent = `Proposal ready in ${fmtDuration((Date.now() - started) / 1000)}: read it again and choose whether to use it.`;
   renderDirectiveProposal(r);
 });
 function renderDirectiveProposal(r: DirectivesProposal) {
   const box = $("dir-analysis");
   box.hidden = false;
-  $("dir-analysis-meta").textContent = `${r.provider}${r.model ? " · " + r.model : ""}${r.effort ? " · " + r.effort : ""} · ${r.sections.length} sezioni · ${r.markdown.length} caratteri` + (r.attempts > 1 ? ` · ${r.attempts} tentativi` : "");
+  $("dir-analysis-meta").textContent = `${r.provider}${r.model ? " · " + r.model : ""}${r.effort ? " · " + r.effort : ""} · ${r.sections.length} sections · ${r.markdown.length} characters` + (r.attempts > 1 ? ` · ${r.attempts} attempts` : "");
   $("dir-sections").replaceChildren(...r.sections.map((s) => el("li", {},
     el("strong", {}, s.title), el("pre", { className: "box small" }, s.body),
-    el("div", { className: "muted small" }, s.rationale), s.sources.length ? el("div", { className: "muted small mono" }, "Fonti: " + s.sources.join(", ")) : "")));
-  const warnings = [...r.warnings, ...(r.portable ? [] : ["Il testo contiene percorsi assoluti, commenti secondbrain o segnaposto {{ }}: l'anteprima lo rifiuterà finché non li togli."])];
+    el("div", { className: "muted small" }, s.rationale), s.sources.length ? el("div", { className: "muted small mono" }, "Sources: " + s.sources.join(", ")) : "")));
+  const warnings = [...r.warnings, ...(r.portable ? [] : ["The text contains absolute paths, secondbrain comments or {{ }} placeholders: the preview rejects it until you remove them."])];
   $("dir-warnings").hidden = warnings.length === 0;
   $("dir-warnings").textContent = warnings.join(" · ");
   $("dir-covered-count").textContent = String(r.coveredElsewhere.length);
-  const where: Record<string, string> = { global: "direttive globali", common: "blocco comune", dossier: "direttive attuali del dossier", "agents-md": "AGENTS.md" };
+  const where: Record<string, string> = { global: "global directives", common: "common block", dossier: "current dossier directives", "agents-md": "AGENTS.md" };
   $("dir-covered").replaceChildren(...r.coveredElsewhere.map((c) => el("li", {}, `${c.topic} — ${where[c.where] ?? c.where}`)));
 }
 function useDirectiveProposal(append: boolean) {
@@ -305,13 +305,13 @@ function useDirectiveProposal(append: boolean) {
   area.value = append && area.value.trim() ? area.value.trimEnd() + "\n\n" + r.markdown : r.markdown;
   $("dir-analysis").hidden = true;
   updateComposed();
-  setProposal(null, "Proposta inserita nell'editor: rileggila, correggila se serve e crea l'anteprima.");
+  setProposal(null, "Proposal inserted in the editor: read it again, correct it if needed and create the preview.");
 }
 $("dir-use").addEventListener("click", () => useDirectiveProposal(false));
 $("dir-append").addEventListener("click", () => useDirectiveProposal(true));
-$("dir-discard").addEventListener("click", () => { state.directiveProposal = null; $("dir-analysis").hidden = true; $("dir-state").textContent = "Proposta scartata."; });
+$("dir-discard").addEventListener("click", () => { state.directiveProposal = null; $("dir-analysis").hidden = true; $("dir-state").textContent = "Proposal discarded."; });
 onBusyClick($("dir-reload"), () => readDirectives());
-$<HTMLTextAreaElement>("dir-text").addEventListener("input", () => { updateComposed(); if (state.proposal) setProposal(null, "Testo modificato: l'anteprima precedente non vale più."); });
+$<HTMLTextAreaElement>("dir-text").addEventListener("input", () => { updateComposed(); if (state.proposal) setProposal(null, "Text changed: the previous preview is no longer valid."); });
 /** Repository block composed with the editor text and the characters every session loads (global + AGENTS.md outside + repository block). */
 function updateComposed() {
   const d = state.directives;
@@ -327,7 +327,7 @@ function updateComposed() {
   const fill = $("dir-budget-fill");
   fill.style.width = Math.min(100, pct) + "%";
   fill.dataset.level = pct >= 80 ? "high" : pct >= 50 ? "mid" : "low";
-  $("dir-budget").textContent = `Direttive caricate a ogni sessione: ${loaded.toLocaleString()} di ${d.counts.budget.toLocaleString()} caratteri del tetto di avvio (${pct}%) — globali ${d.counts.global.toLocaleString()}, AGENTS.md fuori dai blocchi ${d.counts.agentsOutside.toLocaleString()}, blocco di repository ${composed.length.toLocaleString()}. Il pacchetto di avvio del dossier si aggiunge a queste.`;
+  $("dir-budget").textContent = `Directives loaded in every session: ${loaded.toLocaleString()} of ${d.counts.budget.toLocaleString()} characters of the startup cap (${pct}%) — global ${d.counts.global.toLocaleString()}, AGENTS.md outside the blocks ${d.counts.agentsOutside.toLocaleString()}, repository block ${composed.length.toLocaleString()}. The dossier startup package is added to these.`;
 }
 async function readDirectives() {
   if (!state.repo) return;
@@ -346,39 +346,39 @@ async function readDirectives() {
   $("dir-preview-box").hidden = true;
   $("dir-analysis").hidden = true;
   renderLightLabels();
-  setProposal(null, d.dossierDirectives ? "Testo attuale del dossier." : "Nessuna direttiva specifica nel dossier: fai proporre la struttura al modello leggero o importa un file.");
+  setProposal(null, d.dossierDirectives ? "Current dossier text." : "No specific directive in the dossier: have the light model propose the structure or import a file.");
 }
 onBusyClick($("dir-preview"), async () => {
   if (!state.repo) return;
   setError("dir-error", null);
-  $("dir-state").textContent = "Preparazione della proposta…";
+  $("dir-state").textContent = "Preparing the proposal…";
   const text = $<HTMLTextAreaElement>("dir-text").value;
   const r = await call<{ proposal: { proposalPath: string; proposalHash: string | null; preview: unknown } | null }>("preview_directives", { repo: state.repo, text }, "dir-error");
   if (!r?.proposal) { $("dir-state").textContent = ""; return; }
   $("dir-result").textContent = JSON.stringify(r.proposal.preview, null, 2);
   $("dir-preview-box").hidden = false;
   ($("dir-preview-box") as HTMLDetailsElement).open = true;
-  if (r.proposal.proposalHash) setProposal({ proposalPath: r.proposal.proposalPath, proposalHash: r.proposal.proposalHash }, "Anteprima pronta: rileggila, poi approva e applica.");
-  else setProposal(null, "L'anteprima non ha prodotto un hash di proposta: nessuna modifica da approvare (testo uguale all'attuale o proposta non valida, vedi l'anteprima).");
+  if (r.proposal.proposalHash) setProposal({ proposalPath: r.proposal.proposalPath, proposalHash: r.proposal.proposalHash }, "Preview ready: read it again, then approve and apply.");
+  else setProposal(null, "The preview produced no proposal hash: nothing to approve (text equal to the current one or invalid proposal, see the preview).");
 });
 onBusyClick($("dir-apply"), async () => {
   if (!state.proposal) return;
-  if (!confirm("Approvi la proposta esaminata e allinei il blocco gestito del repository?")) return;
-  const authorization = "Approvazione nell'orchestratore desktop " + new Date().toISOString();
-  $("dir-state").textContent = "Approvazione e allineamento…";
+  if (!confirm("Approve the reviewed proposal and align the repository's managed block?")) return;
+  const authorization = "Approval in the desktop orchestrator " + new Date().toISOString();
+  $("dir-state").textContent = "Approving and aligning…";
   const r = await call<unknown>("apply_directives", { repo: state.repo, proposalPath: state.proposal.proposalPath, proposalHash: state.proposal.proposalHash, authorization }, "dir-error");
   if (r) {
     $("dir-result").textContent = JSON.stringify(r, null, 2);
     await readDirectives();
-    setProposal(null, "Direttive approvate e allineate.");
+    setProposal(null, "Directives approved and aligned.");
   } else $("dir-state").textContent = "";
 });
 
 // 3. Queue: agents and models come from the installed CLIs only.
 async function probeAgents() {
-  $("q-agents-state").textContent = "Rilevamento degli agenti…";
+  $("q-agents-state").textContent = "Detecting the agents…";
   const r = await call<{ agents: AgentCaps[]; clients?: ClientInfo[] }>("probe_agents", {}, "q-error");
-  if (!r) { $("q-agents-state").textContent = "Rilevamento non riuscito."; return; }
+  if (!r) { $("q-agents-state").textContent = "Detection failed."; return; }
   state.agents = r.agents; state.clients = r.clients ?? [];
   const before = state.provider;
   if (!state.agents.some((a) => a.provider === state.provider && a.status === "ready")) state.provider = state.agents.find((a) => a.status === "ready")?.provider ?? "";
@@ -393,16 +393,16 @@ function renderAgents() {
     const ready = a.status === "ready";
     const radio = el("input", { type: "radio", name: "agent", value: a.provider, checked: a.provider === state.provider, disabled: !ready });
     radio.addEventListener("change", () => { state.provider = a.provider; renderAgentOptions(); renderLightLabels(); refreshTasks(); });
-    const meta = [a.version, a.origin ? ORIGIN_LABEL[a.origin] : "", ready && a.supports.streamJson ? "passi in tempo reale" : ""].filter(Boolean).join(" · ");
+    const meta = [a.version, a.origin ? ORIGIN_LABEL[a.origin] : "", ready && a.supports.streamJson ? "live steps" : ""].filter(Boolean).join(" · ");
     return el("label", { className: "agent" + (ready ? "" : " off"), title: a.path ?? "" }, radio,
       el("span", { className: "agent-name" }, a.name),
       el("span", { className: "tag" + (ready ? " ok" : " warn") }, STATUS_LABEL[a.status] ?? a.status),
       el("span", { className: "muted small" }, meta));
   }));
   const ready = state.agents.filter((a) => a.status === "ready").length;
-  $("q-agents-state").textContent = ready ? `${ready} agenti pronti su ${state.agents.length}.` : "Nessun agente pronto: installa Claude Code, Codex o Gemini CLI e premi «Rileva di nuovo».";
+  $("q-agents-state").textContent = ready ? `${ready} of ${state.agents.length} agents ready.` : "No agent is ready: install Claude Code, Codex or Gemini CLI and press «Detect again».";
   $("q-clients").replaceChildren(...state.clients.map((c) => el("li", {}, el("strong", {}, c.name), " — ",
-    c.runnable ? `pilotabile come ${c.provider}` : REASON_LABEL[c.reason ?? ""] ?? c.reason ?? "")));
+    c.runnable ? `can be driven as ${c.provider}` : REASON_LABEL[c.reason ?? ""] ?? c.reason ?? "")));
   $("q-clients-box").hidden = state.clients.length === 0;
   renderAgentOptions();
 }
@@ -411,7 +411,7 @@ function renderAgentOptions() {
   const a = currentAgent();
   const model = select("q-model");
   if (!a) { model.replaceChildren(); select("q-effort").replaceChildren(); model.disabled = true; select("q-effort").disabled = true; return; }
-  const def = "predefinito della CLI" + (a.configured.model ? " (" + a.configured.model + ")" : "");
+  const def = "CLI default" + (a.configured.model ? " (" + a.configured.model + ")" : "");
   const previous = model.value;
   model.replaceChildren(option("", def), ...(a.supports.model ? a.models.map((m) => option(m.id, m.label + " · " + SOURCE_LABEL[m.source])) : []));
   model.value = a.models.some((m) => m.id === previous) ? previous : "";
@@ -430,7 +430,7 @@ function renderEffortOptions() {
   if (!a) return;
   const perModel = a.models.find((m) => m.id === chosenModel() && m.efforts.length);
   const levels = perModel ? perModel.efforts.map((id) => ({ id, source: perModel.source })) : a.efforts;
-  const def = "predefinito" + (a.configured.effort ? " (" + a.configured.effort + ")" : "");
+  const def = "default" + (a.configured.effort ? " (" + a.configured.effort + ")" : "");
   effort.replaceChildren(option("", def), ...(a.supports.effort ? levels.map((l) => option(l.id, l.id + " · " + SOURCE_LABEL[l.source])) : []));
   effort.disabled = !a.supports.effort;
 }
@@ -447,12 +447,12 @@ let tasksRequest = 0;
 async function refreshTasks() {
   if (!state.repo) return;
   const request = ++tasksRequest;
-  $("q-count").textContent = "Lettura del tracker…";
+  $("q-count").textContent = "Reading the tracker…";
   const r = await call<{ tasks: PreviewTask[]; skipped: Skipped[] }>("list_tasks", { repo: state.repo, provider: state.provider || null }, "q-error");
   if (request !== tasksRequest) return;
   if (!r) { $("q-count").textContent = ""; return; }
   state.tasks = r.tasks ?? [];
-  // Nothing is preselected (#517): the person opts in task by task, or with "Seleziona tutti".
+  // Nothing is preselected (#517): the person opts in task by task, or with "Select all".
   state.selected = new Set<string>();
   renderTasks();
   state.skipped = (r.skipped ?? []).filter((s) => s.id);
@@ -463,24 +463,24 @@ async function refreshTasks() {
 function renderSkipped() {
   const showStreams = input("q-show-streams").checked;
   const list = state.skipped.filter((s) => showStreams || !s.reason.startsWith("stream:"));
-  $("q-skipped-count").textContent = list.length === state.skipped.length ? String(list.length) : `${list.length} di ${state.skipped.length}`;
+  $("q-skipped-count").textContent = list.length === state.skipped.length ? String(list.length) : `${list.length} of ${state.skipped.length}`;
   $("q-skipped").replaceChildren(...list.map((s) => {
     const id = s.id!;
     const can = analyzable(s.reason);
     const cb = el("input", { type: "checkbox", checked: state.skippedSelected.has(id), disabled: !can || state.analyzing });
-    cb.setAttribute("aria-label", "Seleziona per l'analisi " + id);
+    cb.setAttribute("aria-label", "Select for analysis " + id);
     cb.addEventListener("change", () => { cb.checked ? state.skippedSelected.add(id) : state.skippedSelected.delete(id); updateAnalyzeButton(); });
     const verdict = verdictOf(id);
     const has = Boolean(storedAnalysis(id));
-    const badge = verdict ? el("span", { className: "tag verdict-" + verdict }, VERDICT_LABEL[verdict] ?? verdict) : has ? el("span", { className: "tag" }, "analisi salvata") : "—";
-    const action = el("button", { textContent: has ? "Apri" : "Analizza", disabled: (!can && !has) || state.analyzing, className: has ? "" : "accent" });
+    const badge = verdict ? el("span", { className: "tag verdict-" + verdict }, VERDICT_LABEL[verdict] ?? verdict) : has ? el("span", { className: "tag" }, "saved analysis") : "—";
+    const action = el("button", { textContent: has ? "Open" : "Analyze", disabled: (!can && !has) || state.analyzing, className: has ? "" : "accent" });
     onBusyClick(action, async () => {
-      $("q-analysis-state").textContent = has ? "" : `Analisi di ${id} con ${currentLight()?.label ?? "—"}…`;
+      $("q-analysis-state").textContent = has ? "" : `Analysis of ${id} with ${currentLight()?.label ?? "—"}…`;
       if (has) await openAnalysis(id); else await analyzeTask(id);
       $("q-analysis-state").textContent = "";
     });
-    const again = has ? el("button", { textContent: "Rifai", className: "ghost", title: "Nuova analisi da zero", disabled: !can || state.analyzing }) : "";
-    if (again) onBusyClick(again, async () => { $("q-analysis-state").textContent = `Nuova analisi di ${id}…`; await analyzeTask(id); $("q-analysis-state").textContent = ""; });
+    const again = has ? el("button", { textContent: "Redo", className: "ghost", title: "New analysis from scratch", disabled: !can || state.analyzing }) : "";
+    if (again) onBusyClick(again, async () => { $("q-analysis-state").textContent = `New analysis of ${id}…`; await analyzeTask(id); $("q-analysis-state").textContent = ""; });
     // #645: the light model proposes only the missing detail of an incomplete task; the proposal opens in the same dialog to apply or reject.
     const enrich = el("button", { textContent: "Enrich", className: "ghost", title: "Propose the missing detail (description, acceptance, stream, requirements)", disabled: state.analyzing || !currentLight() });
     onBusyClick(enrich, async () => {
@@ -499,7 +499,7 @@ function updateAnalyzeButton() {
   const n = state.skippedSelected.size;
   const b = $<HTMLButtonElement>("q-analyze-selected");
   b.disabled = n === 0 || state.analyzing || !currentLight();
-  b.textContent = n ? `Analizza selezionati (${n})` : "Analizza selezionati";
+  b.textContent = n ? `Analyze selected (${n})` : "Analyze selected";
 }
 input("q-show-streams").addEventListener("change", renderSkipped);
 onBusyClick($("q-analyze-selected"), async () => {
@@ -507,7 +507,7 @@ onBusyClick($("q-analyze-selected"), async () => {
   if (!ids.length) return;
   state.analyzing = true;
   renderSkipped();
-  await analyzeMany(ids, (done, total, id) => { $("q-analysis-state").textContent = done < total ? `Analisi ${done + 1} di ${total}: ${id}…` : `Analisi completate: ${total}. Apri ciascun task per rispondere o applicare.`; });
+  await analyzeMany(ids, (done, total, id) => { $("q-analysis-state").textContent = done < total ? `Analysis ${done + 1} of ${total}: ${id}…` : `Analyses completed: ${total}. Open each task to answer or apply.`; });
   state.analyzing = false;
   state.skippedSelected.clear();
   renderSkipped();
@@ -515,12 +515,12 @@ onBusyClick($("q-analyze-selected"), async () => {
 function renderTasks() {
   const order = state.tasks;
   $("q-empty").hidden = order.length > 0;
-  $("q-count").textContent = order.length ? `${state.selected.size} selezionati su ${order.length}` : "";
+  $("q-count").textContent = order.length ? `${state.selected.size} selected of ${order.length}` : "";
   $("q-tasks").replaceChildren(...order.map((t, i) => {
     const cb = el("input", { type: "checkbox", checked: state.selected.has(t.id) });
-    cb.setAttribute("aria-label", "Seleziona " + t.id);
-    cb.addEventListener("change", () => { cb.checked ? state.selected.add(t.id) : state.selected.delete(t.id); $("q-count").textContent = `${state.selected.size} selezionati su ${order.length}`; });
-    const up = el("button", { textContent: "↑", disabled: i === 0, title: "Sposta su", className: "ghost" });
+    cb.setAttribute("aria-label", "Select " + t.id);
+    cb.addEventListener("change", () => { cb.checked ? state.selected.add(t.id) : state.selected.delete(t.id); $("q-count").textContent = `${state.selected.size} selected of ${order.length}`; });
+    const up = el("button", { textContent: "↑", disabled: i === 0, title: "Move up", className: "ghost" });
     up.addEventListener("click", () => { [order[i - 1], order[i]] = [order[i], order[i - 1]]; renderTasks(); });
     const tr = el("tr");
     [cb, String(t.seq), t.id, t.title, t.priority ?? "—", up].forEach((c) => tr.append(el("td", {}, c)));
@@ -539,7 +539,7 @@ onBusyClick($("q-start"), async () => {
   }
   const a = currentAgent();
   const taskIds = state.tasks.filter((t) => state.selected.has(t.id)).map((t) => t.id);
-  if (!state.repo || !a || !taskIds.length) return setError("q-error", "Scegli un agente pronto e almeno un task.");
+  if (!state.repo || !a || !taskIds.length) return setError("q-error", "Choose a ready agent and at least one task.");
   const custom = input("q-custom-on").checked ? input("q-custom").value.trim() : "";
   const request: QueueRequest = {
     repo: state.repo, provider: a.provider,
@@ -549,9 +549,9 @@ onBusyClick($("q-start"), async () => {
     taskIds, timeoutMinutes: Number(input("q-timeout").value) || 30, stallMinutes: Number(input("q-stall").value) || 5,
     waitForReset: input("q-wait").checked, maxWaitHours: Number(input("q-wait-hours").value) || 24,
   };
-  const shownModel = request.model ?? (a.configured.model ? `predefinito della CLI (${a.configured.model})` : "predefinito della CLI");
-  const shownEffort = !a.supports.effort ? "impegno non regolabile" : request.effort ?? (a.configured.effort ? `impegno predefinito (${a.configured.effort})` : "impegno predefinito");
-  if (!confirm(`Avviare ${taskIds.length} task con ${a.name} · ${shownModel} · ${shownEffort}?\nModello e impegno letti ora dalla CLI installata.\n${request.waitForReset ? `Al limite del piano la coda attende il ripristino (al massimo ${request.maxWaitHours} h) e riprende da sola.` : "Al limite del piano la coda si ferma (riprendibile con -Resume latest)."}\nGli agenti modificano file nel checkout; commit, push e cancellazioni sono vietati.`)) return;
+  const shownModel = request.model ?? (a.configured.model ? `CLI default (${a.configured.model})` : "CLI default");
+  const shownEffort = !a.supports.effort ? "effort not adjustable" : request.effort ?? (a.configured.effort ? `default effort (${a.configured.effort})` : "default effort");
+  if (!confirm(`Start ${taskIds.length} task(s) with ${a.name} · ${shownModel} · ${shownEffort}?\nModel and effort are read now from the installed CLI.\n${request.waitForReset ? `At the plan limit the queue waits for the reset (at most ${request.maxWaitHours} h) and resumes by itself.` : "At the plan limit the queue stops (it can be resumed with -Resume latest)."}\nAgents change files in the checkout; commits, pushes and deletions are forbidden.`)) return;
   await launchQueue(request, "q-error");
 });
 /** Starts the runner for a confirmed request (new queue or resume) and follows it in the Run tab. */
@@ -563,7 +563,7 @@ async function launchQueue(request: QueueRequest, errorBox: string) {
   if (!r) return;
   state.run.starting = true; state.run.pid = r.pid;
   setVerdict("starting");
-  appendLog(`Runner avviato (PID ${r.pid}); in attesa del suo stato…`);
+  appendLog(`Runner started (PID ${r.pid}); waiting for its status…`);
   selectTab("run");
   updateSteps();
   // The run folder appears once the runner has read the tracker: look for the status written by this process.
@@ -583,7 +583,7 @@ function resetRunView() {
   stopPolling();
   state.run = { active: false, starting: false, pid: 0, folder: "", offset: 0, startedAt: "", status: null, verdict: "idle" };
   setVerdict("idle");
-  $("run-task").textContent = "Nessun task in corso";
+  $("run-task").textContent = "No task in progress";
   for (const id of ["run-elapsed", "run-last", "run-counts", "run-folder"]) $(id).textContent = "—";
   $("run-steps").replaceChildren(); $("run-results").replaceChildren(); $("run-log").textContent = "";
   $("run-warning").hidden = true; setError("run-error", null);
@@ -608,7 +608,7 @@ function appendLog(line: string) {
   log.scrollTop = log.scrollHeight;
 }
 function addResult(r: RunRecord) {
-  const badge = el("span", { className: "state-" + r.state }, r.state + (r.parked === true ? " (parcheggiato)" : r.parked === "deferred" ? " (parcheggio in coda di scrittura)" : ""));
+  const badge = el("span", { className: "state-" + r.state }, r.state + (r.parked === true ? " (parked)" : r.parked === "deferred" ? " (parking in the write queue)" : ""));
   const tr = el("tr");
   // #613: the process outcome (badge) and the task acceptance are separate; done without evidence from the attempt is reopened.
   const acceptance = el("span", { className: "acceptance-" + (r.acceptance ?? "unknown") },
@@ -631,8 +631,8 @@ function handleEvent(e: RunnerEvent) {
     case "agent": addStep(ev); break;
     case "start": $("run-warning").hidden = true; break;
     case "done": if (ev.record) addResult(ev.record); break;
-    case "stalled": $("run-warning").textContent = ev.message ?? "Possibile stallo dell'agente."; $("run-warning").hidden = false; break;
-    case "quotawait": $("run-warning").textContent = ev.message ?? "Limite del piano raggiunto: attesa del ripristino."; $("run-warning").hidden = false; break;
+    case "stalled": $("run-warning").textContent = ev.message ?? "The agent may be stalled."; $("run-warning").hidden = false; break;
+    case "quotawait": $("run-warning").textContent = ev.message ?? "Plan limit reached: waiting for the reset."; $("run-warning").hidden = false; break;
     case "quotaresumed": $("run-warning").hidden = true; break;
   }
 }
@@ -678,8 +678,8 @@ function renderStatus(rep: RunReport) {
   if (!s) return;
   state.run.startedAt = s.startedAt;
   $("run-folder").textContent = rep.folder ?? s.folder ?? "—";
-  $("run-counts").textContent = `${s.counts.done} di ${s.counts.total} task (${s.counts.succeeded} riusciti, ${s.counts.failed} non riusciti)` + (s.counts.accepted !== undefined ? ` · ${s.counts.accepted} accepted` : "") + (s.stopReason ? ` · arresto: ${s.stopReason}${!rep.active && s.finishedAt ? " (run chiuso il " + new Date(s.finishedAt).toLocaleString() + ")" : ""}` : "") + (s.quota ? ` · ${quotaLabel(s.quota)}` : "");
-  $("run-task").textContent = s.task ? `[${s.task.position}/${s.task.total}] #${s.task.seq} ${s.task.id} — ${s.task.title}` : s.quotaWait && rep.active ? `In attesa del ripristino dei limiti, poi riprende da ${s.quotaWait.taskId}` : rep.active ? `Fase: ${s.phase}` : "Nessun task in corso";
+  $("run-counts").textContent = `${s.counts.done} of ${s.counts.total} tasks (${s.counts.succeeded} succeeded, ${s.counts.failed} failed)` + (s.counts.accepted !== undefined ? ` · ${s.counts.accepted} accepted` : "") + (s.stopReason ? ` · stopped: ${s.stopReason}${!rep.active && s.finishedAt ? " (run closed on " + new Date(s.finishedAt).toLocaleString() + ")" : ""}` : "") + (s.quota ? ` · ${quotaLabel(s.quota)}` : "");
+  $("run-task").textContent = s.task ? `[${s.task.position}/${s.task.total}] #${s.task.seq} ${s.task.id} — ${s.task.title}` : s.quotaWait && rep.active ? `Waiting for the limits to reset, then resumes from ${s.quotaWait.taskId}` : rep.active ? `Phase: ${s.phase}` : "No task in progress";
   renderClock();
 }
 function renderClock() {
@@ -689,13 +689,13 @@ function renderClock() {
   $("run-elapsed").textContent = fmtDuration((end - Date.parse(s.startedAt)) / 1000);
   const w = state.run.active ? s.quotaWait : null;
   // #564: while the run waits for the reset this row shows the resume time, under a label that names it.
-  $("run-last-label").textContent = w ? "Ripresa" : "Ultimo segnale dell'agente";
+  $("run-last-label").textContent = w ? "Resumes" : "Last agent signal";
   if (w) {
-    $("run-last").textContent = `Ripresa alle ${new Date(w.resumeAt).toLocaleString()} (tra ${fmtDuration(-since(w.resumeAt))}) · ${WAIT_SOURCE_LABEL[w.source] ?? w.source}` + (w.attempt > 1 ? ` · attesa n. ${w.attempt}` : "");
+    $("run-last").textContent = `Resumes at ${new Date(w.resumeAt).toLocaleString()} (in ${fmtDuration(-since(w.resumeAt))}) · ${WAIT_SOURCE_LABEL[w.source] ?? w.source}` + (w.attempt > 1 ? ` · wait #${w.attempt}` : "");
     return;
   }
   const last = s.lastAgentEventAt ?? s.task?.startedAt ?? null;
-  $("run-last").textContent = state.run.active && last ? `${fmtDuration(since(last))} fa` + (s.lastAgentEvent ? ` · ${s.lastAgentEvent.kind}: ${s.lastAgentEvent.summary}` : "") : s.lastAgentEvent ? `${s.lastAgentEvent.kind}: ${s.lastAgentEvent.summary}` : "—";
+  $("run-last").textContent = state.run.active && last ? `${fmtDuration(since(last))} ago` + (s.lastAgentEvent ? ` · ${s.lastAgentEvent.kind}: ${s.lastAgentEvent.summary}` : "") : s.lastAgentEvent ? `${s.lastAgentEvent.kind}: ${s.lastAgentEvent.summary}` : "—";
 }
 // One read at a time: two overlapping reads from the same offset (timer plus reattach) would show every event twice.
 let pullingEvents = false;
@@ -728,10 +728,10 @@ async function finishRun(rep: RunReport) {
   stopPolling();
   renderStatus(rep);
   if (rep.verdict === "orphaned") {
-    $("run-warning").textContent = "Il runner si è interrotto senza chiudere il run (processo terminato o arresto forzato).";
+    $("run-warning").textContent = "The runner stopped without closing the run (process ended or forced stop).";
     $("run-warning").hidden = false;
   }
-  const ended = "Run concluso: " + (RUN_VERDICT_LABEL[rep.verdict] ?? rep.verdict);
+  const ended = "Run finished: " + (RUN_VERDICT_LABEL[rep.verdict] ?? rep.verdict);
   appendLog(ended);
   persistNote(ended, false);
   updateSteps();
@@ -754,20 +754,20 @@ function attachRun(rep: RunReport) {
 async function checkExistingRun() {
   const rep = await call<RunReport>("get_run_status", { repo: state.repo, tail: 0 });
   if (!rep) return;
-  if (rep.active && rep.folder) { attachRun(rep); note("Run in corso ritrovato e riagganciato dalla finestra."); selectTab("run"); }
+  if (rep.active && rep.folder) { attachRun(rep); note("Run in progress found again and reattached by the window."); selectTab("run"); }
   else if (rep.status) renderStatus(rep);
 }
 onBusyClick($("run-refresh"), () => pullStatus());
 onBusyClick($("run-stop"), async () => {
-  if (!state.run.active && !state.run.starting) return setError("run-error", "Nessuna coda in esecuzione.");
+  if (!state.run.active && !state.run.starting) return setError("run-error", "No queue is running.");
   const ok = await call<boolean>("stop_queue", { repo: state.repo, force: false }, "run-error");
-  if (ok) note("Arresto richiesto dalla finestra: la coda si ferma dopo il task corrente.");
+  if (ok) note("Stop requested by the window: the queue stops after the current task.");
 });
 onBusyClick($("run-abort"), async () => {
-  if (!state.run.active && !state.run.starting) return setError("run-error", "Nessuna coda in esecuzione.");
-  if (!confirm("Interrompere subito l'agente in corso? Il task resta nello stato lasciato dall'agente.")) return;
+  if (!state.run.active && !state.run.starting) return setError("run-error", "No queue is running.");
+  if (!confirm("Abort the running agent now? The task stays in the state the agent left it.")) return;
   const ok = await call<boolean>("stop_queue", { repo: state.repo, force: true }, "run-error");
-  if (ok) { note("Interruzione immediata richiesta dalla finestra."); window.setTimeout(pullStatus, 1500); }
+  if (ok) { note("Immediate abort requested by the window."); window.setTimeout(pullStatus, 1500); }
 });
 
 // #604: the runner refused to start without its power request (event powerrefused, exit 2): the owner chooses Run anyway or Cancel.
@@ -795,7 +795,7 @@ listen<{ code: number | null; pid: number; log: string; stdout: string }>("runne
     // Ended before writing its status (busy repository, invalid model, missing agent): show why.
     state.run.starting = false;
     setVerdict("idle");
-    setError("run-error", `Il runner è terminato (uscita ${e.payload.code}) prima di avviare il run.\n${e.payload.log}`);
+    setError("run-error", `The runner ended (exit ${e.payload.code}) before starting the run.\n${e.payload.log}`);
     updateSteps();
     if (powerRefused) askPowerChoice(e.payload.log);
     return;
@@ -810,7 +810,7 @@ async function closeWindow() { await getCurrentWindow().destroy(); }
 dialog.querySelectorAll<HTMLButtonElement>("button[data-close]").forEach((b) => onBusyClick(b, async () => {
   const action = b.dataset.close;
   if (action === "cancel") return dialog.close();
-  if (action === "abort" && !confirm("Interrompere subito l'agente in corso?")) return;
+  if (action === "abort" && !confirm("Abort the running agent now?")) return;
   if (action === "stop" || action === "abort") await call("stop_queue", { repo: state.repo, force: action === "abort" });
   dialog.close();
   await closeWindow();

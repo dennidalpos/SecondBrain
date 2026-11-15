@@ -10,9 +10,7 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Prompts.psm1') -Force
 $script:quickChecks=0
 function Assert-Quick($Condition,[string]$Message){if(!$Condition){throw 'FAIL QUICK: '+$Message};$script:quickChecks++;'PASS QUICK: '+$Message}
 $productRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
-$savedLang=$env:SECONDBRAIN_LANG
 try {
-    $env:SECONDBRAIN_LANG='it';Set-SBUiLanguage ''
     # Repository identities. The '@' is composed at runtime so that no email-shaped literal appears in the source.
     $at='@'
     Assert-Quick ((ConvertTo-SBRepositoryIdentity "git${at}gitlab.example:group/nested/repo.git") -eq 'gitlab.example/group/nested/repo') 'GitLab annidato senza vincolo owner'
@@ -64,24 +62,34 @@ try {
     Assert-Quick (!(Test-Json -Json (ConvertTo-SBJson $validTracker) -SchemaFile $schema -ErrorAction SilentlyContinue)) 'tracker schema rejects unsupported version'
     # Actual prompt catalog.
     Assert-Quick (@(Get-SBWorkflowDrift $productRoot).Count -eq 0) 'catalogo reale allineato'
-    # Message catalog: languages and stable keys.
-    $env:SECONDBRAIN_LANG='en'
-    Assert-Quick ((Get-SBUiLanguage) -ceq 'en' -and (Get-SBMessage 'core.block.duplicate' @('x')) -ceq 'Duplicate block: x') 'lingua en da SECONDBRAIN_LANG'
-    $env:SECONDBRAIN_LANG='it'
-    Assert-Quick ((Get-SBUiLanguage) -ceq 'it' -and (Get-SBMessage 'core.block.duplicate' @('x')) -ceq 'Blocco duplicato: x') 'lingua it da SECONDBRAIN_LANG'
+    # Message catalog: English only, stable keys.
+    Assert-Quick ((Get-SBMessage 'core.block.duplicate' @('x')) -ceq 'Duplicate block: x') 'message text is English'
+    $brainRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+    Assert-Quick (!(Get-Command Set-SBUiLanguage,Get-SBUiLanguage -ErrorAction SilentlyContinue) -and !(Select-String -Path (Join-Path $PSScriptRoot '*.ps1'),(Join-Path $PSScriptRoot '*.psm1') -Pattern 'SECONDBRAIN_LANG' -SimpleMatch | Where-Object { $_.Filename -notlike 'test-*' })) 'language selection (SECONDBRAIN_LANG, -Language, Set-SBUiLanguage) is removed'
     Assert-Quick ((Get-SBMessage 'chiave.inesistente') -ceq 'chiave.inesistente') 'chiave sconosciuta restituisce la chiave'
     $messageGaps=@()
     foreach($file in Get-ChildItem -LiteralPath $PSScriptRoot -Filter 'SecondBrain.*.psm1'|Where-Object Name -ne 'SecondBrain.Messages.psm1'){Import-Module $file.FullName -Force}
     foreach($file in Get-ChildItem -LiteralPath $PSScriptRoot -Filter 'SecondBrain.*.psm1'){
         foreach($m in [regex]::Matches((Read-SBText $file.FullName),"New-SBError '([a-z0-9._-]+)'|Get-SBMessage '([a-z0-9._-]+)'")){
             $key=if($m.Groups[1].Success){$m.Groups[1].Value}else{$m.Groups[2].Value}
-            if((Get-SBMessage $key @() 'en') -ceq $key -or (Get-SBMessage $key @() 'it') -ceq $key){$messageGaps+=$key}
+            if((Get-SBMessage $key) -ceq $key){$messageGaps+=$key}
         }
     }
-    Assert-Quick (!$messageGaps.Count) ('ogni chiave usata ha testo it e en'+$(if($messageGaps.Count){': '+(($messageGaps|Select-Object -Unique) -join ', ')}))
+    Assert-Quick (!$messageGaps.Count) ('ogni chiave usata ha testo en'+$(if($messageGaps.Count){': '+(($messageGaps|Select-Object -Unique) -join ', ')}))
     $catalog = & (Get-Module SecondBrain.Messages) { $script:SBMessages }
-    $incompleteKeys = @($catalog.Keys | Where-Object { !$catalog[$_].ContainsKey('it') -or !$catalog[$_].ContainsKey('en') -or !$catalog[$_].it -or !$catalog[$_].en })
-    Assert-Quick (!$incompleteKeys.Count) 'all registered message keys, including dynamic diagnostics, have it and en text'
+    $incompleteKeys = @($catalog.Keys | Where-Object { !$catalog[$_].ContainsKey('en') -or !$catalog[$_].en -or $catalog[$_].ContainsKey('it') })
+    Assert-Quick (!$incompleteKeys.Count) 'all registered message keys, including dynamic diagnostics, have en text only'
+    $snapshot=Read-SBJson (Join-Path $brainRoot 'config/message-keys.caf7037.json') $null
+    # Keys are registered by modules and by entry scripts, so read every Add-SBMessages table statically.
+    $registered=[Collections.Generic.HashSet[string]]::new()
+    foreach($file in Get-ChildItem -LiteralPath $PSScriptRoot -Include '*.ps1','*.psm1' -File -Recurse){
+        $tree=[Management.Automation.Language.Parser]::ParseFile($file.FullName,[ref]$null,[ref]$null)
+        foreach($call in $tree.FindAll({param($node) $node -is [Management.Automation.Language.CommandAst] -and $node.GetCommandName() -eq 'Add-SBMessages'},$true)){
+            foreach($table in @($call.CommandElements|Where-Object {$_ -is [Management.Automation.Language.HashtableAst]})){foreach($pair in $table.KeyValuePairs){[void]$registered.Add([string]$pair.Item1.Value)}}
+        }
+    }
+    $lostKeys=@($snapshot.keys|Where-Object {$_ -notin @($snapshot.removedKeys) -and !$registered.Contains($_)})
+    Assert-Quick (!$lostKeys.Count) ('message key set keeps every key of caf7037'+$(if($lostKeys.Count){': '+(($lostKeys|Select-Object -First 5) -join ', ')}))
     $literalThrows=@();$scriptGaps=@()
     foreach($file in Get-ChildItem -LiteralPath $PSScriptRoot -Include '*.ps1','*.psm1' -File|Where-Object {$_.Name -notlike 'test-*' -and $_.Name -ne 'check-distribution.ps1'}){
         $source=Read-SBText $file.FullName
@@ -91,8 +99,8 @@ try {
         if($file.Extension -eq '.ps1'){
             foreach($m in [regex]::Matches($source,"New-SBError '([a-z0-9._-]+)'")){
                 $escaped=[regex]::Escape($m.Groups[1].Value)
-                $inModules=(Get-SBMessage $m.Groups[1].Value @() 'en') -cne $m.Groups[1].Value -and (Get-SBMessage $m.Groups[1].Value @() 'it') -cne $m.Groups[1].Value
-                if(!$inModules -and $source -notmatch ("'"+$escaped+"'\s*=\s*@\{\s*it\s*=.*en\s*=")){$scriptGaps+=($file.Name+': '+$m.Groups[1].Value)}
+                $inModules=(Get-SBMessage $m.Groups[1].Value) -cne $m.Groups[1].Value
+                if(!$inModules -and $source -notmatch ("'"+$escaped+"'\s*=\s*@\{\s*en\s*=")){$scriptGaps+=($file.Name+': '+$m.Groups[1].Value)}
             }
         }
     }
@@ -111,10 +119,8 @@ try {
     }
     Assert-Quick (!$literalOutputs.Count) ('nessun Write-Host/Warning/Error con testo letterale'+$(if($literalOutputs.Count){': '+(($literalOutputs|Select-Object -First 5) -join '; ')}))
     Assert-Quick (!$literalThrows.Count) ('nessun throw con testo letterale nei moduli e negli script'+$(if($literalThrows.Count){': '+(($literalThrows|Select-Object -First 5) -join '; ')}))
-    Assert-Quick (!$scriptGaps.Count) ('ogni chiave usata dagli script ha testo it e en nello script'+$(if($scriptGaps.Count){': '+(($scriptGaps|Select-Object -Unique -First 5) -join '; ')}))
-    $env:SECONDBRAIN_LANG='it';$itPara=Get-SBMessage 'para.status.invalid'
-    $env:SECONDBRAIN_LANG='en';$enPara=Get-SBMessage 'para.status.invalid'
-    Assert-Quick ($itPara -ceq 'Stato PARA non valido' -and $enPara -ceq 'Invalid PARA status') 'catalogo messaggi: Para in it e en'
+    Assert-Quick (!$scriptGaps.Count) ('ogni chiave usata dagli script ha testo en nello script'+$(if($scriptGaps.Count){': '+(($scriptGaps|Select-Object -Unique -First 5) -join '; ')}))
+    Assert-Quick ((Get-SBMessage 'para.status.invalid') -ceq 'Invalid PARA status') 'catalogo messaggi: Para in en'
     # Facts quoted in the public documents derive from the code (tool count, prompt count, anchors, versions).
     $toolCount=@(& (Get-Module SecondBrain.Mcp) { Get-SBMcpToolDefinitions }).Count
     $promptCount=@((ConvertFrom-Json (Read-SBText (Join-Path $productRoot 'direttive/prompts/catalog.json'))).prompts).Count
@@ -270,4 +276,4 @@ try {
     $direct=@(Get-ChildItem -LiteralPath $PSScriptRoot -File|Where-Object {$_.Extension -in '.ps1','.psm1' -and $_.Name -notlike 'test-*' -and $_.Name -ne 'SecondBrain.Core.psm1'}|Select-String -Pattern 'Get-Date|\[Date[Tt]ime(Offset)?\]::(Now|UtcNow)|NewGuid|Get-Random')
     Assert-Quick ($direct.Count -eq 0) ('nessun orologio o GUID diretto fuori da Core e dai test'+$(if($direct.Count){': '+$direct[0].Filename+':'+$direct[0].LineNumber}))
     'SUCCESS QUICK: '+$script:quickChecks+' verifiche pure (nessun Git, nessun processo figlio).'
-} finally { $env:SECONDBRAIN_LANG=$savedLang; Set-SBUiLanguage '' }
+} finally { }

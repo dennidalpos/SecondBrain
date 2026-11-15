@@ -17,14 +17,13 @@ param(
     [Parameter(Mandatory)][string]$Repository,
     [string[]]$ParentTools,[switch]$ParentWrite,
     [ValidateSet('claude-code','codex','antigravity','vscode','android-studio','claude','cursor','windsurf','continue','jetbrains')][string]$Client,
-    [string]$OutputPath,[string]$ConfigPath,[string]$SessionId,[switch]$Apply,[ValidateSet('it','en')][string]$Language
+    [string]$OutputPath,[string]$ConfigPath,[string]$SessionId,[switch]$Apply
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
-if($Language){$env:SECONDBRAIN_LANG=$Language}
 foreach($m in 'Core','Access','Host','Para','Knowledge','Subagents'){Import-Module (Join-Path $PSScriptRoot ('SecondBrain.'+$m+'.psm1'))}
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
-Add-SBMessages @{'subagent.cli'=@{it='Subagenti: parametro mancante o fuori perimetro ({0})';en='Subagents: missing or out-of-scope parameter ({0})'}}
+Add-SBMessages @{'subagent.cli'=@{ en = 'Subagents: missing or out-of-scope parameter ({0})' }}
 $brain=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 if(!(Test-SBRepositoryIdentity $Repository)){throw (New-SBError 'subagent.cli' @('repository'))}
 $dossier=Resolve-SBParaPath $brain (Resolve-SBWorkingDossier $brain $Repository)

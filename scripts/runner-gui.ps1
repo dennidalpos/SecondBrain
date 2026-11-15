@@ -27,23 +27,23 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Host.psm1')
 Add-SBMessages @{
-    'runnergui.prereq.missing' = @{it='Per compilare il runner servono {0} nel PATH. Requisiti e installazione: docs/orchestratore.it.md';en='Building the runner needs {0} in the PATH. Requirements and setup: docs/orchestratore.md'}
-    'runnergui.linux.webkit' = @{it='Su Linux servono anche le librerie WebKitGTK: sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf';en='On Linux the WebKitGTK libraries are also needed: sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf'}
-    'runnergui.app.missing' = @{it='Cartella dell app non trovata: {0}';en='App folder not found: {0}'}
-    'runnergui.build.reason' = @{it='Compilazione del runner ({0}): {1}';en='Building the runner ({0}): {1}'}
-    'runnergui.build.npmci' = @{it='node_modules assente: npm ci';en='node_modules missing: npm ci'}
-    'runnergui.build.failed' = @{it='Compilazione non riuscita ({0}, uscita {1}). Vedi docs/orchestratore.it.md';en='Build failed ({0}, exit {1}). See docs/orchestratore.md'}
-    'runnergui.build.done' = @{it='Runner compilato: {0}';en='Runner built: {0}'}
-    'runnergui.binary.missing' = @{it='Binario del runner assente dopo la compilazione: {0}';en='Runner binary missing after the build: {0}'}
-    'runnergui.current' = @{it='Runner aggiornato: {0}';en='Runner up to date: {0}'}
-    'runnergui.launch' = @{it='Avvio del runner (SECONDBRAIN_HOME={0})';en='Starting the runner (SECONDBRAIN_HOME={0})'}
-    'runnergui.launch.log' = @{it='Output del runner in {0}';en='Runner output in {0}'}
-    'runnergui.whatif.build' = @{it='Compilazione del runner ({0})';en='Build the runner ({0})'}
-    'runnergui.whatif.launch' = @{it='Avvio del runner';en='Start the runner'}
-    'runnergui.display.missing' = @{it='Nessuna sessione grafica (DISPLAY o WAYLAND_DISPLAY assenti): il runner desktop non puo aprirsi';en='No graphical session (DISPLAY or WAYLAND_DISPLAY missing): the desktop runner cannot open'}
-    'runnergui.launch.failed' = @{it='Il runner desktop non si e avviato ({0}). Requisiti: docs/orchestratore.it.md';en='The desktop runner did not start ({0}). Requirements: docs/orchestratore.md'}
-    'runnergui.repository' = @{it='Repository da aprire: {0}';en='Repository to open: {0}'}
-    'runnergui.launch.detached' = @{it='Avvio tramite WMI fuori dal contenitore del chiamante ({0}): chiusure, crash e aggiornamenti dell app chiamante non fermano il runner';en='Starting through WMI outside the caller''s container ({0}): closing, crashing or updating the calling app does not stop the runner'}
+    'runnergui.prereq.missing' = @{ en = 'Building the runner needs {0} in the PATH. Requirements and setup: docs/orchestratore.md' }
+    'runnergui.linux.webkit' = @{ en = 'On Linux the WebKitGTK libraries are also needed: sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf' }
+    'runnergui.app.missing' = @{ en = 'App folder not found: {0}' }
+    'runnergui.build.reason' = @{ en = 'Building the runner ({0}): {1}' }
+    'runnergui.build.npmci' = @{ en = 'node_modules missing: npm ci' }
+    'runnergui.build.failed' = @{ en = 'Build failed ({0}, exit {1}). See docs/orchestratore.md' }
+    'runnergui.build.done' = @{ en = 'Runner built: {0}' }
+    'runnergui.binary.missing' = @{ en = 'Runner binary missing after the build: {0}' }
+    'runnergui.current' = @{ en = 'Runner up to date: {0}' }
+    'runnergui.launch' = @{ en = 'Starting the runner (SECONDBRAIN_HOME={0})' }
+    'runnergui.launch.log' = @{ en = 'Runner output in {0}' }
+    'runnergui.whatif.build' = @{ en = 'Build the runner ({0})' }
+    'runnergui.whatif.launch' = @{ en = 'Start the runner' }
+    'runnergui.display.missing' = @{ en = 'No graphical session (DISPLAY or WAYLAND_DISPLAY missing): the desktop runner cannot open' }
+    'runnergui.launch.failed' = @{ en = 'The desktop runner did not start ({0}). Requirements: docs/orchestratore.md' }
+    'runnergui.repository' = @{ en = 'Repository to open: {0}' }
+    'runnergui.launch.detached' = @{ en = 'Starting through WMI outside the caller''s container ({0}): closing, crashing or updating the calling app does not stop the runner' }
 }
 function Write-RunnerGuiLine([string]$Key,[object[]]$Arguments=@()){[Console]::Error.WriteLine((Get-SBMessage $Key $Arguments))}
 function Stop-RunnerGui([string]$Key,[object[]]$Arguments,[int]$Code){

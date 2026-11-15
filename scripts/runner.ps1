@@ -20,9 +20,9 @@ Set-StrictMode -Version Latest
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Add-SBMessages @{
-    'runner.mode.gui' = @{it='Apertura del runner desktop su {0}';en='Opening the desktop runner on {0}'}
-    'runner.mode.fallback' = @{it='Runner desktop non disponibile ({0}): uso il runner da riga di comando';en='Desktop runner unavailable ({0}): using the command-line runner'}
-    'runner.mode.cli' = @{it='Runner da riga di comando su {0}: anteprima senza esecuzione';en='Command-line runner on {0}: preview without running'}
+    'runner.mode.gui' = @{ en = 'Opening the desktop runner on {0}' }
+    'runner.mode.fallback' = @{ en = 'Desktop runner unavailable ({0}): using the command-line runner' }
+    'runner.mode.cli' = @{ en = 'Command-line runner on {0}: preview without running' }
 }
 # Exit codes of runner-gui.ps1 mapped to the fallback reason.
 $guiReasons=@{2='prerequisites-missing';3='build-failed';4='no-display';5='launch-failed'}

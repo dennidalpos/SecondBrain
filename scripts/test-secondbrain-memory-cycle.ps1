@@ -74,10 +74,10 @@ $englishContext=(Read-SBText (Join-Path $d 'context.md')).Replace('Stato corrent
 $derived.changes=@(@{kind='context';text=$englishContext;verified=$true;eventIds=@('a2')},@{kind='topic';path='topics/fixture.md';text='# Verified topic';verified=$true;eventIds=@('a2')})
 $derivedResult=Invoke-SBCyclePromotion $brain $derived $workspace $backups -Apply
 $topicText=Read-SBText (Join-Path $d 'topics/fixture.md')
-$topicLink=[regex]::Match($topicText,'\[registro del turno\]\(([^)]+)\)').Groups[1].Value
+$topicLink=[regex]::Match($topicText,'\[turn log\]\(([^)]+)\)').Groups[1].Value
 Assert-Cycle ($derivedResult.state -eq 'applied' -and (Read-SBText (Join-Path $d 'context.md')).Contains('eventi a2') -and (Test-SBSamePath ([IO.Path]::GetFullPath((Join-Path (Join-Path $d 'topics') $topicLink))) $saved.path)) 'context and topic derivatives retain resolvable turn and event references'
 $view=Read-SBText (Join-Path $d 'memory.agent.md')
-Assert-Cycle ($view -notmatch 'Decisione decision-1' -and $view -notmatch '<!-- sb:decision') 'agent view excludes superseded blocks and markers'
+Assert-Cycle ($view -notmatch 'Decision decision-1' -and $view -notmatch '<!-- sb:decision') 'agent view excludes superseded blocks and markers'
 $index=Save-SBCycleKnowledgeIndex $brain $repo $backups -Apply
 $again=Save-SBCycleKnowledgeIndex $brain $repo $backups -Apply
 Assert-Cycle ($index.entries -ge 3 -and $again.operations -eq 0) 'index reconstructible and unchanged sources not rewritten'
@@ -259,7 +259,7 @@ foreach($badHash in @($null,('0'*64))){
 $cliResult=& pwsh -NoProfile -File (Join-Path $scripts 'memory-cycle.ps1') -Operation Permit -InputPath $requestFile -Workspace $workspace -ConfigPath $configPath -PreviewSha256 $previewHash -Apply|Out-String|ConvertFrom-Json -AsHashtable
 Assert-Cycle ($LASTEXITCODE -eq 0 -and $cliResult.state -eq 'authorized') 'Permit CLI Apply emits a single-turn receipt'
 $ignored=@($native|ConvertTo-Json -Compress|& pwsh -NoProfile -File (Join-Path $scripts 'memory-cycle-hook.ps1') -Client codex -PermitPath $cliResult.permitPath -PermitSha256 $cliResult.permitSha256 -ConfigPath $configPath -Diagnostics 2>&1)
-Assert-Cycle ((Read-SBText (Join-Path $d 'memory.md')) -match 'Decisione: Native fixture decision') ('authorized native Stop captures and promotes with retained event evidence: '+($ignored -join ' '))
+Assert-Cycle ((Read-SBText (Join-Path $d 'memory.md')) -match 'Decision: Native fixture decision') ('authorized native Stop captures and promotes with retained event evidence: '+($ignored -join ' '))
 $memoryHash=Get-SBFileHash (Join-Path $d 'memory.md')
 $ignored=@($native|ConvertTo-Json -Compress|& pwsh -NoProfile -File (Join-Path $scripts 'memory-cycle-hook.ps1') -Client codex -PermitPath $cliResult.permitPath -PermitSha256 $cliResult.permitSha256 -ConfigPath $configPath 2>&1)
 Assert-Cycle ((Get-SBFileHash (Join-Path $d 'memory.md')) -ceq $memoryHash) 'native Stop replay cannot duplicate a promoted decision'

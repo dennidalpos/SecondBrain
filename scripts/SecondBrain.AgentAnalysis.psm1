@@ -12,12 +12,12 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.AgentAdapters.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.RunnerStatus.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Tracker.psm1')
 Add-SBMessages @{
-    'analysis.agent.notready' = @{it='{0} non è pronto ({1}): installa o aggiorna la CLI, poi rileva di nuovo gli agenti';en='{0} is not ready ({1}): install or update the CLI, then probe the agents again'}
-    'analysis.quota.exhausted' = @{it='Quota {0} esaurita fino a {1}: analisi non avviata. Scegli un altro agente o riprova dopo il ripristino';en='{0} quota exhausted until {1}: analysis not started. Pick another agent or retry after the reset'}
-    'analysis.limit' = @{it='Limite di {0} durante l''analisi ({1}): {2}';en='{0} limit during the analysis ({1}): {2}'}
-    'analysis.agent.failed' = @{it='Analisi non riuscita con {0} ({1}, uscita {2}): {3}';en='Analysis failed with {0} ({1}, exit {2}): {3}'}
-    'analysis.output.invalid' = @{it='Risposta di {0} non conforme allo schema dopo {1} tentativi: {2}. Riprova o scegli un modello più capace';en='{0} answer does not match the schema after {1} attempts: {2}. Retry or pick a more capable model'}
-    'analysis.card.missing' = @{it='Scheda di prompt {0} non trovata in direttive/prompts';en='Prompt card {0} not found in direttive/prompts'}
+    'analysis.agent.notready' = @{ en = '{0} is not ready ({1}): install or update the CLI, then probe the agents again' }
+    'analysis.quota.exhausted' = @{ en = '{0} quota exhausted until {1}: analysis not started. Pick another agent or retry after the reset' }
+    'analysis.limit' = @{ en = '{0} limit during the analysis ({1}): {2}' }
+    'analysis.agent.failed' = @{ en = 'Analysis failed with {0} ({1}, exit {2}): {3}' }
+    'analysis.output.invalid' = @{ en = '{0} answer does not match the schema after {1} attempts: {2}. Retry or pick a more capable model' }
+    'analysis.card.missing' = @{ en = 'Prompt card {0} not found in direttive/prompts' }
 }
 $script:SBAnalysisKinds=@{directives=@{card='DOC06';schema='directives.schema.json'};task=@{card='REP18';schema='task.schema.json'}}
 function Get-SBAnalysisSchemaPath([string]$BrainRoot,[ValidateSet('directives','task')][string]$Kind) {

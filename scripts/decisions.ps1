@@ -46,8 +46,8 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Pending.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Decisions.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.TaskRunner.psm1')
 Add-SBMessages @{
-    'decisionscli.repository' = @{it='Repository in lavoro non risolvibile: eseguire dal checkout o indicare -CheckoutPath';en='Working repository not resolvable: run from the checkout or give -CheckoutPath'}
-    'decisionscli.options' = @{it='-OptionsJson deve essere un array JSON di 2-4 oggetti {id,label,description,recommended?}';en='-OptionsJson must be a JSON array of 2 to 4 {id,label,description,recommended?} objects'}
+    'decisionscli.repository' = @{ en = 'Working repository not resolvable: run from the checkout or give -CheckoutPath' }
+    'decisionscli.options' = @{ en = '-OptionsJson must be a JSON array of 2 to 4 {id,label,description,recommended?} objects' }
 }
 $brain=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'));$lock=$null
 $write=$PSCmdlet.ParameterSetName -ne 'List'

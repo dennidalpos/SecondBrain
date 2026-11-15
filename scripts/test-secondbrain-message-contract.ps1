@@ -40,33 +40,23 @@ Put-Tracker $trackerPath (ConvertTo-SBJson $invalid)
 Reject-Tracker {Invoke-SBTrackerHistoryMigration -BrainRoot $contractRoot -Identity $identity -Path $trackerPath} 'history migration validates metadata even on an already migrated tracker'
 Put-Tracker $trackerPath (ConvertTo-SBJson $migrated)
 Reject-Tracker {Invoke-SBTrackerHistoryMigration -BrainRoot $contractRoot -Identity $identity -Path $trackerPath -WorkingRepository 'github.com/test/other' -Apply} 'history migration rejects a foreign working repository'
-$texts = @{}; $savedLanguage = $env:SECONDBRAIN_LANG
-try {
-    foreach ($language in 'it','en') {
-        $env:SECONDBRAIN_LANG = $language
-        $view = @(Get-SBTrackerHistoryMessages $migrated)
-        $audit = (Get-SBAuditResource 'https://api.github.com/repos/test/repo/issues?per_page=100' 'issues' $true @{halted=$false;reason=$null} {param($url) @{statusCode=404;headers=@{};body=$null;bodySha256=$null;errorKind=$null}}).resource
-        $pagination = (Get-SBAuditResource 'https://api.github.com/repos/test/repo/issues?per_page=100' 'issues' $true @{halted=$false;reason=$null} {param($url) @{statusCode=200;headers=@{link='<https://evil.example/items>; rel="next"'};body=@();bodySha256=$null;errorKind=$null}}).resource
-        $conversion = Add-SBReportDiagnostic @{reason='converter-unavailable'} 'sources'
-        $publication = Add-SBReportDiagnostic @{reason='binary-review-required'} 'publication'
-        Assert-Tracker ($audit.code -ceq 'audit.reason.http' -and !$audit.complete -and $audit.reason -eq 'http_404' -and $pagination.code -ceq 'audit.reason.unsafe_pagination_link') ('stable HTTP and pagination codes: '+$language)
-        Assert-Tracker ($conversion.code -ceq 'sources.reason.converter-unavailable' -and $publication.code -ceq 'publication.reason.binary-review-required') ('stable conversion and publication codes: '+$language)
-        Assert-Tracker ($view[1].description -ceq $note -and $view[1].message.Contains($note) -and !(Read-SBText $trackerPath).Contains('"message":')) ('localized history is a derived view: '+$language)
-        $tools = @((Invoke-SBMcpMessage -BrainRoot $contractRoot -Message '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' | ConvertFrom-Json -AsHashtable).result.tools)
-        $texts[$language] = @{history=$view[0].message;http=$audit.message;pagination=$pagination.message;conversion=$conversion.message;publication=$publication.message;tools=$tools}
-    }
-    foreach ($field in 'history','http','pagination','conversion','publication') {
-        Assert-Tracker ($texts.it[$field] -cne $texts.en[$field]) ('localized text with stable identity: '+$field)
-    }
-    Assert-Tracker (($texts.it.tools.name -join ',') -ceq ($texts.en.tools.name -join ',') -and $texts.en.tools.Count -eq 13) 'MCP localization preserves tool identities'
-    for($i=0;$i -lt $texts.it.tools.Count;$i++){
-        $it=$texts.it.tools[$i];$en=$texts.en.tools[$i]
-        Assert-Tracker ($it.description -cne $en.description) ('MCP tool description localized: '+$it.name)
-        foreach($parameter in $it.inputSchema.properties.Keys){
-            Assert-Tracker ($it.inputSchema.properties[$parameter].description -cne $en.inputSchema.properties[$parameter].description) ('MCP parameter description localized: '+$it.name+'.'+$parameter)
-        }
-    }
-} finally { $env:SECONDBRAIN_LANG = $savedLanguage }
+# English-only: one text per key; codes stay stable and the removed language selection has no effect.
+$view = @(Get-SBTrackerHistoryMessages $migrated)
+$audit = (Get-SBAuditResource 'https://api.github.com/repos/test/repo/issues?per_page=100' 'issues' $true @{halted=$false;reason=$null} {param($url) @{statusCode=404;headers=@{};body=$null;bodySha256=$null;errorKind=$null}}).resource
+$pagination = (Get-SBAuditResource 'https://api.github.com/repos/test/repo/issues?per_page=100' 'issues' $true @{halted=$false;reason=$null} {param($url) @{statusCode=200;headers=@{link='<https://evil.example/items>; rel="next"'};body=@();bodySha256=$null;errorKind=$null}}).resource
+$conversion = Add-SBReportDiagnostic @{reason='converter-unavailable'} 'sources'
+$publication = Add-SBReportDiagnostic @{reason='binary-review-required'} 'publication'
+Assert-Tracker ($audit.code -ceq 'audit.reason.http' -and !$audit.complete -and $audit.reason -eq 'http_404' -and $pagination.code -ceq 'audit.reason.unsafe_pagination_link') 'stable HTTP and pagination codes'
+Assert-Tracker ($conversion.code -ceq 'sources.reason.converter-unavailable' -and $publication.code -ceq 'publication.reason.binary-review-required') 'stable conversion and publication codes'
+Assert-Tracker ($view[1].description -ceq $note -and $view[1].message.Contains($note) -and !(Read-SBText $trackerPath).Contains('"message":')) 'history messages are a derived view'
+foreach ($field in @($view[0].message, $audit.message, $pagination.message, $conversion.message, $publication.message)) {
+    Assert-Tracker ($field -and $field -cmatch '^[\x20-\x7E]+$' -and $field -cnotmatch '(?<![A-Za-z])(non|nessun|errore|manca)(?![A-Za-z])') 'diagnostic text is English'
+}
+$tools = @((Invoke-SBMcpMessage -BrainRoot $contractRoot -Message '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' | ConvertFrom-Json -AsHashtable).result.tools)
+Assert-Tracker ($tools.Count -eq 13) 'MCP lists thirteen tools'
+foreach ($tool in $tools) {
+    Assert-Tracker ($tool.description -and !$tool.inputSchema.properties.ContainsKey('language')) ('MCP tool has an English description and no language argument: '+$tool.name)
+}
 
 # Interrupt after the first update; recovery must restore both input files exactly.
 $recoveryRoot = Join-Path $contractRoot 'recovery'
@@ -95,10 +85,6 @@ $tokens=$null;$parseErrors=$null
 [void][Management.Automation.Language.Parser]::ParseFile($installer,[ref]$tokens,[ref]$parseErrors)
 Assert-Tracker (!$parseErrors.Count -and (Read-SBText $installer) -notmatch 'throw\s+["'']|Write-Host\s+["'']') 'generated MCP installer parses and has no literal error or status messages'
 $probe = Join-Path $contractRoot '.runtime/package-probe.ps1'
-Put-Tracker $probe 'param($Installer,$Language) $env:SECONDBRAIN_HOME=$null; try { & $Installer -Language $Language; exit 1 } catch { $failure=$_.Exception;while(!$failure.Data.Contains("code") -and $failure.InnerException){$failure=$failure.InnerException};@{code=$failure.Data["code"];message=$failure.Message}|ConvertTo-Json -Compress }'
-$packageResults=@{}
-foreach($language in 'it','en'){
-    $packageResults[$language] = (& pwsh -NoProfile -File $probe -Installer $installer -Language $language) | ConvertFrom-Json
-    Assert-Tracker ($LASTEXITCODE -eq 0 -and $packageResults[$language].code -ceq 'mcp.package.root') ('standalone MCP bootstrap code without a brain: '+$language)
-}
-Assert-Tracker ($packageResults.it.message -cne $packageResults.en.message) 'standalone MCP bootstrap localizes without a brain'
+Put-Tracker $probe 'param($Installer) $env:SECONDBRAIN_HOME=$null; try { & $Installer; exit 1 } catch { $failure=$_.Exception;while(!$failure.Data.Contains("code") -and $failure.InnerException){$failure=$failure.InnerException};@{code=$failure.Data["code"];message=$failure.Message}|ConvertTo-Json -Compress }'
+$packageResult = (& pwsh -NoProfile -File $probe -Installer $installer) | ConvertFrom-Json
+Assert-Tracker ($LASTEXITCODE -eq 0 -and $packageResult.code -ceq 'mcp.package.root' -and $packageResult.message -cmatch '^[\x20-\x7E]+$') 'standalone MCP bootstrap code and English text without a brain'

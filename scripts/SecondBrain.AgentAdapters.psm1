@@ -9,12 +9,12 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Host.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Add-SBMessages @{
-    'agents.provider.unknown' = @{it='Provider sconosciuto: {0}. Valori ammessi: {1}';en='Unknown provider: {0}. Allowed values: {1}'}
-    'agents.model.unsupported' = @{it='{0} installato non accetta la scelta del modello (manca {1} in --help). Ometti -Model o aggiorna la CLI';en='The installed {0} does not accept a model choice ({1} is missing from --help). Omit -Model or update the CLI'}
-    'agents.model.unknown' = @{it='Modello {0} non tra quelli noti per {1} ({2}). Scegline uno con scripts/agents.ps1 -Probe -Provider {3} oppure aggiungi -AllowCustomModel';en='Model {0} is not among the known models for {1} ({2}). Pick one with scripts/agents.ps1 -Probe -Provider {3} or add -AllowCustomModel'}
-    'agents.effort.unsupported' = @{it='{0} non espone un livello di impegno da riga di comando. Ometti -Effort';en='{0} exposes no effort level on the command line. Omit -Effort'}
-    'agents.effort.unknown' = @{it='Impegno {0} non supportato da {1} per il modello {2}. Valori ammessi: {3}';en='Effort {0} is not supported by {1} for model {2}. Allowed values: {3}'}
-    'agents.table.invalid' = @{it='Tabella dei modelli non valida: {0}. Correggi il JSON (schemaVersion 1, providers.<id>.models/efforts)';en='Invalid model table: {0}. Fix the JSON (schemaVersion 1, providers.<id>.models/efforts)'}
+    'agents.provider.unknown' = @{ en = 'Unknown provider: {0}. Allowed values: {1}' }
+    'agents.model.unsupported' = @{ en = 'The installed {0} does not accept a model choice ({1} is missing from --help). Omit -Model or update the CLI' }
+    'agents.model.unknown' = @{ en = 'Model {0} is not among the known models for {1} ({2}). Pick one with scripts/agents.ps1 -Probe -Provider {3} or add -AllowCustomModel' }
+    'agents.effort.unsupported' = @{ en = '{0} exposes no effort level on the command line. Omit -Effort' }
+    'agents.effort.unknown' = @{ en = 'Effort {0} is not supported by {1} for model {2}. Allowed values: {3}' }
+    'agents.table.invalid' = @{ en = 'Invalid model table: {0}. Fix the JSON (schemaVersion 1, providers.<id>.models/efforts)' }
 }
 # Fixed permission profile for unattended runs: file edits inside the checkout, no git history changes, no deletion.
 $script:SBClaudeAllowed='Bash,Read,Edit,Write,Grep,Glob,Skill'

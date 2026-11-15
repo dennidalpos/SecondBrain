@@ -56,7 +56,7 @@ For a workstation check, pass a schema 1 IDE observation receipt under `.runtime
 
 Claude Code provides /mcp; Codex CLI provides codex mcp list. These inspect the selected client's view, not another user's account.
 
-Tool-description language follows server Language/SECONDBRAIN_LANG; per-call language controls content. Restart cached sessions after deliberate configuration/description changes; do not restart another agent's process automatically.
+Tool descriptions are English only (the `Language` option, `SECONDBRAIN_LANG` and the per-call `language` argument were removed in 3.0). Restart cached sessions after deliberate configuration/description changes; do not restart another agent's process automatically.
 
 ## Troubleshooting and limits
 

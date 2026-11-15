@@ -179,9 +179,9 @@ Assert-Prompts ($station.Contains('<!-- secondbrain:tracker-contract:1 -->')) 'c
 $registry=@(Get-SBWorkflowCommands|ForEach-Object {$_.command})
 $english='sb activate','sb check','sb sync','sb compact','sb stop','sb prompt list','sb prompt area AREA','sb prompt show KEY'
 foreach($command in $english){Assert-Prompts ($command -in $registry) "command '$command' in the registry"}
-# Italian verbs of revisions up to 1.2 stay resolvable as aliases for the whole major version.
+# English-only (3.0): the Italian verbs of revisions up to 1.2 are no longer aliases.
 $aliases=@(Get-SBWorkflowCommands|ForEach-Object {@($_.aliases)})
-foreach($alias in 'sb attiva','sb controlla','sb allinea','sb compatta','sb prompt ambito AREA','sb prompt mostra CHIAVE'){Assert-Prompts ($alias -in $aliases -and $alias -notin $registry) "alias '$alias' kept and not primary"}
+Assert-Prompts ($aliases.Count -eq 0) 'the verb registry has no aliases (Italian sb verbs removed)'
 Assert-Prompts ((@(Get-SBWorkflowCommands|Where-Object command -eq 'sb stop')[0].script) -match '-Prompt MEM09$') 'sb stop compone MEM09'
 foreach($word in $english){Assert-Prompts ($station.Contains($word)) "command '$word' described in the workstation text"}
 $referenced=@([regex]::Matches($global+$station+$repoBlock,'(?:COM|PRG|DEV|TST|SEC|AUD|INT|DAT|OPS|DOC|REP|GOV|MEM|SYS)\d{2}')|ForEach-Object {$_.Value}|Select-Object -Unique)

@@ -3,28 +3,28 @@ Set-StrictMode -Version Latest
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Add-SBMessages @{
-    'access.station.inactive' = @{ it = 'Postazione non attivata: eseguire la procedura di attivazione (SYS03, scripts/secondbrain.ps1 -Setup)'; en = 'Workstation not activated: run the activation procedure (SYS03, scripts/secondbrain.ps1 -Setup)' }
-    'access.config.missing' = @{ it = 'Configurazione non trovata: {0}. Esegui il Setup (sb attiva)'; en = 'Configuration not found: {0}. Run Setup (sb activate)' }
-    'access.brain.unreachable' = @{ it = 'Radice SecondBrain irraggiungibile: {0}. Controlla SECONDBRAIN_HOME e che la cartella esista'; en = 'SecondBrain root is unreachable: {0}. Check SECONDBRAIN_HOME and that the folder exists' }
-    'access.config.chain' = @{ it = 'Catena di configurazioni migrate non valida'; en = 'Invalid chain of migrated configurations' }
-    'access.config.incomplete' = @{ it = 'Configurazione portabile incompleta: {0}'; en = 'Incomplete portable configuration: {0}' }
-    'access.binding.invalid' = @{ it = 'Associazione repository non valida'; en = 'Invalid repository binding' }
-    'access.shared.incomplete' = @{ it = 'config/shared.json assente o incompleto (allowedOwners e excludedDirectories richiesti): ripristinare la policy condivisa'; en = 'config/shared.json missing or incomplete (allowedOwners and excludedDirectories required): restore the shared policy' }
-    'access.shared.owner' = @{ it = 'Owner GitHub non valido in config/shared.json'; en = 'Invalid GitHub owner in config/shared.json' }
-    'access.shared.sessiontimeout' = @{ it = 'sessionTimeoutSeconds in config/shared.json deve essere un intero tra 10 e 86400'; en = 'sessionTimeoutSeconds in config/shared.json must be an integer between 10 and 86400' }
-    'access.shared.lockwait' = @{ it = 'lockWaitSeconds in config/shared.json deve essere un intero tra 0 e 600'; en = 'lockWaitSeconds in config/shared.json must be an integer between 0 and 600' }
-    'access.config.required' = @{ it = 'Configurazione della postazione richiesta: attivare la postazione con secondbrain.ps1 -Setup (SYS03)'; en = 'Workstation configuration required: activate the workstation with secondbrain.ps1 -Setup (SYS03)' }
-    'access.session.invalid' = @{ it = 'SessionId non valido: usa quello restituito da access.ps1 -Start'; en = 'Invalid SessionId: use the one returned by access.ps1 -Start' }
-    'access.queue.timeout' = @{ it = 'Coda di scrittura SecondBrain non disponibile entro il tempo di attesa'; en = 'SecondBrain write queue not available within the wait time' }
-    'access.session.missing' = @{ it = 'Sessione assente o non verificabile: avviane una con access.ps1 -Start'; en = 'Session missing or not verifiable: start one with access.ps1 -Start' }
-    'access.session.missing.write' = @{ it = 'Sessione di scrittura assente o non verificabile: avviane una con access.ps1 -Start'; en = 'Write session missing or not verifiable: start one with access.ps1 -Start' }
-    'access.session.foreign' = @{ it = 'La sessione appartiene a un altro utente o postazione: avviane una tua con access.ps1 -Start'; en = 'The session belongs to another user or workstation: start your own with access.ps1 -Start' }
-    'access.station.identity' = @{ it = 'workstationId gia registrato con un altra identita: usare un nuovo id'; en = 'workstationId already registered with another identity: use a new id' }
-    'access.station.roots' = @{ it = 'runtimeRoot e backupRoot devono essere distinti per postazione'; en = 'runtimeRoot and backupRoot must be distinct per workstation' }
-    'access.station.moved' = @{ it = 'workstationId ''{0}'' gia registrato con percorsi diversi (registrato: {1}; corrente: {2}). Verificare lo spostamento e riconciliare con scripts/access.ps1 -Reconcile.'; en = 'workstationId ''{0}'' already registered with different paths (registered: {1}; current: {2}). Check the move and reconcile with scripts/access.ps1 -Reconcile.' }
-    'access.busy' = @{ it = 'SecondBrain occupato o coordinamento non disponibile dopo {0} s. Titolare: {1}. Riprova piu tardi o attendi la fine della sessione del titolare'; en = 'SecondBrain busy or coordination unavailable after {0} s. Owner: {1}. Retry later or wait for the owner session to end' }
-    'access.pending.who' = @{ it = ' avviata da {0}@{1} il {2}'; en = ' started by {0}@{1} on {2}' }
-    'access.pending' = @{ it = 'Transazione PARA incompleta{0} (manifest: {1}). Recuperare con scripts/recover.ps1 -ManifestPath <manifest> da qualunque postazione che raggiunga il manifest; non rimuovere il marker a mano.'; en = 'Incomplete PARA transaction{0} (manifest: {1}). Recover with scripts/recover.ps1 -ManifestPath <manifest> from any workstation that reaches the manifest; do not remove the marker by hand.' }
+    'access.station.inactive' = @{ en = 'Workstation not activated: run the activation procedure (SYS03, scripts/secondbrain.ps1 -Setup)' }
+    'access.config.missing' = @{ en = 'Configuration not found: {0}. Run Setup (sb activate)' }
+    'access.brain.unreachable' = @{ en = 'SecondBrain root is unreachable: {0}. Check SECONDBRAIN_HOME and that the folder exists' }
+    'access.config.chain' = @{ en = 'Invalid chain of migrated configurations' }
+    'access.config.incomplete' = @{ en = 'Incomplete portable configuration: {0}' }
+    'access.binding.invalid' = @{ en = 'Invalid repository binding' }
+    'access.shared.incomplete' = @{ en = 'config/shared.json missing or incomplete (allowedOwners and excludedDirectories required): restore the shared policy' }
+    'access.shared.owner' = @{ en = 'Invalid GitHub owner in config/shared.json' }
+    'access.shared.sessiontimeout' = @{ en = 'sessionTimeoutSeconds in config/shared.json must be an integer between 10 and 86400' }
+    'access.shared.lockwait' = @{ en = 'lockWaitSeconds in config/shared.json must be an integer between 0 and 600' }
+    'access.config.required' = @{ en = 'Workstation configuration required: activate the workstation with secondbrain.ps1 -Setup (SYS03)' }
+    'access.session.invalid' = @{ en = 'Invalid SessionId: use the one returned by access.ps1 -Start' }
+    'access.queue.timeout' = @{ en = 'SecondBrain write queue not available within the wait time' }
+    'access.session.missing' = @{ en = 'Session missing or not verifiable: start one with access.ps1 -Start' }
+    'access.session.missing.write' = @{ en = 'Write session missing or not verifiable: start one with access.ps1 -Start' }
+    'access.session.foreign' = @{ en = 'The session belongs to another user or workstation: start your own with access.ps1 -Start' }
+    'access.station.identity' = @{ en = 'workstationId already registered with another identity: use a new id' }
+    'access.station.roots' = @{ en = 'runtimeRoot and backupRoot must be distinct per workstation' }
+    'access.station.moved' = @{ en = 'workstationId ''{0}'' already registered with different paths (registered: {1}; current: {2}). Check the move and reconcile with scripts/access.ps1 -Reconcile.' }
+    'access.busy' = @{ en = 'SecondBrain busy or coordination unavailable after {0} s. Owner: {1}. Retry later or wait for the owner session to end' }
+    'access.pending.who' = @{ en = ' started by {0}@{1} on {2}' }
+    'access.pending' = @{ en = 'Incomplete PARA transaction{0} (manifest: {1}). Recover with scripts/recover.ps1 -ManifestPath <manifest> from any workstation that reaches the manifest; do not remove the marker by hand.' }
 }
 
 function Get-SBPendingTransaction([string]$BrainRoot) {

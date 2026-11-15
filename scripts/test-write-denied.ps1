@@ -76,8 +76,8 @@ Invoke-Case 'write-denied' (Join-Path $root 'denied') {
     try{
         $env:USERPROFILE=Join-Path $deniedRoot 'profile'
         Invoke-WriteDeniedAcl (Join-Path $cliBrain '.runtime/access') {
-            foreach($language in @('it','en')){
-                $diagnostic=& pwsh -NoProfile -File (Join-Path $cliScripts 'mcp-server.ps1') -Pair -Target cursor -Apply -Language $language 2>&1|Out-String
+            foreach($language in @('en')){
+                $diagnostic=& pwsh -NoProfile -File (Join-Path $cliScripts 'mcp-server.ps1') -Pair -Target cursor -Apply 2>&1|Out-String
                 Assert-Conc ($LASTEXITCODE -eq 4 -and $diagnostic -match '\[core.write.denied\]' -and $diagnostic -match "-Target 'cursor'" -and $diagnostic -match 'sandbox') ('CLI exit 4 and quoted retry command: '+$language) $diagnostic
             }
         }

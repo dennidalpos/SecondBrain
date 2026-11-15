@@ -71,8 +71,8 @@ export function fmtDate(iso: string | null | undefined): string { return iso ? n
 export function since(iso: string | null | undefined): number { return iso ? (Date.now() - Date.parse(iso)) / 1000 : NaN; }
 export function baseName(p: string) { return p.split(/[\\/]/).filter(Boolean).pop() ?? p; }
 
-export const TOOL_LABEL: Record<string, string> = { claude: "Claude", codex: "Codex", gemini: "Gemini", antigravity: "Antigravity", human: "Persona", unknown: "Sconosciuto" };
-export const MODE_LABEL: Record<string, string> = { runner: "runner", interactive: "sessione interattiva", mcp: "MCP", cli: "riga di comando", analysis: "analisi", "memory-cycle": "ciclo della memoria", backfill: "recupero" };
+export const TOOL_LABEL: Record<string, string> = { claude: "Claude", codex: "Codex", gemini: "Gemini", antigravity: "Antigravity", human: "Person", unknown: "Unknown" };
+export const MODE_LABEL: Record<string, string> = { runner: "runner", interactive: "interactive session", mcp: "MCP", cli: "command line", analysis: "analysis", "memory-cycle": "memory cycle", backfill: "backfill" };
 /** Colored badge of the tool that worked on a task (claude, codex, gemini, antigravity, human, unknown). */
 export function toolBadge(tool: string, extra = ""): HTMLSpanElement {
   const t = TOOL_LABEL[tool] ? tool : "unknown";

@@ -3,39 +3,39 @@ Set-StrictMode -Version Latest
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Add-SBMessages @{
-    'para.path.unconfined' = @{ it = 'Percorso PARA non relativo o non confinato'; en = 'PARA path is not relative or not confined' }
-    'para.path.outside' = @{ it = 'Percorso fuori radice PARA'; en = 'Path outside the PARA root' }
-    'para.reparse.knowledge' = @{ it = 'Reparse point nella conoscenza PARA'; en = 'Reparse point in PARA knowledge' }
-    'para.metadata.missing' = @{ it = 'Metadato PARA mancante: {0}'; en = 'Missing PARA metadata: {0}' }
-    'para.metadata.invalid' = @{ it = 'Metadati PARA non validi'; en = 'Invalid PARA metadata' }
-    'para.status.invalid' = @{ it = 'Stato PARA non valido'; en = 'Invalid PARA status' }
-    'para.id.duplicate' = @{ it = 'Identificatore PARA duplicato: {0}'; en = 'Duplicate PARA identifier: {0}' }
-    'para.category.diverged' = @{ it = 'Categoria e percorso PARA divergenti'; en = 'PARA category and path diverge' }
-    'para.brief.missing' = @{ it = 'Brief mancante: {0}'; en = 'Missing brief: {0}' }
-    'para.project.field' = @{ it = 'Campo progetto non valido: {0}'; en = 'Invalid project field: {0}' }
-    'para.tracker.reference' = @{ it = 'Riferimento tracker non valido'; en = 'Invalid tracker reference' }
-    'para.tracker.repopath' = @{ it = 'Percorso tracker repository mancante'; en = 'Repository tracker path missing' }
-    'para.area.identity' = @{ it = 'Identita del dossier repository non ammessa'; en = 'Repository dossier identity not allowed' }
-    'para.area.repoduplicate' = @{ it = 'Repository associato a piu dossier'; en = 'Repository bound to more than one dossier' }
-    'para.area.incomplete' = @{ it = 'Dossier repository incompleto: {0}/{1}'; en = 'Incomplete repository dossier: {0}/{1}' }
-    'para.area.linkmissing' = @{ it = 'Dossier repository o area collegati inesistenti: {0}'; en = 'Linked repository dossier or area does not exist: {0}' }
-    'para.tracker.unlinked' = @{ it = 'Tracker non collegato ai dossier del progetto'; en = 'Tracker not linked to the project dossiers' }
-    'para.tracker.localmissing' = @{ it = 'Tracker locale inesistente'; en = 'Local tracker does not exist' }
-    'para.index.stale' = @{ it = 'Indice PARA da aggiornare'; en = 'PARA index needs updating' }
-    'para.transaction.outside' = @{ it = 'Operazione transazionale fuori perimetro'; en = 'Transactional operation outside scope' }
-    'para.transaction.duplicate' = @{ it = 'Destinazione duplicata nella transazione'; en = 'Duplicate destination in the transaction' }
-    'para.transaction.changed' = @{ it = 'Contenuto cambiato: {0}'; en = 'Content changed: {0}' }
-    'para.transaction.backup' = @{ it = 'Backup transazionale non verificato'; en = 'Transactional backup not verified' }
-    'para.transaction.incomplete' = @{ it = 'Transazione PARA incompleta: ripristinare prima il manifest pendente'; en = 'Incomplete PARA transaction: restore the pending manifest first' }
-    'para.transaction.marker' = @{ it = 'Indicatore transazione modificato'; en = 'Transaction marker modified' }
-    'para.transaction.interrupted' = @{ it = 'Transazione interrotta; ripristino con manifest {0}. {1}'; en = 'Transaction interrupted; restore with manifest {0}. {1}' }
-    'para.manifest.outside' = @{ it = 'Manifest fuori radice backup autorizzata'; en = 'Manifest outside the authorized backup root' }
-    'para.manifest.foreign' = @{ it = 'Manifest di altra installazione o non valido'; en = 'Manifest of another installation or invalid' }
-    'para.recovery.outside' = @{ it = 'Record di recupero fuori perimetro'; en = 'Recovery record outside scope' }
-    'para.restore.refused' = @{ it = 'Ripristino rifiutato: file modificato {0}'; en = 'Restore refused: file modified {0}' }
-    'para.backup.altered' = @{ it = 'Backup alterato'; en = 'Backup altered' }
-    'para.payload.outside' = @{ it = 'Payload fuori registro di recupero'; en = 'Payload outside the recovery registry' }
-    'para.recovery.pending' = @{ it = 'Altro recupero pendente'; en = 'Another recovery is pending' }
+    'para.path.unconfined' = @{ en = 'PARA path is not relative or not confined' }
+    'para.path.outside' = @{ en = 'Path outside the PARA root' }
+    'para.reparse.knowledge' = @{ en = 'Reparse point in PARA knowledge' }
+    'para.metadata.missing' = @{ en = 'Missing PARA metadata: {0}' }
+    'para.metadata.invalid' = @{ en = 'Invalid PARA metadata' }
+    'para.status.invalid' = @{ en = 'Invalid PARA status' }
+    'para.id.duplicate' = @{ en = 'Duplicate PARA identifier: {0}' }
+    'para.category.diverged' = @{ en = 'PARA category and path diverge' }
+    'para.brief.missing' = @{ en = 'Missing brief: {0}' }
+    'para.project.field' = @{ en = 'Invalid project field: {0}' }
+    'para.tracker.reference' = @{ en = 'Invalid tracker reference' }
+    'para.tracker.repopath' = @{ en = 'Repository tracker path missing' }
+    'para.area.identity' = @{ en = 'Repository dossier identity not allowed' }
+    'para.area.repoduplicate' = @{ en = 'Repository bound to more than one dossier' }
+    'para.area.incomplete' = @{ en = 'Incomplete repository dossier: {0}/{1}' }
+    'para.area.linkmissing' = @{ en = 'Linked repository dossier or area does not exist: {0}' }
+    'para.tracker.unlinked' = @{ en = 'Tracker not linked to the project dossiers' }
+    'para.tracker.localmissing' = @{ en = 'Local tracker does not exist' }
+    'para.index.stale' = @{ en = 'PARA index needs updating' }
+    'para.transaction.outside' = @{ en = 'Transactional operation outside scope' }
+    'para.transaction.duplicate' = @{ en = 'Duplicate destination in the transaction' }
+    'para.transaction.changed' = @{ en = 'Content changed: {0}' }
+    'para.transaction.backup' = @{ en = 'Transactional backup not verified' }
+    'para.transaction.incomplete' = @{ en = 'Incomplete PARA transaction: restore the pending manifest first' }
+    'para.transaction.marker' = @{ en = 'Transaction marker modified' }
+    'para.transaction.interrupted' = @{ en = 'Transaction interrupted; restore with manifest {0}. {1}' }
+    'para.manifest.outside' = @{ en = 'Manifest outside the authorized backup root' }
+    'para.manifest.foreign' = @{ en = 'Manifest of another installation or invalid' }
+    'para.recovery.outside' = @{ en = 'Recovery record outside scope' }
+    'para.restore.refused' = @{ en = 'Restore refused: file modified {0}' }
+    'para.backup.altered' = @{ en = 'Backup altered' }
+    'para.payload.outside' = @{ en = 'Payload outside the recovery registry' }
+    'para.recovery.pending' = @{ en = 'Another recovery is pending' }
 }
 
 function Resolve-SBParaPath([string]$Root,[string]$Relative) {

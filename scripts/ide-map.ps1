@@ -18,10 +18,10 @@ trap { if (Test-SBWriteDeniedError $_) { Write-SBWriteDeniedDiagnostic $_ $PSCom
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Access.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Add-SBMessages @{
-    'idemap.map.invalid' = @{ it = 'Mappa IDE non valida o di un''altra postazione: {0}'; en = 'IDE map invalid or of another workstation: {0}' }
-    'idemap.observations.invalid' = @{ it = 'Osservazioni IDE non valide'; en = 'Invalid IDE observations' }
-    'idemap.entry.invalid' = @{ it = 'Voce della mappa non valida: {0}'; en = 'Invalid map entry: {0}' }
-    'idemap.path.absolute' = @{ it = 'Percorso assoluto richiesto per {0}'; en = 'Absolute path required for {0}' }
+    'idemap.map.invalid' = @{ en = 'IDE map invalid or of another workstation: {0}' }
+    'idemap.observations.invalid' = @{ en = 'Invalid IDE observations' }
+    'idemap.entry.invalid' = @{ en = 'Invalid map entry: {0}' }
+    'idemap.path.absolute' = @{ en = 'Absolute path required for {0}' }
 }
 $config=Read-SBConfiguration $ConfigPath -ReadOnly
 $lock=Enter-SBOperation $config $SessionId -ReadOnly

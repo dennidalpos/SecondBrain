@@ -10,7 +10,7 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Access.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Add-SBMessages @{
-    'mcpwritecli.size' = @{it='Il piano supera il limite di 256 KiB';en='Plan exceeds the 256 KiB limit'}
+    'mcpwritecli.size' = @{ en = 'Plan exceeds the 256 KiB limit' }
 }
 $lock=$null
 try {

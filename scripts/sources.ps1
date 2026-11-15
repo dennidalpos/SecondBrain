@@ -49,7 +49,7 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Access.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Sources.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Add-SBMessages @{
-    'sourcescli.resource.archived' = @{ it = 'Risorsa archiviata'; en = 'Archived resource' }
+    'sourcescli.resource.archived' = @{ en = 'Archived resource' }
 }
 $lock=$null
 try {

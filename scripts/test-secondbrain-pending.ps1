@@ -140,7 +140,7 @@ try {
         @{name='a duplicate task';items=@(@{taskId='T-1';priority='P1'},@{taskId='#001';priority='P3'});needle='Update 2 (T-1)'},
         @{name='an unknown task';items=@(@{taskId='T-404';priority='P1'});needle='Update 1 (T-404)'})){
         Put-Pending $batchFile (ConvertTo-Json -Depth 6 -InputObject @($case.items))
-        $refused=Invoke-PendingCli 'knowledge.ps1' @('-CheckoutPath',$checkout,'-UpdateTasksFile',$batchFile,'-Language','en')
+        $refused=Invoke-PendingCli 'knowledge.ps1' @('-CheckoutPath',$checkout,'-UpdateTasksFile',$batchFile)
         $stderrText=Read-SBText $refused.stderr
         Assert-Pending ($refused.code -eq 2 -and (Get-SBFileHash $trackerPath) -eq $bytesBefore -and @(Get-SBPendingWrites $brain).Count -eq $queueBefore -and $stderrText.Contains($case.needle)) ('#595: '+$case.name+' leaves tracker bytes and queue unchanged and names the item'+$(if($refused.code -ne 2 -or !$stderrText.Contains($case.needle)){' [code '+$refused.code+': '+$stderrText+$refused.text+']'}))
     }

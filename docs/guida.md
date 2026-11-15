@@ -39,14 +39,14 @@ pwsh -NoProfile -File scripts/publication.ps1 -RepositoryPath C:/Projects/MyProd
 
 The product path is explicit so the scripts resolve the correct identity and dossier. `-All` opts into the read-only global task projection. Task writes require the working repository and its declared tracker; never use another tracker as fallback.
 
-Chat commands such as `sb prompt`, `sb controlla`, `sb allinea` and `sb compatta` are conventions, not installed executables. The [per-repository flow](flusso-prodotto.md) maps them to scripts.
+Chat commands such as `sb prompt`, `sb check`, `sb sync` and `sb compact` are conventions, not installed executables. The [per-repository flow](flusso-prodotto.md) maps them to scripts.
 
 ## Environment
 
 | Variable | Purpose |
 |---|---|
 | `SECONDBRAIN_HOME` | User-local clone location. Confirmed Setup application registers it unless `-NoRegisterEnvironment` is used; lower-level Activate uses explicit `-RegisterEnvironment`. Restart open IDEs afterward. |
-| `SECONDBRAIN_LANG` | Message language; explicit `-Language` takes precedence, then environment/configuration/system fallback. Some legacy diagnostics remain untranslated. |
+| `SECONDBRAIN_LANG` | Removed in 3.0: messages are English only, so `-Language` and this variable have no effect. |
 | `SECONDBRAIN_LOCK_WAIT_SECONDS` | Writer-lock wait, default 60 seconds, also controlled by `-WaitSeconds` where supported. |
 | `SECONDBRAIN_PENDING_WAIT_SECONDS` | How long a CLI dossier write waits for the lock before staying `deferred` (0-120, default 8). |
 | `SECONDBRAIN_SKIP_PRE_PUSH` | Explicit one-push hook bypass; it does not qualify the publication or resolve findings. |

@@ -20,7 +20,7 @@ pub fn resolve_root(setting: &str) -> Result<PathBuf, String> {
             return Ok(c.canonicalize().map(|p| plain_path(&p)).unwrap_or(c));
         }
     }
-    Err("SecondBrain non trovato: imposta la radice nelle Impostazioni o la variabile SECONDBRAIN_HOME (deve contenere scripts/agents.ps1).".into())
+    Err("SecondBrain not found: set the root in Settings or the SECONDBRAIN_HOME variable (it must contain scripts/agents.ps1).".into())
 }
 
 /// On Windows `canonicalize` returns verbatim paths (`\\?\D:\x`, `\\?\UNC\server\share`); the PowerShell scripts derive the
@@ -110,19 +110,19 @@ pub fn script_command(pwsh: &str, root: &Path, script: &str, args: &[String]) ->
 /// The SecondBrain CLIs print one JSON document on stdout, possibly after other lines: parse from the first bracket.
 pub fn parse_json_output(stdout: &str) -> Result<Value, String> {
     let start = stdout.find(|c| c == '{' || c == '[').ok_or_else(|| "Nessun JSON nell'output dello script.".to_string())?;
-    serde_json::from_str(stdout[start..].trim()).map_err(|e| format!("JSON non valido dallo script: {e}"))
+    serde_json::from_str(stdout[start..].trim()).map_err(|e| format!("Invalid JSON from the script: {e}"))
 }
 
 /// Runs one script to completion: JSON on success, stderr and stdout as the error otherwise.
 pub fn run_json(pwsh: &str, root: &Path, script: &str, args: &[String]) -> Result<Value, String> {
     let output = script_command(pwsh, root, script, args)
         .output()
-        .map_err(|e| format!("Avvio di PowerShell non riuscito ({pwsh}): {e}. Installa PowerShell 7.5+ o indica il percorso nelle Impostazioni."))?;
+        .map_err(|e| format!("PowerShell start failed ({pwsh}): {e}. Install PowerShell 7.5+ or set the path in Settings."))?;
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
     if !output.status.success() {
         let text = format!("{}\n{}", stderr.trim(), stdout.trim());
-        return Err(format!("{script} terminato con codice {}: {}", exit_code_text(output.status.code()), text.trim()));
+        return Err(format!("{script} ended with code {}: {}", exit_code_text(output.status.code()), text.trim()));
     }
     parse_json_output(&stdout)
 }
@@ -143,8 +143,8 @@ pub fn kill_tree(pid: u32) -> Result<(), String> {
     };
     match status {
         Ok(s) if s.success() => Ok(()),
-        Ok(s) => Err(format!("Arresto del processo {pid} non riuscito (codice {})", exit_code_text(s.code()))),
-        Err(e) => Err(format!("Arresto del processo {pid} non riuscito: {e}")),
+        Ok(s) => Err(format!("Stopping process {pid} failed (code {})", exit_code_text(s.code()))),
+        Err(e) => Err(format!("Stopping process {pid} failed: {e}")),
     }
 }
 

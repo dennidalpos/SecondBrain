@@ -48,9 +48,7 @@ param([Parameter(ParameterSetName='Tasks')][switch]$Tasks,[Parameter(ParameterSe
     [Parameter(ParameterSetName='Search')][ValidateSet('normative','policy','informazioni','prompt','memoria')][string[]]$Category=@(),
     [Parameter(ParameterSetName='Startup')][string[]]$TaskIds=@(),
     [Parameter(ParameterSetName='Startup')][Parameter(ParameterSetName='Search')][string]$PreviousRevision,
-    [switch]$NoRecovery,
-    [ValidateSet('en','it')][string]$Language)
-if($Language){$env:SECONDBRAIN_LANG=$Language}
+    [switch]$NoRecovery)
 $ErrorActionPreference='Stop'
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Access.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Knowledge.psm1')
@@ -63,12 +61,12 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.TaskRunner.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.TaskLedger.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Host.psm1')
 Add-SBMessages @{
-    'knowledgecli.pending.summary.next' = @{it='Elenco filtrato: -PendingWrites -PendingState conflict (o deferred); scarto di un conflitto: -DiscardPending <id>';en='Filtered list: -PendingWrites -PendingState conflict (or deferred); discard a conflict with -DiscardPending <id>'}
-    'knowledgecli.pending.size' = @{it='Il contenuto supera il limite di 2 MiB';en='Content exceeds the 2 MiB limit'}
-    'knowledgecli.repository.all' = @{ it = 'Repository in lavoro non risolvibile: eseguire dal checkout, indicare -Repository o -CheckoutPath (-All per la vista globale dei task, sola lettura)'; en = 'Working repository not resolvable: run from the checkout, give -Repository or -CheckoutPath (-All for the read-only global task view)' }
-    'knowledgecli.lifecycle.working' = @{ it = 'Il ciclo di vita si modifica soltanto per il repository in lavoro'; en = 'The lifecycle can be changed only for the working repository' }
-    'knowledgecli.repository.checkout' = @{ it = 'Repository in lavoro non risolvibile: eseguire dal checkout o indicare -CheckoutPath'; en = 'Working repository not resolvable: run from the checkout or give -CheckoutPath' }
-    'knowledgecli.params.incompatible' = @{ it = 'Parametri incompatibili: -All e -Repository'; en = 'Incompatible parameters: -All and -Repository' }
+    'knowledgecli.pending.summary.next' = @{ en = 'Filtered list: -PendingWrites -PendingState conflict (or deferred); discard a conflict with -DiscardPending <id>' }
+    'knowledgecli.pending.size' = @{ en = 'Content exceeds the 2 MiB limit' }
+    'knowledgecli.repository.all' = @{ en = 'Working repository not resolvable: run from the checkout, give -Repository or -CheckoutPath (-All for the read-only global task view)' }
+    'knowledgecli.lifecycle.working' = @{ en = 'The lifecycle can be changed only for the working repository' }
+    'knowledgecli.repository.checkout' = @{ en = 'Working repository not resolvable: run from the checkout or give -CheckoutPath' }
+    'knowledgecli.params.incompatible' = @{ en = 'Incompatible parameters: -All and -Repository' }
 }
 $brain=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'));$lock=$null
 try{

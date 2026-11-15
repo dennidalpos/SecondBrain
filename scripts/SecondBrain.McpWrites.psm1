@@ -3,11 +3,11 @@ Set-StrictMode -Version Latest
 foreach($m in 'Core','Access','Host','Pending','Tracker','Knowledge','Para'){Import-Module (Join-Path $PSScriptRoot ('SecondBrain.'+$m+'.psm1'))}
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Add-SBMessages @{
-    'mcpwrite.invalid' = @{it='Scrittura MCP: input non valido ({0})';en='MCP write: invalid input ({0})'}
-    'mcpwrite.approval' = @{it='Scrittura MCP: ricevuta locale assente, scaduta o non valida';en='MCP write: local approval is missing, expired or invalid'}
-    'mcpwrite.stale' = @{it='Scrittura MCP: piano o precondizioni cambiati; preparare e approvare una nuova richiesta';en='MCP write: plan or preconditions changed; preview and approve a new request'}
-    'mcpwrite.activity' = @{it='Registro attività reale disabilitato: completare la procedura di attivazione F6/F11; nessuna scrittura';en='Real activity log disabled: complete F6/F11 activation procedure; no write'}
-    'mcpwrite.disabled' = @{it='Nuove scritture MCP disabilitate in modalità NoRecovery';en='New MCP writes disabled in NoRecovery mode'}
+    'mcpwrite.invalid' = @{ en = 'MCP write: invalid input ({0})' }
+    'mcpwrite.approval' = @{ en = 'MCP write: local approval is missing, expired or invalid' }
+    'mcpwrite.stale' = @{ en = 'MCP write: plan or preconditions changed; preview and approve a new request' }
+    'mcpwrite.activity' = @{ en = 'Real activity log disabled: complete F6/F11 activation procedure; no write' }
+    'mcpwrite.disabled' = @{ en = 'New MCP writes disabled in NoRecovery mode' }
 }
 function Assert-SBMcpWriteFields($Value,[string[]]$Allowed,[string[]]$Required) {
     if($Value -isnot [Collections.IDictionary] -or @($Value.Keys|Where-Object {$_ -cnotin $Allowed}).Count -or

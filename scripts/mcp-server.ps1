@@ -42,9 +42,7 @@ param(
     [switch]$ExportPackage,
 
     [Parameter(ParameterSetName = 'ExportPackage')]
-    [string]$OutDir,
-
-    [ValidateSet('en', 'it')][string]$Language
+    [string]$OutDir
 )
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
@@ -53,24 +51,23 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.McpConfig.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.McpPackage.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Access.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
-if ($Language) { $env:SECONDBRAIN_LANG = $Language }
 Add-SBMessages @{
-    'mcpcli.package.exported' = @{ it = '=== Pacchetto MCP SecondBrain esportato ==='; en = '=== SecondBrain MCP package exported ===' }
-    'mcpcli.package.folder' = @{ it = 'Cartella destinazione: {0}'; en = 'Destination folder: {0}' }
-    'mcpcli.package.files' = @{ it = 'File generati ({0}):'; en = 'Generated files ({0}):' }
-    'mcpcli.apply.done' = @{ it = '=== Esito configurazione MCP SecondBrain ==='; en = '=== SecondBrain MCP configuration outcome ===' }
-    'mcpcli.apply.file' = @{ it = '  • File: {0}'; en = '  • File: {0}' }
-    'mcpcli.apply.outcome' = @{ it = '  • Esito: {0}'; en = '  • Outcome: {0}' }
-    'mcpcli.apply.backup' = @{ it = '  • Backup preventivo: {0}'; en = '  • Backup taken before the change: {0}' }
-    'mcpcli.pair.configured' = @{ it = 'CONFIGURATO'; en = 'CONFIGURED' }
-    'mcpcli.pair.todo' = @{ it = 'DA CONFIGURARE'; en = 'TO CONFIGURE' }
-    'mcpcli.pair.header' = @{ it = '=== Accoppiamento MCP SecondBrain per {0} {1} ==='; en = '=== SecondBrain MCP pairing for {0} {1} ===' }
-    'mcpcli.pair.configfile' = @{ it = 'Config file: {0}'; en = 'Config file: {0}' }
-    'mcpcli.pair.snippet' = @{ it = '--- Configurazione {0} da inserire ---'; en = '--- {0} configuration to insert ---' }
-    'mcpcli.pair.permissions' = @{ it = '--- Consensi ai tool con integrazione automatica (-ApproveKnowledgeTools, alias storico -ApproveReadTools); check_publication richiede consenso ---'; en = '--- Tool permissions including automatic queued writes (-ApproveKnowledgeTools, legacy alias -ApproveReadTools); check_publication requires approval ---' }
-    'mcpcli.permissions.status' = @{ it = 'Consensi: {0}; esito: {1}'; en = 'Permissions: {0}; outcome: {1}' }
-    'mcpcli.pair.cli' = @{ it = '--- Comando CLI equivalente ---'; en = '--- Equivalent CLI command ---' }
-    'mcpcli.pair.cliuser' = @{ it = "--- Comando CLI per l'ambito utente (tutti i progetti) ---"; en = '--- CLI command for the user scope (all projects) ---' }
+    'mcpcli.package.exported' = @{ en = '=== SecondBrain MCP package exported ===' }
+    'mcpcli.package.folder' = @{ en = 'Destination folder: {0}' }
+    'mcpcli.package.files' = @{ en = 'Generated files ({0}):' }
+    'mcpcli.apply.done' = @{ en = '=== SecondBrain MCP configuration outcome ===' }
+    'mcpcli.apply.file' = @{ en = '  • File: {0}' }
+    'mcpcli.apply.outcome' = @{ en = '  • Outcome: {0}' }
+    'mcpcli.apply.backup' = @{ en = '  • Backup taken before the change: {0}' }
+    'mcpcli.pair.configured' = @{ en = 'CONFIGURED' }
+    'mcpcli.pair.todo' = @{ en = 'TO CONFIGURE' }
+    'mcpcli.pair.header' = @{ en = '=== SecondBrain MCP pairing for {0} {1} ===' }
+    'mcpcli.pair.configfile' = @{ en = 'Config file: {0}' }
+    'mcpcli.pair.snippet' = @{ en = '--- {0} configuration to insert ---' }
+    'mcpcli.pair.permissions' = @{ en = '--- Tool permissions including automatic queued writes (-ApproveKnowledgeTools, legacy alias -ApproveReadTools); check_publication requires approval ---' }
+    'mcpcli.permissions.status' = @{ en = 'Permissions: {0}; outcome: {1}' }
+    'mcpcli.pair.cli' = @{ en = '--- Equivalent CLI command ---' }
+    'mcpcli.pair.cliuser' = @{ en = '--- CLI command for the user scope (all projects) ---' }
 }
 # Writer busy beyond the wait limit: exit 3 (the message identifies the owner).
 trap { if(Test-SBWriteDeniedError $_){Write-SBWriteDeniedDiagnostic $_ $PSCommandPath $PSBoundParameters;exit 4}; if (Test-SBBusyError $_) { [Console]::Error.WriteLine($_.Exception.Message); exit 3 }; break }

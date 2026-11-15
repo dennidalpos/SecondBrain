@@ -10,10 +10,10 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
 trap { if (Test-SBWriteDeniedError $_) { Write-SBWriteDeniedDiagnostic $_ $PSCommandPath $PSBoundParameters; exit 4 }; break }
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Add-SBMessages @{
-    'work.run.explicit' = @{ it = 'Run richiede eseguibile e directory espliciti; nessuna shell implicita'; en = 'Run requires an explicit executable and directory; no implicit shell' }
-    'work.init.categoryslug' = @{ it = 'Init richiede Category e Slug'; en = 'Init requires Category and Slug' }
-    'work.close.manifest' = @{ it = 'Close richiede una cartella inizializzata con MANIFEST.json'; en = 'Close requires a folder initialized with MANIFEST.json' }
-    'work.checkout.unmanaged' =@{ it = 'Checkout non gestito o ambiguo'; en = 'Checkout not managed or ambiguous' }
+    'work.run.explicit' = @{ en = 'Run requires an explicit executable and directory; no implicit shell' }
+    'work.init.categoryslug' = @{ en = 'Init requires Category and Slug' }
+    'work.close.manifest' = @{ en = 'Close requires a folder initialized with MANIFEST.json' }
+    'work.checkout.unmanaged' =@{ en = 'Checkout not managed or ambiguous' }
 }
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.TaskRunner.psm1')
 # Runner session perimeter: work folders are written only for the task repository.

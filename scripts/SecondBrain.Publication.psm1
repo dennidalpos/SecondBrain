@@ -4,33 +4,33 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.PrivateAssets.psm1')
 Add-SBMessages @{
-    'publication.reason.binary-review-required' = @{ it = 'Revisionare il contenuto binario'; en = 'Binary content review required' }
-    'publication.reason.size-limit' = @{ it = 'Limite di dimensione raggiunto'; en = 'Size limit reached' }
-    'publication.reason.binary-or-size-limit' = @{ it = 'Contenuto binario o limite di dimensione'; en = 'Binary content or size limit' }
-    'publication.reason.unreadable' = @{ it = 'Contenuto non leggibile'; en = 'Content unreadable' }
-    'publication.reason.blob-limit' = @{ it = 'Limite di blob raggiunto'; en = 'Blob limit reached' }
-    'publication.reason.history-unavailable' = @{ it = 'Storia Git non disponibile'; en = 'Git history unavailable' }
-    'publication.reason.history-paths-unavailable' = @{ it = 'Percorsi storici Git non verificabili'; en = 'Git history paths could not be verified' }
-    'publication.reason.history-limited' = @{ it = 'Storia Git parziale o modificata da graft'; en = 'Git history is shallow or modified by grafts' }
-    'publication.reason.index-unmerged' = @{ it = 'Indice Git con conflitti'; en = 'Git index has unresolved conflicts' }
-    'publication.reason.status-unavailable' = @{ it = 'Stato Git non disponibile'; en = 'Git status unavailable' }
-    'publication.hook.checkout' = @{ it = 'Checkout Git richiesto per installare lʼhook pre-push'; en = 'Git checkout required to install the pre-push hook' }
-    'publication.checkout' = @{ it = 'Checkout Git richiesto'; en = 'Git checkout required' }
-    'publication.policy' = @{ it = 'Policy pubblicazione non valida'; en = 'Invalid publication policy' }
-    'publication.inventory' = @{ it = 'Inventario Git non leggibile'; en = 'Git inventory not readable' }
-    'publication.index' = @{ it = 'Indice Git non leggibile'; en = 'Git index not readable' }
-    'publication.capture.metadata' = @{ it = 'Metadati di acquisizione incompleti'; en = 'Incomplete capture metadata' }
-    'publication.capture.png' = @{ it = 'Acquisizione PNG richiesta'; en = 'PNG capture required' }
-    'publication.capture.review' = @{ it = 'Acquisizione reale e privacy richiedono revisione esplicita'; en = 'Real capture and privacy require explicit review' }
-    'publication.asset.name' = @{ it = 'Nome asset PNG non valido'; en = 'Invalid PNG asset name' }
-    'publication.asset.root' = @{ it = 'Radice checkout Git richiesta per esportare asset'; en = 'Git checkout root required to export assets' }
-    'publication.asset.repository' = @{ it = 'Repository dellʼasset divergente'; en = 'Asset repository mismatch' }
-    'publication.capture.changed' = @{ it = 'Cattura modificata dopo la revisione'; en = 'Capture changed after review' }
-    'publication.png.truncated' = @{ it = 'PNG troncato'; en = 'Truncated PNG' }
-    'publication.png.chunk' = @{ it = 'Chunk PNG non valido'; en = 'Invalid PNG chunk' }
-    'publication.png.structure' = @{ it = 'Struttura PNG non valida'; en = 'Invalid PNG structure' }
-    'publication.hook.custom' = @{ it = 'Hook pre-push personalizzato preesistente trovato in {0}. Usare -Force per sovrascrivere.'; en = 'Existing custom pre-push hook found in {0}. Use -Force to overwrite.' }
-    'publication.hook.foreign' = @{ it = 'Hook pre-push non creato da SecondBrain, rimozione rifiutata: {0}'; en = 'Pre-push hook not created by SecondBrain, removal refused: {0}' }
+    'publication.reason.binary-review-required' = @{ en = 'Binary content review required' }
+    'publication.reason.size-limit' = @{ en = 'Size limit reached' }
+    'publication.reason.binary-or-size-limit' = @{ en = 'Binary content or size limit' }
+    'publication.reason.unreadable' = @{ en = 'Content unreadable' }
+    'publication.reason.blob-limit' = @{ en = 'Blob limit reached' }
+    'publication.reason.history-unavailable' = @{ en = 'Git history unavailable' }
+    'publication.reason.history-paths-unavailable' = @{ en = 'Git history paths could not be verified' }
+    'publication.reason.history-limited' = @{ en = 'Git history is shallow or modified by grafts' }
+    'publication.reason.index-unmerged' = @{ en = 'Git index has unresolved conflicts' }
+    'publication.reason.status-unavailable' = @{ en = 'Git status unavailable' }
+    'publication.hook.checkout' = @{ en = 'Git checkout required to install the pre-push hook' }
+    'publication.checkout' = @{ en = 'Git checkout required' }
+    'publication.policy' = @{ en = 'Invalid publication policy' }
+    'publication.inventory' = @{ en = 'Git inventory not readable' }
+    'publication.index' = @{ en = 'Git index not readable' }
+    'publication.capture.metadata' = @{ en = 'Incomplete capture metadata' }
+    'publication.capture.png' = @{ en = 'PNG capture required' }
+    'publication.capture.review' = @{ en = 'Real capture and privacy require explicit review' }
+    'publication.asset.name' = @{ en = 'Invalid PNG asset name' }
+    'publication.asset.root' = @{ en = 'Git checkout root required to export assets' }
+    'publication.asset.repository' = @{ en = 'Asset repository mismatch' }
+    'publication.capture.changed' = @{ en = 'Capture changed after review' }
+    'publication.png.truncated' = @{ en = 'Truncated PNG' }
+    'publication.png.chunk' = @{ en = 'Invalid PNG chunk' }
+    'publication.png.structure' = @{ en = 'Invalid PNG structure' }
+    'publication.hook.custom' = @{ en = 'Existing custom pre-push hook found in {0}. Use -Force to overwrite.' }
+    'publication.hook.foreign' = @{ en = 'Pre-push hook not created by SecondBrain, removal refused: {0}' }
 }
 
 $script:SBPublicationRuleCache=$null

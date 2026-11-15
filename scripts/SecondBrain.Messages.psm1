@@ -1,57 +1,17 @@
 #requires -Version 7.5
 Set-StrictMode -Version Latest
 
-# Message catalog: every user-visible message has a stable key and one text per language.
-# Placeholders use .NET composite format ({0}, {1}); the text of a missing language falls back to en, then it, then the key.
-$script:SBSupportedLanguages = @('en', 'it')
-$script:SBLanguageOverride = $null
-$script:SBLanguageProvider = $null
+# Message catalog: every user-visible message has a stable key and one English text.
+# Placeholders use .NET composite format ({0}, {1}); a missing key returns the key itself.
 $script:SBMessages = @{}
 
-function Set-SBUiLanguage([string]$Language) {
-    # Explicit override (for example from -Language); an empty value removes it.
-    if ($Language -and $Language -notin $script:SBSupportedLanguages) {
-        throw (New-SBError 'messages.language.invalid' @($Language, ($script:SBSupportedLanguages -join ', ')))
-    }
-    $script:SBLanguageOverride = if ($Language) { $Language } else { $null }
-}
-function Set-SBUiLanguageProvider([scriptblock]$Provider) {
-    # Registered by the module that can read the workstation configuration (kept out of here to avoid a module cycle).
-    $script:SBLanguageProvider = $Provider
-}
-function ConvertTo-SBLanguageCode($Value) {
-    if ($null -eq $Value) { return $null }
-    $code = ([string]$Value).Trim().ToLowerInvariant()
-    if ($code.Length -lt 2) { return $null }
-    $code = $code.Substring(0, 2)
-    if ($code -in $script:SBSupportedLanguages) { $code } else { $null }
-}
-function Get-SBUiLanguage {
-    # Order: explicit override, SECONDBRAIN_LANG, workstation configuration, system UI culture, en.
-    $explicit = ConvertTo-SBLanguageCode $script:SBLanguageOverride
-    if ($explicit) { return $explicit }
-    $fromEnvironment = ConvertTo-SBLanguageCode $env:SECONDBRAIN_LANG
-    if ($fromEnvironment) { return $fromEnvironment }
-    if ($script:SBLanguageProvider) {
-        $fromConfiguration = $null
-        try { $fromConfiguration = ConvertTo-SBLanguageCode (& $script:SBLanguageProvider) } catch { Write-Verbose $_.Exception.Message }
-        if ($fromConfiguration) { return $fromConfiguration }
-    }
-    $fromCulture = ConvertTo-SBLanguageCode ([Globalization.CultureInfo]::CurrentUICulture.TwoLetterISOLanguageName)
-    if ($fromCulture) { $fromCulture } else { 'en' }
-}
 function Add-SBMessages([hashtable]$Messages) {
     foreach ($key in $Messages.Keys) { $script:SBMessages[$key] = $Messages[$key] }
 }
-function Get-SBMessage([string]$Key, [object[]]$Arguments = @(), [string]$Language) {
+function Get-SBMessage([string]$Key, [object[]]$Arguments = @()) {
     $entry = $script:SBMessages[$Key]
-    if ($null -eq $entry) { return $Key }
-    $code = if ($Language) { ConvertTo-SBLanguageCode $Language } else { Get-SBUiLanguage }
-    $template = $null
-    foreach ($candidate in @($code, 'en', 'it')) {
-        if ($candidate -and $entry.ContainsKey($candidate)) { $template = [string]$entry[$candidate]; break }
-    }
-    if ($null -eq $template) { return $Key }
+    if ($null -eq $entry -or -not $entry.ContainsKey('en')) { return $Key }
+    $template = [string]$entry['en']
     if ($null -eq $Arguments -or $Arguments.Count -eq 0) { $template } else { $template -f $Arguments }
 }
 function New-SBError([string]$Key, [object[]]$Arguments = @(), [type]$Type, [int]$HResult = 0, [Exception]$Inner) {
@@ -87,73 +47,72 @@ function Add-SBReportDiagnostic([System.Collections.IDictionary]$Record, [string
 }
 
 Add-SBMessages @{
-    'messages.language.invalid' = @{ it = "Lingua non supportata '{0}'. Supportate: {1}"; en = "Unsupported language '{0}'. Supported: {1}" }
-    'report.reason.unverified' = @{ it = 'Esito non verificabile; consultare i dettagli tecnici'; en = 'Outcome could not be verified; see technical details' }
-    'core.version.missing'      = @{ it = 'File VERSION mancante: ripristinalo dal checkout (git restore VERSION)'; en = 'VERSION file missing: restore it from the checkout (git restore VERSION)' }
-    'core.reparse.unwritable'   = @{ it = 'Reparse point non scrivibile: {0}'; en = 'Reparse point is not writable: {0}' }
-    'core.concurrent.modified'  = @{ it = 'Modifica concorrente: {0}'; en = 'Concurrent modification: {0}' }
-    'core.runtime.reason.reparse-point' = @{ it = 'reparse point: non seguito'; en = 'reparse point: not followed' }
-    'core.runtime.reason.runtime-access' = @{ it = 'sessioni e lock di accesso'; en = 'access sessions and locks' }
-    'core.runtime.reason.runtime-hosts' = @{ it = 'configurazione e backup delle postazioni'; en = 'workstation configuration and backups' }
-    'core.runtime.reason.runtime-cleanup' = @{ it = 'registro delle pulizie (prova di recuperabilita)'; en = 'cleanup log (recoverability proof)' }
-    'core.runtime.reason.runtime-state' = @{ it = 'stato operativo'; en = 'operational state' }
-    'core.runtime.reason.runtime-para-marker' = @{ it = 'marker di transazione pendente'; en = 'pending transaction marker' }
-    'core.runtime.reason.config-path' = @{ it = 'percorso della configurazione o del registro postazioni'; en = 'configuration or workstation registry path' }
-    'core.runtime.reason.protected-path' = @{ it = 'contiene percorsi della configurazione o degli accessi'; en = 'contains configuration or access paths' }
-    'core.runtime.reason.recently-written' = @{ it = 'scritta negli ultimi {0} minuti: potrebbe essere in uso'; en = 'written in the last {0} minutes: it may be in use' }
-    'core.runtime.reason.identity-unverified' = @{ it = 'identita della postazione o del proprietario non verificabile'; en = 'workstation or owner identity is not verifiable' }
-    'core.runtime.reason.unsupported-layout' = @{ it = 'fuori dal layout fixture/tmp annidato: dati conservati'; en = 'outside the nested fixture/tmp layout: data retained' }
-    'core.runtime.reason.foreign-host' = @{ it = 'cartella di un altra postazione: dati conservati'; en = 'folder belongs to another workstation: data retained' }
-    'core.runtime.reason.foreign-owner' = @{ it = 'manifest di un altro proprietario: dati conservati'; en = 'manifest belongs to another owner: data retained' }
-    'core.runtime.reason.manifest-missing' = @{ it = 'MANIFEST.json assente: dati conservati'; en = 'MANIFEST.json missing: data retained' }
-    'core.runtime.reason.manifest-invalid' = @{ it = 'manifest illeggibile, non supportato o incoerente con il percorso'; en = 'manifest unreadable, unsupported or inconsistent with its path' }
-    'core.runtime.reason.unknown-area' = @{ it = 'area sconosciuta sotto repos/<repo>: attese work, evidence, report, fixture, tmp o temp'; en = 'unknown area under repos/<repo>: expected work, evidence, report, fixture, tmp or temp' }
-    'core.runtime.reason.unsupported-name' = @{ it = 'nome di cartella fuori dalla forma <yyyyMMdd>-<slug>'; en = 'folder name outside the <yyyyMMdd>-<slug> form' }
-    'core.runtime.reason.repository-mismatch' = @{ it = 'il manifest dichiara un repository diverso dal segmento del percorso'; en = 'the manifest declares a repository different from the path segment' }
-    'core.runtime.reason.host-mismatch' = @{ it = 'il manifest dichiara una postazione diversa dal percorso'; en = 'the manifest declares a workstation different from the path' }
-    'core.runtime.reason.category-mismatch' = @{ it = 'il manifest dichiara una categoria diversa dal percorso'; en = 'the manifest declares a category different from the path' }
-    'core.runtime.reason.name-mismatch' = @{ it = 'il manifest dichiara un nome diverso dalla cartella'; en = 'the manifest declares a name different from the folder' }
-    'core.runtime.reason.foreign-content' = @{ it = 'manifest coerente, ma la cartella contiene un layout .runtime di un altro repository (hosts/<id>/repos/<altro>)'; en = 'consistent manifest, but the folder contains a .runtime layout of another repository (hosts/<id>/repos/<other>)' }
-    'core.runtime.reason.legacy-layout' =@{ it = 'cartella precedente al layout annidato (riordino con cleanup.ps1 -Migrate)'; en = 'folder predates the nested layout (reorganize with cleanup.ps1 -Migrate)' }
-    'core.runtime.reason.manifest-not-closed' = @{ it = 'manifest non chiuso: dati conservati'; en = 'manifest is not closed: data retained' }
-    'core.runtime.reason.manifest-expiry-invalid' = @{ it = 'scadenza del manifest assente o non valida'; en = 'manifest expiry missing or invalid' }
-    'core.runtime.reason.manifest-not-expired' = @{ it = 'scadenza non trascorsa (il giorno di scadenza e incluso)'; en = 'expiry has not passed (the expiry day is included)' }
-    'core.runtime.reason.retention' = @{ it = 'cartella tra le ultime da conservare per repository e categoria'; en = 'folder is among the latest retained per repository and category' }
-    'core.runtime.reason.inspection-failed' = @{ it = 'ispezione incompleta: nessuna rimozione autorizzata dal piano'; en = 'inspection incomplete: the plan does not permit removal' }
-    'core.runtime.reason.target-changed' = @{ it = 'target modificato o non piu idoneo dopo la selezione: dati conservati'; en = 'target changed or no longer eligible after selection: data retained' }
-    'core.runtime.regenerable.recovery' = @{ it = 'ricreare con la suite o il comando indicato dal task nel manifest; verificare i riferimenti prima di autorizzare'; en = 'recreate with the suite or command identified by the manifest task; review references before authorizing' }
-    'core.write.contended'      = @{ it = 'Scrittura contesa: il file è in uso o è stato sostituito da un altro scrittore: {0}'; en = 'Write contended: the file is in use or was replaced by another writer: {0}' }
-    'core.transaction.multiple' = @{ it = 'Più marker di transazione presenti: recuperare separatamente senza sovrascriverli'; en = 'Multiple transaction markers exist: recover separately without overwriting them' }
-    'core.write.denied'         = @{ it = 'Accesso negato durante la scrittura: {0}'; en = 'Access denied while writing: {0}' }
-    'core.write.retry'          = @{ it = 'Ripeti in PowerShell 7.5+ fuori dalla sandbox: {0}'; en = 'Retry in PowerShell 7.5+ outside the sandbox: {0}' }
-    'core.retry.parameter'      = @{ it = 'Nome parametro non valido per il comando di ripetizione'; en = 'Invalid parameter name for the retry command' }
-    'core.write.finalization'   = @{ it = 'Registrazione finale non riuscita; errore originale conservato ({0}): {1}'; en = 'Final record failed; original error preserved ({0}): {1}' }
-    'trace.event.lost'          = @{ it = 'Evento Trace perso: {0}'; en = 'Trace event lost: {0}' }
-    'core.state.root'           = @{ it = 'SECONDBRAIN_STATE_ROOT deve indicare un percorso assoluto su disco locale fisso, fuori dal clone'; en = 'SECONDBRAIN_STATE_ROOT must name an absolute path on a fixed local drive outside the clone' }
-    'core.tracked.dirty'        = @{ it = "File tracciato con modifiche non committate: {0}. Committa o metti da parte (git stash) le modifiche al file, poi ripeti l'operazione."; en = 'Tracked file has uncommitted changes: {0}. Commit or stash (git stash) the file changes, then retry.' }
-    'core.readback.staging'     = @{ it = 'Readback staging fallito'; en = 'Staging readback failed' }
-    'core.race.kept'            = @{ it = 'Gara di scrittura rilevata; copia concorrente conservata: {0}'; en = 'Write race detected; concurrent copy kept: {0}' }
-    'core.backup.unverified'    = @{ it = 'Backup non verificato; recupero locale: {0}'; en = 'Backup not verified; local recovery: {0}' }
-    'core.readback.destination' = @{ it = 'Readback destinazione fallito: {0}'; en = 'Destination readback failed: {0}' }
-    'core.staging.kept'         = @{ it = 'Staging transazionale conservato: {0}'; en = 'Transactional staging kept: {0}' }
-    'core.migrate.destination'  = @{ it = 'Destinazione già esistente: {0}'; en = 'Destination already exists: {0}' }
-    'core.olderthan.min'        =@{ it = 'OlderThanDays deve essere almeno 1'; en = 'OlderThanDays must be at least 1' }
-    'core.runtime.outside'      = @{ it = 'Percorso fuori da .runtime'; en = 'Path outside .runtime' }
-    'core.runtime.reparse'      = @{ it = 'Reparse point non rimovibile con questo passo'; en = 'Reparse point cannot be removed by this step' }
-    'core.checkout.ambiguous'   = @{ it = 'Associazione checkout ambigua'; en = 'Ambiguous checkout binding' }
-    'core.origin.changed'       = @{ it = 'Origin cambiato: riconciliazione esplicita richiesta'; en = 'Origin changed: explicit reconciliation required' }
-    'core.workstation.invalid'  = @{ it = 'WorkstationId non valido'; en = 'Invalid WorkstationId' }
-    'core.output.outside'       = @{ it = 'Output operativo fuori da SecondBrain/.runtime: {0}'; en = 'Operational output outside SecondBrain/.runtime: {0}' }
-    'core.block.duplicate'      = @{ it = 'Blocco duplicato: {0}'; en = 'Duplicate block: {0}' }
-    'core.block.incomplete'     = @{ it = 'Blocco incompleto: {0}'; en = 'Incomplete block: {0}' }
-    'core.remove.outside'       = @{ it = 'Rimozione fuori perimetro: {0}'; en = 'Removal outside scope: {0}' }
-    'core.remove.changed'       = @{ it = 'File cambiato prima della rimozione: {0}'; en = 'File changed before removal: {0}' }
-    'core.remove.concurrent'    = @{ it = 'Modifica concorrente prima della rimozione'; en = 'Concurrent modification before removal' }
-    'core.git.batchcheck'       = @{ it = 'Git cat-file --batch-check non riuscito: {0}'; en = 'Git cat-file --batch-check failed: {0}' }
-    'core.git.stream'           = @{ it = 'Git cat-file --batch: flusso interrotto'; en = 'Git cat-file --batch: stream interrupted' }
-    'core.git.header'           = @{ it = 'Git cat-file --batch: intestazione inattesa: {0}'; en = 'Git cat-file --batch: unexpected header: {0}' }
-    'core.git.timeout'          = @{ it = 'Git timeout: {0}'; en = 'Git timeout: {0}' }
-    'core.remove.backup'        = @{ it = 'Backup rimozione non verificato'; en = 'Removal backup not verified' }
+    'report.reason.unverified' = @{ en = 'Outcome could not be verified; see technical details' }
+    'core.version.missing'      = @{ en = 'VERSION file missing: restore it from the checkout (git restore VERSION)' }
+    'core.reparse.unwritable'   = @{ en = 'Reparse point is not writable: {0}' }
+    'core.concurrent.modified'  = @{ en = 'Concurrent modification: {0}' }
+    'core.runtime.reason.reparse-point' = @{ en = 'reparse point: not followed' }
+    'core.runtime.reason.runtime-access' = @{ en = 'access sessions and locks' }
+    'core.runtime.reason.runtime-hosts' = @{ en = 'workstation configuration and backups' }
+    'core.runtime.reason.runtime-cleanup' = @{ en = 'cleanup log (recoverability proof)' }
+    'core.runtime.reason.runtime-state' = @{ en = 'operational state' }
+    'core.runtime.reason.runtime-para-marker' = @{ en = 'pending transaction marker' }
+    'core.runtime.reason.config-path' = @{ en = 'configuration or workstation registry path' }
+    'core.runtime.reason.protected-path' = @{ en = 'contains configuration or access paths' }
+    'core.runtime.reason.recently-written' = @{ en = 'written in the last {0} minutes: it may be in use' }
+    'core.runtime.reason.identity-unverified' = @{ en = 'workstation or owner identity is not verifiable' }
+    'core.runtime.reason.unsupported-layout' = @{ en = 'outside the nested fixture/tmp layout: data retained' }
+    'core.runtime.reason.foreign-host' = @{ en = 'folder belongs to another workstation: data retained' }
+    'core.runtime.reason.foreign-owner' = @{ en = 'manifest belongs to another owner: data retained' }
+    'core.runtime.reason.manifest-missing' = @{ en = 'MANIFEST.json missing: data retained' }
+    'core.runtime.reason.manifest-invalid' = @{ en = 'manifest unreadable, unsupported or inconsistent with its path' }
+    'core.runtime.reason.unknown-area' = @{ en = 'unknown area under repos/<repo>: expected work, evidence, report, fixture, tmp or temp' }
+    'core.runtime.reason.unsupported-name' = @{ en = 'folder name outside the <yyyyMMdd>-<slug> form' }
+    'core.runtime.reason.repository-mismatch' = @{ en = 'the manifest declares a repository different from the path segment' }
+    'core.runtime.reason.host-mismatch' = @{ en = 'the manifest declares a workstation different from the path' }
+    'core.runtime.reason.category-mismatch' = @{ en = 'the manifest declares a category different from the path' }
+    'core.runtime.reason.name-mismatch' = @{ en = 'the manifest declares a name different from the folder' }
+    'core.runtime.reason.foreign-content' = @{ en = 'consistent manifest, but the folder contains a .runtime layout of another repository (hosts/<id>/repos/<other>)' }
+    'core.runtime.reason.legacy-layout' =@{ en = 'folder predates the nested layout (reorganize with cleanup.ps1 -Migrate)' }
+    'core.runtime.reason.manifest-not-closed' = @{ en = 'manifest is not closed: data retained' }
+    'core.runtime.reason.manifest-expiry-invalid' = @{ en = 'manifest expiry missing or invalid' }
+    'core.runtime.reason.manifest-not-expired' = @{ en = 'expiry has not passed (the expiry day is included)' }
+    'core.runtime.reason.retention' = @{ en = 'folder is among the latest retained per repository and category' }
+    'core.runtime.reason.inspection-failed' = @{ en = 'inspection incomplete: the plan does not permit removal' }
+    'core.runtime.reason.target-changed' = @{ en = 'target changed or no longer eligible after selection: data retained' }
+    'core.runtime.regenerable.recovery' = @{ en = 'recreate with the suite or command identified by the manifest task; review references before authorizing' }
+    'core.write.contended'      = @{ en = 'Write contended: the file is in use or was replaced by another writer: {0}' }
+    'core.transaction.multiple' = @{ en = 'Multiple transaction markers exist: recover separately without overwriting them' }
+    'core.write.denied'         = @{ en = 'Access denied while writing: {0}' }
+    'core.write.retry'          = @{ en = 'Retry in PowerShell 7.5+ outside the sandbox: {0}' }
+    'core.retry.parameter'      = @{ en = 'Invalid parameter name for the retry command' }
+    'core.write.finalization'   = @{ en = 'Final record failed; original error preserved ({0}): {1}' }
+    'trace.event.lost'          = @{ en = 'Trace event lost: {0}' }
+    'core.state.root'           = @{ en = 'SECONDBRAIN_STATE_ROOT must name an absolute path on a fixed local drive outside the clone' }
+    'core.tracked.dirty'        = @{ en = 'Tracked file has uncommitted changes: {0}. Commit or stash (git stash) the file changes, then retry.' }
+    'core.readback.staging'     = @{ en = 'Staging readback failed' }
+    'core.race.kept'            = @{ en = 'Write race detected; concurrent copy kept: {0}' }
+    'core.backup.unverified'    = @{ en = 'Backup not verified; local recovery: {0}' }
+    'core.readback.destination' = @{ en = 'Destination readback failed: {0}' }
+    'core.staging.kept'         = @{ en = 'Transactional staging kept: {0}' }
+    'core.migrate.destination'  = @{ en = 'Destination already exists: {0}' }
+    'core.olderthan.min'        =@{ en = 'OlderThanDays must be at least 1' }
+    'core.runtime.outside'      = @{ en = 'Path outside .runtime' }
+    'core.runtime.reparse'      = @{ en = 'Reparse point cannot be removed by this step' }
+    'core.checkout.ambiguous'   = @{ en = 'Ambiguous checkout binding' }
+    'core.origin.changed'       = @{ en = 'Origin changed: explicit reconciliation required' }
+    'core.workstation.invalid'  = @{ en = 'Invalid WorkstationId' }
+    'core.output.outside'       = @{ en = 'Operational output outside SecondBrain/.runtime: {0}' }
+    'core.block.duplicate'      = @{ en = 'Duplicate block: {0}' }
+    'core.block.incomplete'     = @{ en = 'Incomplete block: {0}' }
+    'core.remove.outside'       = @{ en = 'Removal outside scope: {0}' }
+    'core.remove.changed'       = @{ en = 'File changed before removal: {0}' }
+    'core.remove.concurrent'    = @{ en = 'Concurrent modification before removal' }
+    'core.git.batchcheck'       = @{ en = 'Git cat-file --batch-check failed: {0}' }
+    'core.git.stream'           = @{ en = 'Git cat-file --batch: stream interrupted' }
+    'core.git.header'           = @{ en = 'Git cat-file --batch: unexpected header: {0}' }
+    'core.git.timeout'          = @{ en = 'Git timeout: {0}' }
+    'core.remove.backup'        = @{ en = 'Removal backup not verified' }
 }
 
-Export-ModuleMember -Function Set-SBUiLanguage, Set-SBUiLanguageProvider, Get-SBUiLanguage, Add-SBMessages, Get-SBMessage, New-SBError, Test-SBError, Add-SBReportDiagnostic
+Export-ModuleMember -Function Add-SBMessages, Get-SBMessage, New-SBError, Test-SBError, Add-SBReportDiagnostic

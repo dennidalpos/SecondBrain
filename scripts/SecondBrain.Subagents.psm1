@@ -8,9 +8,9 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Host.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.MemoryCycle.psm1')
 Add-SBMessages @{
-    'subagent.invalid' = @{it='Definizione subagente non valida ({0})';en='Invalid subagent definition ({0})'}
-    'subagent.permission' = @{it='Il subagente richiede permessi oltre quelli del padre ({0})';en='The subagent requests permissions beyond its parent ({0})'}
-    'subagent.fallback' = @{it='Client senza formato nativo verificato: esporta la definizione normalizzata; l installazione non concede permessi.';en='Client without a verified native format: export the normalized definition; installation grants no permission.'}
+    'subagent.invalid' = @{ en = 'Invalid subagent definition ({0})' }
+    'subagent.permission' = @{ en = 'The subagent requests permissions beyond its parent ({0})' }
+    'subagent.fallback' = @{ en = 'Client without a verified native format: export the normalized definition; installation grants no permission.' }
 }
 $script:SBSubagentReadTools=@('get_startup_context','get_ready_tasks','get_task','search_knowledge','list_prompts','get_prompt_home','get_prompt')
 $script:SBSubagentWriteTools=@('preview_dossier_write','submit_dossier_write')

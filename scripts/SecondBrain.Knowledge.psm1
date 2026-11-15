@@ -7,34 +7,34 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Trace.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Host.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Add-SBMessages @{
-    'knowledge.tasks.unselected' = @{it='Nessun task selezionato. Usa -Tasks per scegliere il lavoro e -Task per il dettaglio.';en='No task selected. Use -Tasks to choose work and -Task for complete details.'}
-    'knowledge.tracker.data' = @{ it = 'Tracker data non disponibile'; en = 'Tracker data not available' }
-    'knowledge.paging.invalid' = @{ it = 'Offset e Limit devono essere interi non negativi'; en = 'Offset and Limit must be non-negative integers' }
-    'knowledge.record.missing' = @{ it = 'repository.json assente'; en = 'repository.json missing' }
-    'knowledge.dossier.invalid' = @{ it = 'Dossier non valido: esegui secondbrain.ps1 -Check per i dettagli'; en = 'Invalid dossier: run secondbrain.ps1 -Check for details' }
-    'knowledge.repository.required' = @{ it = 'Repository non specificato: indicare il repository in lavoro oppure -All per la vista globale in sola lettura'; en = 'Repository not specified: give the working repository or -All for the read-only global view' }
-    'knowledge.dossier.none' = @{ it = 'Nessun dossier attivo per il repository: {0}'; en = 'No active dossier for repository: {0}' }
-    'knowledge.dossier.ambiguous' = @{ it = 'Dossier non risolto in modo univoco per il repository: {0}'; en = 'Dossier not uniquely resolved for repository: {0}' }
-    'knowledge.lifecycle.invalid' = @{ it = 'lifecycle non valido in repository.json: ammesso soltanto greenfield'; en = 'Invalid lifecycle in repository.json: only greenfield is allowed' }
-    'knowledge.tracker.unavailable' = @{ it = 'Tracker non disponibile per il dossier'; en = 'Tracker not available for the dossier' }
-    'knowledge.task.ambiguous' = @{ it = 'Piu task corrispondono a: {0}'; en = 'Several tasks match: {0}' }
-    'knowledge.task.notfound' = @{ it = 'Task non trovato: {0}. Elenca i task con knowledge.ps1 -Tasks'; en = 'Task not found: {0}. List tasks with knowledge.ps1 -Tasks' }
-    'knowledge.source.invalid' = @{ it = 'Fonte non valida: usare context, memory, history oppure history/<cartella>'; en = 'Invalid source: use context, memory, history or history/<folder>' }
-    'knowledge.section.notfound' = @{ it = 'Sezione non trovata: {0}'; en = 'Section not found: {0}' }
-    'knowledge.dossier.unspecified' = @{ it = 'Dossier non indicato: eseguire dal checkout del repository o passare -Dossier (assoluto o relativo alla radice SecondBrain)'; en = 'Dossier not specified: run from the repository checkout or pass -Dossier (absolute or relative to the SecondBrain root)' }
-    'knowledge.dossier.archived' = @{ it = 'Dossier archiviato: compattazione non autorizzata implicitamente'; en = 'Archived dossier: compaction is not implicitly authorized' }
-    'knowledge.candidate.review' = @{ it = 'Candidato richiede revisione esplicita dellʼagente e motivazione'; en = 'Candidate requires explicit agent review and a reason' }
-    'knowledge.candidate.repository' = @{ it = 'Candidato di un altro repository'; en = 'Candidate belongs to another repository' }
-    'knowledge.source.changed' = @{ it = 'Fonte modificata dopo la preparazione: {0}'; en = 'Source changed after preparation: {0}' }
-    'knowledge.summary.missing' = @{ it = 'Sintesi assente: {0}'; en = 'Summary missing: {0}' }
-    'knowledge.section.name' = @{ it = '{1}'; en = '{0}' }
-    'knowledge.section.essential' = @{ it = 'Sezione essenziale assente: {0}'; en = 'Essential section missing: {0}' }
-    'knowledge.original.diverged' = @{ it = 'Originale archiviato divergente'; en = 'Archived original diverges' }
-    'knowledge.candidate.tasks' = @{ it = 'Il candidato omette task aperti: rigenerare la proiezione'; en = 'The candidate omits open tasks: regenerate the projection' }
-    'knowledge.budget.exceeded' = @{ it = 'Budget superato: approfondire la sintesi, senza troncare informazioni'; en = 'Budget exceeded: refine the summary without truncating information' }
-    'knowledge.startup.compacted' = @{ it = 'Pacchetto compattato: consulta sezioni e task con -Section, -Tasks, -Task o -Startup -Profile Full'; en = 'Package compacted: retrieve sections and tasks with -Section, -Tasks, -Task or -Startup -Profile Full' }
-    'knowledge.budget.alert' = @{ it = 'Contesto di avvio al {0}% del tetto di {1} caratteri (totale {2}: pacchetto {3}, AGENTS.md e direttiva globale {4}): proporre SYS05 (sb compatta) prima di aggiungere altro contesto; nulla viene compattato senza conferma'; en = 'Startup context at {0}% of the {1}-character cap (total {2}: package {3}, AGENTS.md and global directive {4}): propose SYS05 (sb compact) before adding more context; nothing is compacted without confirmation' }
-    'knowledge.startup.minimum' =@{ it = 'Budget insufficiente per lʼavvio Slim. Caratteri minimi: {0}'; en = 'Budget too small for Slim startup. Minimum characters: {0}' }
+    'knowledge.tasks.unselected' = @{ en = 'No task selected. Use -Tasks to choose work and -Task for complete details.' }
+    'knowledge.tracker.data' = @{ en = 'Tracker data not available' }
+    'knowledge.paging.invalid' = @{ en = 'Offset and Limit must be non-negative integers' }
+    'knowledge.record.missing' = @{ en = 'repository.json missing' }
+    'knowledge.dossier.invalid' = @{ en = 'Invalid dossier: run secondbrain.ps1 -Check for details' }
+    'knowledge.repository.required' = @{ en = 'Repository not specified: give the working repository or -All for the read-only global view' }
+    'knowledge.dossier.none' = @{ en = 'No active dossier for repository: {0}' }
+    'knowledge.dossier.ambiguous' = @{ en = 'Dossier not uniquely resolved for repository: {0}' }
+    'knowledge.lifecycle.invalid' = @{ en = 'Invalid lifecycle in repository.json: only greenfield is allowed' }
+    'knowledge.tracker.unavailable' = @{ en = 'Tracker not available for the dossier' }
+    'knowledge.task.ambiguous' = @{ en = 'Several tasks match: {0}' }
+    'knowledge.task.notfound' = @{ en = 'Task not found: {0}. List tasks with knowledge.ps1 -Tasks' }
+    'knowledge.source.invalid' = @{ en = 'Invalid source: use context, memory, history or history/<folder>' }
+    'knowledge.section.notfound' = @{ en = 'Section not found: {0}' }
+    'knowledge.dossier.unspecified' = @{ en = 'Dossier not specified: run from the repository checkout or pass -Dossier (absolute or relative to the SecondBrain root)' }
+    'knowledge.dossier.archived' = @{ en = 'Archived dossier: compaction is not implicitly authorized' }
+    'knowledge.candidate.review' = @{ en = 'Candidate requires explicit agent review and a reason' }
+    'knowledge.candidate.repository' = @{ en = 'Candidate belongs to another repository' }
+    'knowledge.source.changed' = @{ en = 'Source changed after preparation: {0}' }
+    'knowledge.summary.missing' = @{ en = 'Summary missing: {0}' }
+    'knowledge.section.name' = @{ en = '{0}' }
+    'knowledge.section.essential' = @{ en = 'Essential section missing: {0}' }
+    'knowledge.original.diverged' = @{ en = 'Archived original diverges' }
+    'knowledge.candidate.tasks' = @{ en = 'The candidate omits open tasks: regenerate the projection' }
+    'knowledge.budget.exceeded' = @{ en = 'Budget exceeded: refine the summary without truncating information' }
+    'knowledge.startup.compacted' = @{ en = 'Package compacted: retrieve sections and tasks with -Section, -Tasks, -Task or -Startup -Profile Full' }
+    'knowledge.budget.alert' = @{ en = 'Startup context at {0}% of the {1}-character cap (total {2}: package {3}, AGENTS.md and global directive {4}): propose SYS05 (sb compact) before adding more context; nothing is compacted without confirmation' }
+    'knowledge.startup.minimum' =@{ en = 'Budget too small for Slim startup. Minimum characters: {0}' }
 }
 
 # Source applicability of a dossier (#492): validates authoritative-sources.json against the schema and the dossier identity,

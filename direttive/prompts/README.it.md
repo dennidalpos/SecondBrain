@@ -1,10 +1,10 @@
-# Catalogo dei prompt
+# Prompt catalog
 
-Indice generato da catalog.json e dalle schede Markdown con scripts/build-prompts.ps1. Non modificarlo a mano.
+Index generated from catalog.json and the Markdown cards with scripts/build-prompts.ps1. Do not edit this index by hand.
 
-In chat: `sb prompt`, `sb prompt list`, `sb prompt ambito test`, `sb prompt mostra TST04`, `sb prompt TST04: descrizione`. Ogni prompt ha un ID immutabile (`pmt-` e 8 cifre esadecimali) e un codice stabile mai riutilizzato: ID e codice risolvono allo stesso prompt.
+In the chat: `sb prompt`, `sb prompt list`, `sb prompt area test`, `sb prompt show TST04`, `sb prompt TST04: description`. Every prompt has an immutable ID (`pmt-` and 8 hex digits) and a stable code that is never reused: ID and code resolve to the same prompt.
 
-La CLI compone il testo; il task è svolto dall'agente nei permessi e nella modalità della sessione. [Come usare e modificare i prompt](../../docs/prompt.md). Lingua: [English](README.md) · [Italiano](README.it.md).
+The CLI composes text; the task is carried out by the agent within the permissions and mode of the session. [How to use and edit the prompts](../../docs/prompt.md). Language: [English](README.md) · [Italiano](README.it.md).
 
 ```text
 Catalogo prompt

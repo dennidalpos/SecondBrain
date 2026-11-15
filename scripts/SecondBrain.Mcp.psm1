@@ -17,108 +17,104 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.RunnerStatus.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Decisions.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.PrivateAssets.psm1')
 Add-SBMessages @{
-    'mcp.title.preview_dossier_write' = @{it='Anteprima scrittura dossier';en='Preview dossier write'}
-    'mcp.title.submit_dossier_write' = @{it='Invia scrittura approvata';en='Submit approved write'}
-    'mcp.write.param.requestId' = @{it='ID idempotente della richiesta: 32 cifre esadecimali minuscole';en='Idempotent request ID: 32 lowercase hexadecimal characters'}
-    'mcp.write.param.operation' = @{it='Operazione ristretta da preparare';en='Restricted operation to preview'}
-    'mcp.write.param.payload' = @{it='Dati dell operazione: task.status (taskId,status,reason?), task.update (taskId e almeno uno fra status?,reason?,priority?,execution?,stream?,awaiting?,requires?,evidence? (array di "riferimento|esito" o {reference,outcome}, accodate); stringa o array vuoti azzerano), task.new (title,acceptance,provenance,description?,priority?,pointer?,requires?), memory.append (content), activity.append (taskId,sessionId,when,outcome,detail), history.save (path,content)';en='Operation data: task.status (taskId,status,reason?), task.update (taskId plus at least one of status?,reason?,priority?,execution?,stream?,awaiting?,requires?,evidence? (array of "reference|outcome" or {reference,outcome}, appended); an empty string or array clears the field), task.new (title,acceptance,provenance,description?,priority?,pointer?,requires?), memory.append (content), activity.append (taskId,sessionId,when,outcome,detail), history.save (path,content)'}
-    'mcp.write.param.planHash' = @{it='SHA-256 del piano esatto approvato tramite CLI';en='SHA-256 of the exact plan approved through the CLI'}
-    'mcp.write.preview.description' = @{it='Prepara senza scrivere il piano di una scrittura di dossier; approvarlo con mcp-write.ps1 prima di submit_dossier_write.';en='Previews a dossier write plan without writing; approve it with mcp-write.ps1 before submit_dossier_write.'}
-    'mcp.write.submit.description' = @{it='Accoda una richiesta idempotente approvata dalla ricevuta CLI locale; gli argomenti MCP non concedono approvazioni.';en='Queues one idempotent request approved by the local CLI receipt; MCP arguments cannot grant approval.'}
-    'mcp.pending.disabled' = @{it='Consultazione senza scritture: nuove scritture MCP disabilitate per questa sessione o richiesta.';en='Read-only consultation: new MCP writes disabled for this session or request.'}
-    'mcp.description.noRecovery' = @{ it = 'Vieta scritture in questa chiamata'; en = 'Forbid writes in this call' }
-    'mcp.title.get_startup_context' = @{ it = 'Contesto iniziale'; en = 'Startup context' }
-    'mcp.title.get_ready_tasks' = @{ it = 'Attività pronte'; en = 'Ready tasks' }
-    'mcp.title.get_task' = @{ it = 'Dettaglio attività'; en = 'Task details' }
-    'mcp.title.search_knowledge' = @{ it = 'Cerca nella conoscenza'; en = 'Search knowledge' }
-    'mcp.title.list_prompts' = @{ it = 'Elenco prompt'; en = 'List prompts' }
-    'mcp.title.get_prompt_home' = @{ it = 'Menu dei prompt'; en = 'Prompt home' }
-    'mcp.title.get_prompt' = @{ it = 'Scheda prompt'; en = 'Prompt card' }
-    'mcp.title.check_publication' = @{ it = 'Verifica pubblicabilità'; en = 'Publication check' }
-    'mcp.title.list_ides' = @{ it = 'IDE rilevate'; en = 'Detected IDEs' }
-    'mcp.description.list_ides' = @{ it = 'IDE e client AI rilevati, con evidenze e ambiti (user, project, system).'; en = 'Detected IDEs and AI clients, with evidence and scopes (user, project, system).' }
-    'mcp.description.list_ides.workspacePath' = @{ it = 'Percorso del progetto (ambito project)'; en = 'Project path (project scope)' }
-    'mcp.title.get_runner_status' = @{ it = 'Stato del runner'; en = 'Runner status' }
-    'mcp.description.get_runner_status' = @{ it = 'Runner dei task del repository: in lavoro, possibile stallo, concluso o orfano, con gli ultimi eventi.'; en = 'Task runner of the repository: working, possibly stalled, finished or orphaned, with the latest events.' }
-    'mcp.description.get_runner_status.tail' = @{ it = 'Eventi recenti (20)'; en = 'Recent events (20)' }
-    'mcp.description.list_prompts.repositoryPath' = @{ it = 'Checkout del repository: aggiunge le sue schede private'; en = 'Repository checkout: adds its private cards' }
-    'mcp.title.get_decisions' = @{ it = 'Decisioni della persona'; en = 'User decisions' }
-    'mcp.description.get_decisions' = @{ it = 'Decisioni della persona del repository (decisions.json): aperte, con risposta o ritirate. Risponde solo la persona.'; en = 'User decisions of the repository (decisions.json): open, answered or withdrawn. Only the user answers.' }
-    'mcp.description.get_decisions.status' = @{ it = 'Solo questo stato'; en = 'Only this status' }
-    'mcp.description.get_decisions.taskId' = @{ it = 'Solo le decisioni di questo task'; en = 'Only decisions of this task' }
-    'mcp.description.get_decisions.id' = @{ it = 'Una decisione (ID dec-)'; en = 'One decision (dec- ID)' }
-    'mcp.pending.contract' = @{it='Sola lettura: non integra mai scritture accodate. Il recupero e solo esplicito (knowledge.ps1 -FlushPending, limitato al proprio dossier).';en='Read-only: never integrates queued writes. Recovery is explicit only (knowledge.ps1 -FlushPending, limited to the own dossier).'}
-    'mcp.json.parse' = @{ it = 'Errore di parsing: {0}'; en = 'Parse error: {0}' }
-    'mcp.json.request' = @{ it = 'Richiesta non valida: jsonrpc deve essere 2.0'; en = 'Invalid Request: jsonrpc must be 2.0' }
-    'mcp.json.method' = @{ it = 'Metodo non trovato: {0}'; en = 'Method not found: {0}' }
-    'mcp.json.internal' = @{ it = 'Errore interno: {0}'; en = 'Internal error: {0}' }
-    'mcp.description.get_startup_context' = @{ it = 'Contesto di avvio. slim (predefinito): parti essenziali entro il tetto; full: completo. Revisione invariata: nessuna parte ripetuta.'; en = 'Startup context. slim (default): essential parts within the cap; full: complete. Unchanged revision: no parts repeated.' }
-    'mcp.description.get_startup_context.repository' = @{ it = 'Identità del repository; predefinito: checkout in lavoro'; en = 'Repository identity; default: working checkout' }
-    'mcp.description.get_startup_context.checkoutPath' = @{ it = 'Checkout da cui risolvere il repository'; en = 'Checkout used to resolve the repository' }
-    'mcp.description.get_startup_context.dossier' = @{ it = 'Dossier relativo (es. 01-projects/X)'; en = 'Relative dossier (e.g. 01-projects/X)' }
-    'mcp.description.get_startup_context.readyOnly' = @{ it = 'Solo task con dipendenze soddisfatte'; en = 'Only tasks with satisfied dependencies' }
-    'mcp.description.get_startup_context.previousRevision' = @{ it = 'Revisione precedente: se invariata, changed=false'; en = 'Previous revision: if unchanged, changed=false' }
-    'mcp.description.get_startup_context.taskIds' = @{ it = 'ID dei task da includere'; en = 'Task IDs to include' }
-    'mcp.description.get_startup_context.profile' = @{ it = 'slim o full'; en = 'slim or full' }
-    'mcp.description.get_startup_context.budget' = @{ it = 'Tetto di caratteri (0 = nessuno)'; en = 'Character cap (0 = none)' }
-    'mcp.description.get_ready_tasks' = @{ it = 'Task pronti del repository in lavoro; all=true per la vista globale.'; en = 'Ready tasks of the working repository; all=true for the global view.' }
-    'mcp.description.get_ready_tasks.repository' = @{ it = 'Identità del repository'; en = 'Repository identity' }
-    'mcp.description.get_ready_tasks.checkoutPath' = @{ it = 'Checkout da cui risolvere il repository'; en = 'Checkout used to resolve the repository' }
-    'mcp.description.get_ready_tasks.all' = @{ it = 'Vista globale'; en = 'Global view' }
-    'mcp.description.get_ready_tasks.includeAcceptance' = @{ it = 'Includi i criteri di accettazione'; en = 'Include acceptance criteria' }
-    'mcp.description.get_ready_tasks.offset' = @{ it = 'Con all: task da saltare'; en = 'With all: tasks to skip' }
-    'mcp.description.get_ready_tasks.limit' = @{ it = 'Con all: task per pagina (50; 0 = tutti)'; en = 'With all: tasks per page (50; 0 = all)' }
-    'mcp.description.get_task' = @{ it = 'Dettaglio integro di un task per ID o #seq, anche archiviato.'; en = 'Complete task details by ID or #seq, archived included.' }
-    'mcp.description.get_task.task' = @{ it = 'ID o numero seq'; en = 'ID or sequence number' }
-    'mcp.description.get_task.repository' = @{ it = 'Identità del repository'; en = 'Repository identity' }
-    'mcp.description.get_task.checkoutPath' = @{ it = 'Checkout da cui risolvere il repository'; en = 'Checkout used to resolve the repository' }
-    'mcp.description.get_task.dossier' = @{ it = 'Dossier relativo'; en = 'Relative dossier' }
-    'mcp.description.search_knowledge' = @{ it = 'Cerca nel dossier del repository in lavoro (contesto, memoria, tracker, archivio, rapporti). 20 riscontri e 10000 caratteri; con hasMore usare offset=nextOffset.'; en = 'Search the working repository dossier (context, memory, tracker, archive, reports). 20 matches and 10000 characters; with hasMore use offset=nextOffset.' }
-    'mcp.description.search_knowledge.query' = @{ it = 'Testo da cercare'; en = 'Text to search' }
-    'mcp.description.search_knowledge.budget' = @{ it = 'Tetto di caratteri (0 = nessuno)'; en = 'Character cap (0 = none)' }
-    'mcp.description.search_knowledge.allDossiers' = @{ it = 'Tutti i dossier attivi'; en = 'All active dossiers' }
-    'mcp.description.search_knowledge.customer' = @{ it = 'Cliente (campo customer di repository.json): limita ai dossier del cliente'; en = 'Customer (repository.json customer field): restrict to the customer''s dossiers' }
-    'mcp.description.search_knowledge.includeOriginals' = @{ it = 'Includi gli originali compattati'; en = 'Include compacted originals' }
-    'mcp.description.search_knowledge.dossier' = @{ it = 'Dossier relativo'; en = 'Relative dossier' }
-    'mcp.description.search_knowledge.repository' = @{ it = 'Identità del repository'; en = 'Repository identity' }
-    'mcp.description.search_knowledge.mode' = @{ it = 'literal: sottostringa; relevance: termini per pertinenza'; en = 'literal: substring; relevance: ranked terms' }
-    'mcp.description.search_knowledge.offset' = @{ it = 'Riscontri da saltare'; en = 'Matches to skip' }
-    'mcp.description.search_knowledge.category' = @{ it = 'Categorie (predefinito: tutte tranne prompt)'; en = 'Categories (default: all but prompt)' }
-    'mcp.description.search_knowledge.previousRevision' = @{ it = 'Revisione precedente: se invariata, unchanged=true'; en = 'Previous revision: if unchanged, unchanged=true' }
-    'mcp.description.search_knowledge.limit' = @{ it = 'Riscontri massimi (0 = tutti)'; en = 'Maximum matches (0 = all)' }
-    'mcp.description.list_prompts' = @{ it = 'Catalogo dei prompt per area; compact=true una riga per prompt, da riportare integralmente.'; en = 'Prompt catalog by category; compact=true gives one line per prompt, to report in full.' }
-    'mcp.description.list_prompts.category' = @{ it = 'Area o prefisso del codice'; en = 'Category or code prefix' }
-    'mcp.description.list_prompts.compact' = @{ it = 'Una riga per prompt'; en = 'One line per prompt' }
-    'mcp.description.list_prompts.language' = @{ it = 'Lingua (en, it)'; en = 'Language (en, it)' }
-    'mcp.description.get_prompt_home' = @{ it = 'Schermata di sb prompt: comandi sb e script; con repositoryPath stato e prossimo passo.'; en = 'sb prompt screen: sb commands and scripts; with repositoryPath, state and next step.' }
-    'mcp.description.get_prompt_home.repositoryPath' = @{ it = 'Checkout corrente'; en = 'Working checkout' }
-    'mcp.description.get_prompt_home.language' = @{ it = 'Lingua (en, it)'; en = 'Language (en, it)' }
-    'mcp.description.get_prompt' = @{ it = 'Prompt composto per codice o ID (es. SYS03); objective imposta l''obiettivo.'; en = 'Composed prompt by code or ID (e.g. SYS03); objective sets the goal.' }
-    'mcp.description.get_prompt.prompt' = @{ it = 'Codice, ID pmt-... o alias'; en = 'Code, pmt-... ID or alias' }
-    'mcp.description.get_prompt.language' = @{ it = 'Lingua (en, it)'; en = 'Language (en, it)' }
-    'mcp.description.check_publication' = @{ it = 'Verifica di pubblicabilità (working tree, indice, storia): riepilogo; detail=true rapporto integro.'; en = 'Publication check (working tree, index, history): summary; detail=true full report.' }
-    'mcp.description.check_publication.repositoryPath' = @{ it = 'Radice o checkout Git'; en = 'Git root or checkout' }
-    'mcp.description.check_publication.detail' = @{ it = 'Rapporto integro'; en = 'Full report' }
-    'mcp.prompt.objective' = @{ it = 'Obiettivo'; en = 'Objective' }
-    'mcp.resource.catalog' = @{ it = 'Catalogo Prompt e Workflow SecondBrain'; en = 'SecondBrain Prompt and Workflow Catalog' }
-    'mcp.tool.failed' = @{ it = 'Errore durante l''esecuzione dello strumento {0}: {1}'; en = 'Error executing tool {0}: {1}' }
-    'mcp.notice' = @{ it = 'Avviso: {0}'; en = 'Warning: {0}' }
-    'mcp.repository.unresolved' = @{ it = 'Repository in lavoro non risolvibile: indicare repository o checkoutPath (oppure all=true per la vista globale)'; en = 'Working repository not resolvable: give repository or checkoutPath (or all=true for the global view)' }
-    'mcp.profile.invalid' = @{ it = 'Profilo non valido: usare slim o full'; en = 'Invalid profile: use slim or full' }
-    'mcp.params.conflict' = @{ it = 'Parametri incompatibili: all e repository. Usa solo uno dei due'; en = 'Incompatible parameters: all and repository. Use only one of them' }
-    'mcp.paging.invalid' = @{ it = 'offset e limit devono essere interi non negativi'; en = 'offset and limit must be non-negative integers' }
-    'mcp.task.required' = @{ it = 'Il parametro task è obbligatorio per get_task'; en = 'The task parameter is required for get_task' }
-    'mcp.query.required' = @{ it = 'Il parametro query è obbligatorio per search_knowledge'; en = 'The query parameter is required for search_knowledge' }
-    'mcp.mode.invalid' = @{ it = 'Modalità non valida: usare literal o relevance'; en = 'Invalid mode: use literal or relevance' }
-    'mcp.search.invalid' = @{ it = 'offset, limit e budget devono essere interi non negativi'; en = 'offset, limit and budget must be non-negative integers' }
-    'mcp.startup.invalid' = @{ it = 'budget deve essere un intero non negativo e taskIds un array di ID'; en = 'budget must be a non-negative integer and taskIds an array of IDs' }
-    'mcp.description.get_prompt.repositoryPath' = @{ it = 'Checkout del repository corrente (facoltativo): aggiunge contesto e task pronti ai prossimi passi; senza dossier la composizione resta autonoma.'; en = 'Current repository checkout (optional): adds context and ready tasks to the next steps; without a dossier the composition stays standalone.' }
-    'mcp.prompt.required' = @{ it = 'Il parametro prompt è obbligatorio per get_prompt'; en = 'The prompt parameter is required for get_prompt' }
-    'mcp.path.required' = @{ it = 'Il parametro repositoryPath è obbligatorio per check_publication'; en = 'The repositoryPath parameter is required for check_publication' }
-    'mcp.tool.deprecated' = @{ it = 'Alias deprecato {0}: usare {1}. Lʼalias sarà rimosso in una versione futura.'; en = 'Deprecated alias {0}: use {1}. The alias will be removed in a future version.' }
-    'mcp.language.invalid' = @{ it = 'Lingua non valida: usare en o it'; en = 'Invalid language: use en or it' }
-    'mcp.tool.unknown' = @{ it = 'Strumento sconosciuto: {0}'; en = 'Unknown tool: {0}' }
-    'mcp.resource.notfound' = @{ it = 'Risorsa non trovata: {0}'; en = 'Resource not found: {0}' }
+    'mcp.title.preview_dossier_write' = @{ en = 'Preview dossier write' }
+    'mcp.title.submit_dossier_write' = @{ en = 'Submit approved write' }
+    'mcp.write.param.requestId' = @{ en = 'Idempotent request ID: 32 lowercase hexadecimal characters' }
+    'mcp.write.param.operation' = @{ en = 'Restricted operation to preview' }
+    'mcp.write.param.payload' = @{ en = 'Operation data: task.status (taskId,status,reason?), task.update (taskId plus at least one of status?,reason?,priority?,execution?,stream?,awaiting?,requires?,evidence? (array of "reference|outcome" or {reference,outcome}, appended); an empty string or array clears the field), task.new (title,acceptance,provenance,description?,priority?,pointer?,requires?), memory.append (content), activity.append (taskId,sessionId,when,outcome,detail), history.save (path,content)' }
+    'mcp.write.param.planHash' = @{ en = 'SHA-256 of the exact plan approved through the CLI' }
+    'mcp.write.preview.description' = @{ en = 'Previews a dossier write plan without writing; approve it with mcp-write.ps1 before submit_dossier_write.' }
+    'mcp.write.submit.description' = @{ en = 'Queues one idempotent request approved by the local CLI receipt; MCP arguments cannot grant approval.' }
+    'mcp.pending.disabled' = @{ en = 'Read-only consultation: new MCP writes disabled for this session or request.' }
+    'mcp.description.noRecovery' = @{ en = 'Forbid writes in this call' }
+    'mcp.title.get_startup_context' = @{ en = 'Startup context' }
+    'mcp.title.get_ready_tasks' = @{ en = 'Ready tasks' }
+    'mcp.title.get_task' = @{ en = 'Task details' }
+    'mcp.title.search_knowledge' = @{ en = 'Search knowledge' }
+    'mcp.title.list_prompts' = @{ en = 'List prompts' }
+    'mcp.title.get_prompt_home' = @{ en = 'Prompt home' }
+    'mcp.title.get_prompt' = @{ en = 'Prompt card' }
+    'mcp.title.check_publication' = @{ en = 'Publication check' }
+    'mcp.title.list_ides' = @{ en = 'Detected IDEs' }
+    'mcp.description.list_ides' = @{ en = 'Detected IDEs and AI clients, with evidence and scopes (user, project, system).' }
+    'mcp.description.list_ides.workspacePath' = @{ en = 'Project path (project scope)' }
+    'mcp.title.get_runner_status' = @{ en = 'Runner status' }
+    'mcp.description.get_runner_status' = @{ en = 'Task runner of the repository: working, possibly stalled, finished or orphaned, with the latest events.' }
+    'mcp.description.get_runner_status.tail' = @{ en = 'Recent events (20)' }
+    'mcp.description.list_prompts.repositoryPath' = @{ en = 'Repository checkout: adds its private cards' }
+    'mcp.title.get_decisions' = @{ en = 'User decisions' }
+    'mcp.description.get_decisions' = @{ en = 'User decisions of the repository (decisions.json): open, answered or withdrawn. Only the user answers.' }
+    'mcp.description.get_decisions.status' = @{ en = 'Only this status' }
+    'mcp.description.get_decisions.taskId' = @{ en = 'Only decisions of this task' }
+    'mcp.description.get_decisions.id' = @{ en = 'One decision (dec- ID)' }
+    'mcp.pending.contract' = @{ en = 'Read-only: never integrates queued writes. Recovery is explicit only (knowledge.ps1 -FlushPending, limited to the own dossier).' }
+    'mcp.json.parse' = @{ en = 'Parse error: {0}' }
+    'mcp.json.request' = @{ en = 'Invalid Request: jsonrpc must be 2.0' }
+    'mcp.json.method' = @{ en = 'Method not found: {0}' }
+    'mcp.json.internal' = @{ en = 'Internal error: {0}' }
+    'mcp.description.get_startup_context' = @{ en = 'Startup context. slim (default): essential parts within the cap; full: complete. Unchanged revision: no parts repeated.' }
+    'mcp.description.get_startup_context.repository' = @{ en = 'Repository identity; default: working checkout' }
+    'mcp.description.get_startup_context.checkoutPath' = @{ en = 'Checkout used to resolve the repository' }
+    'mcp.description.get_startup_context.dossier' = @{ en = 'Relative dossier (e.g. 01-projects/X)' }
+    'mcp.description.get_startup_context.readyOnly' = @{ en = 'Only tasks with satisfied dependencies' }
+    'mcp.description.get_startup_context.previousRevision' = @{ en = 'Previous revision: if unchanged, changed=false' }
+    'mcp.description.get_startup_context.taskIds' = @{ en = 'Task IDs to include' }
+    'mcp.description.get_startup_context.profile' = @{ en = 'slim or full' }
+    'mcp.description.get_startup_context.budget' = @{ en = 'Character cap (0 = none)' }
+    'mcp.description.get_ready_tasks' = @{ en = 'Ready tasks of the working repository; all=true for the global view.' }
+    'mcp.description.get_ready_tasks.repository' = @{ en = 'Repository identity' }
+    'mcp.description.get_ready_tasks.checkoutPath' = @{ en = 'Checkout used to resolve the repository' }
+    'mcp.description.get_ready_tasks.all' = @{ en = 'Global view' }
+    'mcp.description.get_ready_tasks.includeAcceptance' = @{ en = 'Include acceptance criteria' }
+    'mcp.description.get_ready_tasks.offset' = @{ en = 'With all: tasks to skip' }
+    'mcp.description.get_ready_tasks.limit' = @{ en = 'With all: tasks per page (50; 0 = all)' }
+    'mcp.description.get_task' = @{ en = 'Complete task details by ID or #seq, archived included.' }
+    'mcp.description.get_task.task' = @{ en = 'ID or sequence number' }
+    'mcp.description.get_task.repository' = @{ en = 'Repository identity' }
+    'mcp.description.get_task.checkoutPath' = @{ en = 'Checkout used to resolve the repository' }
+    'mcp.description.get_task.dossier' = @{ en = 'Relative dossier' }
+    'mcp.description.search_knowledge' = @{ en = 'Search the working repository dossier (context, memory, tracker, archive, reports). 20 matches and 10000 characters; with hasMore use offset=nextOffset.' }
+    'mcp.description.search_knowledge.query' = @{ en = 'Text to search' }
+    'mcp.description.search_knowledge.budget' = @{ en = 'Character cap (0 = none)' }
+    'mcp.description.search_knowledge.allDossiers' = @{ en = 'All active dossiers' }
+    'mcp.description.search_knowledge.customer' = @{ en = 'Customer (repository.json customer field): restrict to the customer''s dossiers' }
+    'mcp.description.search_knowledge.includeOriginals' = @{ en = 'Include compacted originals' }
+    'mcp.description.search_knowledge.dossier' = @{ en = 'Relative dossier' }
+    'mcp.description.search_knowledge.repository' = @{ en = 'Repository identity' }
+    'mcp.description.search_knowledge.mode' = @{ en = 'literal: substring; relevance: ranked terms' }
+    'mcp.description.search_knowledge.offset' = @{ en = 'Matches to skip' }
+    'mcp.description.search_knowledge.category' = @{ en = 'Categories (default: all but prompt)' }
+    'mcp.description.search_knowledge.previousRevision' = @{ en = 'Previous revision: if unchanged, unchanged=true' }
+    'mcp.description.search_knowledge.limit' = @{ en = 'Maximum matches (0 = all)' }
+    'mcp.description.list_prompts' = @{ en = 'Prompt catalog by category; compact=true gives one line per prompt, to report in full.' }
+    'mcp.description.list_prompts.category' = @{ en = 'Category or code prefix' }
+    'mcp.description.list_prompts.compact' = @{ en = 'One line per prompt' }
+    'mcp.description.get_prompt_home' = @{ en = 'sb prompt screen: sb commands and scripts; with repositoryPath, state and next step.' }
+    'mcp.description.get_prompt_home.repositoryPath' = @{ en = 'Working checkout' }
+    'mcp.description.get_prompt' = @{ en = 'Composed prompt by code or ID (e.g. SYS03); objective sets the goal.' }
+    'mcp.description.get_prompt.prompt' = @{ en = 'Code, pmt-... ID or alias' }
+    'mcp.description.check_publication' = @{ en = 'Publication check (working tree, index, history): summary; detail=true full report.' }
+    'mcp.description.check_publication.repositoryPath' = @{ en = 'Git root or checkout' }
+    'mcp.description.check_publication.detail' = @{ en = 'Full report' }
+    'mcp.prompt.objective' = @{ en = 'Objective' }
+    'mcp.resource.catalog' = @{ en = 'SecondBrain Prompt and Workflow Catalog' }
+    'mcp.tool.failed' = @{ en = 'Error executing tool {0}: {1}' }
+    'mcp.notice' = @{ en = 'Warning: {0}' }
+    'mcp.repository.unresolved' = @{ en = 'Working repository not resolvable: give repository or checkoutPath (or all=true for the global view)' }
+    'mcp.profile.invalid' = @{ en = 'Invalid profile: use slim or full' }
+    'mcp.params.conflict' = @{ en = 'Incompatible parameters: all and repository. Use only one of them' }
+    'mcp.paging.invalid' = @{ en = 'offset and limit must be non-negative integers' }
+    'mcp.task.required' = @{ en = 'The task parameter is required for get_task' }
+    'mcp.query.required' = @{ en = 'The query parameter is required for search_knowledge' }
+    'mcp.mode.invalid' = @{ en = 'Invalid mode: use literal or relevance' }
+    'mcp.search.invalid' = @{ en = 'offset, limit and budget must be non-negative integers' }
+    'mcp.startup.invalid' = @{ en = 'budget must be a non-negative integer and taskIds an array of IDs' }
+    'mcp.description.get_prompt.repositoryPath' = @{ en = 'Current repository checkout (optional): adds context and ready tasks to the next steps; without a dossier the composition stays standalone.' }
+    'mcp.prompt.required' = @{ en = 'The prompt parameter is required for get_prompt' }
+    'mcp.path.required' = @{ en = 'The repositoryPath parameter is required for check_publication' }
+    'mcp.tool.deprecated' = @{ en = 'Deprecated alias {0}: use {1}. The alias will be removed in a future version.' }
+    'mcp.tool.unknown' = @{ en = 'Unknown tool: {0}' }
+    'mcp.resource.notfound' = @{ en = 'Resource not found: {0}' }
 }
 
 function ConvertTo-SBMcpJson($Value) {
@@ -204,7 +200,6 @@ function Get-SBMcpToolDefinitions {
                 properties = @{
                     category = @{ type = 'string'; description = (Get-SBMessage 'mcp.description.list_prompts.category') }
                     compact = @{ type = 'boolean'; description = (Get-SBMessage 'mcp.description.list_prompts.compact') }
-                    language = @{ type = 'string'; enum = @('en', 'it'); description = (Get-SBMessage 'mcp.description.list_prompts.language') }
                     repositoryPath = @{ type = 'string'; description = (Get-SBMessage 'mcp.description.list_prompts.repositoryPath') }
                 }
             }
@@ -216,7 +211,6 @@ function Get-SBMcpToolDefinitions {
                 type = 'object'
                 properties = @{
                     repositoryPath = @{ type = 'string'; description = (Get-SBMessage 'mcp.description.get_prompt_home.repositoryPath') }
-                    language = @{ type = 'string'; enum = @('en', 'it'); description = (Get-SBMessage 'mcp.description.get_prompt_home.language') }
                 }
             }
         },
@@ -230,7 +224,6 @@ function Get-SBMcpToolDefinitions {
                     prompt = @{ type = 'string'; description = (Get-SBMessage 'mcp.description.get_prompt.prompt') }
                     objective = @{ type = 'string'; description = (Get-SBMessage 'mcp.prompt.objective') }
                     repositoryPath = @{ type = 'string'; description = (Get-SBMessage 'mcp.description.get_prompt.repositoryPath') }
-                    language = @{ type = 'string'; enum = @('en', 'it'); description = (Get-SBMessage 'mcp.description.get_prompt.language') }
                 }
             }
         },
@@ -355,13 +348,6 @@ function Invoke-SBMcpToolCall([string]$BrainRoot, [string]$ToolName, $Arguments)
     $legacyAliases = Get-SBMcpDeprecatedToolAliases
     if ($legacyAliases.Contains($ToolName)) { $ToolName = $legacyAliases[$ToolName] }
 
-    # Prompt language (en or it) applies only to prompt tools and only for the duration of the call.
-    $previousLanguage = Get-SBWorkflowLanguageOverride
-    if ($ToolName -in @('list_prompts', 'get_prompt_home', 'get_prompt') -and $Arguments.ContainsKey('language') -and $Arguments.language) {
-        if ([string]$Arguments.language -notin @('en', 'it')) { throw (New-SBError 'mcp.language.invalid') }
-        Set-SBWorkflowLanguage ([string]$Arguments.language)
-    }
-    try {
     switch ($ToolName) {
         'get_startup_context' {
             $startupProfile = if ($Arguments.ContainsKey('profile') -and $Arguments.profile) { [string]$Arguments.profile } else { 'slim' }
@@ -557,9 +543,6 @@ function Invoke-SBMcpToolCall([string]$BrainRoot, [string]$ToolName, $Arguments)
         default {
             throw (New-SBError 'mcp.tool.unknown' @($ToolName))
         }
-    }
-    } finally {
-        Set-SBWorkflowLanguage $previousLanguage
     }
 }
 

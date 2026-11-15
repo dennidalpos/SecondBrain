@@ -14,10 +14,10 @@ param([switch]$ExportBaseline)
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Add-SBMessages @{
-    'lint.module.missing' = @{ it = 'Modulo PSScriptAnalyzer assente: Install-Module PSScriptAnalyzer -Scope CurrentUser'; en = 'PSScriptAnalyzer module missing: Install-Module PSScriptAnalyzer -Scope CurrentUser' }
-    'lint.new'            = @{ it = 'Nuovi riscontri rispetto alla baseline: {0} {1} (baseline {2}, trovati {3})'; en = 'New findings over the baseline: {0} {1} (baseline {2}, found {3})' }
-    'lint.ok'             = @{ it = 'Analisi statica conforme alla baseline ({0} riscontri differiti)'; en = 'Static analysis matches the baseline ({0} deferred findings)' }
-    'lint.fixed'          = @{ it = 'Riscontri risolti: aggiornare la baseline con -ExportBaseline ({0} in meno)'; en = 'Findings resolved: refresh the baseline with -ExportBaseline ({0} fewer)' }
+    'lint.module.missing' = @{ en = 'PSScriptAnalyzer module missing: Install-Module PSScriptAnalyzer -Scope CurrentUser' }
+    'lint.new'            = @{ en = 'New findings over the baseline: {0} {1} (baseline {2}, found {3})' }
+    'lint.ok'             = @{ en = 'Static analysis matches the baseline ({0} deferred findings)' }
+    'lint.fixed'          = @{ en = 'Findings resolved: refresh the baseline with -ExportBaseline ({0} fewer)' }
 }
 $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 if (!(Get-Module -ListAvailable -Name PSScriptAnalyzer)) { throw (New-SBError 'lint.module.missing') }

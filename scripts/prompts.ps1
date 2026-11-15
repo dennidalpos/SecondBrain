@@ -31,10 +31,8 @@ param(
     [Parameter(ParameterSetName='Compose')][Parameter(ParameterSetName='Context')][string]$ProjectId,
     [Parameter(ParameterSetName='Compose')][Parameter(ParameterSetName='Context')][string]$CheckoutPath,
     [Parameter(ParameterSetName='Compose')][Parameter(ParameterSetName='Context')][string]$CheckoutMapPath,
-    [string]$ConfigPath,[string]$SessionId,
-    [ValidateSet('en','it')][string]$Language
+    [string]$ConfigPath,[string]$SessionId
 )
-if($Language){$env:SECONDBRAIN_LANG=$Language}
 $ErrorActionPreference='Stop'
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
 trap { if (Test-SBWriteDeniedError $_) { Write-SBWriteDeniedDiagnostic $_ $PSCommandPath $PSBoundParameters; exit 4 }; break }
@@ -43,12 +41,12 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Prompts.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Pending.psm1')
 Add-SBMessages @{
-    'promptscli.workstation.inactive' = @{ it = 'Postazione non attivata: usare sb attiva (SYS03)'; en = 'Workstation not activated: use sb activate (SYS03)' }
-    'promptscli.context.incompatible' = @{ it = 'Selezioni di contesto incompatibili: usare una sola selezione di contesto per volta'; en = 'Incompatible context selections: use one context selection at a time' }
-    'promptscli.goal.empty' = @{ it = 'Obiettivo vuoto: indicare l''obiettivo con -Objective'; en = 'Empty goal: give the goal with -Objective' }
-    'promptscli.output.txt' = @{ it = 'Output TXT nuovo richiesto: indicare con -OutputPath un file TXT che non esiste ancora'; en = 'New TXT output required: give -OutputPath a TXT file that does not exist yet' }
-    'promptscli.bootstrap' = @{ it = 'Bootstrap: usa il checkout SecondBrain corrente, senza percorsi preimpostati.'; en = 'Bootstrap: use the current SecondBrain checkout, with no preset paths.' }
-    'promptscli.output.created' = @{ it = 'Creato: {0}'; en = 'Created: {0}' }
+    'promptscli.workstation.inactive' = @{ en = 'Workstation not activated: use sb activate (SYS03)' }
+    'promptscli.context.incompatible' = @{ en = 'Incompatible context selections: use one context selection at a time' }
+    'promptscli.goal.empty' = @{ en = 'Empty goal: give the goal with -Objective' }
+    'promptscli.output.txt' = @{ en = 'New TXT output required: give -OutputPath a TXT file that does not exist yet' }
+    'promptscli.bootstrap' = @{ en = 'Bootstrap: use the current SecondBrain checkout, with no preset paths.' }
+    'promptscli.output.created' = @{ en = 'Created: {0}' }
 }
 $brain=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $lock=$null

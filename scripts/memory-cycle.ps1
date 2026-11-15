@@ -5,11 +5,10 @@ param(
     [string]$Repository,[string]$InputPath,[string]$Workspace,[string[]]$AttachmentPath=@(),
     [string[]]$TaskIds=@(),[string]$PreviousRevision,[int]$Budget=-1,
     [ValidateSet('claude-code','codex','antigravity','vscode','android-studio','claude','cursor','windsurf','continue','jetbrains')][string]$Client='codex',
-    [string]$ConfigPath,[string]$SessionId,[string]$ObservationPath,[string]$PreviewSha256,[switch]$Apply,[ValidateSet('it','en')][string]$Language
+    [string]$ConfigPath,[string]$SessionId,[string]$ObservationPath,[string]$PreviewSha256,[switch]$Apply
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
-if($Language){$env:SECONDBRAIN_LANG=$Language}
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.MemoryCycle.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Access.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')

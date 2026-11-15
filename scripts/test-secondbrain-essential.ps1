@@ -257,17 +257,17 @@ if('portable' -in $Groups){
             $readOnlyPreview=(& pwsh -NoProfile -File $setupScript -Setup -PreviewOnly -Roots $repo -Select $repo -McpTargets cursor)|ConvertFrom-Json -AsHashtable
             $afterPreview=@($previewPaths|ForEach-Object {Get-SBFileHash $_})
             Check ($LASTEXITCODE -eq 0 -and $readOnlyPreview.mode -eq 'single' -and !$readOnlyPreview.applied -and !$readOnlyPreview.confirmed -and !$readOnlyPreview.discovery.report -and $readOnlyPreview.activation.repositories.Count -eq 1 -and $readOnlyPreview.mcp.targets[0].ConfigFile -eq $cursorConfig -and ($beforePreview -join ',') -eq ($afterPreview -join ',')) 'read-only setup plans activation and MCP without writing discovery, selection or pairing files'
-            $teamError=(& pwsh -NoProfile -File $setupScript -Setup -PreviewOnly -TeamRoot $repo -Language en 2>&1) -join "`n"
+            $teamError=(& pwsh -NoProfile -File $setupScript -Setup -PreviewOnly -TeamRoot $repo 2>&1) -join "`n"
             Check ($LASTEXITCODE -eq 2 -and $teamError.Contains('reachable UNC root')) 'team preview rejects a local path'
             $soloPreview=(& pwsh -NoProfile -File $setupScript -Setup -SetupProfile Solo -PreviewOnly -Roots $repo -Select $repo)|ConvertFrom-Json -AsHashtable
             Check ($LASTEXITCODE -eq 0 -and $soloPreview.profile -eq 'solo' -and $soloPreview.mode -eq 'single' -and !$soloPreview.sharedRoot -and $soloPreview.acl -eq 'none' -and $soloPreview.state -eq 'checkout' -and ($beforePreview -join ',') -eq (@($previewPaths|ForEach-Object {Get-SBFileHash $_}) -join ',')) 'Solo profile previews in one command with no shared root, no ACL and no writes'
-            $soloTeam=(& pwsh -NoProfile -File $setupScript -Setup -SetupProfile Solo -PreviewOnly -TeamRoot $repo -Roots $repo -Language en 2>&1) -join "`n"
+            $soloTeam=(& pwsh -NoProfile -File $setupScript -Setup -SetupProfile Solo -PreviewOnly -TeamRoot $repo -Roots $repo 2>&1) -join "`n"
             Check ($LASTEXITCODE -eq 2 -and $soloTeam.Contains('no shared root')) 'Solo profile rejects -TeamRoot'
-            $studioNoRoot=(& pwsh -NoProfile -File $setupScript -Setup -SetupProfile Studio -PreviewOnly -Roots $repo -Language en 2>&1) -join "`n"
+            $studioNoRoot=(& pwsh -NoProfile -File $setupScript -Setup -SetupProfile Studio -PreviewOnly -Roots $repo 2>&1) -join "`n"
             Check ($LASTEXITCODE -eq 2 -and $studioNoRoot.Contains('requires -TeamRoot')) 'Studio profile requires the shared root'
-            $studioLocal=(& pwsh -NoProfile -File $setupScript -Setup -SetupProfile Studio -PreviewOnly -TeamRoot $repo -Language en 2>&1) -join "`n"
+            $studioLocal=(& pwsh -NoProfile -File $setupScript -Setup -SetupProfile Studio -PreviewOnly -TeamRoot $repo 2>&1) -join "`n"
             Check ($LASTEXITCODE -eq 2 -and $studioLocal.Contains('reachable UNC root')) 'Studio profile rejects a local path as shared root'
-            $allError=(& pwsh -NoProfile -File $setupScript -Setup -PreviewOnly -All -Roots $repo -Language en 2>&1) -join "`n"
+            $allError=(& pwsh -NoProfile -File $setupScript -Setup -PreviewOnly -All -Roots $repo 2>&1) -join "`n"
             Check ($LASTEXITCODE -eq 2 -and $allError.Contains('use -AllIdes')) 'Setup rejects the removed -All (no silent binding to -AllIdes) with the next step'
             $personalRoot=Join-Path $fixture 'personal'
             $personalDossier=Join-Path $personalRoot '02-areas/Personal'
@@ -289,7 +289,7 @@ if('portable' -in $Groups){
                     Check ($LASTEXITCODE -eq 0 -and $studioCli.profile -eq 'studio' -and $studioCli.mode -eq 'team' -and $studioCli.sharedRoot -and $studioCli.acl -eq 'share-managed' -and $studioCli.state -eq 'local') 'Studio profile previews in one command over loopback UNC with shared root and local state'
                     # The personal root has no scripts: the Solo check runs the fixture brain's own script through the same loopback share.
                     $brainLoopback=if($brain -match '^(?<drive>[A-Za-z]):(?<tail>\\.*)$'){'\\localhost\'+$Matches.drive+'$'+$Matches.tail}else{$brain}
-                    $soloUnc=(& pwsh -NoProfile -File (Join-Path $brainLoopback 'scripts/secondbrain.ps1') -Setup -SetupProfile Solo -PreviewOnly -Roots $repo -Language en 2>&1) -join "`n"
+                    $soloUnc=(& pwsh -NoProfile -File (Join-Path $brainLoopback 'scripts/secondbrain.ps1') -Setup -SetupProfile Solo -PreviewOnly -Roots $repo 2>&1) -join "`n"
                     Check ($LASTEXITCODE -eq 2 -and $soloUnc.Contains('no shared root')) 'Solo profile refuses a checkout reached through a share'
                     $conflict=(& pwsh -NoProfile -File $setupScript -Setup -TeamRoot $loopback -Roots $repo -Select $repo -ApproveExistingBlocks -Yes -Apply -NoRegisterEnvironment)|ConvertFrom-Json -AsHashtable
                     Check ($LASTEXITCODE -eq 1 -and $conflict.stage -eq 'dossier-conflict' -and !$conflict.applied -and $conflict.dossierConflicts.Count -eq 1 -and ![IO.Directory]::Exists((Join-Path $personalRoot '.runtime'))) 'team conflict stops activation before writes even with explicit confirmation'
@@ -299,7 +299,7 @@ if('portable' -in $Groups){
                     Check ((Invoke-SBGit $teamRepo @('init','-q')).code -eq 0 -and (Invoke-SBGit $teamRepo @('remote','add','origin','https://github.com/test/team-fixture.git')).code -eq 0) 'team checkout has a separate synthetic identity'
                     try{
                         $env:SECONDBRAIN_STATE_ROOT=$null
-                        $missingState=(& pwsh -NoProfile -File $setupScript -Setup -TeamRoot $loopback -Roots $teamRepo -Select $teamRepo -Yes -Apply -NoRegisterEnvironment -Language en 2>&1) -join [Environment]::NewLine
+                        $missingState=(& pwsh -NoProfile -File $setupScript -Setup -TeamRoot $loopback -Roots $teamRepo -Select $teamRepo -Yes -Apply -NoRegisterEnvironment 2>&1) -join [Environment]::NewLine
                     }finally{$env:SECONDBRAIN_STATE_ROOT=$oldState}
                     Check ($LASTEXITCODE -eq 2 -and $missingState.Contains('requires SECONDBRAIN_STATE_ROOT') -and ![IO.Directory]::Exists((Join-Path $personalRoot '.runtime'))) 'team activation refuses to keep workstation state on the share'
                     foreach($file in 'AGENTS.global_ide.md','workstation.template.md'){
@@ -339,7 +339,7 @@ if('portable' -in $Groups){
             Check ($LASTEXITCODE -eq 0 -and $preview.mcp.preview -and $preview.mcp.targets[0].ConfigFile -eq $cursorConfig -and !(Test-Path -LiteralPath $cursorConfig)) 'setup previews the MCP destination without pairing'
             $beforeRefusal=@($previewPaths|ForEach-Object {Get-SBFileHash $_})
             # Answers: repository instruction files (Enter keeps the zero-footprint default, #484), then a refusal.
-            $interactiveOutput=((@('','skip')|& pwsh -NoProfile -File $setupScript -Setup -Roots $repo -Select $repo -McpTargets cursor -Yes -Interactive -Apply -NoRegisterEnvironment -Language en) -join "`n")
+            $interactiveOutput=((@('','skip')|& pwsh -NoProfile -File $setupScript -Setup -Roots $repo -Select $repo -McpTargets cursor -Yes -Interactive -Apply -NoRegisterEnvironment) -join "`n")
             $afterRefusal=@($previewPaths|ForEach-Object {Get-SBFileHash $_})
             $activationAt=$interactiveOutput.IndexOf('Workstation activation preview')
             $previewAt=$interactiveOutput.IndexOf('User-level MCP pairing preview')
@@ -677,7 +677,7 @@ if('trackers' -in $Groups){
 }
 if('workflows' -in $Groups){
     $empty=& (Get-Module SecondBrain.Knowledge) {New-SBStartupPackage -Record @{identity='github.com/test/empty'} -Tracker @{path=$null;source='absent';declared=$false} -TOC '# Empty' -ContextText '# Context' -MemoryText '# Memory' -Profile Slim -Budget 25000}
-    Check ($empty.withinBudget -and $empty.parts.tasks.Contains('Nessun task selezionato.') -and !$empty.parts.tasks.Contains('Nessun task pronto.')) 'startup without selected tasks reports selection rather than claiming the tracker has no ready work'
+    Check ($empty.withinBudget -and $empty.parts.tasks.Contains('No task selected.') -and !$empty.parts.tasks.Contains('No ready task.')) 'startup without selected tasks reports selection rather than claiming the tracker has no ready work'
     $default=Get-SBStartupContext -BrainRoot $brain -Dossier $dossier -Profile Slim
     Check ($default.budget -eq 25000) 'Slim API uses the shared 25000-character default'
     $repeat=Get-SBStartupContext -BrainRoot $brain -Dossier $dossier -Profile Slim -PreviousRevision $default.revision

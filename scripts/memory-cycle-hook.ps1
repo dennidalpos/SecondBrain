@@ -10,7 +10,7 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Access.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Host.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
-Add-SBMessages @{'cycle.hook.failed'=@{it='Ciclo memorie: acquisizione non eseguita; hook non bloccante ({0})';en='Memory cycle: capture not performed; nonblocking hook ({0})'}}
+Add-SBMessages @{'cycle.hook.failed'=@{ en = 'Memory cycle: capture not performed; nonblocking hook ({0})' }}
 $session=$null;$lock=$null;$config=$null
 $phase='permit';$outcome='suppressed'
 try{

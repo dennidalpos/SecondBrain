@@ -27,12 +27,12 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Access.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.RunnerStatus.psm1')
 Add-SBMessages @{
-    'runnerstatus.repository' = @{it='Repository non risolto da {0}. Indica -CheckoutPath di un checkout gestito o -Repository <identita>';en='Repository not resolved from {0}. Give -CheckoutPath of a managed checkout or -Repository <identity>'}
-    'runnerstatus.nostop' = @{it='Nessun run attivo da fermare per {0}';en='No active run to stop for {0}'}
-    'runnerstatus.stop' = @{it='Arresto richiesto: il runner si ferma dopo il task corrente ({0})';en='Stop requested: the runner ends after the current task ({0})'}
-    'runnerstatus.line' = @{it='[{0}] {1}';en='[{0}] {1}'}
-    'runnerstatus.end' = @{it='Run concluso: {0}';en='Run ended: {0}'}
-    'runnerstatus.folder' = @{it='Cartella di run non valida per {0}: {1}. Usa la cartella riportata da runner-status.ps1 -List';en='Invalid run folder for {0}: {1}. Use the folder reported by runner-status.ps1 -List'}
+    'runnerstatus.repository' = @{ en = 'Repository not resolved from {0}. Give -CheckoutPath of a managed checkout or -Repository <identity>' }
+    'runnerstatus.nostop' = @{ en = 'No active run to stop for {0}' }
+    'runnerstatus.stop' = @{ en = 'Stop requested: the runner ends after the current task ({0})' }
+    'runnerstatus.line' = @{ en = '[{0}] {1}' }
+    'runnerstatus.end' = @{ en = 'Run ended: {0}' }
+    'runnerstatus.folder' = @{ en = 'Invalid run folder for {0}: {1}. Use the folder reported by runner-status.ps1 -List' }
 }
 try{
     $config=Read-SBConfiguration $ConfigPath

@@ -51,7 +51,7 @@ $script:brainScripts=Join-Path $brain 'scripts'
 function Start-Cli([string]$Script,[string[]]$Arguments){
     $info=[Diagnostics.ProcessStartInfo]::new((Get-Command pwsh).Source)
     foreach($a in @('-NoProfile','-File',(Join-Path $script:brainScripts $Script))+$Arguments){$info.ArgumentList.Add($a)}
-    $info.UseShellExecute=$false;$info.RedirectStandardOutput=$true;$info.RedirectStandardError=$true;$info.Environment['SECONDBRAIN_LANG']='en'
+    $info.UseShellExecute=$false;$info.RedirectStandardOutput=$true;$info.RedirectStandardError=$true
     $info.Environment.Remove('SECONDBRAIN_HOME')|Out-Null
     $process=[Diagnostics.Process]::Start($info)
     @{process=$process;out=$process.StandardOutput.ReadToEndAsync();err=$process.StandardError.ReadToEndAsync()}

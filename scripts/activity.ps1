@@ -17,11 +17,10 @@ pwsh -NoProfile -File scripts/activity.ps1 -Operation Index -Repository github.c
 param(
     [Parameter(Mandatory)][ValidateSet('Validate','Index','Trace','Retention','RetentionBackups')][string]$Operation,
     [Parameter(Mandatory)][string]$Repository,
-    [string]$Since,[string]$AsOf,[ValidateRange(1,120)][int]$RetentionMonths=12,[string]$PreviewSha256,[string]$ConfigPath,[string]$SessionId,[switch]$Apply,[ValidateSet('it','en')][string]$Language
+    [string]$Since,[string]$AsOf,[ValidateRange(1,120)][int]$RetentionMonths=12,[string]$PreviewSha256,[string]$ConfigPath,[string]$SessionId,[switch]$Apply
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
-if($Language){$env:SECONDBRAIN_LANG=$Language}
 foreach($m in 'Core','Access','Host','Para','Knowledge','Activity'){Import-Module (Join-Path $PSScriptRoot ('SecondBrain.'+$m+'.psm1'))}
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 $brain=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))

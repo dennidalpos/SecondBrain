@@ -12,10 +12,10 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Access.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.ExternalAudit.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Add-SBMessages @{
-    'audit.inventory.required' = @{ it = 'Inventario locale richiesto; eseguire prima Sync'; en = 'Local inventory required; run Sync first' }
-    'audit.repository.outside' = @{ it = 'Repository fuori inventario attivo'; en = 'Repository outside the active inventory' }
-    'audit.output.new' = @{ it = 'Output JSON nuovo richiesto'; en = 'New JSON output required' }
-    'audit.inventory.changed' = @{ it = 'Inventario modificato durante audit; risultato non pubblicato'; en = 'Inventory modified during the audit; result not published' }
+    'audit.inventory.required' = @{ en = 'Local inventory required; run Sync first' }
+    'audit.repository.outside' = @{ en = 'Repository outside the active inventory' }
+    'audit.output.new' = @{ en = 'New JSON output required' }
+    'audit.inventory.changed' = @{ en = 'Inventory modified during the audit; result not published' }
 }
 $lock=$null
 try {

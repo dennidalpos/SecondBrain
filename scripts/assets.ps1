@@ -15,8 +15,8 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Publication.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Add-SBMessages @{
-    'assets.repository.unmanaged' = @{ it = 'Repository non gestito'; en = 'Repository not managed' }
-    'assets.commit.required' = @{ it = 'Registrare un commit di riferimento prima della cattura'; en = 'Record a reference commit before the capture' }
+    'assets.repository.unmanaged' = @{ en = 'Repository not managed' }
+    'assets.commit.required' = @{ en = 'Record a reference commit before the capture' }
 }
 $config=Read-SBConfiguration $ConfigPath;$lock=Enter-SBOperation $config $SessionId -ReadOnly:($Export -and !$Apply)
 try{

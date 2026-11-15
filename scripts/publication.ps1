@@ -49,7 +49,7 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Publication.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Add-SBMessages @{
-    'publication.push.input' = @{ it = 'Aggiornamento pre-push Git non valido'; en = 'Invalid Git pre-push update' }
+    'publication.push.input' = @{ en = 'Invalid Git pre-push update' }
 }
 trap { if (Test-SBWriteDeniedError $_) { Write-SBWriteDeniedDiagnostic $_ $PSCommandPath $PSBoundParameters; exit 4 }; break }
 $brain=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))

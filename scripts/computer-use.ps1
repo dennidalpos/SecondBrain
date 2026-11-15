@@ -15,9 +15,7 @@ param([switch]$Table,
     [string[]]$AppId,
     [string]$CodexConfigPath,
     [switch]$Apply,
-    [string]$PreviewSha256,
-    [ValidateSet('en','it')][string]$Language)
-if($Language){$env:SECONDBRAIN_LANG=$Language}
+    [string]$PreviewSha256)
 $ErrorActionPreference='Stop'
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')

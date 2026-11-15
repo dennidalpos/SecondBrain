@@ -10,10 +10,10 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 $script:SBCycleModulePath=$PSCommandPath
 $script:SBCycleModuleHash=Get-SBFileHash $PSCommandPath
 Add-SBMessages @{
-    'cycle.adapter.fallback' = @{it='Esporta il solo turno corrente nel contratto normalizzato; l installazione non autorizza la persistenza.';en='Export only the current turn into the normalized envelope; installation does not authorize persistence.'}
-    'cycle.invalid' = @{it='Ciclo memorie: input non valido ({0})';en='Memory cycle: invalid input ({0})'}
-    'cycle.conflict' = @{it='Ciclo memorie: fonte cambiata o proposta ambigua ({0})';en='Memory cycle: changed source or ambiguous proposal ({0})'}
-    'cycle.workspace' = @{it='Ciclo memorie: cartella evidence non appartenente a questa postazione e repository';en='Memory cycle: evidence workspace does not belong to this host and repository'}
+    'cycle.adapter.fallback' = @{ en = 'Export only the current turn into the normalized envelope; installation does not authorize persistence.' }
+    'cycle.invalid' = @{ en = 'Memory cycle: invalid input ({0})' }
+    'cycle.conflict' = @{ en = 'Memory cycle: changed source or ambiguous proposal ({0})' }
+    'cycle.workspace' = @{ en = 'Memory cycle: evidence workspace does not belong to this host and repository' }
 }
 
 function Test-SBCyclePrivate($Value) {
@@ -525,7 +525,7 @@ function Invoke-SBCyclePromotion {
             'context' {
                 if(!$change.ContainsKey('text')){throw (New-SBError 'cycle.invalid' @('context text'))}
                 if(@(Get-SBMissingContextSection $change.text).Count){$reasons+='essential-section'}
-                $planned['context.md']=([string]$change.text).TrimEnd()+"`n`nFonte: [registro del turno]("+$sourceLink+'); eventi '+($change.eventIds -join ', ')+"`n"
+                $planned['context.md']=([string]$change.text).TrimEnd()+"`n`nSource: [turn log]("+$sourceLink+'); events '+($change.eventIds -join ', ')+"`n"
             }
             'decision' {
                 foreach($field in @('id','text','reason')){if(!$change.ContainsKey($field) -or !$change[$field]){throw (New-SBError 'cycle.invalid' @('decision '+$field))}}
@@ -539,12 +539,12 @@ function Invoke-SBCyclePromotion {
                     if($memory -notmatch $pattern){$reasons+='superseded-decision-missing';continue}
                     $memory=[regex]::Replace($memory,$pattern,('${1}superseded supersededBy='+$change.id+'${2}'));$supersedes=' supersedes='+$change.supersedes
                 }
-                $memory+="`n## Decisione "+$change.id+"`n<!-- sb:decision id="+$change.id+' state=active'+$supersedes+" -->`n- Decisione: "+$change.text+' — Motivo: '+$change.reason+"`nFonte: [registro del turno]("+$sourceLink+'); eventi '+($change.eventIds -join ', ')+"`n"
+                $memory+="`n## Decision "+$change.id+"`n<!-- sb:decision id="+$change.id+' state=active'+$supersedes+" -->`n- Decision: "+$change.text+' — Reason: '+$change.reason+"`nSource: [turn log]("+$sourceLink+'); events '+($change.eventIds -join ', ')+"`n"
                 $planned['memory.md']=$memory
             }
             'topic' {
                 if(!$change.ContainsKey('path') -or $change.path -cnotmatch '^topics/[A-Za-z0-9][A-Za-z0-9_-]{0,80}\.md$' -or !$change.ContainsKey('text')){throw (New-SBError 'cycle.invalid' @('topic'))}
-                $planned[$change.path]=([string]$change.text).TrimEnd()+"`n`nFonte: [registro del turno]("+[IO.Path]::GetRelativePath((Join-Path $dir 'topics'),$capture).Replace('\','/')+'); eventi '+($change.eventIds -join ', ')+"`n"
+                $planned[$change.path]=([string]$change.text).TrimEnd()+"`n`nSource: [turn log]("+[IO.Path]::GetRelativePath((Join-Path $dir 'topics'),$capture).Replace('\','/')+'); events '+($change.eventIds -join ', ')+"`n"
             }
             'task' {$taskChanges+=,$change}
             default {throw (New-SBError 'cycle.invalid' @('change kind'))}

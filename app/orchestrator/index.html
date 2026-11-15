@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="it">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -13,49 +13,49 @@
         <span id="app-version" class="muted small"></span>
       </div>
       <div class="repo-summary" id="repo-summary">
-        <span id="repo-label" class="repo-name">Nessun repository</span>
+        <span id="repo-label" class="repo-name">No repository</span>
         <span id="repo-tracker" class="muted small"></span>
       </div>
-      <span id="run-badge" class="badge" data-verdict="idle">Inattivo</span>
+      <span id="run-badge" class="badge" data-verdict="idle">Idle</span>
     </header>
-    <nav class="steps" role="tablist" aria-label="Passi">
+    <nav class="steps" role="tablist" aria-label="Steps">
       <button role="tab" data-tab="repo" aria-selected="true"><span class="num">1</span> Repository</button>
-      <button role="tab" data-tab="directives" disabled><span class="num">2</span> Direttive</button>
-      <button role="tab" data-tab="queue" disabled><span class="num">3</span> Coda</button>
-      <button role="tab" data-tab="run" disabled><span class="num">4</span> Esecuzione</button>
-      <button role="tab" data-tab="registry" disabled><span class="num">5</span> Registro</button>
+      <button role="tab" data-tab="directives" disabled><span class="num">2</span> Directives</button>
+      <button role="tab" data-tab="queue" disabled><span class="num">3</span> Queue</button>
+      <button role="tab" data-tab="run" disabled><span class="num">4</span> Run</button>
+      <button role="tab" data-tab="registry" disabled><span class="num">5</span> Registry</button>
       <span class="spacer"></span>
-      <button role="tab" data-tab="settings" class="settings-tab">Impostazioni</button>
+      <button role="tab" data-tab="settings" class="settings-tab">Settings</button>
     </nav>
     <main>
       <section id="tab-repo" class="panel" role="tabpanel">
         <h2>Repository</h2>
-        <p class="muted">Un checkout registrato in SecondBrain: dossier e tracker si caricano da lì. Aperto con <code>sb runner</code>, è già quello da cui hai lanciato il prompt.</p>
+        <p class="muted">A checkout registered in SecondBrain: dossier and tracker are loaded from it. When opened with <code>sb runner</code>, it is already the one you launched the prompt from.</p>
         <div class="row">
-          <input id="repo-path" type="text" placeholder="Percorso del checkout" aria-label="Percorso del checkout" />
-          <button id="repo-browse">Sfoglia…</button>
-          <button id="repo-load" class="primary">Carica</button>
+          <input id="repo-path" type="text" placeholder="Checkout path" aria-label="Checkout path" />
+          <button id="repo-browse">Browse…</button>
+          <button id="repo-load" class="primary">Load</button>
         </div>
         <p id="repo-error" class="error" hidden></p>
         <dl id="repo-info" class="facts" hidden></dl>
-        <h3>Usati di recente</h3>
+        <h3>Recently used</h3>
         <ul id="recent" class="recent"></ul>
-        <p id="recent-empty" class="muted small">Nessun repository recente.</p>
-        <div class="next"><button id="repo-next" class="primary" disabled>Avanti: direttive</button></div>
+        <p id="recent-empty" class="muted small">No recent repository.</p>
+        <div class="next"><button id="repo-next" class="primary" disabled>Next: directives</button></div>
       </section>
 
       <section id="tab-directives" class="panel" role="tabpanel" hidden>
-        <h2>Direttive del repository</h2>
-        <p class="muted">Bersaglio: <code id="dir-target">AGENTS.managed.md</code> nel dossier. Dopo l'approvazione <code>secondbrain.ps1 -Sync</code> lo allinea nel blocco gestito di <code id="dir-agents">AGENTS.md</code> (che CLAUDE.md e GEMINI.md importano).</p>
-        <label for="dir-text">Direttive specifiche (sviluppo e tracciamento dei task)</label>
+        <h2>Repository directives</h2>
+        <p class="muted">Target: <code id="dir-target">AGENTS.managed.md</code> in the dossier. After approval <code>secondbrain.ps1 -Sync</code> aligns it into the managed block of <code id="dir-agents">AGENTS.md</code> (which CLAUDE.md and GEMINI.md import).</p>
+        <label for="dir-text">Specific directives (development and task tracking)</label>
         <textarea id="dir-text" rows="14" spellcheck="false"></textarea>
         <div class="row">
-          <button id="dir-propose" class="accent">Proponi struttura (modello leggero)</button>
-          <button id="dir-import">Importa testo da file…</button>
-          <button id="dir-reload">Ricarica dal dossier</button>
+          <button id="dir-propose" class="accent">Propose structure (light model)</button>
+          <button id="dir-import">Import text from file…</button>
+          <button id="dir-reload">Reload from the dossier</button>
           <span class="spacer"></span>
-          <button id="dir-preview" class="primary">Anteprima proposta</button>
-          <button id="dir-apply" disabled>Approva e applica</button>
+          <button id="dir-preview" class="primary">Preview proposal</button>
+          <button id="dir-apply" disabled>Approve and apply</button>
         </div>
         <p id="dir-light" class="muted small"></p>
         <div class="budget" id="dir-budget-box" hidden>
@@ -65,89 +65,89 @@
         <p id="dir-state" class="muted small"></p>
         <p id="dir-error" class="error" hidden></p>
         <section id="dir-analysis" class="analysis-card" hidden>
-          <h3>Proposta del modello leggero</h3>
+          <h3>Light model proposal</h3>
           <p id="dir-analysis-meta" class="muted small"></p>
           <ol id="dir-sections" class="sections"></ol>
           <p id="dir-warnings" class="warning" hidden></p>
-          <details id="dir-covered-box"><summary>Già coperto dai blocchi caricati (<span id="dir-covered-count">0</span>)</summary><ul id="dir-covered" class="small"></ul></details>
+          <details id="dir-covered-box"><summary>Already covered by the loaded blocks (<span id="dir-covered-count">0</span>)</summary><ul id="dir-covered" class="small"></ul></details>
           <div class="row">
-            <button id="dir-use" class="primary">Usa la proposta nell'editor</button>
-            <button id="dir-append">Aggiungi in coda al testo</button>
-            <button id="dir-discard" class="ghost">Scarta</button>
+            <button id="dir-use" class="primary">Use the proposal in the editor</button>
+            <button id="dir-append">Append to the text</button>
+            <button id="dir-discard" class="ghost">Discard</button>
           </div>
         </section>
-        <details id="dir-preview-box" hidden><summary>Anteprima della proposta</summary><pre id="dir-result" class="box"></pre></details>
-        <details id="dir-blocks"><summary>Blocchi già caricati in ogni sessione</summary>
-          <details><summary>Direttive globali (<span id="dir-global-count">0</span> caratteri)</summary><pre id="dir-global" class="box"></pre></details>
-          <details><summary>Blocco comune di repository (<span id="dir-common-count">0</span> caratteri)</summary><pre id="dir-common" class="box"></pre></details>
-          <details><summary>AGENTS.md fuori dai blocchi gestiti (<span id="dir-outside-count">0</span> caratteri)</summary><pre id="dir-outside" class="box"></pre></details>
-          <details><summary>Blocco di repository risultante con il testo dell'editor (<span id="dir-composed-count">0</span> caratteri)</summary><pre id="dir-composed" class="box"></pre></details>
+        <details id="dir-preview-box" hidden><summary>Proposal preview</summary><pre id="dir-result" class="box"></pre></details>
+        <details id="dir-blocks"><summary>Blocks already loaded in every session</summary>
+          <details><summary>Global directives (<span id="dir-global-count">0</span> characters)</summary><pre id="dir-global" class="box"></pre></details>
+          <details><summary>Common repository block (<span id="dir-common-count">0</span> characters)</summary><pre id="dir-common" class="box"></pre></details>
+          <details><summary>AGENTS.md outside the managed blocks (<span id="dir-outside-count">0</span> characters)</summary><pre id="dir-outside" class="box"></pre></details>
+          <details><summary>Resulting repository block with the editor text (<span id="dir-composed-count">0</span> characters)</summary><pre id="dir-composed" class="box"></pre></details>
         </details>
-        <details><summary>AGENTS.md attuale nel checkout</summary><pre id="dir-current" class="box"></pre></details>
-        <div class="next"><button id="dir-next" class="primary">Avanti: coda</button></div>
+        <details><summary>Current AGENTS.md in the checkout</summary><pre id="dir-current" class="box"></pre></details>
+        <div class="next"><button id="dir-next" class="primary">Next: queue</button></div>
       </section>
 
       <section id="tab-queue" class="panel" role="tabpanel" hidden>
-        <h2>Coda dei task</h2>
-        <h3>Agente</h3>
-        <div id="q-agents" class="agents" role="radiogroup" aria-label="Agente"></div>
-        <p id="q-agents-state" class="muted small">Rilevamento degli agenti…</p>
+        <h2>Task queue</h2>
+        <h3>Agent</h3>
+        <div id="q-agents" class="agents" role="radiogroup" aria-label="Agent"></div>
+        <p id="q-agents-state" class="muted small">Detecting the agents…</p>
         <div class="grid">
-          <label>Modello <select id="q-model"></select></label>
-          <label>Impegno <select id="q-effort"></select></label>
+          <label>Model <select id="q-model"></select></label>
+          <label>Effort <select id="q-effort"></select></label>
           <label>Timeout per task (min) <input id="q-timeout" type="number" min="1" max="240" value="30" /></label>
-          <label>Avviso di stallo dopo (min) <input id="q-stall" type="number" min="1" max="240" value="5" /></label>
+          <label>Stall warning after (min) <input id="q-stall" type="number" min="1" max="240" value="5" /></label>
         </div>
         <div class="row">
-          <label class="inline" title="Al limite del piano il runner resta attivo, attende il ripristino e riprende dal task interrotto"><input id="q-wait" type="checkbox" checked /> Riprendi automaticamente al ripristino dei limiti</label>
-          <label class="inline">attesa massima (ore) <input id="q-wait-hours" type="number" min="1" max="168" value="24" /></label>
+          <label class="inline" title="At the plan limit the runner stays active, waits for the reset and resumes from the interrupted task"><input id="q-wait" type="checkbox" checked /> Resume automatically when the limits reset</label>
+          <label class="inline">maximum wait (hours) <input id="q-wait-hours" type="number" min="1" max="168" value="24" /></label>
         </div>
         <div class="row">
-          <label class="inline"><input id="q-custom-on" type="checkbox" /> Modello non in elenco</label>
-          <input id="q-custom" type="text" placeholder="ID del modello" aria-label="Modello personalizzato" hidden />
+          <label class="inline"><input id="q-custom-on" type="checkbox" /> Model not in the list</label>
+          <input id="q-custom" type="text" placeholder="Model ID" aria-label="Custom model" hidden />
           <span class="spacer"></span>
-          <button id="q-reprobe">Rileva di nuovo</button>
+          <button id="q-reprobe">Detect again</button>
         </div>
-        <details id="q-clients-box"><summary>Altri IDE e client rilevati</summary><ul id="q-clients" class="clients"></ul></details>
-        <h3>Task pronti</h3>
+        <details id="q-clients-box"><summary>Other IDEs and clients detected</summary><ul id="q-clients" class="clients"></ul></details>
+        <h3>Ready tasks</h3>
         <div class="row">
-          <button id="q-refresh">Aggiorna</button>
-          <button id="q-all">Seleziona tutti</button>
-          <button id="q-none">Nessuno</button>
+          <button id="q-refresh">Refresh</button>
+          <button id="q-all">Select all</button>
+          <button id="q-none">None</button>
           <span id="q-count" class="muted small"></span>
         </div>
         <p id="q-error" class="error" hidden></p>
         <table class="tasks">
-          <thead><tr><th></th><th>#</th><th>ID</th><th>Titolo</th><th>Priorità</th><th></th></tr></thead>
+          <thead><tr><th></th><th>#</th><th>ID</th><th>Title</th><th>Priority</th><th></th></tr></thead>
           <tbody id="q-tasks"></tbody>
         </table>
-        <p id="q-empty" class="muted small" hidden>Nessun task pronto per l'esecuzione autonoma.</p>
-        <h3>Non avviabili in autonomia (<span id="q-skipped-count">0</span>)</h3>
-        <p class="muted small">Task esclusi dal runner con il motivo. <strong>Analizza</strong> avvia il modello leggero in sola lettura: propone domande a scelta multipla e l'aggiornamento che rende il task autonomo; il tracker cambia solo dopo la tua conferma. <span id="q-light"></span></p>
+        <p id="q-empty" class="muted small" hidden>No task ready for autonomous execution.</p>
+        <h3>Not runnable autonomously (<span id="q-skipped-count">0</span>)</h3>
+        <p class="muted small">Tasks excluded by the runner, with the reason. <strong>Analyze</strong> starts the light model read-only: it proposes multiple-choice questions and the update that makes the task autonomous; the tracker changes only after your confirmation. <span id="q-light"></span></p>
         <div class="row">
-          <button id="q-analyze-selected" disabled>Analizza selezionati</button>
-          <label class="inline small"><input id="q-show-streams" type="checkbox" /> Mostra anche i flussi esclusi (qualifiche, su richiesta, prodotti)</label>
+          <button id="q-analyze-selected" disabled>Analyze selected</button>
+          <label class="inline small"><input id="q-show-streams" type="checkbox" /> Also show excluded streams (qualifications, on request, products)</label>
           <span id="q-analysis-state" class="muted small"></span>
         </div>
         <table class="tasks">
-          <thead><tr><th></th><th>#</th><th>ID</th><th>Titolo</th><th>Motivo</th><th>Analisi</th><th></th></tr></thead>
+          <thead><tr><th></th><th>#</th><th>ID</th><th>Title</th><th>Reason</th><th>Analysis</th><th></th></tr></thead>
           <tbody id="q-skipped"></tbody>
         </table>
-        <div class="next"><button id="q-start" class="primary">Avvia la coda</button></div>
+        <div class="next"><button id="q-start" class="primary">Start the queue</button></div>
       </section>
 
       <section id="tab-run" class="panel" role="tabpanel" hidden>
-        <h2>Esecuzione</h2>
+        <h2>Run</h2>
         <div class="run-card">
           <div class="run-head">
-            <span id="run-verdict" class="badge" data-verdict="idle">Inattivo</span>
-            <span id="run-task" class="run-task">Nessun task in corso</span>
+            <span id="run-verdict" class="badge" data-verdict="idle">Idle</span>
+            <span id="run-task" class="run-task">No task in progress</span>
           </div>
           <dl class="facts compact">
-            <dt>Trascorso</dt><dd id="run-elapsed">—</dd>
-            <dt id="run-last-label">Ultimo segnale dell'agente</dt><dd id="run-last">—</dd>
-            <dt>Avanzamento</dt><dd id="run-counts">—</dd>
-            <dt>Cartella del run</dt><dd id="run-folder" class="mono small">—</dd>
+            <dt>Elapsed</dt><dd id="run-elapsed">—</dd>
+            <dt id="run-last-label">Last agent signal</dt><dd id="run-last">—</dd>
+            <dt>Progress</dt><dd id="run-counts">—</dd>
+            <dt>Run folder</dt><dd id="run-folder" class="mono small">—</dd>
           </dl>
           <div id="run-resume" class="warning resume-point" hidden>
             <p><strong>Resume point</strong> · <span id="run-resume-text"></span></p>
@@ -156,90 +156,90 @@
           <p id="run-warning" class="warning" hidden></p>
           <p id="run-error" class="error" hidden></p>
           <div class="row">
-            <button id="run-stop">Ferma dopo il task corrente</button>
-            <button id="run-abort" class="danger">Interrompi subito</button>
+            <button id="run-stop">Stop after the current task</button>
+            <button id="run-abort" class="danger">Abort now</button>
             <span class="spacer"></span>
-            <button id="run-refresh">Aggiorna stato</button>
+            <button id="run-refresh">Refresh status</button>
           </div>
         </div>
-        <h3>Passi dell'agente</h3>
+        <h3>Agent steps</h3>
         <ol id="run-steps" class="steps-log"></ol>
-        <h3>Esiti</h3>
+        <h3>Outcomes</h3>
         <table class="tasks">
-          <thead><tr><th>#</th><th>ID</th><th>Esito</th><th>Stato</th><th>Acceptance</th><th>Secondi</th><th>Cartella</th></tr></thead>
+          <thead><tr><th>#</th><th>ID</th><th>Outcome</th><th>Status</th><th>Acceptance</th><th>Seconds</th><th>Folder</th></tr></thead>
           <tbody id="run-results"></tbody>
         </table>
-        <details><summary>Log del run corrente</summary><pre id="run-log" class="box log"></pre></details>
-        <div class="next"><button id="run-registry" class="primary">Vai al registro</button></div>
+        <details><summary>Log of the current run</summary><pre id="run-log" class="box log"></pre></details>
+        <div class="next"><button id="run-registry" class="primary">Go to the registry</button></div>
       </section>
 
       <section id="tab-registry" class="panel" role="tabpanel" hidden>
-        <h2>Registro</h2>
-        <p class="muted">Tutti i task del repository, anche archiviati, con lo strumento che li ha svolti (registro delle esecuzioni del dossier e rapporti del runner di questa postazione), e lo storico dei run.</p>
+        <h2>Registry</h2>
+        <p class="muted">Every task of the repository, archived ones included, with the tool that worked on it (the dossier's run ledger and the runner reports of this workstation), and the run history.</p>
         <div class="row">
-          <div class="segmented" role="group" aria-label="Vista">
+          <div class="segmented" role="group" aria-label="View">
             <button data-reg-view="tasks" aria-pressed="true">Task</button>
-            <button data-reg-view="runs" aria-pressed="false">Run del runner</button>
+            <button data-reg-view="runs" aria-pressed="false">Runner runs</button>
           </div>
           <span class="spacer"></span>
           <span id="reg-state" class="muted small"></span>
-          <button id="reg-refresh">Aggiorna</button>
+          <button id="reg-refresh">Refresh</button>
         </div>
         <p id="reg-error" class="error" hidden></p>
         <div id="reg-tasks-view">
           <div class="row">
-            <select id="reg-tool" aria-label="Strumento"></select>
-            <select id="reg-status" aria-label="Stato"></select>
-            <select id="reg-archived" aria-label="Archivio">
-              <option value="include">Attivi e archiviati</option>
-              <option value="exclude">Solo attivi</option>
-              <option value="only">Solo archiviati</option>
+            <select id="reg-tool" aria-label="Tool"></select>
+            <select id="reg-status" aria-label="Status"></select>
+            <select id="reg-archived" aria-label="Archive">
+              <option value="include">Active and archived</option>
+              <option value="exclude">Active only</option>
+              <option value="only">Archived only</option>
             </select>
-            <input id="reg-search" type="text" placeholder="Cerca per ID o titolo" aria-label="Cerca" />
+            <input id="reg-search" type="text" placeholder="Search by ID or title" aria-label="Search" />
           </div>
           <div id="reg-tools" class="tool-list"></div>
           <table class="tasks registry">
-            <thead><tr><th>#</th><th>ID</th><th>Titolo</th><th>Stato</th><th>Strumenti</th><th>Ultima attività</th><th>Ultimo esito</th><th>Esecuzioni</th></tr></thead>
+            <thead><tr><th>#</th><th>ID</th><th>Title</th><th>Status</th><th>Tools</th><th>Last activity</th><th>Last outcome</th><th>Runs</th></tr></thead>
             <tbody id="reg-rows"></tbody>
           </table>
-          <p id="reg-empty" class="muted small" hidden>Nessun task con questi filtri.</p>
-          <div class="row"><button id="reg-prev">← Precedenti</button><button id="reg-next">Successivi →</button></div>
+          <p id="reg-empty" class="muted small" hidden>No task matches these filters.</p>
+          <div class="row"><button id="reg-prev">← Previous</button><button id="reg-next">Next →</button></div>
         </div>
         <div id="reg-runs-view" hidden>
           <table class="tasks">
-            <thead><tr><th>Inizio</th><th>Fine</th><th>Agente</th><th>Modello</th><th>Task</th><th>Arresto</th><th>Esiti</th><th>Cartella</th></tr></thead>
+            <thead><tr><th>Start</th><th>End</th><th>Agent</th><th>Model</th><th>Tasks</th><th>Stop</th><th>Outcomes</th><th>Folder</th></tr></thead>
             <tbody id="reg-run-rows"></tbody>
           </table>
-          <p id="reg-runs-empty" class="muted small" hidden>Nessun run del runner per questo repository su questa postazione.</p>
+          <p id="reg-runs-empty" class="muted small" hidden>No runner run for this repository on this workstation.</p>
         </div>
       </section>
 
       <section id="tab-settings" class="panel" role="tabpanel" hidden>
-        <h2>Impostazioni</h2>
-        <label>Radice SecondBrain <input id="s-home" type="text" /></label>
-        <label>Eseguibile PowerShell 7 <input id="s-pwsh" type="text" /></label>
-        <div class="row"><button id="s-save" class="primary">Salva</button></div>
+        <h2>Settings</h2>
+        <label>SecondBrain root <input id="s-home" type="text" /></label>
+        <label>PowerShell 7 executable <input id="s-pwsh" type="text" /></label>
+        <div class="row"><button id="s-save" class="primary">Save</button></div>
         <p id="s-info" class="muted small"></p>
         <p id="s-error" class="error" hidden></p>
-        <h3>Modello leggero per le analisi</h3>
-        <p class="muted small">Usato per proporre le direttive e per analizzare i task non avviabili, sempre in sola lettura. Vuoto: l'agente scelto nella coda con il suo modello leggero predefinito (<code>roles.light</code> di <code>config/agent-models.json</code>).</p>
+        <h3>Light model for the analyses</h3>
+        <p class="muted small">Used to propose the directives and to analyze the tasks that cannot run, always read-only. Empty: the agent chosen in the queue with its default light model (<code>roles.light</code> di <code>config/agent-models.json</code>).</p>
         <div class="grid">
-          <label>Agente <select id="s-light-provider"></select></label>
-          <label>Modello <select id="s-light-model"></select></label>
-          <label>Impegno <select id="s-light-effort"></select></label>
+          <label>Agent <select id="s-light-provider"></select></label>
+          <label>Model <select id="s-light-model"></select></label>
+          <label>Effort <select id="s-light-effort"></select></label>
         </div>
-        <div class="row"><button id="s-light-save">Salva il modello leggero</button><span id="s-light-info" class="muted small"></span></div>
+        <div class="row"><button id="s-light-save">Save the light model</button><span id="s-light-info" class="muted small"></span></div>
       </section>
     </main>
 
     <dialog id="close-dialog" aria-labelledby="close-title">
-      <h2 id="close-title">Una coda è in esecuzione</h2>
-      <p>Chiudendo la finestra il runner continua a lavorare; alla riapertura viene ritrovato e riagganciato. Cosa vuoi fare?</p>
+      <h2 id="close-title">A queue is running</h2>
+      <p>Closing the window leaves the runner working; when you reopen it, it is found again and reattached. What do you want to do?</p>
       <div class="dialog-actions">
-        <button data-close="leave" class="primary">Lascia in esecuzione e chiudi</button>
-        <button data-close="stop">Ferma dopo il task e chiudi</button>
-        <button data-close="abort" class="danger">Interrompi subito e chiudi</button>
-        <button data-close="cancel">Annulla</button>
+        <button data-close="leave" class="primary">Leave running and close</button>
+        <button data-close="stop">Stop after the task and close</button>
+        <button data-close="abort" class="danger">Abort now and close</button>
+        <button data-close="cancel">Cancel</button>
       </div>
     </dialog>
     <dialog id="power-dialog" aria-labelledby="power-title">
@@ -259,7 +259,7 @@
       <div id="an-body"></div>
       <p id="an-state" class="muted small"></p>
       <p id="an-error" class="error" hidden></p>
-      <div class="row"><span class="spacer"></span><button id="an-close">Chiudi</button><button id="an-secondary" hidden>Reject</button><button id="an-primary" class="primary">Applica</button></div>
+      <div class="row"><span class="spacer"></span><button id="an-close">Close</button><button id="an-secondary" hidden>Reject</button><button id="an-primary" class="primary">Apply</button></div>
     </dialog>
     <script type="module" src="/src/main.ts"></script>
   </body>

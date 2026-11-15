@@ -5,9 +5,9 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Access.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.McpConfig.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Add-SBMessages @{
-    'mcp.package.destination' = @{it='Scegliere una cartella nuova sotto .runtime: {0}';en='Choose a new folder under .runtime: {0}'}
-    'mcp.package.root' = @{ it = 'Impossibile trovare scripts/mcp-server.ps1 nella radice SecondBrain: {0}'; en = 'Cannot find scripts/mcp-server.ps1 in SecondBrain root: {0}' }
-    'mcp.package.applying' = @{ it = 'Applicazione configurazione MCP SecondBrain a tutti gli IDE...'; en = 'Applying SecondBrain MCP configuration to all IDEs...' }
+    'mcp.package.destination' = @{ en = 'Choose a new folder under .runtime: {0}' }
+    'mcp.package.root' = @{ en = 'Cannot find scripts/mcp-server.ps1 in SecondBrain root: {0}' }
+    'mcp.package.applying' = @{ en = 'Applying SecondBrain MCP configuration to all IDEs...' }
 }
 
 function ConvertTo-SBMcpJson($Value) {
@@ -106,7 +106,7 @@ function New-SBMcpPackage {
 
     $packageMessages = @{}
     foreach($key in @('mcp.package.root','mcp.package.applying')){
-        $packageMessages[$key] = @{it=(Get-SBMessage $key @() 'it');en=(Get-SBMessage $key @() 'en')}
+        $packageMessages[$key] = @{en=(Get-SBMessage $key)}
     }
     # Install script one-click
     $installContent = @(
@@ -116,9 +116,8 @@ function New-SBMcpPackage {
         'Installa automaticamente il server MCP SecondBrain in tutti gli IDE supportati.',
         '#>',
         '[CmdletBinding()]',
-        'param([ValidateSet(''en'',''it'')][string]$Language,[switch]$ApproveKnowledgeTools)',
+        'param([switch]$ApproveKnowledgeTools)',
         'Import-Module (Join-Path $PSScriptRoot ''SecondBrain.Messages.psm1'') -Force',
-        'if($Language){Set-SBUiLanguage $Language;$env:SECONDBRAIN_LANG=$Language}',
         ('Add-SBMessages (ConvertFrom-Json -AsHashtable -InputObject ''' + (ConvertTo-SBMcpJson $packageMessages).Replace("'","''") + ''')'),
         '$ErrorActionPreference = ''Stop''',
         "`$brain = '$($BrainRoot.Replace('\', '/').Replace("'", "''"))'",

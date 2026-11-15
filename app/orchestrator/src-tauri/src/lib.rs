@@ -68,7 +68,7 @@ async fn script(app: AppHandle, name: &'static str, args: Vec<String>) -> Result
 fn checkout(path: &str) -> Result<String, String> {
     let p = PathBuf::from(path.trim());
     if !p.is_dir() {
-        return Err(format!("Cartella non trovata: {path}"));
+        return Err(format!("Folder not found: {path}"));
     }
     Ok(p.to_string_lossy().into_owned())
 }
@@ -126,11 +126,11 @@ fn save_settings(app: AppHandle, secondbrain_home: String, pwsh_path: String) ->
 fn save_light_model(app: AppHandle, provider: String, model: String, effort: String) -> Result<Settings, String> {
     // Empty values are allowed: they mean "agent of the queue" and "light role of the model table".
     if !provider.is_empty() && !valid_provider(&provider) {
-        return Err(format!("Provider non supportato: {provider}"));
+        return Err(format!("Unsupported provider: {provider}"));
     }
     for v in [&model, &effort] {
         if !v.is_empty() && !valid_token(v) {
-            return Err(format!("Valore non valido: {v}"));
+            return Err(format!("Invalid value: {v}"));
         }
     }
     settings::update(&app, |s| {
@@ -194,11 +194,11 @@ fn read_text_file(path: String) -> Result<String, String> {
     let p = PathBuf::from(&path);
     let is_md = p.extension().map(|e| e.eq_ignore_ascii_case("md")).unwrap_or(false);
     if !is_md {
-        return Err("Sono ammessi solo file Markdown (.md).".into());
+        return Err("Only Markdown (.md) files are allowed.".into());
     }
     let meta = std::fs::metadata(&p).map_err(|e| format!("{path}: {e}"))?;
     if meta.len() > 2 * 1024 * 1024 {
-        return Err("File troppo grande (oltre 2 MB).".into());
+        return Err("File too large (over 2 MB).".into());
     }
     std::fs::read_to_string(&p).map_err(|e| format!("{path}: {e}"))
 }
@@ -229,7 +229,7 @@ async fn preview_directives(app: AppHandle, repo: String, text: String) -> Resul
 #[tauri::command]
 async fn apply_directives(app: AppHandle, repo: String, proposal_path: String, proposal_hash: String, authorization: String) -> Result<Value, String> {
     if proposal_hash.len() != 64 || !proposal_hash.chars().all(|c| c.is_ascii_hexdigit()) {
-        return Err("Hash della proposta non valido.".into());
+        return Err("Invalid proposal hash.".into());
     }
     let args = vec![
         "-Directives".into(),
@@ -252,13 +252,13 @@ fn valid_token(value: &str) -> bool {
 /// Model and effort of an analysis: the explicit choice, or nothing for the light role of the model table.
 fn analysis_args(args: &mut Vec<String>, provider: &str, model: Option<String>, effort: Option<String>) -> Result<(), String> {
     if !valid_provider(provider) {
-        return Err(format!("Provider non supportato: {provider}"));
+        return Err(format!("Unsupported provider: {provider}"));
     }
     args.push("-Provider".into());
     args.push(provider.into());
     if let Some(m) = model.filter(|m| !m.trim().is_empty()) {
         if !valid_token(m.trim()) {
-            return Err(format!("Nome del modello non valido: {m}"));
+            return Err(format!("Invalid model name: {m}"));
         }
         args.push("-Model".into());
         args.push(m.trim().into());
@@ -266,7 +266,7 @@ fn analysis_args(args: &mut Vec<String>, provider: &str, model: Option<String>, 
     }
     if let Some(e) = effort.filter(|e| !e.trim().is_empty()) {
         if !valid_token(e.trim()) {
-            return Err(format!("Livello di impegno non valido: {e}"));
+            return Err(format!("Invalid effort level: {e}"));
         }
         args.push("-Effort".into());
         args.push(e.trim().into());
@@ -286,7 +286,7 @@ async fn analyze_directives(app: AppHandle, repo: String, provider: String, mode
 async fn analyze_task(app: AppHandle, repo: String, task_id: String, provider: String, model: Option<String>, effort: Option<String>) -> Result<Value, String> {
     // First round of the autonomy analysis of one task (REP18): verdict and tool calls (questions or the proposed update).
     if !valid_token(&task_id) {
-        return Err("ID del task non valido.".into());
+        return Err("Invalid task ID.".into());
     }
     let mut args = vec!["-Analyze".into(), "-Kind".into(), "task".into(), "-RepositoryPath".into(), checkout(&repo)?, "-TaskId".into(), task_id];
     analysis_args(&mut args, &provider, model, effort)?;
@@ -297,7 +297,7 @@ fn analysis_folder(path: &str) -> Result<String, String> {
     let p = PathBuf::from(path.trim());
     let name = p.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
     if !p.is_dir() || !name.contains("-analysis-task-") {
-        return Err(format!("Cartella di analisi non valida: {path}"));
+        return Err(format!("Invalid analysis folder: {path}"));
     }
     Ok(p.to_string_lossy().into_owned())
 }
@@ -320,7 +320,7 @@ async fn view_task_analysis(app: AppHandle, repo: String, analysis_path: String)
 async fn resolve_task_analysis(app: AppHandle, repo: String, analysis_path: String, answers: Value) -> Result<Value, String> {
     // The owner's answers go to a temporary JSON file; agents.ps1 records them in the analysis folder and runs the next round.
     if answers.as_array().map(|a| a.is_empty()).unwrap_or(true) {
-        return Err("Nessuna risposta da inviare.".into());
+        return Err("No answer to send.".into());
     }
     let dir = app.path().app_cache_dir().map_err(|e| e.to_string())?;
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
@@ -345,7 +345,7 @@ async fn resolve_task_analysis(app: AppHandle, repo: String, analysis_path: Stri
 #[tauri::command]
 async fn apply_task_analysis(app: AppHandle, repo: String, analysis_path: String, authorization: String) -> Result<Value, String> {
     if authorization.trim().is_empty() || authorization.len() > 300 {
-        return Err("Autorizzazione mancante o troppo lunga.".into());
+        return Err("Authorization is missing or too long.".into());
     }
     let args = vec![
         "-Analyze".into(),
@@ -434,28 +434,28 @@ fn registry_args(q: &RegistryQuery, checkout_path: String) -> Result<Vec<String>
     ];
     if let Some(t) = q.tool.as_deref().filter(|t| !t.is_empty()) {
         if !["claude", "codex", "gemini", "antigravity", "human", "unknown"].contains(&t) {
-            return Err(format!("Strumento non valido: {t}"));
+            return Err(format!("Invalid tool: {t}"));
         }
         args.push("-Tool".into());
         args.push(t.into());
     }
     if let Some(s) = q.status.as_deref().filter(|s| !s.is_empty()) {
         if !["todo", "in_progress", "blocked", "done", "cancelled", "unknown"].contains(&s) {
-            return Err(format!("Stato non valido: {s}"));
+            return Err(format!("Invalid status: {s}"));
         }
         args.push("-TaskStatus".into());
         args.push(s.into());
     }
     if let Some(a) = q.archived.as_deref().filter(|a| !a.is_empty()) {
         if !["include", "exclude", "only"].contains(&a) {
-            return Err(format!("Filtro archivio non valido: {a}"));
+            return Err(format!("Invalid archive filter: {a}"));
         }
         args.push("-Archived".into());
         args.push(a.into());
     }
     if let Some(s) = q.search.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
         if s.len() > 100 || s.chars().any(|c| c.is_control()) {
-            return Err("Testo di ricerca non valido.".into());
+            return Err("Invalid search text.".into());
         }
         args.push("-Filter".into());
         args.push(s.into());
@@ -481,7 +481,7 @@ async fn add_run_note(app: AppHandle, repo: String, folder: String, note: String
     // A note of the window (start, stop, reattach) kept in the run's events.jsonl, so it survives a reattach.
     let note = note.trim().to_string();
     if note.is_empty() || note.len() > 500 || note.chars().any(|c| c.is_control()) {
-        return Err("Nota non valida.".into());
+        return Err("Invalid note.".into());
     }
     script(app, "runner-status.ps1", vec!["-CheckoutPath".into(), checkout(&repo)?, "-Note".into(), note, "-RunFolder".into(), folder]).await
 }
@@ -490,7 +490,7 @@ async fn add_run_note(app: AppHandle, repo: String, folder: String, note: String
 /// Arguments of run-ready-tasks.ps1 for a queue started by the window: the chosen tasks, or the resume point of a run stopped by a plan limit.
 fn queue_args(request: &QueueRequest, checkout_path: String, stop_file: &str) -> Result<Vec<String>, String> {
     if !valid_provider(&request.provider) {
-        return Err(format!("Provider non supportato: {}", request.provider));
+        return Err(format!("Unsupported provider: {}", request.provider));
     }
     let resume = request.resume.as_deref().map(str::trim).filter(|r| !r.is_empty());
     if let Some(r) = resume {
@@ -498,7 +498,7 @@ fn queue_args(request: &QueueRequest, checkout_path: String, stop_file: &str) ->
             return Err(format!("Invalid resume point: {r}"));
         }
     } else if request.task_ids.is_empty() || !request.task_ids.iter().all(|t| valid_token(t)) {
-        return Err("Elenco dei task vuoto o non valido.".into());
+        return Err("Task list empty or invalid.".into());
     }
     let mut args: Vec<String> = vec![
         "-CheckoutPath".into(),
@@ -538,14 +538,14 @@ fn queue_args(request: &QueueRequest, checkout_path: String, stop_file: &str) ->
     }
     if let Some(m) = request.model.as_deref().filter(|m| !m.is_empty()) {
         if !valid_token(m) {
-            return Err(format!("Nome del modello non valido: {m}"));
+            return Err(format!("Invalid model name: {m}"));
         }
         args.push("-Model".into());
         args.push(m.into());
     }
     if let Some(e) = request.effort.as_deref().filter(|e| !e.is_empty()) {
         if !valid_token(e) {
-            return Err(format!("Livello di impegno non valido: {e}"));
+            return Err(format!("Invalid effort level: {e}"));
         }
         args.push("-Effort".into());
         args.push(e.into());
@@ -567,7 +567,7 @@ fn queue_args(request: &QueueRequest, checkout_path: String, stop_file: &str) ->
 fn start_queue(app: AppHandle, state: State<'_, AppState>, request: QueueRequest) -> Result<Value, String> {
     let mut guard = state.run.lock().map_err(|e| e.to_string())?;
     if guard.is_some() {
-        return Err("Una coda avviata da questa finestra è già in esecuzione.".into());
+        return Err("A queue started from this window is already running.".into());
     }
     let (pwsh_path, root) = context(&app)?;
     let cache = app.path().app_cache_dir().map_err(|e| e.to_string())?;
@@ -584,7 +584,7 @@ fn start_queue(app: AppHandle, state: State<'_, AppState>, request: QueueRequest
         .stdout(Stdio::from(out))
         .stderr(Stdio::from(err))
         .spawn()
-        .map_err(|e| format!("Avvio del runner non riuscito ({pwsh_path}): {e}"))?;
+        .map_err(|e| format!("Runner start failed ({pwsh_path}): {e}"))?;
     let pid = child.id();
     *guard = Some(RunInfo { pid, stop_file: stop_file.clone() });
     drop(guard);

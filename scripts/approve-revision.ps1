@@ -8,12 +8,12 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Access.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Para.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Add-SBMessages @{
-    'approve.proposal.text' = @{ it = 'Testo della proposta mancante: {0}'; en = 'Proposal text missing: {0}' }
-    'approve.source.missing' = @{ it = 'Sorgente mancante: {0}'; en = 'Source missing: {0}' }
-    'approve.readme.missing' = @{ it = 'README della proposta mancante'; en = 'Proposal README missing' }
-    'approve.proposal.portable' = @{ it = 'Direttive repository non portabili: {0}'; en = 'Non-portable repository directives: {0}' }
-    'approve.proposal.review' = @{ it = 'Rivedere -Preview e fornire -ExpectedProposalHash e -Authorization per la proposta esaminata'; en = 'Review -Preview and supply -ExpectedProposalHash and -Authorization for the reviewed proposal' }
-    'approve.private.invalid' = @{ it = 'Registro privato di approvazione delle direttive non valido'; en = 'Invalid private directive approval registry' }
+    'approve.proposal.text' = @{ en = 'Proposal text missing: {0}' }
+    'approve.source.missing' = @{ en = 'Source missing: {0}' }
+    'approve.readme.missing' = @{ en = 'Proposal README missing' }
+    'approve.proposal.portable' = @{ en = 'Non-portable repository directives: {0}' }
+    'approve.proposal.review' = @{ en = 'Review -Preview and supply -ExpectedProposalHash and -Authorization for the reviewed proposal' }
+    'approve.private.invalid' = @{ en = 'Invalid private directive approval registry' }
 }
 # Writer busy beyond the wait limit: exit 3 (the message identifies the owner).
 trap { if (Test-SBWriteDeniedError $_) { Write-SBWriteDeniedDiagnostic $_ $PSCommandPath $PSBoundParameters; exit 4 }; if (Test-SBBusyError $_) { [Console]::Error.WriteLine($_.Exception.Message); exit 3 }; break }

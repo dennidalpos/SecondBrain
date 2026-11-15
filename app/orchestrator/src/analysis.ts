@@ -1,5 +1,5 @@
 // Analysis that makes a task autonomous (REP18 through agents.ps1 -Analyze): the light model answers with tool calls that this
-// dialog dispatches. ask_user becomes a multiple-choice question (recommended option first, free text under "Altro"); the answers go
+// dialog dispatches. ask_user becomes a multiple-choice question (recommended option first, free text under "Other"); the answers go
 // back for the next round; propose_task_update is shown as a before/after diff and written to the tracker only after confirmation;
 // mark_not_automatable records the reason. The analysis state lives in its work folder, so a closed window loses nothing.
 import { $, call, el, setError, type LightChoice } from "./common";
@@ -20,8 +20,8 @@ export interface AnalysisView {
 }
 interface Hooks { repo: () => string; identity: () => string; light: () => LightChoice | null; onChange: () => void }
 
-export const VERDICT_LABEL: Record<string, string> = { "autonomous-now": "pronto per l'autonomia", "needs-answers": "servono risposte", "not-automatable": "non automatizzabile" };
-const BLOCKER_LABEL: Record<string, string> = { "owner-consent": "consenso della persona", credential: "credenziale", hardware: "hardware", "live-access": "accesso dal vivo", "computer-use": "uso del computer", "other-repository": "altro repository" };
+export const VERDICT_LABEL: Record<string, string> = { "autonomous-now": "ready for autonomy", "needs-answers": "answers needed", "not-automatable": "not automatable" };
+const BLOCKER_LABEL: Record<string, string> = { "owner-consent": "consent of the person", credential: "credential", hardware: "hardware", "live-access": "live access", "computer-use": "computer use", "other-repository": "other repository" };
 let hooks: Hooks;
 let current: AnalysisView | null = null;
 let busy = false;
@@ -51,7 +51,7 @@ function lightArgs(): Record<string, unknown> | null {
 /** First round on one task; the dialog opens on its result unless quiet. */
 export async function analyzeTask(taskId: string, quiet = false, errorId = "q-error"): Promise<AnalysisView | null> {
   const args = lightArgs();
-  if (!args) { setError(errorId, "Nessun agente pronto per l'analisi: rileva gli agenti o scegli il modello leggero nelle impostazioni."); return null; }
+  if (!args) { setError(errorId, "No agent is ready for the analysis: detect agents or choose the light model in the settings."); return null; }
   const view = await call<AnalysisView>("analyze_task", { repo: hooks.repo(), taskId, ...args }, errorId);
   if (!view) return null;
   remember(taskId, view.analysisPath);
@@ -93,24 +93,24 @@ function render() {
   const r = v.result;
   setError("an-error", null);
   $("an-title").textContent = `#${v.task.seq} ${v.task.title}`;
-  $("an-meta").textContent = `Analisi con ${v.provider}${v.model ? " · " + v.model : ""}${v.effort ? " · " + v.effort : ""} · giro ${v.round} di ${v.maxRounds} · ${VERDICT_LABEL[r.verdict] ?? r.verdict}`;
-  $("an-reason").textContent = v.reason ? "Motivo dell'esclusione: " + v.reason : "";
+  $("an-meta").textContent = `Analysis with ${v.provider}${v.model ? " · " + v.model : ""}${v.effort ? " · " + v.effort : ""} · round ${v.round} of ${v.maxRounds} ·${VERDICT_LABEL[r.verdict] ?? r.verdict}`;
+  $("an-reason").textContent = v.reason ? "Reason for exclusion: " + v.reason : "";
   $("an-summary").textContent = r.summary;
   const body = $("an-body");
   body.replaceChildren();
   if (v.answered.length) {
-    body.append(el("details", {}, el("summary", {}, `Risposte già date (${v.answered.length})`),
+    body.append(el("details", {}, el("summary", {}, `Answers already given (${v.answered.length})`),
       el("ul", { className: "small" }, ...v.answered.map((a) => el("li", {}, el("strong", {}, a.question), " — ", a.answer)))));
   }
   if (r.blockersRemaining.length) {
-    body.append(el("div", { className: "warning" }, "Prerequisiti reali: ", ...r.blockersRemaining.map((b, i) => `${i ? "; " : ""}${BLOCKER_LABEL[b.kind] ?? b.kind}: ${b.detail}`)));
+    body.append(el("div", { className: "warning" }, "Real prerequisites: ", ...r.blockersRemaining.map((b, i) => `${i ? "; " : ""}${BLOCKER_LABEL[b.kind] ?? b.kind}: ${b.detail}`)));
   }
   const primary = $<HTMLButtonElement>("an-primary");
   primary.hidden = false;
   primary.onclick = null;
   $<HTMLButtonElement>("an-secondary").hidden = true;
   if (v.applied) {
-    body.append(el("p", { className: "ok-note" }, `Risultato già applicato il ${new Date(v.applied.at).toLocaleString()} (${v.applied.state === "deferred" ? "in coda di scrittura" : "scritto nel tracker"}).`));
+    body.append(el("p", { className: "ok-note" }, `Result already applied on ${new Date(v.applied.at).toLocaleString()} (${v.applied.state === "deferred" ? "in the write queue" : "written to the tracker"}).`));
     primary.hidden = true;
     return;
   }
@@ -131,10 +131,10 @@ function renderQuestions(body: HTMLElement, primary: HTMLButtonElement) {
     const set = el("fieldset", {}, el("legend", {}, a.header ? `${a.header}: ` : "", a.question ?? ""));
     for (const o of options) {
       const box = el("input", { type, name, value: o.label });
-      set.append(el("label", { className: "choice" }, box, el("span", {}, el("strong", {}, o.label + (o.id === a.recommended ? " (consigliata)" : "")), el("span", { className: "muted small" }, " — " + o.description))));
+      set.append(el("label", { className: "choice" }, box, el("span", {}, el("strong", {}, o.label + (o.id === a.recommended ? " (recommended)" : "")), el("span", { className: "muted small" }, " — " + o.description))));
     }
     const otherBox = el("input", { type, name, value: "__other" });
-    const otherText = el("input", { type: "text", placeholder: "Altro: scrivi la tua risposta", className: "other" });
+    const otherText = el("input", { type: "text", placeholder: "Other: write your own answer", className: "other" });
     otherText.addEventListener("input", () => { if (otherText.value.trim()) otherBox.checked = true; update(); });
     set.append(el("label", { className: "choice" }, otherBox, otherText));
     set.dataset.questionId = a.questionId ?? name;
@@ -148,18 +148,18 @@ function renderQuestions(body: HTMLElement, primary: HTMLButtonElement) {
   form.addEventListener("change", update);
   body.append(form);
   if (v.round >= v.maxRounds) {
-    body.append(el("p", { className: "warning" }, "Ultimo giro raggiunto: con queste risposte non si può fare un altro giro. Riavvia l'analisi dalla coda se serve."));
+    body.append(el("p", { className: "warning" }, "Last round reached: another round is not possible with these answers. Restart the analysis from the queue if needed."));
     primary.hidden = true;
     return;
   }
-  primary.textContent = "Invia risposte";
+  primary.textContent = "Send answers";
   update();
   primary.onclick = async () => {
     const answers = [...form.querySelectorAll<HTMLFieldSetElement>("fieldset")].map((s) => {
-      const chosen = [...s.querySelectorAll<HTMLInputElement>("input:checked")].map((i) => (i.value === "__other" ? (s.querySelector<HTMLInputElement>("input.other")?.value.trim() || "Altro") : i.value));
+      const chosen = [...s.querySelectorAll<HTMLInputElement>("input:checked")].map((i) => (i.value === "__other" ? (s.querySelector<HTMLInputElement>("input.other")?.value.trim() || "Other") : i.value));
       return { questionId: s.dataset.questionId, question: s.dataset.question, answer: chosen.join("; ") };
     });
-    setBusy(true, "Nuovo giro di analisi con le tue risposte…");
+    setBusy(true, "New analysis round with your answers…");
     const next = await call<AnalysisView>("resolve_task_analysis", { repo: hooks.repo(), analysisPath: v.analysisPath, answers }, "an-error");
     setBusy(false);
     if (!next) return;
@@ -175,52 +175,52 @@ function listText(items: string[] | null | undefined): string { return items && 
 function renderUpdate(body: HTMLElement, primary: HTMLButtonElement) {
   const v = current!;
   const u = v.result.calls.find((c) => c.name === "propose_task_update")?.arguments;
-  if (!u) { body.append(el("p", { className: "warning" }, "Il modello non ha proposto l'aggiornamento: riavvia l'analisi.")); primary.hidden = true; return; }
+  if (!u) { body.append(el("p", { className: "warning" }, "The model did not propose the update: restart the analysis.")); primary.hidden = true; return; }
   const ext = (v.task.extensions ?? {}) as Record<string, unknown>;
   const awaiting = String(ext.awaiting ?? "");
   const deps = (v.dependencies ?? []).map((d) => d.id);
   const rows: [string, string, string][] = [
-    ["Descrizione", v.task.description ?? "—", u.description ?? "(invariata)"],
-    ["Criteri di accettazione", listText(v.task.acceptance), u.acceptance?.length ? listText(u.acceptance) : "(invariati)"],
-    ["Esecuzione", v.task.execution, u.execution ?? "autonomous"],
-    ["Stato", v.task.status, ["blocked", "unknown"].includes(v.task.status) ? "todo" : v.task.status],
-    ["In attesa di", awaiting || "—", u.awaiting || "—"],
-    ["Requisiti", listText(ext.requires as string[] | undefined), listText(u.requires)],
-    ["Dipendenze", listText(deps), u.dependencies ? listText(u.dependencies) : "(invariate)"],
-    ["Motivo di stato", String(ext.stateReason ?? "—"), u.stateReason ?? "(invariato)"],
+    ["Description", v.task.description ?? "—", u.description ?? "(unchanged)"],
+    ["Acceptance criteria", listText(v.task.acceptance), u.acceptance?.length ? listText(u.acceptance) : "(unchanged)"],
+    ["Execution",v.task.execution, u.execution ?? "autonomous"],
+    ["Status", v.task.status, ["blocked", "unknown"].includes(v.task.status) ? "todo" : v.task.status],
+    ["Awaiting",awaiting || "—", u.awaiting || "—"],
+    ["Requirements",listText(ext.requires as string[] | undefined), listText(u.requires)],
+    ["Dependencies", listText(deps), u.dependencies ? listText(u.dependencies) : "(unchanged)"],
+    ["State reason", String(ext.stateReason ?? "—"), u.stateReason ?? "(unchanged)"],
   ];
-  const table = el("table", { className: "tasks diff" }, el("thead", {}, el("tr", {}, el("th", {}, "Campo"), el("th", {}, "Attuale"), el("th", {}, "Proposto"))));
+  const table = el("table", { className: "tasks diff" }, el("thead", {}, el("tr", {}, el("th", {}, "Field"), el("th", {}, "Current"), el("th", {}, "Proposed"))));
   const tbody = el("tbody");
   for (const [f, a, b] of rows) tbody.append(el("tr", { className: a === b ? "" : "changed" }, el("td", {}, f), el("td", { className: "pre" }, a), el("td", { className: "pre" }, b)));
   table.append(tbody);
   body.append(table);
   if (awaiting && awaiting !== "structural-completion" && (u.awaiting ?? "") !== awaiting) {
-    body.append(el("p", { className: "warning" }, `L'attesa «${awaiting}» viene tolta: si applica solo se le tue risposte la concedono esplicitamente.`));
+    body.append(el("p", { className: "warning" }, `The wait «${awaiting}» is removed: this applies only if your answers grant it explicitly.`));
   }
-  primary.textContent = "Applica al tracker";
+  primary.textContent = "Apply to the tracker";
   primary.disabled = busy;
-  primary.onclick = () => apply("Aggiornare il task nel tracker con la proposta mostrata? La scrittura passa da knowledge.ps1 e resta nel registro delle esecuzioni.");
+  primary.onclick = () => apply("Update the task in the tracker with the proposal shown? The write goes through knowledge.ps1 and stays in the run ledger.");
 }
 
 function renderNotAutomatable(body: HTMLElement, primary: HTMLButtonElement) {
   const v = current!;
   const why = v.result.calls.find((c) => c.name === "mark_not_automatable")?.arguments.reason ?? v.result.summary;
-  body.append(el("p", {}, el("strong", {}, "Motivo: "), why));
-  primary.textContent = "Registra il motivo nel task";
+  body.append(el("p", {}, el("strong", {}, "Reason: "), why));
+  primary.textContent = "Record the reason on the task";
   primary.disabled = busy;
-  primary.onclick = () => apply("Registrare il motivo nel task (esecuzione user_required)?");
+  primary.onclick = () => apply("Record the reason on the task (execution user_required)?");
 }
 
 async function apply(question: string) {
   const v = current!;
   if (!confirm(question)) return;
-  setBusy(true, "Scrittura nel tracker…");
-  const r = await call<{ applied: boolean | string }>("apply_task_analysis", { repo: hooks.repo(), analysisPath: v.analysisPath, authorization: "Conferma nell'orchestratore desktop " + new Date().toISOString() }, "an-error");
+  setBusy(true, "Writing to the tracker…");
+  const r = await call<{ applied: boolean | string }>("apply_task_analysis", { repo: hooks.repo(), analysisPath: v.analysisPath, authorization: "Confirmed in the desktop orchestrator " + new Date().toISOString() }, "an-error");
   setBusy(false);
   if (!r) return;
   current = { ...v, applied: { at: new Date().toISOString(), state: r.applied, verdict: v.result.verdict } };
   render();
-  $("an-state").textContent = r.applied === "deferred" ? "Scrittura accettata: verrà applicata appena il tracker è libero." : "Task aggiornato.";
+  $("an-state").textContent = r.applied === "deferred" ? "Write accepted: it is applied as soon as the tracker is free." : "Task updated.";
   hooks.onChange();
 }
 

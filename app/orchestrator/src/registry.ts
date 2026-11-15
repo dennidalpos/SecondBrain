@@ -17,7 +17,7 @@ interface RunSummary {
   counts: { total: number; done: number; succeeded: number; accepted?: number; failed: number } | null; stopReason: string | null; folder: string; results: { id: string; seq: number; state: string }[];
 }
 
-const STATUS_LABEL: Record<string, string> = { todo: "da fare", in_progress: "in corso", blocked: "bloccato", done: "fatto", cancelled: "annullato", unknown: "sconosciuto" };
+const STATUS_LABEL: Record<string, string> = { todo: "to do", in_progress: "in progress", blocked: "blocked", done: "done", cancelled: "cancelled", unknown: "unknown" };
 const PAGE_SIZE = 50;
 let getRepo: () => string = () => "";
 let page = 0;
@@ -28,8 +28,8 @@ let runsRequest = 0;
 
 export function initRegistry(repo: () => string) {
   getRepo = repo;
-  select("reg-tool").replaceChildren(option("", "Tutti gli strumenti"), ...Object.keys(TOOL_LABEL).map((t) => option(t, TOOL_LABEL[t])));
-  select("reg-status").replaceChildren(option("", "Tutti gli stati"), ...Object.keys(STATUS_LABEL).map((s) => option(s, STATUS_LABEL[s])));
+  select("reg-tool").replaceChildren(option("", "All tools"), ...Object.keys(TOOL_LABEL).map((t) => option(t, TOOL_LABEL[t])));
+  select("reg-status").replaceChildren(option("", "All statuses"), ...Object.keys(STATUS_LABEL).map((s) => option(s, STATUS_LABEL[s])));
   for (const id of ["reg-tool", "reg-status", "reg-archived"]) select(id).addEventListener("change", () => { page = 0; refreshRegistry(); });
   let timer = 0;
   input("reg-search").addEventListener("input", () => { window.clearTimeout(timer); timer = window.setTimeout(() => { page = 0; refreshRegistry(); }, 350); });
@@ -50,7 +50,7 @@ function setView(v: "tasks" | "runs") {
 export async function refreshRegistry() {
   const repo = getRepo();
   if (!repo) return;
-  $("reg-state").textContent = "Lettura del registro…";
+  $("reg-state").textContent = "Reading the registry…";
   const query = {
     repo, page, pageSize: PAGE_SIZE,
     tool: select("reg-tool").value || null, status: select("reg-status").value || null,
@@ -61,7 +61,7 @@ export async function refreshRegistry() {
   if (request !== registryRequest || view !== "tasks") return;
   if (!r) { $("reg-state").textContent = ""; return; }
   const from = r.total ? r.offset + 1 : 0, to = r.offset + r.tasks.length;
-  $("reg-state").textContent = `${from}–${to} di ${r.total} task`;
+  $("reg-state").textContent = `${from}–${to} of ${r.total} tasks`;
   $<HTMLButtonElement>("reg-prev").disabled = page === 0;
   $<HTMLButtonElement>("reg-next").disabled = r.nextOffset === null;
   $("reg-tools").replaceChildren(...Object.entries(r.tools).filter(([, n]) => n > 0).map(([t, n]) => toolBadge(t, String(n))));
@@ -80,7 +80,7 @@ function renderTask(t: RegistryTask): HTMLTableRowElement[] {
   row.tabIndex = 0;
   const tools = el("span", { className: "tool-list" }, ...t.tools.map((x) => toolBadge(x)));
   const status = el("span", { className: "state-" + t.status }, STATUS_LABEL[t.status] ?? t.status);
-  const title = el("span", {}, t.title, t.archived ? el("span", { className: "tag" }, "archiviato") : "");
+  const title = el("span", {}, t.title, t.archived ? el("span", { className: "tag" }, "archived") : "");
   [t.seq != null ? String(t.seq) : "—", t.id, title, status, tools, fmtDate(t.lastActivity ?? t.closedAt), lastOutcome(t), String(t.runs.length)].forEach((c) => row.append(el("td", {}, c)));
   const detail = el("tr", { className: "reg-detail" });
   detail.hidden = true;
@@ -99,38 +99,38 @@ function renderTask(t: RegistryTask): HTMLTableRowElement[] {
 
 function renderRuns(t: RegistryTask): HTMLElement {
   const box = el("div", { className: "reg-runs" });
-  if (t.stateReason) box.append(el("p", { className: "muted small" }, "Motivo di stato: " + t.stateReason));
+  if (t.stateReason) box.append(el("p", { className: "muted small" }, "State reason: " + t.stateReason));
   if (!t.runs.length) {
-    box.append(el("p", { className: "muted small" }, "Nessuna esecuzione registrata: il task precede il registro delle esecuzioni (strumento sconosciuto)."));
+    box.append(el("p", { className: "muted small" }, "No run recorded: the task predates the run ledger (tool unknown)."));
   } else {
     const list = el("ol", { className: "steps-log" });
     for (const r of [...t.runs].reverse()) {
       const meta = [MODE_LABEL[r.executor.mode] ?? r.executor.mode, r.executor.model, r.executor.effort].filter(Boolean).join(" · ");
       const change = r.statusBefore || r.statusAfter ? `${r.statusBefore ?? "—"} → ${r.statusAfter ?? "—"}` : "";
-      const outcome = r.outcome ? ` · esito ${r.outcome.state}${r.outcome.seconds != null ? ", " + fmtDuration(r.outcome.seconds) : ""}${r.outcome.folder ? ", " + r.outcome.folder : ""}` : "";
+      const outcome = r.outcome ? ` · outcome ${r.outcome.state}${r.outcome.seconds != null ? ", " + fmtDuration(r.outcome.seconds) : ""}${r.outcome.folder ? ", " + r.outcome.folder : ""}` : "";
       list.append(el("li", {}, el("span", { className: "muted small" }, fmtDate(r.at)), " ", toolBadge(r.executor.tool), " ", el("span", { className: "small" }, meta), " ", change, outcome, r.reason ? el("div", { className: "muted small" }, r.reason) : ""));
     }
     box.append(list);
   }
-  if (t.evidence.length) box.append(el("p", { className: "muted small" }, "Evidenze: " + t.evidence.map((e) => `${e.reference} (${e.outcome})`).join("; ")));
+  if (t.evidence.length) box.append(el("p", { className: "muted small" }, "Evidence: " + t.evidence.map((e) => `${e.reference} (${e.outcome})`).join("; ")));
   return box;
 }
 
 export async function refreshRuns() {
   const repo = getRepo();
   if (!repo) return;
-  $("reg-state").textContent = "Lettura dei run…";
+  $("reg-state").textContent = "Reading the runs…";
   const request = ++runsRequest;
   const r = await call<{ total: number; runs: RunSummary[] }>("list_runs", { repo, limit: 100 }, "reg-error");
   if (request !== runsRequest || view !== "runs") return;
   if (!r) { $("reg-state").textContent = ""; return; }
-  $("reg-state").textContent = `${r.runs.length} run su ${r.total} su questa postazione`;
+  $("reg-state").textContent = `${r.runs.length} of ${r.total} runs on this workstation`;
   $("reg-runs-empty").hidden = r.runs.length > 0;
   $("reg-run-rows").replaceChildren(...r.runs.map((x) => {
     const tr = el("tr");
     const counts = x.counts ? `${x.counts.done}/${x.counts.total} (${x.counts.succeeded} ok, ${x.counts.failed} ko)` + (x.counts.accepted !== undefined ? ` · ${x.counts.accepted} accepted` : "") : "—";
     const tasks = x.results.map((t) => `#${t.seq} ${t.state}`).join(", ") || "—";
-    [fmtDate(x.startedAt), finishCell(x), toolBadge(x.provider || "unknown"), [x.model, x.effort].filter(Boolean).join(" · ") || "predefiniti della CLI",
+    [fmtDate(x.startedAt), finishCell(x), toolBadge(x.provider || "unknown"), [x.model, x.effort].filter(Boolean).join(" · ") || "CLI defaults",
       counts, x.stopReason ?? "—", tasks, el("span", { className: "mono small" }, x.folder)].forEach((c) => tr.append(el("td", {}, c)));
     return tr;
   }));

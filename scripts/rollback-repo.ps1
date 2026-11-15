@@ -36,29 +36,29 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Portable.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Host.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Add-SBMessages @{
-    'rollback.reparse' = @{ it = 'Reparse point nel dossier, rollback rifiutato: {0}'; en = 'Reparse point in the dossier, rollback refused: {0}' }
-    'rollback.hash.copy' = @{ it = 'Verifica hash fallita nella copia: {0}'; en = 'Hash verification failed in the copy: {0}' }
-    'rollback.identity.dossiers' = @{ it = 'Identita ambigua: {0} dossier corrispondono a ''{1}'' ({2}). Indicare l''identita completa del repository.'; en = 'Ambiguous identity: {0} dossiers match ''{1}'' ({2}). Give the full repository identity.' }
-    'rollback.identity.folders' = @{ it = 'Identita ambigua: {0} cartelle corrispondono a ''{1}'' ({2}). Indicare l''identita completa del repository.'; en = 'Ambiguous identity: {0} folders match ''{1}'' ({2}). Give the full repository identity.' }
-    'rollback.dossier.missing' = @{ it = 'Dossier non trovato per l''identita o nome: {0}'; en = 'Dossier not found for the identity or name: {0}' }
-    'rollback.self.repository' = @{ it = 'Rollback rifiutato: ''{0}'' e il repository di SecondBrain stesso.'; en = 'Rollback refused: ''{0}'' is the SecondBrain repository itself.' }
-    'rollback.checkout.missing' = @{ it = 'Checkout di destinazione non trovato per {0} (specificare -DestinationPath o usare -Force se il checkout locale e rimosso).'; en = 'Destination checkout not found for {0} (give -DestinationPath or use -Force if the local checkout is removed).' }
-    'rollback.self.checkout' = @{ it = 'Rollback rifiutato: il checkout di destinazione e SecondBrain stesso.'; en = 'Rollback refused: the destination checkout is SecondBrain itself.' }
-    'rollback.out.start' = @{ it = 'Inizio Rollback Privacy per: {0}'; en = 'Starting privacy rollback for: {0}' }
-    'rollback.out.source' = @{ it = '  Dossier sorgente: {0}'; en = '  Source dossier: {0}' }
-    'rollback.out.target' = @{ it = '  Checkout target : {0}'; en = '  Target checkout : {0}' }
-    'rollback.out.preview' = @{ it = 'Anteprima: nessuna modifica. Rilanciare con -Apply per restituire i dati, aggiornare la postazione ed eliminare il dossier.'; en = 'Preview: no changes made. Re-run with -Apply to return the data, update the workstation and delete the dossier.' }
-    'rollback.out.copied' = @{ it = '  Copiati {0} file del dossier -> .secondbrain/ (hash verificati)'; en = '  Copied {0} dossier files -> .secondbrain/ (hashes verified)' }
-    'rollback.out.excluded' = @{ it = '  Aggiunto .secondbrain/ a .git/info/exclude'; en = '  Added .secondbrain/ to .git/info/exclude' }
-    'rollback.out.nocheckout' = @{ it = 'Checkout assente: dossier salvato in {0} (nessun trasferimento nel repository).'; en = 'Checkout missing: dossier saved in {0} (nothing transferred to the repository).' }
-    'rollback.out.forbidden' = @{ it = '  Aggiunto a forbiddenRepositories: {0}'; en = '  Added to forbiddenRepositories: {0}' }
-    'rollback.out.workstation' = @{ it = '  Aggiornato workstation.json'; en = '  Updated workstation.json' }
-    'rollback.out.state' = @{ it = '  Rimosso managed state per {0}'; en = '  Removed managed state for {0}' }
-    'rollback.out.block' = @{ it = '  Rimosso blocco gestito SecondBrain da {0}'; en = '  Removed SecondBrain managed block from {0}' }
-    'rollback.out.dossier' = @{ it = '  Eliminato dossier: {0}'; en = '  Deleted dossier: {0}' }
-    'rollback.out.runtime' = @{ it = '  Eliminata directory runtime: {0}'; en = '  Deleted runtime directory: {0}' }
-    'rollback.out.index' = @{ it = '  Aggiornato para-index.json e PARA.md'; en = '  Updated para-index.json and PARA.md' }
-    'rollback.out.done' = @{ it = 'Rollback completato con successo per {0}.'; en = 'Rollback completed successfully for {0}.' }
+    'rollback.reparse' = @{ en = 'Reparse point in the dossier, rollback refused: {0}' }
+    'rollback.hash.copy' = @{ en = 'Hash verification failed in the copy: {0}' }
+    'rollback.identity.dossiers' = @{ en = 'Ambiguous identity: {0} dossiers match ''{1}'' ({2}). Give the full repository identity.' }
+    'rollback.identity.folders' = @{ en = 'Ambiguous identity: {0} folders match ''{1}'' ({2}). Give the full repository identity.' }
+    'rollback.dossier.missing' = @{ en = 'Dossier not found for the identity or name: {0}' }
+    'rollback.self.repository' = @{ en = 'Rollback refused: ''{0}'' is the SecondBrain repository itself.' }
+    'rollback.checkout.missing' = @{ en = 'Destination checkout not found for {0} (give -DestinationPath or use -Force if the local checkout is removed).' }
+    'rollback.self.checkout' = @{ en = 'Rollback refused: the destination checkout is SecondBrain itself.' }
+    'rollback.out.start' = @{ en = 'Starting privacy rollback for: {0}' }
+    'rollback.out.source' = @{ en = '  Source dossier: {0}' }
+    'rollback.out.target' = @{ en = '  Target checkout : {0}' }
+    'rollback.out.preview' = @{ en = 'Preview: no changes made. Re-run with -Apply to return the data, update the workstation and delete the dossier.' }
+    'rollback.out.copied' = @{ en = '  Copied {0} dossier files -> .secondbrain/ (hashes verified)' }
+    'rollback.out.excluded' = @{ en = '  Added .secondbrain/ to .git/info/exclude' }
+    'rollback.out.nocheckout' = @{ en = 'Checkout missing: dossier saved in {0} (nothing transferred to the repository).' }
+    'rollback.out.forbidden' = @{ en = '  Added to forbiddenRepositories: {0}' }
+    'rollback.out.workstation' = @{ en = '  Updated workstation.json' }
+    'rollback.out.state' = @{ en = '  Removed managed state for {0}' }
+    'rollback.out.block' = @{ en = '  Removed SecondBrain managed block from {0}' }
+    'rollback.out.dossier' = @{ en = '  Deleted dossier: {0}' }
+    'rollback.out.runtime' = @{ en = '  Deleted runtime directory: {0}' }
+    'rollback.out.index' = @{ en = '  Updated para-index.json and PARA.md' }
+    'rollback.out.done' = @{ en = 'Rollback completed successfully for {0}.' }
 }
 
 function ConvertTo-RollbackPath([string]$Path) { [IO.Path]::GetFullPath($Path).TrimEnd('\','/') }

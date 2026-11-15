@@ -4,8 +4,8 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Host.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Add-SBMessages @{
-    'trace.settings.json' = @{ it = 'settings.json non e JSON valido: nessuna modifica'; en = 'settings.json is not valid JSON: no change made' }
-    'trace.settings.object' = @{ it = 'settings.json non e un oggetto JSON: nessuna modifica'; en = 'settings.json is not a JSON object: no change made' }
+    'trace.settings.json' = @{ en = 'settings.json is not valid JSON: no change made' }
+    'trace.settings.object' = @{ en = 'settings.json is not a JSON object: no change made' }
 }
 
 # End-of-turn trace: metadata without prompt text in .runtime/trace/<host>/<yyyy-MM-dd>.jsonl, one event per line.

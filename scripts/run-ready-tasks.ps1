@@ -79,38 +79,38 @@ $timeoutSeconds=$TimeoutMinutes*60
 $testTimeout=0
 if($env:SECONDBRAIN_TEST_ROOT -and [int]::TryParse([string]$env:SB_RUNNER_TEST_TIMEOUT_SECONDS,[ref]$testTimeout) -and $testTimeout -ge 1 -and $testTimeout -le 300){$timeoutSeconds=$testTimeout}
 Add-SBMessages @{
-    'runner.agent.missing' = @{it='Agente non trovato: {0}. Passa -AgentPath con un percorso valido o installa l agente';en='Agent not found: {0}. Pass -AgentPath with a valid path or install the agent'}
-    'runner.none' = @{it='Nessun task eseguibile in autonomia';en='No task can run autonomously'}
-    'runner.busy' = @{it='Un runner e gia attivo su questo repository (PID {0}, cartella {1}). Seguilo con scripts/runner-status.ps1 -Follow o fermalo con -Stop';en='A runner is already active on this repository (PID {0}, folder {1}). Follow it with scripts/runner-status.ps1 -Follow or stop it with -Stop'}
-    'runner.progress.repo' = @{it='Repository {0} ({1}/{2}): selezione dei task';en='Repository {0} ({1}/{2}): selecting tasks'}
-    'runner.progress.selected' = @{it='  {0} task eseguibili su {1} pronti';en='  {0} runnable tasks out of {1} ready'}
-    'runner.progress.skip' = @{it='  Repository saltato: {0}';en='  Repository skipped: {0}'}
-    'runner.progress.status' = @{it='Stato del run: {0}';en='Run status: {0}'}
-    'runner.progress.start' = @{it='[{0}/{1}] #{2} {3}: avvio dell agente';en='[{0}/{1}] #{2} {3}: starting the agent'}
-    'runner.progress.agent' = @{it='  #{0} {1}: {2}';en='  #{0} {1}: {2}'}
-    'runner.progress.stalled' = @{it='  #{0}: nessun segnale dall agente da {1} min (possibile stallo; interruzione solo al limite di {2} min)';en='  #{0}: no signal from the agent for {1} min (possible stall; it is stopped only at the {2} min limit)'}
-    'runner.progress.tick' = @{it='  ... #{0} in corso da {1} s (limite {2} min)';en='  ... #{0} running for {1} s (limit {2} min)'}
-    'runner.progress.done' = @{it='[{0}/{1}] #{2}: {3}, uscita {4}, stato {5} -> {6}, {7} s';en='[{0}/{1}] #{2}: {3}, exit {4}, status {5} -> {6}, {7} s'}
-    'runner.progress.stop' = @{it='Arresto del giro: {0}';en='Run stopped: {0}'}
-    'runner.progress.summary' = @{it='Riepilogo: {0} eseguiti, {1} riusciti, {2} non riusciti, {3} repository saltati';en='Summary: {0} run, {1} succeeded, {2} failed, {3} repositories skipped'}
-    'runner.progress.preview' = @{it='Anteprima: {0} task eseguibili in {1} repository (nessuna modifica; usa -Run per eseguirli)';en='Preview: {0} runnable tasks in {1} repositories (no change; use -Run to execute them)'}
-    'runner.selection.required' = @{it='Scegli modello e impegno prima di avviare: -Model <id> e -Effort <livello> (letti ora dalla CLI: modelli {0}; impegni {1}; predefiniti della CLI {2}/{3}), oppure -UseCliDefault per usare i predefiniti della CLI';en='Choose model and effort before starting: -Model <id> and -Effort <level> (read now from the CLI: models {0}; efforts {1}; CLI defaults {2}/{3}), or -UseCliDefault to use the CLI defaults'}
-    'runner.resume.missing' = @{it='Nessun resume.json da riprendere per {0} in questo repository. Elenca i run con scripts/runner-status.ps1';en='No resume.json to resume for {0} in this repository. List the runs with scripts/runner-status.ps1'}
-    'runner.progress.quota' = @{it='Quota {0}: {1} (fonte {2}{3})';en='Quota {0}: {1} (source {2}{3})'}
-    'runner.progress.quotaexhausted' = @{it='Quota {0} esaurita fino a {1}: il run non parte. Riprendi dopo il ripristino con -Resume latest o da un altro account';en='Quota {0} exhausted until {1}: the run does not start. Resume after the reset with -Resume latest or from another account'}
-    'runner.progress.limit' = @{it='  #{0}: limite rilevato ({1}): {2}';en='  #{0}: limit detected ({1}): {2}'}
-    'runner.progress.resume' = @{it='Ripresa del run {0}: {1} task in coda, interrotto {2}';en='Resuming run {0}: {1} queued tasks, interrupted {2}'}
-    'runner.progress.resumefile' = @{it='Punto di ripresa: {0} (riprendi con -Resume {1})';en='Resume point: {0} (resume with -Resume {1})'}
-    'runner.progress.quotawait' = @{it='Quota {0} esaurita: attesa del ripristino fino a {1} (fonte {2}), poi il run riprende';en='Quota {0} exhausted: waiting for the reset until {1} (source {2}), then the run goes on'}
-    'runner.progress.quotaresumed' = @{it='Quota {0} ripristinata ({1}): il run riprende';en='Quota {0} reset ({1}): the run goes on'}
-    'runner.progress.quotawaitlimit' = @{it='Ripristino della quota {0} previsto per {1}, oltre l attesa massima di {2} h: il run si ferma';en='Quota {0} reset expected at {1}, beyond the maximum wait of {2} h: the run stops'}
+    'runner.agent.missing' = @{ en = 'Agent not found: {0}. Pass -AgentPath with a valid path or install the agent' }
+    'runner.none' = @{ en = 'No task can run autonomously' }
+    'runner.busy' = @{ en = 'A runner is already active on this repository (PID {0}, folder {1}). Follow it with scripts/runner-status.ps1 -Follow or stop it with -Stop' }
+    'runner.progress.repo' = @{ en = 'Repository {0} ({1}/{2}): selecting tasks' }
+    'runner.progress.selected' = @{ en = '  {0} runnable tasks out of {1} ready' }
+    'runner.progress.skip' = @{ en = '  Repository skipped: {0}' }
+    'runner.progress.status' = @{ en = 'Run status: {0}' }
+    'runner.progress.start' = @{ en = '[{0}/{1}] #{2} {3}: starting the agent' }
+    'runner.progress.agent' = @{ en = '  #{0} {1}: {2}' }
+    'runner.progress.stalled' = @{ en = '  #{0}: no signal from the agent for {1} min (possible stall; it is stopped only at the {2} min limit)' }
+    'runner.progress.tick' = @{ en = '  ... #{0} running for {1} s (limit {2} min)' }
+    'runner.progress.done' = @{ en = '[{0}/{1}] #{2}: {3}, exit {4}, status {5} -> {6}, {7} s' }
+    'runner.progress.stop' = @{ en = 'Run stopped: {0}' }
+    'runner.progress.summary' = @{ en = 'Summary: {0} run, {1} succeeded, {2} failed, {3} repositories skipped' }
+    'runner.progress.preview' = @{ en = 'Preview: {0} runnable tasks in {1} repositories (no change; use -Run to execute them)' }
+    'runner.selection.required' = @{ en = 'Choose model and effort before starting: -Model <id> and -Effort <level> (read now from the CLI: models {0}; efforts {1}; CLI defaults {2}/{3}), or -UseCliDefault to use the CLI defaults' }
+    'runner.resume.missing' = @{ en = 'No resume.json to resume for {0} in this repository. List the runs with scripts/runner-status.ps1' }
+    'runner.progress.quota' = @{ en = 'Quota {0}: {1} (source {2}{3})' }
+    'runner.progress.quotaexhausted' = @{ en = 'Quota {0} exhausted until {1}: the run does not start. Resume after the reset with -Resume latest or from another account' }
+    'runner.progress.limit' = @{ en = '  #{0}: limit detected ({1}): {2}' }
+    'runner.progress.resume' = @{ en = 'Resuming run {0}: {1} queued tasks, interrupted {2}' }
+    'runner.progress.resumefile' = @{ en = 'Resume point: {0} (resume with -Resume {1})' }
+    'runner.progress.quotawait' = @{ en = 'Quota {0} exhausted: waiting for the reset until {1} (source {2}), then the run goes on' }
+    'runner.progress.quotaresumed' = @{ en = 'Quota {0} reset ({1}): the run goes on' }
+    'runner.progress.quotawaitlimit' = @{ en = 'Quota {0} reset expected at {1}, beyond the maximum wait of {2} h: the run stops' }
     'runner.progress.power' = @{en='Power request held for this run: the computer does not go to sleep while it is idle ({0})'}
     'runner.progress.powerfailed' = @{en='Power request not acquired ({0}): the computer may go to sleep during the run'}
     'runner.progress.reopened' = @{en='  #{0}: closed as done without passed evidence from this attempt; reopened as in progress (a successful exit is not completion)'}
     'runner.progress.parked' = @{en='  #{0}: parked, an open decision waits for the user ({1}); the run goes on with the next independent task'}
     'runner.progress.powerrefused' = @{en='The run does not start: the power request was not acquired ({0}) and the computer could go to sleep during the run. Run again with -AllowNoPowerRequest to run without this protection'}
     'runner.progress.powerunsupported' = @{en='Power request not supported on this platform: the run goes on without it'}
-    'runner.progress.omitted' = @{it='  Opzioni non disponibili nella CLI installata e omesse: {0}';en='  Options missing from the installed CLI and left out: {0}'}
+    'runner.progress.omitted' = @{ en = '  Options missing from the installed CLI and left out: {0}' }
 }
 $utf8=[Text.UTF8Encoding]::new($false)
 # Live run state (status.json and events.jsonl in the run work folder); $null until -Run creates the folder.

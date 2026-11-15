@@ -12,13 +12,13 @@ The command words below remain unchanged in every documentation language.
 |---|---|
 | `sb prompt` | Show commands, guides and the next step |
 | `sb prompt list` | Show the complete prompt list |
-| `sb prompt ambito test` | List one category |
-| `sb prompt mostra TST04` | Display a prompt card |
+| `sb prompt area test` | List one category |
+| `sb prompt show TST04` | Display a prompt card |
 | `sb prompt TST04: check the login flow` | Compose the card with your objective |
-| `sb controlla` | Inspect alignment without changing anything |
-| `sb allinea` | Sync approved instructions |
-| `sb attiva` | Discover and activate selected integrations |
-| `sb compatta` | Preview dossier compaction; applying it requires confirmation |
+| `sb check` | Inspect alignment without changing anything |
+| `sb sync` | Sync approved instructions |
+| `sb activate` | Discover and activate selected integrations |
+| `sb compact` | Preview dossier compaction; applying it requires confirmation |
 | `sb runner` | Run the ready tasks of the current repository from the desktop app or the command line |
 | `sb stop` | Stop the agent, save the session in the dossier and resume it from another IDE or account with `sb prompt MEM07` (MEM09) |
 

@@ -214,7 +214,7 @@ try {
         $script=Join-Path $brain 'scripts/backup.ps1'
         $processes=@(1..3|ForEach-Object {
             $info=[Diagnostics.ProcessStartInfo]::new((Get-Command pwsh).Source);foreach($argument in @('-NoProfile','-File',$script)){$info.ArgumentList.Add($argument)}
-            $info.UseShellExecute=$false;$info.RedirectStandardOutput=$true;$info.RedirectStandardError=$true;$info.Environment['SECONDBRAIN_LANG']='it'
+            $info.UseShellExecute=$false;$info.RedirectStandardOutput=$true;$info.RedirectStandardError=$true
             [Diagnostics.Process]::Start($info)
         })
         $results=@($processes|ForEach-Object {$out=$_.StandardOutput.ReadToEndAsync();$err=$_.StandardError.ReadToEndAsync();$_.WaitForExit();@{exit=$_.ExitCode;out=$out.Result;err=$err.Result}})

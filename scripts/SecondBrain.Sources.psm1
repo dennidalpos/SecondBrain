@@ -5,73 +5,73 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Access.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Add-SBMessages @{
-    'sources.reason.http' = @{ it = 'Risposta HTTP {0} non verificabile'; en = 'HTTP {0} response could not be verified' }
-    'sources.reason.access-challenge' = @{ it = 'Accesso alla fonte soggetto a verifica'; en = 'Source access requires a challenge' }
-    'sources.reason.unverifiable' = @{ it = 'Fonte non verificabile'; en = 'Source could not be verified' }
-    'sources.reason.converter-unavailable' = @{ it = 'Convertitore non disponibile'; en = 'Converter unavailable' }
-    'sources.reason.conversion-timeout' = @{ it = 'Tempo della conversione scaduto'; en = 'Conversion timed out' }
-    'sources.reason.scanned-empty-or-incomplete' = @{ it = 'Trascrizione vuota o incompleta'; en = 'Transcript empty or incomplete' }
-    'sources.redirect.limit' = @{ it = 'Limite dei reindirizzamenti raggiunto'; en = 'Redirect limit reached' }
-    'sources.http' = @{ it = 'Risposta HTTP {0}'; en = 'HTTP response {0}' }
-    'sources.download.large' = @{ it = 'Download oltre il limite di dimensione'; en = 'Download exceeds size limit' }
-    'sources.access.challenge' = @{ it = 'Verifica di accesso richiesta dalla fonte'; en = 'Source access challenge required' }
-    'sources.path.outside' = @{ it = 'Percorso fonte fuori perimetro'; en = 'Source path outside scope' }
-    'sources.index.invalid' = @{ it = 'Indice PARA assente o non valido'; en = 'PARA index missing or invalid' }
-    'sources.resource.unresolved' = @{ it = 'Risorsa resource-authoritative-sources non risolvibile'; en = 'Resource resource-authoritative-sources cannot be resolved' }
-    'sources.resource.metadata' = @{ it = 'Metadati della risorsa fonti divergenti'; en = 'Source resource metadata diverge' }
-    'sources.domains.invalid' = @{ it = 'Ambiti del registro non validi'; en = 'Invalid registry domains' }
-    'sources.card.invalid' = @{ it = 'Scheda fonte non valida: {0}'; en = 'Invalid source card: {0}' }
-    'sources.id.diverged' = @{ it = 'Identificatore fonte duplicato o divergente'; en = 'Duplicate or diverging source identifier' }
-    'sources.domain.unknown' = @{ it = 'Ambito sconosciuto: {0}'; en = 'Unknown domain: {0}' }
-    'sources.endpoint.duplicate' = @{ it = 'Endpoint duplicato'; en = 'Duplicate endpoint' }
-    'sources.endpoint.canonical' = @{ it = 'Occorre un solo endpoint canonico'; en = 'Exactly one canonical endpoint is required' }
-    'sources.linked.unresolved' = @{ it = 'Fonte collegata non risolvibile'; en = 'Linked source cannot be resolved' }
-    'sources.endpoint.https' = @{ it = 'Endpoint HTTPS non ammesso'; en = 'HTTPS endpoint not allowed' }
-    'sources.address.nonpublic' = @{ it = 'Indirizzo di rete non pubblico'; en = 'Non-public network address' }
-    'sources.dns.nonpublic' = @{ it = 'Risoluzione DNS non pubblica'; en = 'Non-public DNS resolution' }
-    'sources.payload.empty' = @{ it = 'Payload vuoto o oltre limite'; en = 'Empty payload or over the limit' }
-    'sources.format.pdf' = @{ it = 'Formato PDF non valido'; en = 'Invalid PDF format' }
-    'sources.format.docx' = @{ it = 'Formato DOCX non valido'; en = 'Invalid DOCX format' }
-    'sources.content.unverifiable' = @{ it = 'Contenuto atteso non verificabile'; en = 'Expected content cannot be verified' }
-    'sources.original.name' = @{ it = 'Nome originale non valido'; en = 'Invalid original name' }
-    'sources.version.duplicate' = @{ it = 'Versione duplicata'; en = 'Duplicate version' }
-    'sources.manifest.invalid' = @{ it = 'Manifest versione non valido: {0}'; en = 'Invalid version manifest: {0}' }
-    'sources.version.noprimaries' = @{ it = 'Versione senza originali'; en = 'Version without originals' }
-    'sources.original.invalid' = @{ it = 'Originale versione non valido o duplicato'; en = 'Invalid or duplicate version original' }
-    'sources.original.hash' = @{ it = 'Hash originale divergente: {0}'; en = 'Original hash diverges: {0}' }
-    'sources.fingerprint.diverged' = @{ it = 'Fingerprint versione divergente'; en = 'Version fingerprint diverges' }
-    'sources.transcript.hash' = @{ it = 'Hash trascrizione divergente'; en = 'Transcript hash diverges' }
-    'sources.transcript.altHash' = @{ it = 'Hash trascrizione alternativa divergente'; en = 'Alternative transcript hash diverges' }
-    'sources.transcript.revision' = @{ it = 'Revisione della trascrizione non verificabile'; en = 'Transcript revision cannot be verified' }
-    'sources.version.unverified' = @{ it = 'Versione accettata non verificata'; en = 'Accepted version not verified' }
-    'sources.applicability.invalid' = @{ it = 'Scheda di applicabilita non valida'; en = 'Invalid applicability card' }
-    'sources.applicability.identity' = @{ it = 'Identita scheda fonti divergente'; en = 'Source card identity diverges' }
-    'sources.product.duplicate' = @{ it = 'Fonte duplicata nella scheda del prodotto'; en = 'Duplicate source in the product card' }
-    'sources.product.unresolved' = @{ it = 'Fonte del prodotto non risolvibile'; en = 'Product source cannot be resolved' }
-    'sources.product.version' = @{ it = 'Versione del prodotto non risolvibile'; en = 'Product version cannot be resolved' }
-    'sources.resource.archived' = @{ it = 'Risorsa archiviata: acquisizione non consentita'; en = 'Archived resource: acquisition not allowed' }
-    'sources.unregistered' = @{ it = 'Fonte non registrata'; en = 'Source not registered' }
-    'sources.reference.only' = @{ it = 'Fonte utilizzabile solo come riferimento'; en = 'Source usable as reference only' }
-    'sources.endpoint.none' = @{ it = 'Nessun endpoint acquisibile'; en = 'No acquirable endpoint' }
-    'sources.original.modified' = @{ it = 'Originale esistente modificato: acquisizione invariata non verificabile'; en = 'Existing original modified: unchanged acquisition cannot be verified' }
-    'sources.transcript.modified' = @{ it = 'Trascrizione esistente modificata'; en = 'Existing transcript modified' }
-    'sources.version.incomplete' = @{ it = 'Versione incompleta gia presente: preservata per revisione'; en = 'Incomplete version already present: preserved for review' }
-    'sources.converter.unavailable' = @{ it = 'Rapporto convertitore non disponibile'; en = 'Converter report unavailable' }
-    'sources.decisions.invalid' = @{ it = 'Registro delle decisioni non valido: {0}; ripristinarlo dal backup o da Git'; en = 'Invalid decision log: {0}; restore it from the backup or from Git' }
-    'sources.decision.input' = @{ it = 'Decisione senza motivo o autore: indicare -Reason e -DecidedBy'; en = 'Decision without reason or author: pass -Reason and -DecidedBy' }
-    'sources.decision.version' = @{ it = 'Versione {0} non registrata nella scheda: usare un id di versions'; en = 'Version {0} is not registered in the card: use an id from versions' }
-    'sources.decision.reject' = @{ it = 'Si rifiuta solo una versione candidate o incomplete non accettata'; en = 'Only a candidate or incomplete version that is not accepted can be rejected' }
-    'sources.decision.variant' = @{ it = 'Una variante nota deve essere una versione verified'; en = 'A known variant must be a verified version' }
-    'sources.decision.accepted' = @{ it = 'La versione e gia quella accettata'; en = 'The version is already the accepted one' }
-    'sources.decision.accept' = @{ it = 'Si accetta solo una versione verified o candidate'; en = 'Only a verified or candidate version can be accepted' }
-    'sources.decision.review' = @{ it = 'Accettare una candidata richiede -ReviewScope e le tre conferme di revisione'; en = 'Accepting a candidate requires -ReviewScope and the three review confirmations' }
-    'sources.decision.transcript' = @{ it = 'Candidata senza trascrizione estratta: ricollezionare o rifiutare'; en = 'Candidate without an extracted transcript: collect again or reject' }
-    'sources.effective.input' = @{ it = 'Data di efficacia non valida: verified richiede una data yyyy-MM-dd, sempre provision e reference'; en = 'Invalid effective date: verified requires a yyyy-MM-dd date, provision and reference are always required' }
-    'sources.proposal.unrecognized' = @{ it = 'Riferimento non riconosciuto o ambiguo: {0}'; en = 'Reference not recognised or ambiguous: {0}' }
-    'sources.proposal.origin' = @{ it = 'Fonte di origine del riferimento non indicata o non registrata: usare -SourceId'; en = 'Origin source of the reference missing or not registered: pass -SourceId' }
-    'sources.effective.duplicate' = @{ it = 'Data di efficacia gia registrata per questa disposizione'; en = 'Effective date already registered for this provision' }
-    'sources.effective.correct' = @{ it = 'Impossibile correggere il riferimento di {0}: la disposizione deve esistere una volta e mantenere data e stato'; en = 'Cannot correct the reference of {0}: the provision must exist once and keep the same date and status' }
-    'sources.publication.input' = @{ it = 'Data di pubblicazione non valida: servono una data yyyy-MM-dd e il riferimento alla fonte primaria'; en = 'Invalid publication date: a yyyy-MM-dd date and the primary-source reference are required' }
+    'sources.reason.http' = @{ en = 'HTTP {0} response could not be verified' }
+    'sources.reason.access-challenge' = @{ en = 'Source access requires a challenge' }
+    'sources.reason.unverifiable' = @{ en = 'Source could not be verified' }
+    'sources.reason.converter-unavailable' = @{ en = 'Converter unavailable' }
+    'sources.reason.conversion-timeout' = @{ en = 'Conversion timed out' }
+    'sources.reason.scanned-empty-or-incomplete' = @{ en = 'Transcript empty or incomplete' }
+    'sources.redirect.limit' = @{ en = 'Redirect limit reached' }
+    'sources.http' = @{ en = 'HTTP response {0}' }
+    'sources.download.large' = @{ en = 'Download exceeds size limit' }
+    'sources.access.challenge' = @{ en = 'Source access challenge required' }
+    'sources.path.outside' = @{ en = 'Source path outside scope' }
+    'sources.index.invalid' = @{ en = 'PARA index missing or invalid' }
+    'sources.resource.unresolved' = @{ en = 'Resource resource-authoritative-sources cannot be resolved' }
+    'sources.resource.metadata' = @{ en = 'Source resource metadata diverge' }
+    'sources.domains.invalid' = @{ en = 'Invalid registry domains' }
+    'sources.card.invalid' = @{ en = 'Invalid source card: {0}' }
+    'sources.id.diverged' = @{ en = 'Duplicate or diverging source identifier' }
+    'sources.domain.unknown' = @{ en = 'Unknown domain: {0}' }
+    'sources.endpoint.duplicate' = @{ en = 'Duplicate endpoint' }
+    'sources.endpoint.canonical' = @{ en = 'Exactly one canonical endpoint is required' }
+    'sources.linked.unresolved' = @{ en = 'Linked source cannot be resolved' }
+    'sources.endpoint.https' = @{ en = 'HTTPS endpoint not allowed' }
+    'sources.address.nonpublic' = @{ en = 'Non-public network address' }
+    'sources.dns.nonpublic' = @{ en = 'Non-public DNS resolution' }
+    'sources.payload.empty' = @{ en = 'Empty payload or over the limit' }
+    'sources.format.pdf' = @{ en = 'Invalid PDF format' }
+    'sources.format.docx' = @{ en = 'Invalid DOCX format' }
+    'sources.content.unverifiable' = @{ en = 'Expected content cannot be verified' }
+    'sources.original.name' = @{ en = 'Invalid original name' }
+    'sources.version.duplicate' = @{ en = 'Duplicate version' }
+    'sources.manifest.invalid' = @{ en = 'Invalid version manifest: {0}' }
+    'sources.version.noprimaries' = @{ en = 'Version without originals' }
+    'sources.original.invalid' = @{ en = 'Invalid or duplicate version original' }
+    'sources.original.hash' = @{ en = 'Original hash diverges: {0}' }
+    'sources.fingerprint.diverged' = @{ en = 'Version fingerprint diverges' }
+    'sources.transcript.hash' = @{ en = 'Transcript hash diverges' }
+    'sources.transcript.altHash' = @{ en = 'Alternative transcript hash diverges' }
+    'sources.transcript.revision' = @{ en = 'Transcript revision cannot be verified' }
+    'sources.version.unverified' = @{ en = 'Accepted version not verified' }
+    'sources.applicability.invalid' = @{ en = 'Invalid applicability card' }
+    'sources.applicability.identity' = @{ en = 'Source card identity diverges' }
+    'sources.product.duplicate' = @{ en = 'Duplicate source in the product card' }
+    'sources.product.unresolved' = @{ en = 'Product source cannot be resolved' }
+    'sources.product.version' = @{ en = 'Product version cannot be resolved' }
+    'sources.resource.archived' = @{ en = 'Archived resource: acquisition not allowed' }
+    'sources.unregistered' = @{ en = 'Source not registered' }
+    'sources.reference.only' = @{ en = 'Source usable as reference only' }
+    'sources.endpoint.none' = @{ en = 'No acquirable endpoint' }
+    'sources.original.modified' = @{ en = 'Existing original modified: unchanged acquisition cannot be verified' }
+    'sources.transcript.modified' = @{ en = 'Existing transcript modified' }
+    'sources.version.incomplete' = @{ en = 'Incomplete version already present: preserved for review' }
+    'sources.converter.unavailable' = @{ en = 'Converter report unavailable' }
+    'sources.decisions.invalid' = @{ en = 'Invalid decision log: {0}; restore it from the backup or from Git' }
+    'sources.decision.input' = @{ en = 'Decision without reason or author: pass -Reason and -DecidedBy' }
+    'sources.decision.version' = @{ en = 'Version {0} is not registered in the card: use an id from versions' }
+    'sources.decision.reject' = @{ en = 'Only a candidate or incomplete version that is not accepted can be rejected' }
+    'sources.decision.variant' = @{ en = 'A known variant must be a verified version' }
+    'sources.decision.accepted' = @{ en = 'The version is already the accepted one' }
+    'sources.decision.accept' = @{ en = 'Only a verified or candidate version can be accepted' }
+    'sources.decision.review' = @{ en = 'Accepting a candidate requires -ReviewScope and the three review confirmations' }
+    'sources.decision.transcript' = @{ en = 'Candidate without an extracted transcript: collect again or reject' }
+    'sources.effective.input' = @{ en = 'Invalid effective date: verified requires a yyyy-MM-dd date, provision and reference are always required' }
+    'sources.proposal.unrecognized' = @{ en = 'Reference not recognised or ambiguous: {0}' }
+    'sources.proposal.origin' = @{ en = 'Origin source of the reference missing or not registered: pass -SourceId' }
+    'sources.effective.duplicate' = @{ en = 'Effective date already registered for this provision' }
+    'sources.effective.correct' = @{ en = 'Cannot correct the reference of {0}: the provision must exist once and keep the same date and status' }
+    'sources.publication.input' = @{ en = 'Invalid publication date: a yyyy-MM-dd date and the primary-source reference are required' }
 }
 
 function Get-SBSourceChild([string]$Root,[string]$Relative) {

@@ -121,7 +121,7 @@ test("repository preloaded from --repo, recent entries removed for good across r
   await expect(page.locator("#repo-tracker")).toContainText("tracker.json");
   await page.locator('.steps button[data-tab="repo"]').click();
   await expect(page.locator("#recent li")).toHaveCount(2);
-  await expect(page.locator("#recent li").filter({ hasText: "gone-checkout" })).toContainText("non trovato");
+  await expect(page.locator("#recent li").filter({ hasText: "gone-checkout" })).toContainText("not found");
   await page.locator(`#recent button[data-remove="${missing.replace(/\\/g, "\\\\")}"]`).click();
   await expect(page.locator("#recent li")).toHaveCount(1);
   await page.locator(`#recent button[data-remove="${fixture.checkout.replace(/\\/g, "\\\\")}"]`).click();
@@ -129,13 +129,13 @@ test("repository preloaded from --repo, recent entries removed for good across r
   // An unrelated settings change must not bring the removed entries back (the old window rewrote its stale list).
   await page.locator('.steps button[data-tab="settings"]').click();
   await page.locator("#s-save").click();
-  await expect(page.locator("#s-info")).toHaveText("Impostazioni salvate.");
+  await expect(page.locator("#s-info")).toHaveText("Settings saved.");
   expect(JSON.parse(fs.readFileSync(settingsFile, "utf8")).recentRepos).toEqual([]);
   await closeApp(app);
 
   app = await launch();
   await expect(app.page.locator("#recent-empty")).toBeVisible();
-  await expect(app.page.locator("#repo-label")).toHaveText("Nessun repository");
+  await expect(app.page.locator("#repo-label")).toHaveText("No repository");
   await closeApp(app);
 });
 
@@ -163,7 +163,7 @@ test("directives: light-model proposal, preview, approve and apply, reload; the 
   await expect(page.locator("#dir-apply")).toBeEnabled({ timeout: 90_000 });
   await expect(page.locator("#dir-preview-box")).toBeVisible();
   await page.locator("#dir-apply").click();
-  await expect(page.locator("#dir-state")).toHaveText("Direttive approvate e allineate.", { timeout: 120_000 });
+  await expect(page.locator("#dir-state")).toHaveText("Directives approved and aligned.", { timeout: 120_000 });
   await expect(page.locator("#dir-error")).toBeHidden();
   expect(fs.readFileSync(path.join(fixture.checkout, "AGENTS.md"), "utf8")).toContain("Direttive sintetiche E2E");
   expect(fs.readFileSync(path.join(fixture.dossier, "AGENTS.managed.md"), "utf8")).toContain("Direttive sintetiche E2E");
@@ -196,12 +196,12 @@ test("queue lists only the installed agents and the models their CLI exposes", a
   const { page } = app;
   await expect(page.locator("#q-agents label.agent")).toHaveCount(3, { timeout: 60_000 });
   const claude = page.locator("#q-agents label.agent").filter({ hasText: "Claude Code" });
-  await expect(claude).toContainText("pronto");
+  await expect(claude).toContainText("ready");
   await expect(claude).toContainText("9.9.9");
   await expect(claude.locator("input")).toBeChecked();
   for (const name of ["Codex", "Gemini CLI"]) {
     const off = page.locator("#q-agents label.agent").filter({ hasText: name });
-    await expect(off).toContainText("non installato");
+    await expect(off).toContainText("not installed");
     await expect(off.locator("input")).toBeDisabled();
   }
   const models = await page.locator("#q-model option").evaluateAll((o) => o.map((x) => (x as HTMLOptionElement).value));
@@ -221,7 +221,7 @@ test("a queue run is followed live, survives closing the window and is found aga
   await page.locator("#q-tasks tr").filter({ hasText: "E2E-1" }).locator('input[type="checkbox"]').check();
   await page.locator("#q-start").click();
   await expect(page.locator('.steps button[data-tab="run"]')).toHaveAttribute("aria-selected", "true");
-  await expect(page.locator("#run-verdict")).toHaveText("In lavoro", { timeout: 60_000 });
+  await expect(page.locator("#run-verdict")).toHaveText("Working", { timeout: 60_000 });
   await expect(page.locator("#run-steps")).toContainText("Read: README.md", { timeout: 30_000 });
   await expect(page.locator("#run-task")).toContainText("E2E-1");
   await expect(page.locator("#run-folder")).toContainText("runner-run-");
@@ -235,14 +235,14 @@ test("a queue run is followed live, survives closing the window and is found aga
   app = await launch({ repo: fixture.checkout, agentSeconds: 15 });
   page = app.page;
   await expect(page.locator('.steps button[data-tab="run"]')).toHaveAttribute("aria-selected", "true", { timeout: 60_000 });
-  await expect(page.locator("#run-log")).toContainText("ritrovato e riagganciato");
+  await expect(page.locator("#run-log")).toContainText("found again and reattached");
   await expect(page.locator("#run-steps")).toContainText("Read: README.md");
-  await expect(page.locator("#run-verdict")).toHaveText("Concluso", { timeout: 120_000 });
+  await expect(page.locator("#run-verdict")).toHaveText("Finished", { timeout: 120_000 });
   await expect(page.locator("#run-results tr").filter({ hasText: "E2E-1" })).toContainText("finished");
   // #613: the process finished, but the task is only in progress: its acceptance is shown as open, apart from the process outcome.
   await expect(page.locator("#run-results tr").filter({ hasText: "E2E-1" }).locator("td").nth(4)).toHaveText("open");
   // #641: the reopened task counts as a process success, not as accepted.
-  await expect(page.locator("#run-counts")).toContainText("(1 riusciti, 0 non riusciti) · 0 accepted");
+  await expect(page.locator("#run-counts")).toContainText("(1 succeeded, 0 failed) · 0 accepted");
   await expect(page.locator("#run-steps")).toContainText("npm test");
   expect(readTracker().tasks.find((t) => t.id === "E2E-1")?.status).toBe("in_progress");
   await page.locator('.steps button[data-tab="queue"]').click();
@@ -256,7 +256,7 @@ test("registry: every task with its tool badge, archived tasks and the runner hi
   await page.locator('.steps button[data-tab="registry"]').click();
   await expect(page.locator("#reg-rows tr.reg-row")).toHaveCount(5, { timeout: 60_000 });
   const archived = page.locator("#reg-rows tr.reg-row").filter({ hasText: "E2E-0" });
-  await expect(archived).toContainText("archiviato");
+  await expect(archived).toContainText("archived");
   await expect(archived.locator(".tool-badge")).toHaveAttribute("data-tool", "unknown");
   const ran = page.locator("#reg-rows tr.reg-row").filter({ hasText: "E2E-1" });
   await expect(ran.locator('.tool-badge[data-tool="claude"]')).toBeVisible();
@@ -296,21 +296,21 @@ test("queue: a task that cannot run alone is analyzed, the owner answers and the
   const row = page.locator("#q-skipped tr").filter({ hasText: "E2E-4" });
   await expect(row).toContainText("Serve una scelta della persona", { timeout: 60_000 });
   const calls = watchCalls(page);
-  const analyze = row.locator("button", { hasText: "Analizza" });
+  const analyze = row.locator("button", { hasText: "Analyze" });
   await analyze.click();
   await expectBusyAndClickAgain(analyze);
   const dialog = page.locator("#an-dialog");
   await expect(dialog).toBeVisible({ timeout: 120_000 });
   expect(calls("analyze_task")).toBe(1);
   await expect(dialog.locator("legend")).toContainText("Quale sezione aggiungere al README?");
-  await expect(dialog.locator("label.choice").first()).toContainText("Installazione (consigliata)");
+  await expect(dialog.locator("label.choice").first()).toContainText("Installazione (recommended)");
   await expect(page.locator("#an-primary")).toBeDisabled();
   await dialog.locator("label.choice").first().locator("input").check();
   await page.locator("#an-primary").click();
-  await expect(page.locator("#an-primary")).toHaveText("Applica al tracker", { timeout: 120_000 });
+  await expect(page.locator("#an-primary")).toHaveText("Apply to the tracker", { timeout: 120_000 });
   await expect(dialog.locator("table.diff")).toContainText("autonomous");
   await page.locator("#an-primary").click();
-  await expect(page.locator("#an-state")).toHaveText("Task aggiornato.", { timeout: 120_000 });
+  await expect(page.locator("#an-state")).toHaveText("Task updated.", { timeout: 120_000 });
   const task = readTracker().tasks.find((t) => t.id === "E2E-4");
   expect(task?.execution).toBe("autonomous");
   expect(task?.acceptance).toContain("npm test passa");
@@ -332,17 +332,17 @@ test("busy buttons ignore a second click; a run stopped by a plan limit waits fo
   await expect(page.locator("#q-tasks tr")).toHaveCount(3, { timeout: 60_000 });
   const calls = watchCalls(page);
 
-  // «Carica»: spinner with its own label while the repository is resolved, one resolution only.
+  // «Load»: spinner with its own label while the repository is resolved, one resolution only.
   await page.locator('.steps button[data-tab="repo"]').click();
   const load = page.locator("#repo-load");
   await load.click();
-  await expect(load).toHaveText("Caricamento…");
+  await expect(load).toHaveText("Loading…");
   await expectBusyAndClickAgain(load);
   await expect(load).not.toHaveAttribute("aria-busy", "true", { timeout: 60_000 });
-  await expect(load).toHaveText("Carica");
+  await expect(load).toHaveText("Load");
   expect(calls("resolve_repository")).toBe(1);
 
-  // «Rileva di nuovo»: one probe of the agents.
+  // «Detect again»: one probe of the agents.
   await page.locator('.steps button[data-tab="queue"]').click();
   await expect(page.locator("#q-tasks tr")).toHaveCount(3, { timeout: 60_000 });
   const reprobe = page.locator("#q-reprobe");
@@ -353,7 +353,7 @@ test("busy buttons ignore a second click; a run stopped by a plan limit waits fo
   await expect(reprobe).not.toHaveAttribute("aria-busy", "true", { timeout: 60_000 });
   expect(calls("probe_agents")).toBe(probesBefore + 1);
 
-  // «Avvia la coda»: one runner, even with a second click while the first is starting.
+  // «Start the queue»: one runner, even with a second click while the first is starting.
   await expect(page.locator("#q-agents label.agent").filter({ hasText: "Claude Code" }).locator("input")).toBeChecked();
   await expect(page.locator("#q-wait")).toBeChecked();
   await page.locator("#q-tasks tr").filter({ hasText: "E2E-2" }).locator('input[type="checkbox"]').check();
@@ -365,15 +365,15 @@ test("busy buttons ignore a second click; a run stopped by a plan limit waits fo
   expect(calls("start_queue")).toBe(1);
 
   // The fake agent hits a limit that resets in seconds: the run stays alive and the card says when it resumes, counting down.
-  await expect(page.locator("#run-verdict")).toHaveText("In attesa del ripristino", { timeout: 120_000 });
-  await expect(page.locator("#run-badge")).toHaveText("In attesa del ripristino");
-  await expect(page.locator("#run-task")).toHaveText("In attesa del ripristino dei limiti, poi riprende da E2E-2");
+  await expect(page.locator("#run-verdict")).toHaveText("Waiting for the reset", { timeout: 120_000 });
+  await expect(page.locator("#run-badge")).toHaveText("Waiting for the reset");
+  await expect(page.locator("#run-task")).toHaveText("Waiting for the limits to reset, then resumes from E2E-2");
   await expect(page.locator("#run-warning")).toBeVisible();
   // #564: the interrupted attempt is not shown as a failed task, and the resume time sits under its own label.
-  await expect(page.locator("#run-counts")).toContainText("0 di 1 task (0 riusciti, 0 non riusciti)");
-  await expect(page.locator("#run-last-label")).toHaveText("Ripresa");
+  await expect(page.locator("#run-counts")).toContainText("0 of 1 tasks (0 succeeded, 0 failed)");
+  await expect(page.locator("#run-last-label")).toHaveText("Resumes");
   const countdown = async () => {
-    const m = /^Ripresa alle .+ \(tra (?:(\d+) min )?(\d+) s\)/.exec((await page.locator("#run-last").textContent()) ?? "");
+    const m = /^Resumes at .+ \(in (?:(\d+) min )?(\d+) s\)/.exec((await page.locator("#run-last").textContent()) ?? "");
     return m ? Number(m[1] ?? 0) * 60 + Number(m[2]) : NaN;
   };
   await expect.poll(countdown, { timeout: 30_000 }).toBeGreaterThan(0);
@@ -382,9 +382,9 @@ test("busy buttons ignore a second click; a run stopped by a plan limit waits fo
   await expect.poll(countdown, { timeout: 30_000 }).toBeLessThan(first);
 
   // After the reset the same task runs again and the run closes by itself.
-  await expect(page.locator("#run-verdict")).toHaveText("Concluso", { timeout: 240_000 });
+  await expect(page.locator("#run-verdict")).toHaveText("Finished", { timeout: 240_000 });
   await expect(page.locator("#run-warning")).toBeHidden();
-  await expect(page.locator("#run-last-label")).toHaveText("Ultimo segnale dell'agente");
+  await expect(page.locator("#run-last-label")).toHaveText("Last agent signal");
   await expect(page.locator("#run-results tr").filter({ hasText: "E2E-2" }).last()).toContainText("finished");
   expect(readTracker().tasks.find((t) => t.id === "E2E-2")?.status).toBe("in_progress");
   await closeApp(app);
@@ -405,8 +405,8 @@ test("a run stopped by a plan limit shows its resume point, and the window resum
   await expect(page.locator('.steps button[data-tab="run"]')).toHaveAttribute("aria-selected", "true", { timeout: 60_000 });
 
   // Without -WaitForReset the run stops at the limit and the card shows the resume point runner-status reports.
-  await expect(page.locator("#run-verdict")).toHaveText("Concluso", { timeout: 180_000 });
-  await expect(page.locator("#run-counts")).toContainText("arresto: quota");
+  await expect(page.locator("#run-verdict")).toHaveText("Finished", { timeout: 180_000 });
+  await expect(page.locator("#run-counts")).toContainText("stopped: quota");
   // #602: the quota reading shows provider, state (unknown with its reason), source and observation time.
   await expect(page.locator("#run-counts")).toContainText(/quota claude: (unknown \((missing|stale|malformed|unsupported)\)|exhausted|available), source [a-z-]+/);
   const resume = page.locator("#run-resume");
@@ -425,7 +425,7 @@ test("a run stopped by a plan limit shows its resume point, and the window resum
   await page.locator("#run-resume-start").click();
   await expect(resume).toBeHidden({ timeout: 60_000 });
   expect(calls("start_queue")).toBe(2);
-  await expect(page.locator("#run-verdict")).toHaveText("Concluso", { timeout: 240_000 });
+  await expect(page.locator("#run-verdict")).toHaveText("Finished", { timeout: 240_000 });
   await expect(page.locator("#run-results tr").filter({ hasText: "E2E-3" }).last()).toContainText("finished");
   expect(readTracker().tasks.find((t) => t.id === "E2E-3")?.status).toBe("in_progress");
   // The new run consumed the resume point of the stopped one: its resume.json names the run shown in the card.
@@ -465,13 +465,13 @@ test("a refused power request asks Run anyway or Cancel: Cancel starts nothing, 
   // The queue reloads after a run ends; select again on the refreshed list.
   await page.locator("#q-refresh").click();
   await expect(page.locator("#q-tasks tr").filter({ hasText: "E2E-3" })).toHaveCount(1, { timeout: 60_000 });
-  await expect(page.locator("#q-count")).toContainText("0 selezionati", { timeout: 30_000 });
+  await expect(page.locator("#q-count")).toContainText("0 selected", { timeout: 30_000 });
   await page.locator("#q-tasks tr").filter({ hasText: "E2E-3" }).locator('input[type="checkbox"]').check();
-  await expect(page.locator("#q-count")).toContainText("1 selezionati");
+  await expect(page.locator("#q-count")).toContainText("1 selected");
   await page.locator("#q-start").click();
   await expect(dialog).toBeVisible({ timeout: 120_000 });
   await dialog.locator('button[data-power="run"]').click();
-  await expect(page.locator("#run-verdict")).toHaveText("Concluso", { timeout: 180_000 });
+  await expect(page.locator("#run-verdict")).toHaveText("Finished", { timeout: 180_000 });
   expect(calls("start_queue")).toBe(3);
   await expect(page.locator("#run-results tr").filter({ hasText: "E2E-3" }).last()).toContainText("finished");
   expect(readTracker().tasks.find((t) => t.id === "E2E-3")?.status).toBe("in_progress");

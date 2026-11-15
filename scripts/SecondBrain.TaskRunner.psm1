@@ -7,11 +7,11 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Knowledge.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.ComputerUse.psm1')
 Add-SBMessages @{
-    'isolation.cross.refused' = @{it='Isolamento per progetto: la vista globale o la ricerca senza progetto risolto e rifiutata; indicare il repository in lavoro';en='Project isolation: the global view or a search without a resolved project is refused; give the working repository'}
-    'runner.scope.global' = @{it='Lettura globale rifiutata in una sessione del runner per {0}: -All, -AllDossiers e all=true non sono consentiti; usare il repository del task';en='Global read refused in a runner session for {0}: -All, -AllDossiers and all=true are not allowed; use the task repository'}
-    'runner.scope.repository' = @{it='Lettura rifiutata in una sessione del runner: {0} non e il repository del task ({1})';en='Read refused in a runner session: {0} is not the task repository ({1})'}
-    'runner.scope.write' = @{it='Scrittura rifiutata in una sessione del runner: {0} non e il repository del task ({1})';en='Write refused in a runner session: {0} is not the task repository ({1})'}
-    'runner.scope.dossier' = @{it='Dossier rifiutato in una sessione del runner: {0} non appartiene al repository del task ({1})';en='Dossier refused in a runner session: {0} does not belong to the task repository ({1})'}
+    'isolation.cross.refused' = @{ en = 'Project isolation: the global view or a search without a resolved project is refused; give the working repository' }
+    'runner.scope.global' = @{ en = 'Global read refused in a runner session for {0}: -All, -AllDossiers and all=true are not allowed; use the task repository' }
+    'runner.scope.repository' = @{ en = 'Read refused in a runner session: {0} is not the task repository ({1})' }
+    'runner.scope.write' = @{ en = 'Write refused in a runner session: {0} is not the task repository ({1})' }
+    'runner.scope.dossier' = @{ en = 'Dossier refused in a runner session: {0} does not belong to the task repository ({1})' }
 }
 $script:SBRunnerScopeVariables = @{repository='SECONDBRAIN_RUNNER_REPOSITORY'}
 $script:SBRunnerExcludedStreams = @('qualifica-finale','intervento-su-richiesta','coordinamento-prodotti')

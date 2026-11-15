@@ -25,14 +25,14 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Host.psm1') -Force
 Add-SBMessages @{
-    'idedetect.none' = @{ it = 'Nessuna IDE rilevata'; en = 'No IDE detected' }
-    'idedetect.line' = @{ it = '{0}. {1} [affidabilità {2}] ambiti: {3}'; en = '{0}. {1} [confidence {2}] scopes: {3}' }
-    'idedetect.prompt.ides' = @{ it = 'Numeri delle IDE da gestire separati da virgola, tutti, invio = nessuna'; en = 'Numbers of the IDEs to manage, comma-separated, all, Enter = none' }
-    'idedetect.prompt.scope' = @{ it = 'Ambito per {0} ({1})'; en = 'Scope for {0} ({1})' }
-    'idedetect.unknown' = @{ it = 'IDE non rilevata: {0}'; en = 'IDE not detected: {0}' }
-    'idedetect.scope' = @{ it = 'Ambito {1} non disponibile per {0}: {2}'; en = 'Scope {1} not available for {0}: {2}' }
-    'idedetect.scope.required' = @{ it = 'Indicare -Scope con -Ides'; en = 'Give -Scope together with -Ides' }
-    'idedetect.workspace' = @{ it = 'Percorso del progetto non valido: {0}'; en = 'Invalid workspace path: {0}' }
+    'idedetect.none' = @{ en = 'No IDE detected' }
+    'idedetect.line' = @{ en = '{0}. {1} [confidence {2}] scopes: {3}' }
+    'idedetect.prompt.ides' = @{ en = 'Numbers of the IDEs to manage, comma-separated, all, Enter = none' }
+    'idedetect.prompt.scope' = @{ en = 'Scope for {0} ({1})' }
+    'idedetect.unknown' = @{ en = 'IDE not detected: {0}' }
+    'idedetect.scope' = @{ en = 'Scope {1} not available for {0}: {2}' }
+    'idedetect.scope.required' = @{ en = 'Give -Scope together with -Ides' }
+    'idedetect.workspace' = @{ en = 'Invalid workspace path: {0}' }
 }
 try {
     $workspace=''

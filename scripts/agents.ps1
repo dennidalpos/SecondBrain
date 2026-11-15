@@ -30,28 +30,27 @@ param([switch]$Probe,[ValidateSet('claude','codex','gemini')][string[]]$Provider
     [ValidatePattern('^$|^[0-9A-Fa-f]{64}$')][string]$ExpectedProposalHash,[string]$Authorization,[switch]$Apply,
     [switch]$Analyze,[ValidateSet('directives','task','task-enrich','task-enrich-view','task-view','task-resolve','task-apply')][string]$Kind,[string]$Model,[string]$Effort,[switch]$AllowCustomModel,
     [string]$TaskId,[string]$AnalysisPath,[string]$AnswersFile,[ValidateRange(60,3600)][int]$TimeoutSeconds=600,
-    [string]$ConfigPath,[ValidateSet('en','it')][string]$Language)
-if($Language){$env:SECONDBRAIN_LANG=$Language}
+    [string]$ConfigPath)
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.AgentAdapters.psm1')
 Add-SBMessages @{
-    'agents.usage' = @{it='Nessuna opzione indicata. Usare -Probe [-Provider claude|codex|gemini], -Directives -RepositoryPath <checkout> [-DirectivesFile <md>] (anteprima) o con -ProposalPath -ExpectedProposalHash -Authorization -Apply, oppure -Analyze -Kind directives|task|task-resolve|task-apply';en='No mode given. Use -Probe [-Provider claude|codex|gemini], -Directives -RepositoryPath <checkout> [-DirectivesFile <md>] (preview) or with -ProposalPath -ExpectedProposalHash -Authorization -Apply, or -Analyze -Kind directives|task|task-resolve|task-apply'}
-    'agents.repository.required' = @{it='-Directives e -Analyze richiedono -RepositoryPath con il percorso di un checkout gestito';en='-Directives and -Analyze need -RepositoryPath with the path of a managed checkout'}
-    'agents.repository.unresolved' = @{it='Checkout non associato a un dossier attivo: {0}. Registralo con secondbrain.ps1 -AddRepo';en='Checkout not bound to an active dossier: {0}. Register it with secondbrain.ps1 -AddRepo'}
-    'agents.directives.file' = @{it='File delle direttive non trovato: {0}';en='Directives file not found: {0}'}
-    'agents.apply.required' = @{it='-Apply richiede -ProposalPath, -ExpectedProposalHash e -Authorization della proposta esaminata';en='-Apply needs -ProposalPath, -ExpectedProposalHash and -Authorization of the reviewed proposal'}
-    'agents.step.failed' = @{it='{0} terminato con codice {1}: {2}';en='{0} ended with exit code {1}: {2}'}
-    'agents.analysis.provider' = @{it='-Analyze richiede un solo -Provider (claude, codex o gemini)';en='-Analyze needs exactly one -Provider (claude, codex or gemini)'}
-    'agents.analysis.task' = @{it='-Kind task richiede -TaskId del task da analizzare';en='-Kind task needs -TaskId of the task to analyze'}
-    'agents.analysis.path' = @{it='Cartella di analisi non valida: {0}. Usa analysisPath restituito da -Kind task';en='Invalid analysis folder: {0}. Use the analysisPath returned by -Kind task'}
-    'agents.analysis.answers' = @{it='Risposte non valide in {0}: serve un array JSON di oggetti con questionId, question e answer';en='Invalid answers in {0}: a JSON array of objects with questionId, question and answer is required'}
-    'agents.analysis.rounds' = @{it='Raggiunto il massimo di {0} giri di domande: applica il risultato o riavvia l''analisi';en='The maximum of {0} question rounds is reached: apply the result or start the analysis again'}
-    'agents.analysis.unresolved' = @{it='L''ultimo giro chiede ancora risposte (verdetto {0}): rispondi alle domande prima di applicare';en='The last round still asks for answers (verdict {0}): answer the questions before applying'}
-    'agents.analysis.awaiting' = @{it='Il task attende {0}: l''analisi non può togliere l''attesa senza una risposta esplicita della persona';en='The task awaits {0}: the analysis cannot clear the wait without an explicit answer of the owner'}
-    'agents.analysis.authorization' = @{it='-Kind task-apply richiede -Authorization (riferimento alla conferma della persona)';en='-Kind task-apply needs -Authorization (reference to the owner confirmation)'}
+    'agents.usage' = @{ en = 'No mode given. Use -Probe [-Provider claude|codex|gemini], -Directives -RepositoryPath <checkout> [-DirectivesFile <md>] (preview) or with -ProposalPath -ExpectedProposalHash -Authorization -Apply, or -Analyze -Kind directives|task|task-resolve|task-apply' }
+    'agents.repository.required' = @{ en = '-Directives and -Analyze need -RepositoryPath with the path of a managed checkout' }
+    'agents.repository.unresolved' = @{ en = 'Checkout not bound to an active dossier: {0}. Register it with secondbrain.ps1 -AddRepo' }
+    'agents.directives.file' = @{ en = 'Directives file not found: {0}' }
+    'agents.apply.required' = @{ en = '-Apply needs -ProposalPath, -ExpectedProposalHash and -Authorization of the reviewed proposal' }
+    'agents.step.failed' = @{ en = '{0} ended with exit code {1}: {2}' }
+    'agents.analysis.provider' = @{ en = '-Analyze needs exactly one -Provider (claude, codex or gemini)' }
+    'agents.analysis.task' = @{ en = '-Kind task needs -TaskId of the task to analyze' }
+    'agents.analysis.path' = @{ en = 'Invalid analysis folder: {0}. Use the analysisPath returned by -Kind task' }
+    'agents.analysis.answers' = @{ en = 'Invalid answers in {0}: a JSON array of objects with questionId, question and answer is required' }
+    'agents.analysis.rounds' = @{ en = 'The maximum of {0} question rounds is reached: apply the result or start the analysis again' }
+    'agents.analysis.unresolved' = @{ en = 'The last round still asks for answers (verdict {0}): answer the questions before applying' }
+    'agents.analysis.awaiting' = @{ en = 'The task awaits {0}: the analysis cannot clear the wait without an explicit answer of the owner' }
+    'agents.analysis.authorization' = @{ en = '-Kind task-apply needs -Authorization (reference to the owner confirmation)' }
 }
 $brain=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $configArgs=if($ConfigPath){@('-ConfigPath',$ConfigPath)}else{@()}
@@ -186,7 +185,7 @@ try{
     }
     if($Analyze){
         $repo=Get-AgentsRepository $RepositoryPath
-        $lang=if($env:SECONDBRAIN_LANG -eq 'en'){'en'}else{'it'}
+        $lang='en'
         if($Kind -in @('directives','task','task-enrich') -and @($Provider).Count -ne 1){throw (New-SBError 'agents.analysis.provider')}
         switch($Kind){
             'directives' {

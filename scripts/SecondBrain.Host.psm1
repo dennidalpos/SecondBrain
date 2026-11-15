@@ -3,29 +3,22 @@ Set-StrictMode -Version Latest
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Add-SBMessages @{
-    'host.git.checkout' = @{ it = 'Checkout Git non leggibile'; en = 'Git checkout not readable' }
-    'host.git.metadata' = @{ it = 'Metadati Git non leggibili'; en = 'Git metadata not readable' }
-    'host.git.origin' = @{ it = 'Origin non leggibile'; en = 'Origin not readable' }
-    'host.ide.choice' = @{ it = 'Scelta IDE non valida: {0}'; en = 'Invalid IDE choice: {0}' }
-    'host.discovery.checkpoint' = @{ it = 'Checkpoint discovery di altra postazione o clone'; en = 'Discovery checkpoint of another workstation or clone' }
-    'host.discovery.root' = @{ it = 'Radice discovery assente: {0}'; en = 'Discovery root missing: {0}' }
-    'host.allowlist.invalid' = @{ it = 'Allowlist non valida (config/local/allowlist.json): schemaVersion 1 e repositories obbligatori'; en = 'Invalid allowlist (config/local/allowlist.json): schemaVersion 1 and repositories are required' }
-    'host.allowlist.notrepo' = @{ it = 'Non e un checkout Git: {0}'; en = 'Not a Git checkout: {0}' }
-    'host.allowlist.notroot' = @{ it = 'Indicare la radice del checkout, non una sottocartella: {0}'; en = 'Give the checkout root, not a subfolder: {0}' }
-    'host.discovery.roots.required' =@{ it = 'Radici obbligatorie: indicare almeno una cartella da analizzare (-Roots); la scansione di tutti i volumi non e consentita'; en = 'Roots required: give at least one folder to scan (-Roots); scanning all volumes is not allowed' }
-    'host.work.segment' = @{ it = 'Progetto/runtime non valido'; en = 'Invalid project/runtime' }
-    'host.work.category' = @{ it = 'Categoria non valida; valori ammessi: {0}'; en = 'Invalid category; allowed values: {0}' }
-    'host.work.slug' = @{ it = 'Slug non valido: minuscole, cifre e trattini, fino a 60 caratteri'; en = 'Invalid slug: lowercase letters, digits and hyphens, up to 60 characters' }
-    'host.work.categoryslug' = @{ it = 'Category e Slug vanno indicati insieme'; en = 'Category and Slug must be given together' }
-    'host.work.repository' = @{ it = 'Repository non indicato'; en = 'Repository not specified' }
-    'host.work.localroot' =@{ it = 'SECONDBRAIN_WORK_LOCAL_ROOT deve essere un percorso locale assoluto'; en = 'SECONDBRAIN_WORK_LOCAL_ROOT must be an absolute local path' }
-}
-
-# The workstation configuration may carry "language" (it|en); it ranks below -Language and SECONDBRAIN_LANG.
-Set-SBUiLanguageProvider {
-    $brain = Split-Path -Parent $PSScriptRoot
-    $config = Read-SBJson (Get-SBHostConfigPath $brain) $null
-    if ($config -is [hashtable] -and $config.ContainsKey('language')) { $config.language } else { $null }
+    'host.git.checkout' = @{ en = 'Git checkout not readable' }
+    'host.git.metadata' = @{ en = 'Git metadata not readable' }
+    'host.git.origin' = @{ en = 'Origin not readable' }
+    'host.ide.choice' = @{ en = 'Invalid IDE choice: {0}' }
+    'host.discovery.checkpoint' = @{ en = 'Discovery checkpoint of another workstation or clone' }
+    'host.discovery.root' = @{ en = 'Discovery root missing: {0}' }
+    'host.allowlist.invalid' = @{ en = 'Invalid allowlist (config/local/allowlist.json): schemaVersion 1 and repositories are required' }
+    'host.allowlist.notrepo' = @{ en = 'Not a Git checkout: {0}' }
+    'host.allowlist.notroot' = @{ en = 'Give the checkout root, not a subfolder: {0}' }
+    'host.discovery.roots.required' =@{ en = 'Roots required: give at least one folder to scan (-Roots); scanning all volumes is not allowed' }
+    'host.work.segment' = @{ en = 'Invalid project/runtime' }
+    'host.work.category' = @{ en = 'Invalid category; allowed values: {0}' }
+    'host.work.slug' = @{ en = 'Invalid slug: lowercase letters, digits and hyphens, up to 60 characters' }
+    'host.work.categoryslug' = @{ en = 'Category and Slug must be given together' }
+    'host.work.repository' = @{ en = 'Repository not specified' }
+    'host.work.localroot' =@{ en = 'SECONDBRAIN_WORK_LOCAL_ROOT must be an absolute local path' }
 }
 
 function Get-SBHostId {

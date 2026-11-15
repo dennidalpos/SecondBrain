@@ -6,15 +6,15 @@ Use chat conventions or the same PowerShell scripts. Run central scripts from th
 
 | Step | Chat | CLI or action |
 |---|---|---|
-| Activate once per workstation | `sb attiva` | `scripts/secondbrain.ps1 -Setup -Interactive` |
-| Sync approved instructions | `sb allinea` | `scripts/secondbrain.ps1 -Sync` |
+| Activate once per workstation | `sb activate` | `scripts/secondbrain.ps1 -Setup -Interactive` |
+| Sync approved instructions | `sb sync` | `scripts/secondbrain.ps1 -Sync` |
 | Verify the IDE integration | `sb prompt SYS01` | `scripts/ide-map.ps1 -Verify` plus live client evidence |
 | Load essential context | `sb prompt MEM06` | `scripts/knowledge.ps1 -Startup -CheckoutPath <product>` |
 | Choose ready work | `sb prompt REP01` | `scripts/knowledge.ps1 -Tasks -ReadyOnly -CheckoutPath <product>` |
 | Implement authorized work | Agent in the product repository | Follow repository instructions and session permissions |
 | Check before any authorized push | `sb prompt SEC07` | `scripts/publication.ps1 -RepositoryPath <product>` |
 | Close authorized work | `sb prompt MEM03` | Update permitted tracker/context/memory, then Sync and Check |
-| Compact only when necessary | `sb compatta` | `knowledge.ps1 -Compact -CandidatePath <file>`; inspect before Apply |
+| Compact only when necessary | `sb compact` | `knowledge.ps1 -Compact -CandidatePath <file>`; inspect before Apply |
 
 Knowledge lookups never write; pending writes are integrated only by an explicit `knowledge.ps1 -FlushPending`. Audits that propose tracker changes leave the tracker unchanged; do not close a task simply because some code exists.
 

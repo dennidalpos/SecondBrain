@@ -23,8 +23,8 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Access.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Add-SBMessages @{
-    'restore.metadata.invalid' = @{ it = 'Metadati di ripristino non validi'; en = 'Invalid restore metadata' }
-    'restore.backup.altered' = @{ it = 'Backup alterato: ripristino rifiutato'; en = 'Backup altered: restore refused' }
+    'restore.metadata.invalid' = @{ en = 'Invalid restore metadata' }
+    'restore.backup.altered' = @{ en = 'Backup altered: restore refused' }
 }
 # Writer busy beyond the wait limit: exit 3 (the message identifies the owner).
 trap { if (Test-SBWriteDeniedError $_) { Write-SBWriteDeniedDiagnostic $_ $PSCommandPath $PSBoundParameters; exit 4 }; if (Test-SBBusyError $_) { [Console]::Error.WriteLine($_.Exception.Message); exit 3 }; break }

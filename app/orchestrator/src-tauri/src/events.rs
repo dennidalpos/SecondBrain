@@ -32,7 +32,7 @@ pub fn last_lines(text: &str, n: usize) -> String {
 pub fn run_events_file(root: &Path, folder: &Path) -> Result<PathBuf, String> {
     let name = folder.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
     if !name.contains("-runner-run-") {
-        return Err(format!("Non è una cartella di run del runner: {}", folder.display()));
+        return Err(format!("Not a runner run folder: {}", folder.display()));
     }
     let real = folder.canonicalize().map_err(|e| format!("{}: {e}", folder.display()))?;
     let mut allowed: Vec<PathBuf> = vec![root.to_path_buf()];
@@ -43,7 +43,7 @@ pub fn run_events_file(root: &Path, folder: &Path) -> Result<PathBuf, String> {
     }
     let inside = allowed.iter().filter_map(|a| a.canonicalize().ok()).any(|a| real.starts_with(&a));
     if !inside {
-        return Err(format!("Cartella fuori dalla radice SecondBrain: {}", folder.display()));
+        return Err(format!("Folder outside the SecondBrain root: {}", folder.display()));
     }
     Ok(real.join("events.jsonl"))
 }

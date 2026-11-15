@@ -21,7 +21,7 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Tracker.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.TrackerImport.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Add-SBMessages @{
-    'importtracker.source.diverged' = @{ it = 'Sorgente diversa dal tracker autorevole'; en = 'Source differs from the authoritative tracker' }
+    'importtracker.source.diverged' = @{ en = 'Source differs from the authoritative tracker' }
 }
 $config=Read-SBConfiguration $ConfigPath
 $lock=Enter-SBOperation $config $SessionId -ReadOnly:(!$Apply)

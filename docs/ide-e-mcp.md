@@ -50,7 +50,7 @@ Preview user-level pairing separately for Codex or Claude Desktop; neither targe
 
 `ide-detect.ps1` stays read-only. Its selection (`-Ides` with `-Scope`, or `-Interactive`) echoes each IDE, scope and location plus a `pairCommand`: the preview-only `mcp-server.ps1 -Pair -Target <id> -Scope <user|project>` command (no `-Apply`; `system` scope and IDEs without a Pair target get `null`). Run it yourself, then confirm with APPLICA to write; `secondbrain.ps1 -Setup` keeps its own `-Ides` selector.
 
-The server exposes thirteen tools. The compact `tools/list` response (`id=2`) measures 10,829 characters in English and 11,204 in Italian (2026-11-13, with `get_decisions`; `result` only: 10,795/11,170). Method: server started with `-NoRecovery` and `SECONDBRAIN_LANG=en|it`, `initialize` with `id=1`, `initialized` notification, `tools/list` with `id=2`, length of the compact JSON line returned. These are characters, not tokens. Task status/new-task writes and memory/history appends are available through reviewed MCP submission as well as the CLI. Activity submission remains disabled until its activation procedure is complete. Compaction still uses reviewed CLI maintenance. Use `-CheckoutPath` or `-Repository` when the current working directory does not resolve the product. The global task view is opt-in with `-All`, paginated by `-Offset` and `-Limit` (default 50).
+The server exposes thirteen tools. The compact `tools/list` response (`id=2`) measures 10,829 characters (2026-11-13, with `get_decisions`; `result` only: 10,795). Method: server started with `-NoRecovery`, `initialize` with `id=1`, `initialized` notification, `tools/list` with `id=2`, length of the compact JSON line returned. These are characters, not tokens. Task status/new-task writes and memory/history appends are available through reviewed MCP submission as well as the CLI. Activity submission remains disabled until its activation procedure is complete. Compaction still uses reviewed CLI maintenance. Use `-CheckoutPath` or `-Repository` when the current working directory does not resolve the product. The global task view is opt-in with `-All`, paginated by `-Offset` and `-Limit` (default 50).
 
 ## Reads may have side effects
 
@@ -60,9 +60,9 @@ To forbid new writes for a session start `mcp-server.ps1 -NoRecovery`; per-call 
 
 Repository memory collection is enabled separately and requires a verified permission policy for the turn. Fixture tests do not qualify native live collectors. See [memory cycle and known limits](riferimento/memory-cycle.md#known-limits).
 
-## Language and packages
+## Packages
 
-Use `SECONDBRAIN_LANG` or server `-Language en|it` for tool descriptions. Individual `language` arguments control content. Restart a client/server session when cached tool descriptions need updating.
+Tool descriptions and messages are English only; `SECONDBRAIN_LANG`, `-Language` and the MCP `language` argument were removed in 3.0 (no deprecation window). Restart a client/server session when cached tool descriptions need updating.
 
 `-ExportPackage` creates a launcher and required modules for importing the connection elsewhere; keep the package together and review its destination. A package or a successful handshake does not prove live client loading. See [MCP setup](riferimento/mcp-setup.md).
 

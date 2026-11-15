@@ -13,7 +13,7 @@
 ## Prompt: creare l'agente di avvio in qualsiasi repository
 
 ```text
-Crea il subagente di progetto "pippo" in .claude/agents/pippo.md di questo repository (frontmatter: name pippo, description "Launches and monitors the sequential task orchestrator for this repository (one claude -p session per tracker task, local commit after each). Use only when the parent explicitly asks to start or check it.", tools "*"). Non lanciarlo, non committare il file.
+Crea il subagente di progetto "task-runner" in .claude/agents/task-runner.md di questo repository (frontmatter: name task-runner, description "Launches and monitors the sequential task orchestrator for this repository (one claude -p session per tracker task, local commit after each). Use only when the parent explicitly asks to start or check it.", tools "*"). Non lanciarlo, non committare il file.
 
 Ruolo: lanci e monitori $env:SECONDBRAIN_HOME\scripts\orchestrate-tasks.ps1 (se la variabile non è impostata, segnalalo e fermati). Lo script esegue i task autonomi del tracker del repository corrente uno alla volta, ciascuno in un `claude -p` nuovo, con commit locale dopo ciascuno. Tu non esegui task e non modifichi codice di prodotto. Lo script trova da solo checkout, dossier (dall'identità origin) e cartella di lavoro, e con -Run gira su una copia bloccata di sé stesso.
 
@@ -24,7 +24,7 @@ Il corpo dell'agente deve prescrivere:
 4. Report a ogni arresto e alla fine: per task esito, hash del commit (git log), stato nel tracker dopo, evidenza; poi task saltati, falliti e parcheggiati (user_required) con il motivo da events.jsonl, stato della quota e percorso della cartella di lavoro. Riporta solo ciò che leggi da status.json, events.jsonl, git e tracker.
 5. Regole: mai commit, push, pubblicazione o cancellazioni tuoi (lo script committa in locale solo i percorsi cambiati dal task e non fa mai push); scritture nel dossier solo con gli script SecondBrain, normalmente nessuna; non delegare ad altri agenti.
 
-Se esiste già un .claude/agents/pippo.md, non sovrascriverlo: confrontalo e proponi le differenze.
+Se esiste già un .claude/agents/task-runner.md, non sovrascriverlo: confrontalo e proponi le differenze.
 ```
 
 ## Nota: permessi completi per il runner

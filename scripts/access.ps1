@@ -34,10 +34,10 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Access.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Add-SBMessages @{
-    'access.metadata.final' = @{ it = 'Metadati finali non disponibili'; en = 'Final metadata not available' }
-    'access.coordinator.exited' = @{ it = 'Processo di coordinamento terminato prima della registrazione'; en = 'Coordination process exited before registration' }
-    'access.session.exists' = @{ it = 'SessionId gia in uso: scegliere un identificatore nuovo oppure omettere -SessionId'; en = 'SessionId already in use: choose a new identifier or omit -SessionId' }
-    'access.open.timeout' = @{ it = 'Timeout apertura sessione'; en = 'Timeout opening the session' }
+    'access.metadata.final' = @{ en = 'Final metadata not available' }
+    'access.coordinator.exited' = @{ en = 'Coordination process exited before registration' }
+    'access.session.exists' = @{ en = 'SessionId already in use: choose a new identifier or omit -SessionId' }
+    'access.open.timeout' = @{ en = 'Timeout opening the session' }
 }
 # Writer busy beyond the wait limit: exit 3 (the message identifies the owner).
 trap { if (Test-SBWriteDeniedError $_) { Write-SBWriteDeniedDiagnostic $_ $PSCommandPath $PSBoundParameters; exit 4 }; if (Test-SBBusyError $_) { [Console]::Error.WriteLine($_.Exception.Message); exit 3 }; break }

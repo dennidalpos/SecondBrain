@@ -11,15 +11,15 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Decisions.psm1')
 $script:SBPendingDecisionError=$null
 Add-SBMessages @{
-    'pending.invalid' = @{it='Richiesta differita non valida: {0}';en='Invalid deferred request: {0}'}
-    'pending.conflict' = @{it='La base della scrittura e cambiata: richiesta conservata senza sovrascrivere. Controllala con knowledge.ps1 -PendingWrites e, se superata, scartala con -DiscardPending';en='The write base changed: request preserved without overwriting. Check it with knowledge.ps1 -PendingWrites and, if outdated, discard it with -DiscardPending'}
-    'pending.discard.notfound' = @{it='Nessuna richiesta differita con questo ID: elenca le richieste con knowledge.ps1 -PendingWrites';en='No deferred request with this ID: list requests with knowledge.ps1 -PendingWrites'}
-    'pending.discard.state' = @{it='Solo le richieste in conflitto o non valide si possono scartare (stato: {0})';en='Only conflicting or invalid requests can be discarded (state: {0})'}
-    'pending.batch.format' = @{it='File del lotto non valido: atteso un array JSON di aggiornamenti oppure un oggetto {"updates": [...]}';en='Invalid batch file: expected a JSON array of updates or an object {"updates": [...]}'}
-    'pending.batch.field' = @{it='Campo sconosciuto "{0}": campi ammessi {1}';en='Unknown field "{0}": allowed fields are {1}'}
-    'pending.batch.size' = @{it='Il lotto supera {0} aggiornamenti: dividerlo in altri file';en='The batch exceeds {0} updates: split it into several files'}
-    'pending.batch.recovery' = @{it='Una transazione incompleta attende il ripristino: nessun aggiornamento del lotto applicato';en='An incomplete transaction awaits recovery: no update of the batch was applied'}
-    'pending.notice' = @{it='Scritture differite: {0} integrate, {1} conflitti, {2} pendenti; stato {3}.';en='Deferred writes: {0} applied, {1} conflicts, {2} pending; state {3}.'}
+    'pending.invalid' = @{ en = 'Invalid deferred request: {0}' }
+    'pending.conflict' = @{ en = 'The write base changed: request preserved without overwriting. Check it with knowledge.ps1 -PendingWrites and, if outdated, discard it with -DiscardPending' }
+    'pending.discard.notfound' = @{ en = 'No deferred request with this ID: list requests with knowledge.ps1 -PendingWrites' }
+    'pending.discard.state' = @{ en = 'Only conflicting or invalid requests can be discarded (state: {0})' }
+    'pending.batch.format' = @{ en = 'Invalid batch file: expected a JSON array of updates or an object {"updates": [...]}' }
+    'pending.batch.field' = @{ en = 'Unknown field "{0}": allowed fields are {1}' }
+    'pending.batch.size' = @{ en = 'The batch exceeds {0} updates: split it into several files' }
+    'pending.batch.recovery' = @{ en = 'An incomplete transaction awaits recovery: no update of the batch was applied' }
+    'pending.notice' = @{ en = 'Deferred writes: {0} applied, {1} conflicts, {2} pending; state {3}.' }
 }
 
 function Get-SBPendingPaths([string]$BrainRoot) {

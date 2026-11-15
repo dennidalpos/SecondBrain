@@ -5,13 +5,13 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Host.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Knowledge.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Add-SBMessages @{
-    'sandbox.checkout' = @{it='Checkout gestito non verificabile per il repository richiesto';en='Managed checkout cannot be verified for the requested repository'}
-    'sandbox.output' = @{it='Destinazione richiesta: cartella work propria, aperta e inizializzata con work.ps1 per questa sessione';en='Destination must be an owned, open work folder initialized with work.ps1 for this session'}
-    'sandbox.broad' = @{it='Radice troppo ampia per la configurazione minima: {0}';en='Root is too broad for minimal configuration: {0}'}
-    'sandbox.unsupported' = @{it='Configurazione automatica non supportata: {0}. Nessun file modificato';en='Automatic configuration unsupported: {0}. No files changed'}
-    'sandbox.stale' = @{it='Anteprima assente o cambiata: rivedere il piano e il suo hash prima di Apply';en='Preview missing or changed: review the plan and its hash before Apply'}
-    'sandbox.shared' = @{it='Coordinamento e backup possono contenere dati di altri repository. Le directory aggiuntive Claude consentono anche letture. Le regole non sono una barriera OS per i sottoprocessi';en='Coordination and backups may contain other repositories data. Claude additional directories also allow reads. Rules are not an OS boundary for subprocesses'}
-    'sandbox.scope' = @{it='Configurazione per le operazioni dossier di knowledge.ps1. Non abilita Sync, Setup, PARA o manutenzione globale. Le policy IDE esistenti possono limitare o ampliare gli accessi effettivi; verificare in una nuova sessione';en='Configuration for knowledge.ps1 dossier operations. Does not enable Sync, Setup, PARA or global maintenance. Existing IDE policies may restrict or broaden effective access; verify in a new session'}
+    'sandbox.checkout' = @{ en = 'Managed checkout cannot be verified for the requested repository' }
+    'sandbox.output' = @{ en = 'Destination must be an owned, open work folder initialized with work.ps1 for this session' }
+    'sandbox.broad' = @{ en = 'Root is too broad for minimal configuration: {0}' }
+    'sandbox.unsupported' = @{ en = 'Automatic configuration unsupported: {0}. No files changed' }
+    'sandbox.stale' = @{ en = 'Preview missing or changed: review the plan and its hash before Apply' }
+    'sandbox.shared' = @{ en = 'Coordination and backups may contain other repositories data. Claude additional directories also allow reads. Rules are not an OS boundary for subprocesses' }
+    'sandbox.scope' = @{ en = 'Configuration for knowledge.ps1 dossier operations. Does not enable Sync, Setup, PARA or global maintenance. Existing IDE policies may restrict or broaden effective access; verify in a new session' }
 }
 function Get-SBSandboxPlan {
     param($Config,[string]$Repository,[string]$CheckoutPath,[string]$Target,[string]$OutputDirectory)

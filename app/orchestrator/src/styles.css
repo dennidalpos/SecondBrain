@@ -122,7 +122,7 @@ button.ghost:hover:not(:disabled) { color: var(--text); background: var(--surfac
 .run-head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
 .run-task { font-weight: 600; }
 .steps-log { list-style: none; margin: 0; padding: 6px 10px; max-height: 300px; overflow: auto; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; font-size: 13px; }
-.steps-log:empty::before { content: "Nessun passo ancora."; color: var(--muted); }
+.steps-log:empty::before { content: "No steps yet."; color: var(--muted); }
 .steps-log li { padding: 3px 0; border-bottom: 1px dashed var(--border); }
 .steps-log li:last-child { border-bottom: 0; }
 .steps-log .step-error { color: var(--danger); }

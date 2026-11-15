@@ -3,30 +3,30 @@ Set-StrictMode -Version Latest
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Add-SBMessages @{
-    'audit.limit.snapshot' = @{ it = 'Snapshot non atomico fra richieste; nessuna prova di assenza da errori HTTP.'; en = 'Non-atomic snapshot across requests; HTTP errors do not prove absence.' }
-    'audit.limit.wiki' = @{ it = 'Wiki abilitate: contenuto non acquisito; fork elencati senza scansione dei loro contenuti.'; en = 'Enabled wikis: content not collected; forks listed without scanning their content.' }
-    'audit.limit.scope' = @{ it = 'Nessuna scansione di cloni, cache, allegati, Actions o copie esterne. Corpi e titoli conservati solo come hash e lunghezze.'; en = 'Clones, caches, attachments, Actions and external copies are not scanned. Bodies and titles retained only as hashes and lengths.' }
-    'audit.reason.pagination_cycle_or_limit' = @{ it = 'Ciclo o limite di paginazione raggiunto'; en = 'Pagination cycle or limit reached' }
-    'audit.reason.unsafe_pagination_link' = @{ it = 'Collegamento di paginazione non sicuro'; en = 'Unsafe pagination link' }
-    'audit.reason.expected_array' = @{ it = 'Risposta attesa come elenco'; en = 'Expected an array response' }
-    'audit.reason.expected_object' = @{ it = 'Risposta attesa come oggetto'; en = 'Expected an object response' }
-    'audit.reason.ambiguous_pagination_link' = @{ it = 'Collegamento di paginazione ambiguo'; en = 'Ambiguous pagination link' }
-    'audit.reason.invalid_pagination_link' = @{ it = 'Collegamento di paginazione non valido'; en = 'Invalid pagination link' }
-    'audit.reason.invalid_response_or_transport' = @{ it = 'Risposta o trasporto non verificabile'; en = 'Response or transport could not be verified' }
-    'audit.reason.repository_identity_changed' = @{ it = 'Identita del repository cambiata'; en = 'Repository identity changed' }
-    'audit.reason.repository_unavailable' = @{ it = 'Repository non disponibile'; en = 'Repository unavailable' }
-    'audit.reason.repository_metadata' = @{ it = 'Stato ricavato dai metadati del repository'; en = 'State obtained from repository metadata' }
-    'audit.reason.wiki_content_not_collected' = @{ it = 'Contenuto della wiki non acquisito'; en = 'Wiki content not collected' }
-    'audit.reason.rate_limited' = @{ it = 'Limite API raggiunto'; en = 'API rate limit reached' }
-    'audit.reason.authentication_required' = @{ it = 'Autenticazione richiesta'; en = 'Authentication required' }
-    'audit.reason.transport_or_authentication' = @{ it = 'Trasporto o autenticazione non riusciti'; en = 'Transport or authentication failed' }
-    'audit.reason.timeout' = @{ it = 'Tempo della richiesta scaduto'; en = 'Request timed out' }
-    'audit.reason.invalid_json' = @{ it = 'Risposta JSON non valida'; en = 'Invalid JSON response' }
-    'audit.reason.http' = @{ it = 'Risposta HTTP {0} non verificabile'; en = 'HTTP {0} response could not be verified' }
-    'audit.identity' = @{ it = 'Identita audit non ammessa; questo adattatore usa soltanto GitHub'; en = 'Audit identity not allowed; this adapter only uses GitHub' }
-    'audit.api.item' = @{ it = 'Elemento API non valido'; en = 'Invalid API item' }
-    'audit.scope' = @{ it = 'Perimetro audit vuoto o duplicato'; en = 'Audit scope empty or duplicated' }
-    'audit.pr.number' = @{ it = 'Numero PR non valido'; en = 'Invalid PR number' }
+    'audit.limit.snapshot' = @{ en = 'Non-atomic snapshot across requests; HTTP errors do not prove absence.' }
+    'audit.limit.wiki' = @{ en = 'Enabled wikis: content not collected; forks listed without scanning their content.' }
+    'audit.limit.scope' = @{ en = 'Clones, caches, attachments, Actions and external copies are not scanned. Bodies and titles retained only as hashes and lengths.' }
+    'audit.reason.pagination_cycle_or_limit' = @{ en = 'Pagination cycle or limit reached' }
+    'audit.reason.unsafe_pagination_link' = @{ en = 'Unsafe pagination link' }
+    'audit.reason.expected_array' = @{ en = 'Expected an array response' }
+    'audit.reason.expected_object' = @{ en = 'Expected an object response' }
+    'audit.reason.ambiguous_pagination_link' = @{ en = 'Ambiguous pagination link' }
+    'audit.reason.invalid_pagination_link' = @{ en = 'Invalid pagination link' }
+    'audit.reason.invalid_response_or_transport' = @{ en = 'Response or transport could not be verified' }
+    'audit.reason.repository_identity_changed' = @{ en = 'Repository identity changed' }
+    'audit.reason.repository_unavailable' = @{ en = 'Repository unavailable' }
+    'audit.reason.repository_metadata' = @{ en = 'State obtained from repository metadata' }
+    'audit.reason.wiki_content_not_collected' = @{ en = 'Wiki content not collected' }
+    'audit.reason.rate_limited' = @{ en = 'API rate limit reached' }
+    'audit.reason.authentication_required' = @{ en = 'Authentication required' }
+    'audit.reason.transport_or_authentication' = @{ en = 'Transport or authentication failed' }
+    'audit.reason.timeout' = @{ en = 'Request timed out' }
+    'audit.reason.invalid_json' = @{ en = 'Invalid JSON response' }
+    'audit.reason.http' = @{ en = 'HTTP {0} response could not be verified' }
+    'audit.identity' = @{ en = 'Audit identity not allowed; this adapter only uses GitHub' }
+    'audit.api.item' = @{ en = 'Invalid API item' }
+    'audit.scope' = @{ en = 'Audit scope empty or duplicated' }
+    'audit.pr.number' = @{ en = 'Invalid PR number' }
 }
 
 function Assert-SBAuditIdentity([string]$Identity,[string[]]$AllowedOwners) {

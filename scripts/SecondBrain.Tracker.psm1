@@ -8,84 +8,84 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.TaskLedger.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Decisions.psm1')
 Add-SBMessages @{
-    'tracker.batch.empty' = @{ it = 'Lotto di aggiornamenti vuoto: il file deve elencare almeno un aggiornamento'; en = 'Empty update batch: the file must list at least one update' }
-    'tracker.batch.item' = @{ it = 'Aggiornamento {0} ({1}) rifiutato, tracker invariato: {2}'; en = 'Update {0} ({1}) refused, tracker unchanged: {2}' }
-    'tracker.batch.shape' = @{ it = 'Ogni aggiornamento è un oggetto con taskId e almeno un campo'; en = 'Each update is an object with taskId and at least one field' }
-    'tracker.batch.duplicate' = @{ it = 'Il task compare già in un aggiornamento precedente del lotto: unire i campi in una sola voce'; en = 'The task already appears in an earlier update of the batch: merge the fields into one entry' }
-    'tracker.batch.changed' = @{ it = 'Il tracker è cambiato dopo la preparazione del lotto: rieseguire il comando'; en = 'The tracker changed after the batch was prepared: run the command again' }
-    'tracker.update.empty' = @{ it = 'Specificare almeno un campo da aggiornare: -Status, -Priority, -Execution, -DependsOn, -Stream, -Awaiting, -Requires, -StateReason, -Description, -Acceptance, -Decisions o -Evidence'; en = 'Specify at least one field to update: -Status, -Priority, -Execution, -DependsOn, -Stream, -Awaiting, -Requires, -StateReason, -Description, -Acceptance, -Decisions or -Evidence' }
-    'tracker.decisions.invalid' = @{ it = 'Decisioni non valide: ogni voce richiede question e answer (testo); correggere il file JSON delle decisioni'; en = 'Invalid decisions: every entry needs question and answer (text); fix the decisions JSON file' }
-    'tracker.evidence.invalid' = @{ it = 'Evidenza non valida: usare riferimento|esito con esito passed, failed, partial o unverified'; en = 'Invalid evidence: use reference|outcome with outcome passed, failed, partial or unverified' }
-    'tracker.priority.invalid' = @{it='Priorità non valida: usare P0, P1, P2, P3 o P4';en='Invalid priority: use P0, P1, P2, P3 or P4'}
-    'tracker.execution.invalid' = @{ it = 'Modalità di esecuzione non valida: usare autonomous, user_required o unspecified'; en = 'Invalid execution mode: use autonomous, user_required or unspecified' }
-    'tracker.requires.invalid' = @{it='Capacità richiesta non valida: {0} (ammessi: {1})';en='Invalid required capability: {0} (allowed: {1})'}
-    'tracker.closure.advice' = @{ it = 'Aggiornare memoria e contesto, proporre il riepilogo minimo (memoria, storico o salta), poi eseguire Sync e Check.'; en = 'Update memory and context, offer a minimal summary (memory, history or skip), then run Sync and Check.' }
-    'tracker.closure.invalid' = @{ it = 'Metadati di chiusura del tracker non validi: correggere extensions.closure o rimuoverlo'; en = 'Invalid tracker closure metadata: fix extensions.closure or remove it' }
-    'tracker.history.note' = @{ it = 'Nota originale: {0}'; en = 'Original note: {0}' }
-    'tracker.history.dependencies' = @{ it = 'Esiti storici espliciti usati per risolvere le dipendenze'; en = 'Explicit historical outcomes used to resolve dependencies' }
-    'tracker.history.numbered' = @{ it = 'Numerazione retroattiva: {0} task (archivio e attivi) in ordine cronologico; originali conservati per hash.'; en = 'Retroactive numbering: {0} tasks (archived and active) in chronological order; originals preserved by hash.' }
-    'tracker.reason.numbered' = @{ it = 'Tracker gia numerato'; en = 'Tracker already numbered' }
-    'tracker.history.snapshot' = @{ it = 'Originale storico non coerente: {0}; ripristinarlo dal backup o rigenerare lo storico'; en = 'History original does not match: {0}; restore it from the backup or regenerate the history' }
-    'tracker.seq.duplicate' = @{ it = 'Numero progressivo duplicato nel tracker {0}: {1}; assegnare numeri univoci'; en = 'Duplicate sequence number in tracker {0}: {1}; assign unique numbers' }
-    'tracker.title.prefix' = @{ it = 'Titolo senza prefisso #{0}: {1}; eseguire knowledge.ps1 -RenumberTasks'; en = 'Title without prefix #{0}: {1}; run knowledge.ps1 -RenumberTasks' }
-    'tracker.lastseq.type' = @{ it = 'extensions.lastSeq deve essere un intero: correggere il valore nel tracker'; en = 'extensions.lastSeq must be an integer: fix the value in the tracker' }
-    'tracker.seq.beyond' = @{ it = 'Numero progressivo {0} oltre extensions.lastSeq ({1}): aggiornare lastSeq'; en = 'Sequence number {0} beyond extensions.lastSeq ({1}): update lastSeq' }
-    'tracker.schema.invalid' = @{ it = 'Tracker non conforme allo schema v1: confrontarlo con config/tracker.schema.json'; en = 'Tracker does not conform to schema v1: compare it with config/tracker.schema.json' }
-    'tracker.identity.diverged' = @{ it = 'Identita tracker divergente: verificare repository.json del dossier'; en = 'Tracker identity mismatch: check the dossier repository.json' }
-    'tracker.date.invalid' = @{ it = 'Data tracker non valida: usare il formato yyyy-MM-dd'; en = 'Invalid tracker date: use the yyyy-MM-dd format' }
-    'tracker.related.schema' = @{ it = 'Tracker correlato non conforme allo schema v1: {0}'; en = 'Related tracker does not conform to schema v1: {0}' }
-    'tracker.identity.unmanaged' = @{ it = 'Tracker di identita non gestita: attivare il repository con secondbrain.ps1 -Setup o -AddRepo'; en = 'Tracker of an unmanaged identity: activate the repository with secondbrain.ps1 -Setup or -AddRepo' }
-    'tracker.id.duplicate' = @{ it = 'ID tracker duplicato: {0}; renderlo univoco'; en = 'Duplicate tracker ID: {0}; make it unique' }
-    'tracker.dependency.unmanaged' = @{ it = 'Dipendenza da identita non gestita: {0}; rimuovere la dipendenza o attivare quel repository'; en = 'Dependency on an unmanaged identity: {0}; remove the dependency or activate that repository' }
-    'tracker.enrichment.authorization' = @{ it = 'Applicare una proposta di arricchimento richiede il testo di autorizzazione esplicito della persona: passare -EnrichmentAuthorization'; en = 'Applying an enrichment proposal needs the explicit authorization text of the person: pass -EnrichmentAuthorization' }
-    'tracker.enrichment.none' = @{ it = 'Il task {0} non ha una proposta di arricchimento'; en = 'Task {0} has no enrichment proposal' }
-    'tracker.enrichment.state' = @{ it = 'La proposta di arricchimento del task {0} è già {1}: solo una proposta in stato proposed può essere applicata o rifiutata'; en ='The enrichment proposal of task {0} is already {1}; only a proposed one can be applied or rejected' }
-    'tracker.enrichment.missing' = @{ it = 'File della proposta di arricchimento non trovato: {0}'; en ='Enrichment proposal file not found: {0}' }
-    'tracker.enrichment.changed' = @{ it = 'La proposta di arricchimento {0} è cambiata dopo la registrazione o non riguarda questo task: nulla è stato applicato'; en ='The enrichment proposal {0} changed after it was recorded or is not a proposal for this task; nothing was applied' }
-    'tracker.enrichment.invalid' =@{ it = 'Puntatore di arricchimento non valido: servono un percorso relativo a SecondBrain verso proposal.json, il suo SHA-256 e lo stato proposed, applied o rejected'; en = 'Invalid enrichment pointer: it needs a SecondBrain-relative path to proposal.json, its SHA-256 and status proposed, applied or rejected' }
-    'tracker.followup.missing' = @{ it = 'Task di origine del follow-up non trovato: {0}; indicare l''ID di un task attivo o archiviato di questo tracker'; en = 'Follow-up source task not found: {0}; give the ID of an active or archived task of this tracker' }
-    'tracker.dependency.missing' = @{ it = 'Dipendenza tracker inesistente o non verificabile: {0}; correggere l''ID o rimuovere la dipendenza'; en = 'Tracker dependency missing or not verifiable: {0}; fix the ID or remove the dependency' }
-    'tracker.dependency.cycle' = @{ it = 'Ciclo nelle dipendenze tracker: {0}; rimuovere una delle dipendenze'; en = 'Cycle in tracker dependencies: {0}; remove one of the dependencies' }
-    'tracker.related.declaration' = @{ it = 'Dichiarazione tracker correlato non valida: {0}'; en = 'Invalid related tracker declaration: {0}' }
-    'tracker.related.missing' = @{ it = 'Tracker correlato dichiarato assente: {0}'; en = 'Declared related tracker missing: {0}' }
-    'tracker.related.identity' = @{ it = 'Identita tracker correlato divergente'; en = 'Related tracker identity mismatch' }
-    'tracker.identity.area' = @{ it = 'Identita tracker non associata a una sola Area: {0}'; en = 'Tracker identity not bound to exactly one Area: {0}' }
-    'tracker.dossier.identity' = @{ it = 'Identita del dossier tracker divergente'; en = 'Tracker dossier identity mismatch' }
-    'tracker.declaration.invalid' = @{ it = 'Dichiarazione tracker non valida: {0}'; en = 'Invalid tracker declaration: {0}' }
-    'tracker.declared.missing' = @{ it = 'Tracker dichiarato assente: {0}'; en = 'Declared tracker missing: {0}' }
-    'tracker.greenfield.declaration.required' = @{ it = 'Il dossier greenfield di {0} richiede un tracker dichiarato di schema 1'; en = 'The greenfield dossier for {0} requires a declared schema 1 tracker' }
-    'tracker.policy.unapproved' = @{ it = 'Contratto tracker non approvato: {0}'; en = 'Tracker contract not approved: {0}' }
-    'tracker.review.source' = @{ it = 'Review tracker di altra identita o sorgente divergente'; en = 'Tracker review of another identity or diverging source' }
-    'tracker.review.tasks' = @{ it = 'Review tracker senza elenco task'; en = 'Tracker review without task list' }
-    'tracker.review.id' = @{ it = 'ID review tracker mancante o duplicato'; en = 'Tracker review ID missing or duplicate' }
-    'tracker.review.field' = @{ it = 'Campo review tracker non riconosciuto: {0}'; en = 'Unrecognized tracker review field: {0}' }
-    'tracker.review.reason' = @{ it = 'Motivazione review tracker obbligatoria'; en = 'Tracker review reason is required' }
-    'tracker.review.status' = @{ it = 'Stato review tracker non valido'; en = 'Invalid tracker review status' }
-    'tracker.review.dependencies' = @{ it = 'Dipendenze review tracker non valide'; en = 'Invalid tracker review dependencies' }
-    'tracker.review.prerequisites' = @{ it = 'Prerequisiti review tracker non validi'; en = 'Invalid tracker review prerequisites' }
-    'tracker.original.object' = @{ it = 'Il tracker JSON originale deve essere un oggetto: correggere il file sorgente'; en = 'The original JSON tracker must be an object: fix the source file' }
-    'tracker.collection.invalid' = @{ it = 'Collezione tracker non valida: {0}; usare tasks o un nome dichiarato'; en = 'Invalid tracker collection: {0}; use tasks or a declared name' }
-    'tracker.markdown.format' = @{ it = 'Formato Markdown non riconosciuto alla riga {0}: conversione esplicita richiesta'; en = 'Unrecognized Markdown format at line {0}: explicit conversion required' }
-    'tracker.original.format' = @{ it = 'Formato tracker originale non supportato: convertirlo in JSON o Markdown a tabella'; en = 'Unsupported original tracker format: convert it to JSON or a Markdown table' }
-    'tracker.id.collision' = @{ it = 'Collisione ID: risoluzione esplicita richiesta per {0}'; en = 'ID collision: explicit resolution required for {0}' }
-    'tracker.review.unknown' = @{ it = 'Task review tracker inesistente: {0}'; en = 'Tracker review task does not exist: {0}' }
-    'tracker.review.reconcile' = @{ it = 'Review tracker richiede riconciliazione esplicita delle dipendenze: {0}'; en = 'Tracker review requires explicit dependency reconciliation: {0}' }
-    'tracker.host.backuproot' = @{ it = 'Configurazione host senza backupRoot: {0}'; en = 'Host configuration without backupRoot: {0}' }
-    'tracker.write.foreign' = @{ it = 'Scrittura rifiutata: il tracker di ''{0}'' non appartiene al repository in lavoro ''{1}'''; en = 'Write refused: the tracker of ''{0}'' does not belong to the working repository ''{1}''' }
-    'tracker.file.missing' = @{ it = 'File tracker inesistente: {0}; controllare il percorso o la dichiarazione in repository.json'; en = 'Tracker file does not exist: {0}; check the path or the declaration in repository.json' }
-    'tracker.identity.required' = @{ it = 'Identity o Path obbligatorio: indicare uno dei due'; en = 'Identity or Path is required: give one of them' }
-    'tracker.dossier.declaration' = @{ it = 'Dossier senza dichiarazione tracker: {0}; dichiarare il tracker in repository.json'; en = 'Dossier without tracker declaration: {0}; declare the tracker in repository.json' }
-    'tracker.schema.version' = @{ it = 'Schema tracker non supportato (atteso v1): impostare schemaVersion a 1'; en = 'Unsupported tracker schema (expected v1): set schemaVersion to 1' }
-    'tracker.status.invalid' = @{ it = 'Stato non valido: {0}. Valori ammessi: todo, in_progress, blocked, done, cancelled, unknown'; en = 'Invalid status: {0}. Allowed values: todo, in_progress, blocked, done, cancelled, unknown' }
-    'tracker.task.notfound' = @{ it = 'Task non trovato nel tracker: {0}. Elenca i task con knowledge.ps1 -Tasks'; en = 'Task not found in tracker: {0}. List tasks with knowledge.ps1 -Tasks' }
-    'tracker.unnumbered' = @{ it = 'Tracker non numerato ({0} task senza seq): eseguire prima knowledge.ps1 -RenumberTasks'; en = 'Unnumbered tracker ({0} tasks without seq): run knowledge.ps1 -RenumberTasks first' }
-    'tracker.acceptance.required' = @{ it = 'Almeno un criterio di accettazione obbligatorio: indicare -Acceptance'; en = 'At least one acceptance criterion is required: give -Acceptance' }
-    'tracker.task.exists' = @{ it = 'ID task gia presente: {0}; scegliere un altro ID o omettere -TaskId'; en = 'Task ID already present: {0}; choose another ID or omit -TaskId' }
-    'tracker.id.invalid' = @{ it = 'ID task non valido: {0}. Usare da 3 a 80 caratteri (lettere, cifre, punto, trattino, sottolineatura), iniziando con una lettera o una cifra, oppure omettere -TaskId'; en = 'Invalid task ID: {0}. Use 3 to 80 characters (letters, digits, dot, hyphen, underscore) starting with a letter or digit, or omit -TaskId' }
-    'tracker.title.invalid' = @{ it = 'Titolo non valido: deve contenere almeno una lettera. Descrivere il task con una frase'; en = 'Invalid title: it must contain at least one letter. Describe the task in a sentence' }
-    'tracker.provenance.missing' = @{ it = 'Provenienza inesistente: {0}. Indica un file esistente del dossier (percorso relativo)'; en = 'Provenance does not exist: {0}. Give an existing dossier file (relative path)' }
-    'tracker.archive.identity' = @{ it = 'Archivio tracker di identita divergente: verificare il file di archivio del dossier'; en = 'Tracker archive of a diverging identity: check the dossier archive file' }
-    'tracker.numbering.partial' = @{ it = 'Numerazione parziale ({0} su {1}): riconciliazione esplicita richiesta'; en = 'Partial numbering ({0} of {1}): explicit reconciliation required' }
+    'tracker.batch.empty' = @{ en = 'Empty update batch: the file must list at least one update' }
+    'tracker.batch.item' = @{ en = 'Update {0} ({1}) refused, tracker unchanged: {2}' }
+    'tracker.batch.shape' = @{ en = 'Each update is an object with taskId and at least one field' }
+    'tracker.batch.duplicate' = @{ en = 'The task already appears in an earlier update of the batch: merge the fields into one entry' }
+    'tracker.batch.changed' = @{ en = 'The tracker changed after the batch was prepared: run the command again' }
+    'tracker.update.empty' = @{ en = 'Specify at least one field to update: -Status, -Priority, -Execution, -DependsOn, -Stream, -Awaiting, -Requires, -StateReason, -Description, -Acceptance, -Decisions or -Evidence' }
+    'tracker.decisions.invalid' = @{ en = 'Invalid decisions: every entry needs question and answer (text); fix the decisions JSON file' }
+    'tracker.evidence.invalid' = @{ en = 'Invalid evidence: use reference|outcome with outcome passed, failed, partial or unverified' }
+    'tracker.priority.invalid' = @{ en = 'Invalid priority: use P0, P1, P2, P3 or P4' }
+    'tracker.execution.invalid' = @{ en = 'Invalid execution mode: use autonomous, user_required or unspecified' }
+    'tracker.requires.invalid' = @{ en = 'Invalid required capability: {0} (allowed: {1})' }
+    'tracker.closure.advice' = @{ en = 'Update memory and context, offer a minimal summary (memory, history or skip), then run Sync and Check.' }
+    'tracker.closure.invalid' = @{ en = 'Invalid tracker closure metadata: fix extensions.closure or remove it' }
+    'tracker.history.note' = @{ en = 'Original note: {0}' }
+    'tracker.history.dependencies' = @{ en = 'Explicit historical outcomes used to resolve dependencies' }
+    'tracker.history.numbered' = @{ en = 'Retroactive numbering: {0} tasks (archived and active) in chronological order; originals preserved by hash.' }
+    'tracker.reason.numbered' = @{ en = 'Tracker already numbered' }
+    'tracker.history.snapshot' = @{ en = 'History original does not match: {0}; restore it from the backup or regenerate the history' }
+    'tracker.seq.duplicate' = @{ en = 'Duplicate sequence number in tracker {0}: {1}; assign unique numbers' }
+    'tracker.title.prefix' = @{ en = 'Title without prefix #{0}: {1}; run knowledge.ps1 -RenumberTasks' }
+    'tracker.lastseq.type' = @{ en = 'extensions.lastSeq must be an integer: fix the value in the tracker' }
+    'tracker.seq.beyond' = @{ en = 'Sequence number {0} beyond extensions.lastSeq ({1}): update lastSeq' }
+    'tracker.schema.invalid' = @{ en = 'Tracker does not conform to schema v1: compare it with config/tracker.schema.json' }
+    'tracker.identity.diverged' = @{ en = 'Tracker identity mismatch: check the dossier repository.json' }
+    'tracker.date.invalid' = @{ en = 'Invalid tracker date: use the yyyy-MM-dd format' }
+    'tracker.related.schema' = @{ en = 'Related tracker does not conform to schema v1: {0}' }
+    'tracker.identity.unmanaged' = @{ en = 'Tracker of an unmanaged identity: activate the repository with secondbrain.ps1 -Setup or -AddRepo' }
+    'tracker.id.duplicate' = @{ en = 'Duplicate tracker ID: {0}; make it unique' }
+    'tracker.dependency.unmanaged' = @{ en = 'Dependency on an unmanaged identity: {0}; remove the dependency or activate that repository' }
+    'tracker.enrichment.authorization' = @{ en = 'Applying an enrichment proposal needs the explicit authorization text of the person: pass -EnrichmentAuthorization' }
+    'tracker.enrichment.none' = @{ en = 'Task {0} has no enrichment proposal' }
+    'tracker.enrichment.state' = @{ en = 'The enrichment proposal of task {0} is already {1}; only a proposed one can be applied or rejected' }
+    'tracker.enrichment.missing' = @{ en = 'Enrichment proposal file not found: {0}' }
+    'tracker.enrichment.changed' = @{ en = 'The enrichment proposal {0} changed after it was recorded or is not a proposal for this task; nothing was applied' }
+    'tracker.enrichment.invalid' =@{ en = 'Invalid enrichment pointer: it needs a SecondBrain-relative path to proposal.json, its SHA-256 and status proposed, applied or rejected' }
+    'tracker.followup.missing' = @{ en = 'Follow-up source task not found: {0}; give the ID of an active or archived task of this tracker' }
+    'tracker.dependency.missing' = @{ en = 'Tracker dependency missing or not verifiable: {0}; fix the ID or remove the dependency' }
+    'tracker.dependency.cycle' = @{ en = 'Cycle in tracker dependencies: {0}; remove one of the dependencies' }
+    'tracker.related.declaration' = @{ en = 'Invalid related tracker declaration: {0}' }
+    'tracker.related.missing' = @{ en = 'Declared related tracker missing: {0}' }
+    'tracker.related.identity' = @{ en = 'Related tracker identity mismatch' }
+    'tracker.identity.area' = @{ en = 'Tracker identity not bound to exactly one Area: {0}' }
+    'tracker.dossier.identity' = @{ en = 'Tracker dossier identity mismatch' }
+    'tracker.declaration.invalid' = @{ en = 'Invalid tracker declaration: {0}' }
+    'tracker.declared.missing' = @{ en = 'Declared tracker missing: {0}' }
+    'tracker.greenfield.declaration.required' = @{ en = 'The greenfield dossier for {0} requires a declared schema 1 tracker' }
+    'tracker.policy.unapproved' = @{ en = 'Tracker contract not approved: {0}' }
+    'tracker.review.source' = @{ en = 'Tracker review of another identity or diverging source' }
+    'tracker.review.tasks' = @{ en = 'Tracker review without task list' }
+    'tracker.review.id' = @{ en = 'Tracker review ID missing or duplicate' }
+    'tracker.review.field' = @{ en = 'Unrecognized tracker review field: {0}' }
+    'tracker.review.reason' = @{ en = 'Tracker review reason is required' }
+    'tracker.review.status' = @{ en = 'Invalid tracker review status' }
+    'tracker.review.dependencies' = @{ en = 'Invalid tracker review dependencies' }
+    'tracker.review.prerequisites' = @{ en = 'Invalid tracker review prerequisites' }
+    'tracker.original.object' = @{ en = 'The original JSON tracker must be an object: fix the source file' }
+    'tracker.collection.invalid' = @{ en = 'Invalid tracker collection: {0}; use tasks or a declared name' }
+    'tracker.markdown.format' = @{ en = 'Unrecognized Markdown format at line {0}: explicit conversion required' }
+    'tracker.original.format' = @{ en = 'Unsupported original tracker format: convert it to JSON or a Markdown table' }
+    'tracker.id.collision' = @{ en = 'ID collision: explicit resolution required for {0}' }
+    'tracker.review.unknown' = @{ en = 'Tracker review task does not exist: {0}' }
+    'tracker.review.reconcile' = @{ en = 'Tracker review requires explicit dependency reconciliation: {0}' }
+    'tracker.host.backuproot' = @{ en = 'Host configuration without backupRoot: {0}' }
+    'tracker.write.foreign' = @{ en = 'Write refused: the tracker of ''{0}'' does not belong to the working repository ''{1}''' }
+    'tracker.file.missing' = @{ en = 'Tracker file does not exist: {0}; check the path or the declaration in repository.json' }
+    'tracker.identity.required' = @{ en = 'Identity or Path is required: give one of them' }
+    'tracker.dossier.declaration' = @{ en = 'Dossier without tracker declaration: {0}; declare the tracker in repository.json' }
+    'tracker.schema.version' = @{ en = 'Unsupported tracker schema (expected v1): set schemaVersion to 1' }
+    'tracker.status.invalid' = @{ en = 'Invalid status: {0}. Allowed values: todo, in_progress, blocked, done, cancelled, unknown' }
+    'tracker.task.notfound' = @{ en = 'Task not found in tracker: {0}. List tasks with knowledge.ps1 -Tasks' }
+    'tracker.unnumbered' = @{ en = 'Unnumbered tracker ({0} tasks without seq): run knowledge.ps1 -RenumberTasks first' }
+    'tracker.acceptance.required' = @{ en = 'At least one acceptance criterion is required: give -Acceptance' }
+    'tracker.task.exists' = @{ en = 'Task ID already present: {0}; choose another ID or omit -TaskId' }
+    'tracker.id.invalid' = @{ en = 'Invalid task ID: {0}. Use 3 to 80 characters (letters, digits, dot, hyphen, underscore) starting with a letter or digit, or omit -TaskId' }
+    'tracker.title.invalid' = @{ en = 'Invalid title: it must contain at least one letter. Describe the task in a sentence' }
+    'tracker.provenance.missing' = @{ en = 'Provenance does not exist: {0}. Give an existing dossier file (relative path)' }
+    'tracker.archive.identity' = @{ en = 'Tracker archive of a diverging identity: check the dossier archive file' }
+    'tracker.numbering.partial' = @{ en = 'Partial numbering ({0} of {1}): explicit reconciliation required' }
 }
 
 function Test-SBTrackerPolicy([string]$BrainRoot) {

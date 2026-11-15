@@ -61,7 +61,7 @@ Load the dossier and open the next-task prompt:
 
 ~~~powershell
 pwsh -NoProfile -File scripts/knowledge.ps1 -Startup -Profile Slim -NoRecovery -CheckoutPath $project
-pwsh -NoProfile -File scripts/prompts.ps1 -Show -Prompt REP01 -Language en
+pwsh -NoProfile -File scripts/prompts.ps1 -Show -Prompt REP01
 ~~~
 
 Check the returned repository identity, profile and withinBudget value. A budget failure is a result to resolve, not a successful context load. The sequence was exercised from a clean Windows clone with one synthetic Git repository; no agent login was needed.

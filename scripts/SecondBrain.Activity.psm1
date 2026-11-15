@@ -6,8 +6,8 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Host.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Add-SBMessages @{
-    'activity.invalid' = @{it='Registro attività: dato non valido ({0})';en='Activity register: invalid data ({0})'}
-    'activity.disabled' = @{it='Registro attività reale disabilitato: completare la procedura di attivazione F6/F11; nessuna scrittura';en='Real activity register disabled: complete F6/F11 activation procedure; no write'}
+    'activity.invalid' = @{ en = 'Activity register: invalid data ({0})' }
+    'activity.disabled' = @{ en = 'Real activity register disabled: complete F6/F11 activation procedure; no write' }
 }
 $script:SBActivityOutcomes=@('started','progress','completed','blocked','failed')
 $script:SBActivityFields=@('schemaVersion','eventId','user','repository','taskId','session','when','where','computer','outcome','detail','links','source','parent','agent')
