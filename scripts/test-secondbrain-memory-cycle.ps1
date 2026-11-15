@@ -75,7 +75,7 @@ $derived.changes=@(@{kind='context';text=$englishContext;verified=$true;eventIds
 $derivedResult=Invoke-SBCyclePromotion $brain $derived $workspace $backups -Apply
 $topicText=Read-SBText (Join-Path $d 'topics/fixture.md')
 $topicLink=[regex]::Match($topicText,'\[turn log\]\(([^)]+)\)').Groups[1].Value
-Assert-Cycle ($derivedResult.state -eq 'applied' -and (Read-SBText (Join-Path $d 'context.md')).Contains('eventi a2') -and (Test-SBSamePath ([IO.Path]::GetFullPath((Join-Path (Join-Path $d 'topics') $topicLink))) $saved.path)) 'context and topic derivatives retain resolvable turn and event references'
+Assert-Cycle ($derivedResult.state -eq 'applied' -and (Read-SBText (Join-Path $d 'context.md')).Contains('events a2') -and (Test-SBSamePath ([IO.Path]::GetFullPath((Join-Path (Join-Path $d 'topics') $topicLink))) $saved.path)) 'context and topic derivatives retain resolvable turn and event references'
 $view=Read-SBText (Join-Path $d 'memory.agent.md')
 Assert-Cycle ($view -notmatch 'Decision decision-1' -and $view -notmatch '<!-- sb:decision') 'agent view excludes superseded blocks and markers'
 $index=Save-SBCycleKnowledgeIndex $brain $repo $backups -Apply
