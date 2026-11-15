@@ -530,6 +530,7 @@ if (-not $Run) {
     Write-State 'preview'
     return
 }
+if (Test-Path -LiteralPath $noticeFile) { Remove-Item -LiteralPath $noticeFile -Force }   # the notice of a previous run in the same folder is not this run's
 if (Test-Path -LiteralPath $stopFile) { Remove-Item -LiteralPath $stopFile -Force; Write-Event 'stop-flag-cleared' 'A stop.flag left by a previous run was removed at start' }
 $state.branch = Get-CurrentBranch
 if (Test-ProtectedBranch $state.branch) { throw (New-SBError 'orchestrate.branch.protected' @($state.branch)) }
