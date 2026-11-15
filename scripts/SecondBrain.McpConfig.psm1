@@ -230,7 +230,7 @@ function Get-SBMcpPairing {
         [ValidateSet('user','project')][string]$Scope,[switch]$ApproveAllTools
     )
     if (!$BrainRoot) {
-        $BrainRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+        $BrainRoot = (Get-SBBrainRootPath)
     }
     $BrainRoot = [IO.Path]::GetFullPath($BrainRoot)
     $serverScript = Join-Path $BrainRoot 'scripts/mcp-server.ps1'
@@ -506,7 +506,7 @@ function Set-SBMcpConfiguration {
         [ValidateSet('user','project')][string]$Scope,[Alias('ApproveKnowledgeTools')][switch]$ApproveReadTools,
         [switch]$ApproveAllTools,[scriptblock]$CliInvoker
     )
-    if(!$BrainRoot){$BrainRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))}
+    if(!$BrainRoot){$BrainRoot=(Get-SBBrainRootPath)}
     $backupDir=if($BackupRoot){$BackupRoot}else{Join-Path $BrainRoot '.runtime/backups/mcp-pairing'}
     if($ApproveReadTools -and $ApproveAllTools){throw (New-SBError 'mcp.pair.permissions.scope')}
     $approvePermissions=$ApproveReadTools -or $ApproveAllTools

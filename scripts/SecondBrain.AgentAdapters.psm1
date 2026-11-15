@@ -252,7 +252,7 @@ function Get-SBAgentCapabilities {
     # Capabilities of one installed agent. -HelpText/-VersionText/-ConfigPaths/-Executable make the probe testable without a real CLI.
     param([Parameter(Mandatory)][string]$Provider,[string]$BrainRoot,[string]$AgentPath,$Executable,[AllowNull()][string]$HelpText,[AllowNull()][string]$VersionText,$ConfigPaths,[switch]$NoProbe)
     $info=Get-SBAgentProvider $Provider
-    if(!$BrainRoot){$BrainRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))}
+    if(!$BrainRoot){$BrainRoot=(Get-SBBrainRootPath)}
     if(!$Executable -and !$NoProbe){$Executable=Resolve-SBAgentExecutable $(if($AgentPath){$AgentPath}else{$info.command})}
     if($Executable -and !$NoProbe){
         if(!$PSBoundParameters.ContainsKey('VersionText')){$VersionText=Invoke-SBAgentProbeCommand $Executable @('--version')}
@@ -301,7 +301,7 @@ function Get-SBAgentCapabilitiesAll {
     # Every provider probed in parallel (each probe waits on two CLI processes): the slowest CLI sets the time, not the sum.
     param([string[]]$Provider,[string]$BrainRoot)
     $ids=@(if($Provider){$Provider}else{@(Get-SBAgentProviderIds)|ForEach-Object {$_}})
-    if(!$BrainRoot){$BrainRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))}
+    if(!$BrainRoot){$BrainRoot=(Get-SBBrainRootPath)}
     if($ids.Count -le 1){return @($ids|ForEach-Object {Get-SBAgentCapabilities -Provider $_ -BrainRoot $BrainRoot})}
     $module=Join-Path $PSScriptRoot 'SecondBrain.AgentAdapters.psm1'
     $results=@($ids|ForEach-Object -ThrottleLimit 4 -Parallel {
@@ -619,6 +619,23 @@ function Get-SBAgentQuota {
     else{$result.reason='stale'}
     $result
 }
+function Get-SBQueueQuotaDecision {
+    # #668: what a queue does before a task, from one quota reading (Get-SBAgentQuota). action: go (available, or unknown: no quota source
+    # never fails or blocks a run), wait (exhausted, or a current window used at least -LowPercent: wait for its reset, bounded by the caller's
+    # -MaxWaitHours). resetAt is the time to wait for (null when none is known: the caller uses its default pause); level: ok, unknown, low, exhausted.
+    param([Parameter(Mandatory)]$Quota,[double]$LowPercent=95,[DateTimeOffset]$Now=(Get-SBNow))
+    $state=[string]$Quota.state
+    if($state -eq 'exhausted'){return [pscustomobject]@{action='wait';level='exhausted';resetAt=$Quota.resetAt;reason='exhausted'}}
+    if($state -eq 'available'){
+        $low=@(@($Quota.windows)|Where-Object {$_ -and $_.resetAt -and $_.usedPercent -ge $LowPercent -and (ConvertTo-SBQuotaTime $_.resetAt) -gt $Now})
+        if($low.Count){
+            $latest=@($low|Sort-Object {(ConvertTo-SBQuotaTime $_.resetAt)} -Descending)[0]
+            return [pscustomobject]@{action='wait';level='low';resetAt=[string]$latest.resetAt;reason=('a window is at '+$latest.usedPercent+'%')}
+        }
+        return [pscustomobject]@{action='go';level='ok';resetAt=$null;reason=$null}
+    }
+    [pscustomobject]@{action='go';level='unknown';resetAt=$null;reason=$(if($Quota.reason){[string]$Quota.reason}else{'unknown'})}
+}
 function Invoke-SBAgentProcess {
     # One agent process: prompt on stdin, UTF-8 both ways, stdout read line by line (kept in -OutputLog as it arrives), stderr collected,
     # timeout as the only kill. Shared by the task runner and the one-shot analyses. Callbacks run in the caller's scope:
@@ -718,4 +735,4 @@ function Test-SBAgentStructuredOutput([string]$Json,[string]$SchemaText) {
     $ok=Test-Json -Json $Json -Schema $SchemaText -ErrorAction SilentlyContinue -ErrorVariable errs
     @{valid=[bool]$ok;errors=@(@($errs)|ForEach-Object {[string]$_.Exception.Message}|Where-Object {$_}|Select-Object -First 8)}
 }
-Export-ModuleMember -Function @('Invoke-SBAgentProcess','Get-SBAgentLimitReset','Get-SBRunnerResumeTime','ConvertTo-SBQuotaTime','ConvertFrom-SBAgentStructuredOutput','Test-SBAgentStructuredOutput','Get-SBJsonObjectText','Test-SBAgentFlagAvailable','Get-SBAgentProviderIds','Get-SBAgentProvider','Get-SBAgentProviderForPath','Get-SBAgentSearchDirectories','Find-SBAgentInDirectories','Get-SBAgentPackageExecutable','Get-SBAgentProcessPath','Resolve-SBAgentExecutable','Invoke-SBAgentProbeCommand','Get-SBAgentVersion','Get-SBAgentHelpFlags','ConvertFrom-SBAgentHelp','Read-SBCodexModelsCache','Read-SBAgentConfigured','Get-SBAgentConfigPaths','Read-SBAgentModelTable','Get-SBAgentCapabilities','Get-SBAgentCapabilitiesAll','Test-SBAgentSelection','New-SBAgentInvocation','Get-SBAgentLimitPatterns','ConvertFrom-SBAgentRateLimitEvent','Get-SBAgentErrorText','Get-SBAgentLimitState','Read-SBCodexRateLimits','Get-SBAgentQuota')
+Export-ModuleMember -Function @('Invoke-SBAgentProcess','Get-SBQueueQuotaDecision','Get-SBAgentLimitReset','Get-SBRunnerResumeTime','ConvertTo-SBQuotaTime','ConvertFrom-SBAgentStructuredOutput','Test-SBAgentStructuredOutput','Get-SBJsonObjectText','Test-SBAgentFlagAvailable','Get-SBAgentProviderIds','Get-SBAgentProvider','Get-SBAgentProviderForPath','Get-SBAgentSearchDirectories','Find-SBAgentInDirectories','Get-SBAgentPackageExecutable','Get-SBAgentProcessPath','Resolve-SBAgentExecutable','Invoke-SBAgentProbeCommand','Get-SBAgentVersion','Get-SBAgentHelpFlags','ConvertFrom-SBAgentHelp','Read-SBCodexModelsCache','Read-SBAgentConfigured','Get-SBAgentConfigPaths','Read-SBAgentModelTable','Get-SBAgentCapabilities','Get-SBAgentCapabilitiesAll','Test-SBAgentSelection','New-SBAgentInvocation','Get-SBAgentLimitPatterns','ConvertFrom-SBAgentRateLimitEvent','Get-SBAgentErrorText','Get-SBAgentLimitState','Read-SBCodexRateLimits','Get-SBAgentQuota')

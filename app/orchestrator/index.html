@@ -155,6 +155,13 @@
             <button id="run-resume-start" class="primary">Resume the stopped run</button>
           </div>
           <p id="run-warning" class="warning" hidden></p>
+          <section class="analysis-card" id="run-end-box" hidden>
+            <h3>Run closed: next steps</h3>
+            <p id="run-end-git" class="muted small"></p>
+            <p id="run-next-state" class="muted small"></p>
+            <p id="run-next-error" class="error" hidden></p>
+            <ol id="run-next-list" class="sections"></ol>
+          </section>
           <p id="run-error" class="error" hidden></p>
           <div class="row">
             <button id="run-stop">Stop after the current task</button>
@@ -217,7 +224,7 @@
 
       <section id="tab-tracker" class="panel" role="tabpanel" hidden>
         <h2>Project trackers</h2>
-        <p class="muted">Read-only view of the trackers of the projects bound on this workstation. Pick a project to load its tasks; nothing here changes a tracker.</p>
+        <p class="muted">View of the trackers of the projects bound on this workstation. Pick a project to load its tasks; the tasks are never changed here. The only edit is the Git and GitHub update preference, after a preview and an explicit confirmation.</p>
         <div class="row">
           <label class="inline">Project <select id="trk-project"></select></label>
           <span class="spacer"></span>
@@ -226,6 +233,18 @@
         </div>
         <p id="trk-error" class="error" hidden></p>
         <dl id="trk-facts" class="facts compact" hidden></dl>
+        <section class="analysis-card" id="trk-git-box" hidden>
+          <h3>Git and GitHub update</h3>
+          <p class="muted small">How task closing proposes to update Git and GitHub. It is a proposal: the app, the runner and the agents never commit or push. Preview the change, then confirm it.</p>
+          <div class="row">
+            <label class="inline">Mode <select id="trk-git-mode"><option value="commit-push-main">Commit and push on the main branch</option><option value="branch-pr">Branch and pull request</option><option value="none">No Git update</option></select></label>
+            <label class="inline">Branch <input id="trk-git-branch" type="text" value="main" aria-label="Branch" /></label>
+            <button id="trk-git-preview">Preview</button>
+            <button id="trk-git-apply" class="primary" disabled>Confirm and save</button>
+          </div>
+          <pre id="trk-git-plan" class="box small" hidden></pre>
+          <p id="trk-git-error" class="error" hidden></p>
+        </section>
         <section class="analysis-card" id="trk-next-box">
           <h3>Next steps</h3>
           <p class="muted small">Reasoned proposals from the tracker, the last run, the Git and GitHub preference and the installed skills. Nothing starts from here: copy the action you choose and run it yourself.</p>

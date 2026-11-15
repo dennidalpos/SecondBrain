@@ -97,6 +97,27 @@ function New-SBMcpWritePlan {
             }
             $pendingOperation='task.update'
         }
+        'task.evidence.correct' {
+            # #669: audited replacement of one task's evidence (evidence is otherwise append-only). The reason is mandatory, the replaced entries
+            # are kept in the task's evidenceCorrections and a ledger record is written; like every MCP write it needs preview and local approval.
+            Assert-SBMcpWriteFields $Payload @('taskId','reason','evidence') @('taskId','reason','evidence')
+            Assert-SBMcpWriteText $Payload.taskId 128;Assert-SBMcpWriteText $Payload.reason 1024
+            $items=@($Payload.evidence)
+            if($Payload.evidence -is [string] -or $items.Count -gt 100){throw (New-SBError 'mcpwrite.invalid' @('evidence'))}
+            $entries=@(foreach($item in $items){
+                if($item -is [Collections.IDictionary]){
+                    if(@($item.Keys|Where-Object {$_ -notin @('reference','outcome')}).Count -or $item['reference'] -isnot [string] -or $item['outcome'] -isnot [string]){throw (New-SBError 'mcpwrite.invalid' @('evidence'))}
+                    Assert-SBMcpWriteText $item.reference 1024
+                    $item=$item.reference+'|'+$item.outcome
+                }elseif($item -isnot [string]){throw (New-SBError 'mcpwrite.invalid' @('evidence'))}
+                Assert-SBMcpWriteText $item 1100
+                $parts=$item -split '\|',2
+                if(!$parts[0].Trim() -or $parts.Count -ne 2 -or $parts[1].Trim() -cnotin @('passed','failed','partial','unverified')){throw (New-SBError 'mcpwrite.invalid' @('evidence'))}
+                $item
+            })
+            $args=@{TaskId=$Payload.taskId;EvidenceCorrection=@{Reason=$Payload.reason;Evidence=@($entries)}}
+            $pendingOperation='task.update'
+        }
         'task.new' {
             Assert-SBMcpWriteFields $Payload @('title','description','priority','acceptance','provenance','pointer','requires') @('title','acceptance','provenance')
             Assert-SBMcpWriteText $Payload.title 200

@@ -61,7 +61,7 @@ trap { if (Test-SBWriteDeniedError $_) { Write-SBWriteDeniedDiagnostic $_ $PSCom
 if($LocalState){
     if(!$Migrate -or $Apply -or $ListInstallBackups -or $Regenerable -or $ListRuntime -or $ProposeRuntime -or $ListStageRecords -or $RuntimeReport -or $CheckRuntime -or $ManifestPath -or $ReportPath -or $ProposalPath){throw (New-SBError 'cleanup.state.preview')}
     if(!$env:SECONDBRAIN_STATE_ROOT){throw (New-SBError 'cleanup.state.override')}
-    $brain=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+    $brain=(Get-SBBrainRootPath)
     $hostId=Get-SBHostId
     $legacyRoot=Get-SBLocalRoot $brain $hostId
     $stateRoot=Get-SBWorkstationStateRoot $brain $hostId
@@ -111,7 +111,7 @@ try {
         $rawConfig=Read-SBJson $config.configPath $null
         $droppedKeys=@($removedConfigKeys|Where-Object {$rawConfig -is [Collections.IDictionary] -and $rawConfig.Contains($_)})
         $summary=@{applied=$false;scope='runtime-migrate';hostId=$config.workstationId;segment=$segment;moves=@($plan.moves);skipped=@($plan.skipped);files=$plan.files;bytes=$plan.bytes;configKeys=@($droppedKeys)}
-        if(!$Apply){$summary.note='Anteprima: nessuna cartella spostata. Con -Apply e -Authorization si eseguono solo gli spostamenti elencati (rename sullo stesso volume, nessuna copia, nessuna cancellazione di contenuti).';ConvertTo-SBJson $summary;exit 0}
+        if(!$Apply){$summary.note='Preview: no folder moved. With -Apply and -Authorization only the listed moves run (rename on the same volume, no copy, no content deleted).';ConvertTo-SBJson $summary;exit 0}
         if(!$Authorization){throw (New-SBError 'cleanup.apply.authorization')}
         if(Test-Path -LiteralPath (Get-SBTransactionMarkerPath $config.brainRoot)){throw (New-SBError 'cleanup.transaction.pending')}
         $busy=@(Get-SBAccessStatus $config|Where-Object {$_ -is [Collections.IDictionary] -and $_.ContainsKey('sessionId') -and $_.sessionId -ne $operation.ownerSessionId -and $_.status -in @('active','unverified')})
@@ -143,7 +143,7 @@ try {
         if($config.workstationId -cne $identity.HostId){$identity.HostId=''}
         $plan=Get-SBRegenerableRuntimeTargets $config.brainRoot $protectedRoots $KeepFixtures $MinAgeMinutes @identity
         $summary=@{applied=$false;scope='runtime-regenerable-only';keepFixtures=$KeepFixtures;minAgeMinutes=$MinAgeMinutes;targets=@($plan.targets);skipped=@($plan.skipped);files=$plan.files;bytes=$plan.bytes}
-        if(!$Apply){$summary.note='Anteprima: nessuna cartella rimossa. Con -Apply e -Authorization si rimuovono solo i target elencati.';ConvertTo-SBJson $summary;exit 0}
+        if(!$Apply){$summary.note='Preview: no folder removed. With -Apply and -Authorization only the listed targets are removed.';ConvertTo-SBJson $summary;exit 0}
         if(!$Authorization){throw (New-SBError 'cleanup.apply.authorization')}
         if(Test-Path -LiteralPath (Get-SBTransactionMarkerPath $config.brainRoot)){throw (New-SBError 'cleanup.transaction.pending')}
         # Sessions owned by other processes; the current operation's writer-lock owner is not a session.

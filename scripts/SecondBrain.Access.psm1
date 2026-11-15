@@ -48,7 +48,7 @@ function Get-SBLockWaitMs($Config,[int]$WaitMs=-1) {
     60000
 }
 function Read-SBConfiguration([string]$ConfigPath,[switch]$AllowPendingTransaction,[int]$MigrationDepth=0,[switch]$ReadOnly,[string]$BrainRoot) {
-    $brain = if($BrainRoot){[IO.Path]::GetFullPath($BrainRoot)}else{[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))}
+    $brain = if($BrainRoot){[IO.Path]::GetFullPath($BrainRoot)}else{(Get-SBBrainRootPath)}
     if($brain.StartsWith('\\') -and ![IO.Directory]::Exists($brain)){throw (New-SBError 'access.brain.unreachable' @($brain))}
     Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Host.psm1')
     $hostConfigPath=Get-SBHostConfigPath $brain

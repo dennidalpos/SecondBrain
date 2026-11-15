@@ -15,7 +15,7 @@ $session=$null;$lock=$null;$config=$null
 $phase='permit';$outcome='suppressed'
 try{
     if($PermitSha256 -cnotmatch '^[A-Fa-f0-9]{64}$' -or ![Console]::IsInputRedirected -or ![IO.File]::Exists($PermitPath)){exit 0}
-    $brain=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+    $brain=(Get-SBBrainRootPath)
     $permitFull=[IO.Path]::GetFullPath($PermitPath)
     $permitRoot=[IO.Path]::GetFullPath((Join-Path $brain ('.runtime/hosts/'+(Get-SBHostId)+'/repos'))).TrimEnd('\','/')+[IO.Path]::DirectorySeparatorChar
     if(!$permitFull.StartsWith($permitRoot,[StringComparison]::OrdinalIgnoreCase)){exit 0}

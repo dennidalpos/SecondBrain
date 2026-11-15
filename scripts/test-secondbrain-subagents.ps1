@@ -182,6 +182,54 @@ Reject-Sub { Read-SBSubagentDefinitions $dossier2 $catalog } 'Validate rejects a
 Remove-Item (Join-Path $dir2 'deep.json')
 # Register: subagent jobs reference the parent session.
 $log=Join-Path $dossier 'history/activity/report.md'
+# Management operations (#622): create, edit, revise and retire with validation; the plan alone never writes.
+$dossier3=Join-Path $brain '02-areas/manage';[void][IO.Directory]::CreateDirectory($dossier3)
+$plan=Get-SBSubagentManagePlan -Dossier $dossier3 -Catalog $catalog -Action Create -Definition (New-Def2 'planner' @('analysis.task'))
+Assert-Sub ($plan.revision -eq 1 -and $plan.status -eq 'active' -and $plan.id -cmatch '^agt-[0-9a-f]{8}$' -and !(Test-Path -LiteralPath $plan.path)) 'create plan assigns revision 1 and writes nothing'
+$d=New-Def2 'planner';$d.Remove('id');$d.Remove('revision');$d.Remove('status')
+$plan=Get-SBSubagentManagePlan -Dossier $dossier3 -Catalog $catalog -Action Create -Definition $d
+Assert-Sub ($plan.status -eq 'draft' -and $plan.revision -eq 1 -and $plan.id -cmatch '^agt-[0-9a-f]{8}$') 'create without id, revision and status gives an ID, revision 1 and draft'
+[void](Save-SBSubagentManagePlan $plan $backups)
+$entries3=@(Read-SBSubagentDefinitions $dossier3 $catalog)
+Assert-Sub ($entries3.Count -eq 1 -and $entries3[0].definition.name -ceq 'planner') 'created definition validates and is listed'
+Reject-Sub { Get-SBSubagentManagePlan -Dossier $dossier3 -Catalog $catalog -Action Create -Definition $d } 'creating an existing name is refused'
+$dup=New-Def2 'other';$dup.id=$plan.id
+Reject-Sub { Get-SBSubagentManagePlan -Dossier $dossier3 -Catalog $catalog -Action Create -Definition $dup } 'a used ID is never reused'
+$bad=New-Def2 'badone' @('pmt-0000a003')
+Reject-Sub { Get-SBSubagentManagePlan -Dossier $dossier3 -Catalog $catalog -Action Create -Definition $bad } 'a card above the agent permissions is refused on create'
+$withRev=New-Def2 'rev2';$withRev.revision=2
+Reject-Sub { Get-SBSubagentManagePlan -Dossier $dossier3 -Catalog $catalog -Action Create -Definition $withRev } 'a new definition starts at revision 1'
+# Edit: wording only, no revision bump.
+$edit=@{description='A clearer description.'}
+$plan=Get-SBSubagentManagePlan -Dossier $dossier3 -Catalog $catalog -Action Edit -Name planner -Definition $edit
+Assert-Sub ($plan.revision -eq 1 -and $plan.after.description -ceq 'A clearer description.') 'edit changes the wording and keeps the revision'
+[void](Save-SBSubagentManagePlan $plan $backups)
+Reject-Sub { Get-SBSubagentManagePlan -Dossier $dossier3 -Catalog $catalog -Action Edit -Name planner -Definition @{role='A different role.'} } 'edit refuses a contract field'
+Reject-Sub { Get-SBSubagentManagePlan -Dossier $dossier3 -Catalog $catalog -Action Edit -Name planner -Definition $edit } 'edit with no change is refused'
+# Revise: next revision, compatible changes only.
+$current3=@(Read-SBSubagentDefinitions $dossier3 $catalog)[0].definition
+$rev=ConvertTo-SBSubagentPlain $current3;$rev.role='You review tasks and cite sources.'
+$plan=Get-SBSubagentManagePlan -Dossier $dossier3 -Catalog $catalog -Action Revise -Name planner -Definition $rev
+Assert-Sub ($plan.revision -eq 2 -and $plan.id -ceq $current3.id) 'revise bumps the revision and keeps the ID'
+[void](Save-SBSubagentManagePlan $plan $backups)
+$widen=ConvertTo-SBSubagentPlain $plan.after;$widen.permissions=[ordered]@{tools=@('get_task','search_knowledge','preview_dossier_write','submit_dossier_write');write=$true}
+Reject-Sub { Get-SBSubagentManagePlan -Dossier $dossier3 -Catalog $catalog -Action Revise -Name planner -Definition $widen } 'a widening revision is refused (new ID required)'
+$skip=ConvertTo-SBSubagentPlain $plan.after;$skip.revision=5;$skip.role='Another role.'
+Reject-Sub { Get-SBSubagentManagePlan -Dossier $dossier3 -Catalog $catalog -Action Revise -Name planner -Definition $skip } 'a revision must be the next one'
+$rename=ConvertTo-SBSubagentPlain $plan.after;$rename.id='agt-0000ffff';$rename.role='Z.'
+Reject-Sub { Get-SBSubagentManagePlan -Dossier $dossier3 -Catalog $catalog -Action Revise -Name planner -Definition $rename } 'the ID cannot change in a revision'
+# Retire: forward transitions only, replacedBy must exist.
+$successor=Get-SBSubagentManagePlan -Dossier $dossier3 -Catalog $catalog -Action Create -Definition (New-Def2 'planner-next')
+[void](Save-SBSubagentManagePlan $successor $backups)
+Reject-Sub { Get-SBSubagentManagePlan -Dossier $dossier3 -Catalog $catalog -Action Retire -Name planner -Status deprecated -ReplacedBy 'agt-0000dead' } 'replacedBy must name an existing definition'
+$plan=Get-SBSubagentManagePlan -Dossier $dossier3 -Catalog $catalog -Action Retire -Name planner -Status deprecated -ReplacedBy $successor.id
+Assert-Sub ($plan.status -eq 'deprecated' -and $plan.after.replacedBy -ceq $successor.id -and $plan.revision -eq 2) 'deprecate records replacedBy without a revision bump'
+[void](Save-SBSubagentManagePlan $plan $backups)
+$plan=Get-SBSubagentManagePlan -Dossier $dossier3 -Catalog $catalog -Action Retire -Name planner -Status retired
+[void](Save-SBSubagentManagePlan $plan $backups)
+Reject-Sub { Get-SBSubagentManagePlan -Dossier $dossier3 -Catalog $catalog -Action Retire -Name planner -Status deprecated } 'a retired definition cannot go back'
+Assert-Sub (@(Read-SBSubagentDefinitions $dossier3 $catalog|Where-Object {$_.definition.name -ceq 'planner' -and $_.definition.status -ceq 'retired'}).Count -eq 1) 'the retired definition stays on disk with its ID'
+Reject-Sub { Get-SBSubagentManagePlan -Dossier $dossier3 -Catalog $catalog -Action Retire -Name missing -Status retired } 'retiring an unknown definition is refused'
 $config=@{activityLogEnabled=$true}
 $when='2026-11-07T10:00:00Z'
 $parentRec=@{schemaVersion=1;eventId=(Get-SBTextHash 'p').Substring(0,32).ToLowerInvariant();user='SYNTH\ada';repository=$repo;taskId='T-1';session='parent-1';when=$when;where='C:\work\one';computer='PC1';outcome='started';detail='parent job'}

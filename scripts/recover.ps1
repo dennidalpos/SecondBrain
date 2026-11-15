@@ -30,7 +30,7 @@ Add-SBMessages @{
 }
 # Writer busy beyond the wait limit: exit 3 (the message identifies the owner).
 trap { if (Test-SBWriteDeniedError $_) { Write-SBWriteDeniedDiagnostic $_ $PSCommandPath $PSBoundParameters; exit 4 }; if (Test-SBBusyError $_) { [Console]::Error.WriteLine($_.Exception.Message); exit 3 }; break }
-$brain=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+$brain=(Get-SBBrainRootPath)
 # With -ConfigPath, the manifest may live in the workstation backupRoot, even outside .runtime: Restore-SBParaTransaction verifies confinement.
 $resolvePath={param($p) if($ConfigPath){if(!(Test-Path -LiteralPath $p)){throw (New-SBError 'recover.path.missing' @($p))};[IO.Path]::GetFullPath($p)}else{Assert-SBCentralDataPath $brain $p}}
 $manifestPath=& $resolvePath $ManifestPath

@@ -43,6 +43,8 @@ param(
     [int]$TimeoutMinutes = 45,
     [int]$MaxTasks = 0,
     [double]$MaxWaitHours = 6,
+    [ValidateRange(1, 100)][double]$QuotaLowPercent = 95,
+    [string]$ScriptsSnapshot,
     [string]$ExcludePattern = 'computer-use|a schermo|a video|screen proof|installer firmato|Windows isolato',
     [string]$SelfPattern = 'orchestrate-tasks|run-ready-tasks|SecondBrain\.TaskRunner|SecondBrain\.AgentAdapters|SecondBrain\.RunnerStatus',
     [string[]]$ExcludeIds = @(),
@@ -71,10 +73,19 @@ if (-not $SecondBrain) {
 }
 # Messages and adapters come from the SecondBrain modules (a pinned copy runs from the work folder, so $PSScriptRoot is not enough).
 $moduleRoot = if ($SecondBrain) { Join-Path $SecondBrain 'scripts' } else { $PSScriptRoot }
+# #665: a run works from a snapshot of scripts/, config/ and VERSION taken at start (-ScriptsSnapshot), so a task that edits a script never changes the
+# bookkeeping and health checks of the same run. SECONDBRAIN_BRAIN_ROOT points the snapshot at the live dossier; it is set before any module loads.
+if ($ScriptsSnapshot -and (Test-Path -LiteralPath (Join-Path $ScriptsSnapshot 'scripts\SecondBrain.Core.psm1'))) {
+    $env:SECONDBRAIN_BRAIN_ROOT = $SecondBrain
+    $moduleRoot = Join-Path $ScriptsSnapshot 'scripts'
+}
+else { $ScriptsSnapshot = $null }
+$scriptsDir = if ($ScriptsSnapshot) { Join-Path $ScriptsSnapshot 'scripts' } else { Join-Path $SecondBrain 'scripts' }
 Import-Module (Join-Path $moduleRoot 'SecondBrain.Core.psm1')
 Import-Module (Join-Path $moduleRoot 'SecondBrain.Messages.psm1')
 Import-Module (Join-Path $moduleRoot 'SecondBrain.AgentAdapters.psm1')
 Import-Module (Join-Path $moduleRoot 'SecondBrain.RunnerStatus.psm1')
+Import-Module (Join-Path $moduleRoot 'SecondBrain.Host.psm1')
 Add-SBMessages @{
     'orchestrate.checkout.missing' = @{ en = 'Not inside a Git checkout; pass -Checkout' }
     'orchestrate.brain.missing' = @{ en = 'SecondBrain not found; set SECONDBRAIN_HOME or pass -SecondBrain' }
@@ -256,10 +267,14 @@ if ($Run -and -not $Pinned) {
         $switch = Invoke-Git @('switch', '-c', $name)
         if ($switch.Code -ne 0) { throw (New-SBError 'orchestrate.branch.failed' @($name, $switch.Text)) }
     }
+    $snapshot = Join-Path $WorkDir ('snapshot-{0:yyyyMMddHHmmss}' -f (Get-SBNow -Local))
+    New-Item -ItemType Directory -Force -Path $snapshot | Out-Null
+    foreach ($item in 'scripts', 'config') { Copy-Item -LiteralPath (Join-Path $SecondBrain $item) -Destination (Join-Path $snapshot $item) -Recurse -Force }
+    Copy-Item -LiteralPath (Join-Path $SecondBrain 'VERSION') -Destination (Join-Path $snapshot 'VERSION') -Force
     $copy = Join-Path $WorkDir ('orchestrate-tasks.pinned-{0:yyyyMMddHHmmss}.ps1' -f (Get-SBNow -Local))
     Copy-Item -LiteralPath $PSCommandPath -Destination $copy
     $forward = @{ Checkout = $Checkout; WorkDir = $WorkDir; SecondBrain = $SecondBrain; Provider = $Provider; Effort = $Effort; PermissionMode = $PermissionMode
-        AllowedTools = $AllowedTools; DisallowedTools = $DisallowedTools; TimeoutMinutes = $TimeoutMinutes; MaxTasks = $MaxTasks; MaxWaitHours = $MaxWaitHours
+        AllowedTools = $AllowedTools; DisallowedTools = $DisallowedTools; TimeoutMinutes = $TimeoutMinutes; MaxTasks = $MaxTasks; MaxWaitHours = $MaxWaitHours; QuotaLowPercent = $QuotaLowPercent; ScriptsSnapshot = $snapshot
         ExcludePattern = $ExcludePattern; SelfPattern = $SelfPattern; ExcludeIds = $ExcludeIds; OnlyIds = $OnlyIds; Run = $true; Pinned = $true }
     if ($Model) { $forward.Model = $Model }
     if ($TrackerPath) { $forward.TrackerPath = $TrackerPath }
@@ -307,7 +322,7 @@ function Write-Notice([string]$Reason) {
 function Test-Stop { Test-Path -LiteralPath $stopFile }
 function Invoke-Knowledge([string[]]$KArgs) {
     Push-Location $Checkout
-    try { $text = & pwsh -NoProfile -File (Join-Path $SecondBrain 'scripts\knowledge.ps1') @KArgs 2>&1 | Out-String; [pscustomobject]@{ Code = $LASTEXITCODE; Text = $text } }
+    try { $text = & pwsh -NoProfile -File (Join-Path $scriptsDir 'knowledge.ps1') @KArgs 2>&1 | Out-String; [pscustomobject]@{ Code = $LASTEXITCODE; Text = $text } }
     finally { Pop-Location }
 }
 
@@ -458,6 +473,19 @@ function Wait-ForReset($OutcomeResetAt) {
     $true
 }
 
+function Get-QuotaDecision {
+    # #668: quota read now, before each task. Providers without a source (or any read failure) are 'unknown' and never fail the run.
+    try {
+        $observation = Get-SBRunnerQuotaObservation $SecondBrain (Get-SBHostId) $Provider
+        $quota = Get-SBAgentQuota -Provider $Provider -Observation $observation
+    }
+    catch { $quota = [ordered]@{ provider = $Provider; state = 'unknown'; resetAt = $null; source = 'none'; reason = 'read-failed'; windows = @() } }
+    $decision = Get-SBQueueQuotaDecision -Quota $quota -LowPercent $QuotaLowPercent
+    $state.quota = [ordered]@{ level = $decision.level; source = $quota.source; resetAt = $decision.resetAt; readAt = (Get-SBNow -Local).ToString('o') }
+    Write-Event 'quota-check' "Quota before the next task ($Provider): $($decision.level)$(if ($decision.reason) { ' - ' + $decision.reason })" @{ level = $decision.level; source = $quota.source; resetAt = $decision.resetAt }
+    $decision
+}
+
 function Invoke-AgentTask($task, [bool]$Resuming) {
     $stamp = '{0:yyyyMMdd-HHmmss}-{1}' -f (Get-SBNow -Local), $task.seq
     $promptFile = Join-Path $WorkDir "prompt-$stamp.txt"
@@ -492,9 +520,9 @@ $script:healthBaseline = @{}
 function Invoke-SelfCheck([string]$Name) {
     $script = if ($Name -eq 'quick') { 'test-secondbrain.ps1' } else { 'secondbrain.ps1' }
     $switchName = if ($Name -eq 'quick') { '-Quick' } else { '-Check' }
-    $text = & pwsh -NoProfile -File (Join-Path $SecondBrain "scripts\$script") $switchName 2>&1 | Out-String
+    $text = & pwsh -NoProfile -File (Join-Path $scriptsDir $script) $switchName 2>&1 | Out-String
     $code = $LASTEXITCODE
-    if ($code -ne 0 -and $Name -eq 'quick') { $text = & pwsh -NoProfile -File (Join-Path $SecondBrain "scripts\$script") $switchName 2>&1 | Out-String; $code = $LASTEXITCODE }
+    if ($code -ne 0 -and $Name -eq 'quick') { $text = & pwsh -NoProfile -File (Join-Path $scriptsDir $script) $switchName 2>&1 | Out-String; $code = $LASTEXITCODE }
     [pscustomobject]@{ Code = $code; Last = ($text.Trim() -split "`n")[-1].Trim() }
 }
 function Get-HealthBaseline {
@@ -517,7 +545,11 @@ function Test-Health([string]$Label) {
     }
     $now = Get-ScriptsManifest
     $changed = @($now.Keys | Where-Object { $script:scriptsManifest[$_] -ne $now[$_] })
-    if ($changed.Count) { Write-Event 'scripts-changed' "$($changed.Count) SecondBrain script(s) changed since the run started (the checks above ran with them)" @($changed | Select-Object -First 10) }
+    if ($changed.Count) {
+        # With a snapshot (#665) the bookkeeping and the checks above ran with the scripts of the start, so this is informational only.
+        $note = if ($ScriptsSnapshot) { "(informational: bookkeeping and checks used the snapshot taken at start)" } else { "(the checks above ran with them)" }
+        Write-Event 'scripts-changed' "$($changed.Count) SecondBrain script(s) changed since the run started $note" @($changed | Select-Object -First 10)
+    }
     $script:scriptsManifest = $now
     [pscustomobject]@{ Ok = ($problems.Count -eq 0); Problems = $problems; Label = $Label }
 }
@@ -544,6 +576,8 @@ if ($power.supported -and -not $power.acquired -and -not $AllowNoPowerRequest) {
     throw (New-SBError 'orchestrate.power.refused' @($power.error))
 }
 $script:scriptsManifest = Get-ScriptsManifest
+if ($ScriptsSnapshot) { Write-Event 'snapshot' "Bookkeeping and health checks run from the snapshot $ScriptsSnapshot against the live dossier (SECONDBRAIN_BRAIN_ROOT)" }
+else { Write-Event 'snapshot' 'No snapshot (resumed or started without one): the live scripts are used and only the SHA-256 manifest guards them' }
 Get-HealthBaseline
 $script:waitBudgetHours = $MaxWaitHours
 $consecutiveFailures = 0
@@ -563,6 +597,13 @@ try {
         $dirty = @($clean.Text -split "`n" | Where-Object { $_.Trim() -and $_ -notmatch '^\S+\s+"?\.(claude/agents|gemini/agents|codex)/task-queue-supervisor' })
         if ($dirty.Count -and -not $resuming) { Write-Notice "Working tree not clean before #$($task.seq); nothing is started"; $state.failed += "dirty-before-#$($task.seq)"; break }
         if ($resuming) { Write-Event 'resume' "#$($task.seq) resumes the interrupted task ($($dirty.Count) path(s) left by the cut session)" }
+        $quotaDecision = Get-QuotaDecision
+        if ($quotaDecision.action -eq 'wait') {
+            Write-Event 'quota' "Quota $($quotaDecision.level) before #$($task.seq): waiting for the reset"
+            $resetAt = if ($quotaDecision.resetAt) { ConvertTo-ResetTime $quotaDecision.resetAt } else { $null }
+            if (Wait-ForReset $resetAt) { continue }
+            Write-Notice "Quota $($quotaDecision.level) and the reset is beyond -MaxWaitHours (or the wait was stopped); #$($task.seq) not started"; break
+        }
         $resumeId = $null
         $state.current = "#$($task.seq) $($task.id)"; $state.currentId = $task.id; Write-State 'running'
         Write-Event 'start' "#$($task.seq) $($task.title)"

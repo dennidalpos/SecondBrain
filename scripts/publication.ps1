@@ -52,7 +52,7 @@ Add-SBMessages @{
     'publication.push.input' = @{ en = 'Invalid Git pre-push update' }
 }
 trap { if (Test-SBWriteDeniedError $_) { Write-SBWriteDeniedDiagnostic $_ $PSCommandPath $PSBoundParameters; exit 4 }; break }
-$brain=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+$brain=(Get-SBBrainRootPath)
 try{
     if($InstallHook){
         $res=Install-SBPublicationHook -RepositoryPath $RepositoryPath -BrainRoot $brain -Apply:$Apply -Force:$Force

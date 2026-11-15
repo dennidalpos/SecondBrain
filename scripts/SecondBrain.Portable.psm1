@@ -261,10 +261,10 @@ function Invoke-SBHostActivation {
             $metadata=New-SBParaMetadata ('project-'+(Get-SBTextHash $identity).Substring(0,20).ToLowerInvariant()) 'project' $asset.name
             $repo=@{schemaVersion=1;identity=$identity}
             if(!$requiresImport){$repo.tracker=@{location='dossier';path='tracker.json';schemaVersion=1}}
-            $seed=@{'para.json'=(ConvertTo-SBJson $metadata);'repository.json'=(ConvertTo-SBJson $repo);'brief.md'=("# "+$asset.name+"`n`nRepository selezionato per la gestione della conoscenza. Perimetro e stato nel contesto corrente.`n");
+            $seed=@{'para.json'=(ConvertTo-SBJson $metadata);'repository.json'=(ConvertTo-SBJson $repo);'brief.md'=("# "+$asset.name+"`n`nRepository selected for knowledge management. Scope and state are in the current context.`n");
               'context.md'=(Read-SBText (Join-Path $PSScriptRoot 'SecondBrain.context.template.md'));
-              'memory.md'="# Memoria essenziale`n`nNessuna decisione tecnica ancora qualificata.`n"
-              'specs/README.md'="# Specifiche`n`nSpecifiche e requisiti da implementare nel repository.`n";'material/README.md'="# Materiale`n`nMateriale di riferimento del progetto (non nel repository).`n";'data/README.md'="# Dati`n`nDati iniziali o di lavoro da implementare nel repository.`n"}
+              'memory.md'="# Essential memory`n`nNo technical decision qualified yet.`n"
+              'specs/README.md'="# Specifications`n`nSpecifications and requirements to implement in the repository.`n";'material/README.md'="# Material`n`nProject reference material (not in the repository).`n";'data/README.md'="# Data`n`nInitial or working data to implement in the repository.`n"}
             if(!$requiresImport){$seed['tracker.json']=ConvertTo-SBJson @{schemaVersion=1;repository=$identity;updatedAt=(Get-SBNow).ToString('o');tasks=@();history=@();extensions=@{}}}
             foreach($name in $seed.Keys){$path=Join-Path $dossier $name;if(Test-Path -LiteralPath $path){throw (New-SBError 'portable.destination.uncensused')};$operations+=@{path=$path;expected='absent';bytes=[Text.Encoding]::UTF8.GetBytes($seed[$name])}}
         }
@@ -724,6 +724,7 @@ function Get-SBSetupStatus([string]$BrainRoot) {
     $state=if($statePath -and (Test-Path -LiteralPath $statePath -PathType Leaf)){Read-SBJson $statePath @{}}else{$null}
     [ordered]@{stage='status';hostId=(Get-SBHostId);configuration=$configPath
         bindings=@($bindings|ForEach-Object {[ordered]@{path=(& $value $_ 'path');identity=(& $value $_ 'identity');dossier=(& $value $_ 'dossier');status=(& $value $_ 'status')}})
+        workspaces=@($(if($config.ContainsKey('workspaces')){@($config.workspaces)}else{@()})|Where-Object {$null -ne $_}|ForEach-Object {[ordered]@{identity=(& $value $_ 'identity');name=(& $value $_ 'name');path=(& $value $_ 'path');dossier=(& $value $_ 'dossier');outputScope=@((& $value $_ 'outputScope')|Where-Object {$_});access=$(if(@((& $value $_ 'outputScope')|Where-Object {$_}).Count){'scoped-write'}else{'read-only'})}})
         ides=@($ides|ForEach-Object {[ordered]@{id=(& $value $_ 'id');name=(& $value $_ 'name');mode=(& $value $_ 'mode');selected=(& $value $_ 'selected');profile=(& $value $_ 'profile');accountAlias=(& $value $_ 'accountAlias')
             sha256=(& $value $_ 'sha256');installationEvidence=@((& $value $_ 'installationEvidence')|Where-Object {$_});environmentFingerprint=(& $value $_ 'environmentFingerprint');contextStatus=(Get-SBIDEContextState $_ $state).status}})
         selectionReceipt=$(if($config.ContainsKey('selectionReceipt')){$config.selectionReceipt}else{$null});latestSetup=(Read-SBJson (Get-SBSetupPaths $brain).setupResult $null)}
@@ -764,8 +765,8 @@ function Invoke-SBSetupUnbind {
     $result.stage='preview'
     $preview=Invoke-SBHostActivation -BrainRoot $brain -SelectionPath $selectionPath -SessionId $SessionId
     $doApply=[bool]$Apply
-    if(!$doApply -and $prompting){$doApply=(([string](Read-Host 'Digita APPLICA per disassociare ora (invio = solo anteprima)')).Trim() -ceq 'APPLICA')}
-    if(!$doApply){$result.activation=$preview;$result.note='Anteprima: nessuna modifica. Aggiungere -Apply per disassociare; i dossier non vengono eliminati.';return $result}
+    if(!$doApply -and $prompting){$doApply=(([string](Read-Host 'Type APPLICA to unbind now (Enter = preview only)')).Trim() -ceq 'APPLICA')}
+    if(!$doApply){$result.activation=$preview;$result.note='Preview: nothing changed. Add -Apply to unbind; the dossiers are not deleted.';return $result}
     $applied=Invoke-SBHostActivation -BrainRoot $brain -SelectionPath $selectionPath -SessionId $SessionId -Apply
     $result.stage='applied';$result.applied=$true;$result.activation=$applied
     $result

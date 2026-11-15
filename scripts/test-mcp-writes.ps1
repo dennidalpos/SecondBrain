@@ -90,6 +90,30 @@ try {
     Check (F5-Submit $f5Ev).applied 'approved MCP task update applies evidence'
     $f5EvTask=@((Read-SBJson (Join-Path $f5Dossier tracker.json) $null).tasks|Where-Object id -eq 'F5-1')[0]
     Check (@($f5EvTask.evidence|Where-Object {$_.reference -eq 'README.md' -and $_.outcome -eq 'partial'}).Count -eq 1) 'MCP evidence is stored on the task'
+    # #669: audited evidence correction (task.evidence.correct): mandatory reason, preview and approval, previous entries kept, ledger record.
+    Reject {F5-Plan 'task.evidence.correct' @{taskId='F5-1';evidence=@('a|passed')}} 'evidence correction requires a reason'
+    Reject {F5-Plan 'task.evidence.correct' @{taskId='F5-1';reason='';evidence=@('a|passed')}} 'evidence correction rejects an empty reason'
+    Reject {F5-Plan 'task.evidence.correct' @{taskId='F5-1';reason='fix';evidence='a|passed'}} 'evidence correction requires an array'
+    Reject {F5-Plan 'task.evidence.correct' @{taskId='F5-1';reason='fix';evidence=@('a|great')}} 'evidence correction rejects an unknown outcome'
+    Reject {F5-Plan 'task.evidence.correct' @{taskId='F5-1';reason='fix';evidence=@('a')}} 'evidence correction needs an explicit outcome'
+    $f5Fix=F5-Plan 'task.evidence.correct' @{taskId='F5-1';reason='entries split by the old comma parsing';evidence=@('scripts/test-mcp-writes.ps1|passed')}
+    Check ($f5Fix.pending.operation -eq 'task.update' -and $f5Fix.pending.arguments.EvidenceCorrection.Reason -like 'entries split*') 'evidence correction previews a task.update with the correction'
+    $f5Before=@((Read-SBJson (Join-Path $f5Dossier tracker.json) $null).tasks|Where-Object id -eq 'F5-1')[0].evidence.Count
+    Reject {F5-Submit $f5Fix} 'evidence correction is not applied without approval'
+    Check (@((Read-SBJson (Join-Path $f5Dossier tracker.json) $null).tasks|Where-Object id -eq 'F5-1')[0].evidence.Count -eq $f5Before) 'preview and refused submit leave the evidence unchanged'
+    [void](F5-Approve $f5Fix)
+    Check (F5-Submit $f5Fix).applied 'approved evidence correction applies'
+    $f5Fixed=@((Read-SBJson (Join-Path $f5Dossier tracker.json) $null).tasks|Where-Object id -eq 'F5-1')[0]
+    Check (@($f5Fixed.evidence).Count -eq 1 -and $f5Fixed.evidence[0].reference -ceq 'scripts/test-mcp-writes.ps1' -and $f5Fixed.evidence[0].outcome -ceq 'passed') 'the evidence is replaced by the correction'
+    $f5Audit=@($f5Fixed.extensions.evidenceCorrections)
+    Check ($f5Audit.Count -eq 1 -and $f5Audit[0].previousCount -eq $f5Before -and @($f5Audit[0].previous).Count -eq $f5Before -and $f5Audit[0].reason -like 'entries split*' -and $f5Audit[0].at) 'the replaced entries and the reason are kept in evidenceCorrections'
+    $f5Ledger=@(Read-SBTaskLedger (Join-Path $f5Dossier tracker.json)|Where-Object {$_.taskId -eq 'F5-1' -and $_.event -eq 'evidence' -and $_.reason -like 'Evidence correction:*'})
+    Check ($f5Ledger.Count -ge 1) 'the correction is recorded in the task ledger'
+    $f5Clear=F5-Plan 'task.evidence.correct' @{taskId='F5-1';reason='remove every garbled entry';evidence=@()}
+    [void](F5-Approve $f5Clear)
+    Check (F5-Submit $f5Clear).applied 'an empty replacement removes all evidence after approval'
+    $f5Cleared=@((Read-SBJson (Join-Path $f5Dossier tracker.json) $null).tasks|Where-Object id -eq 'F5-1')[0]
+    Check (@($f5Cleared.evidence).Count -eq 0 -and @($f5Cleared.extensions.evidenceCorrections).Count -eq 2) 'cleared evidence keeps both audit entries'
     # requires: only the allowed capability names, as an array; an empty array clears the field; the runner then excludes the task.
     Reject {F5-Plan 'task.update' @{taskId='F5-1';requires=@('gpu')}} 'MCP task update rejects an unknown required capability'
     Reject {F5-Plan 'task.update' @{taskId='F5-1';requires='computer-use'}} 'MCP task update requires the capability list as an array'

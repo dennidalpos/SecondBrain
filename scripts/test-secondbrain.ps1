@@ -13,7 +13,9 @@ $ErrorActionPreference='Stop'
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
 . (Join-Path $PSScriptRoot 'test-git-environment.ps1')
 . (Join-Path $PSScriptRoot 'test-run-evidence.ps1')
-$brain=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+$brain=(Get-SBBrainRootPath)
+# #665: a queue run points the pinned scripts at the live brain with SECONDBRAIN_BRAIN_ROOT; fixture suites and their child processes must never inherit it.
+[Environment]::SetEnvironmentVariable('SECONDBRAIN_BRAIN_ROOT',$null)
 $level=if($Only){'Only'}elseif($Quick){'Quick'}elseif($Full){'Full'}else{'Fast'}
 $pure=[bool]($Quick -or ($Only -and @($Only|Where-Object {$_ -ne 'quick'}).Count -eq 0))
 $budget=if($Only){0}elseif($Quick){15}elseif($Full){600}else{120}

@@ -66,7 +66,7 @@ function New-SBMcpPackage {
         [string]$OutDir
     )
     if (!$BrainRoot) {
-        $BrainRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+        $BrainRoot = (Get-SBBrainRootPath)
     }
     $BrainRoot = [IO.Path]::GetFullPath($BrainRoot)
     if (!$OutDir) {

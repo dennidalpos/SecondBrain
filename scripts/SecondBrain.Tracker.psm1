@@ -15,6 +15,7 @@ Add-SBMessages @{
     'tracker.batch.changed' = @{ en = 'The tracker changed after the batch was prepared: run the command again' }
     'tracker.update.empty' = @{ en = 'Specify at least one field to update: -Status, -Priority, -Execution, -DependsOn, -Stream, -Awaiting, -Requires, -StateReason, -Description, -Acceptance, -Decisions or -Evidence' }
     'tracker.decisions.invalid' = @{ en = 'Invalid decisions: every entry needs question and answer (text); fix the decisions JSON file' }
+    'tracker.evidence.correction.invalid' = @{ en = 'Invalid evidence correction: give a reason (up to 1024 characters) and at most 100 reference|outcome entries, and do not combine it with appended evidence' }
     'tracker.evidence.invalid' = @{ en = 'Invalid evidence: use reference|outcome with outcome passed, failed, partial or unverified; entries are separated by semicolons and each needs |outcome, so a reference cannot contain a semicolon; evidence is append-only' }
     'tracker.priority.invalid' = @{ en = 'Invalid priority: use P0, P1, P2, P3 or P4' }
     'tracker.execution.invalid' = @{ en = 'Invalid execution mode: use autonomous, user_required or unspecified' }
@@ -542,7 +543,7 @@ function Resolve-SBTrackerWriteTarget([string]$BrainRoot,[string]$Identity,[stri
             }
             if(Test-Path (Join-Path $p 'direttive/approved.json')){$BrainRoot=$p}
         }
-        if(!$BrainRoot){$BrainRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))}
+        if(!$BrainRoot){$BrainRoot=(Get-SBBrainRootPath)}
     }
     $BrainRoot=[IO.Path]::GetFullPath($BrainRoot)
     if($Path){
@@ -1027,6 +1028,7 @@ function Update-SBTrackerTask {
         [AllowEmptyString()][string]$Awaiting,
         [AllowEmptyCollection()][AllowEmptyString()][string[]]$Requires,
         $Evidence=@(),
+        $EvidenceCorrection,
         [string]$Description,
         [string[]]$Acceptance,
         $Decisions,
@@ -1048,7 +1050,19 @@ function Update-SBTrackerTask {
     if($edit.closing){$result.closureAdvice=Get-SBClosureAdvice (Split-Path $target.path)}
     $result
 }
-function Get-SBTrackerUpdateFields {@('Status','StateReason','Priority','Execution','DependsOn','Stream','Awaiting','Requires','Evidence','Description','Acceptance','Decisions','Decision','Enrichment')}
+function Get-SBTrackerUpdateFields {@('Status','StateReason','Priority','Execution','DependsOn','Stream','Awaiting','Requires','Evidence','EvidenceCorrection','Description','Acceptance','Decisions','Decision','Enrichment')}
+function ConvertTo-SBEvidenceCorrection($Value) {
+    # #669: the audited correction of one task's evidence: a mandatory reason and the replacement list (empty removes every entry).
+    # Entries are "reference|outcome" strings or {reference, outcome[, observedAt]}. The replaced entries are kept in extensions.evidenceCorrections.
+    $field={param($o,[string]$n) if($o -is [Collections.IDictionary]){$o[$n]}elseif($null -ne $o -and $o.PSObject.Properties[$n]){$o.$n}else{$null}}
+    $reason=([string](& $field $Value 'Reason')).Trim()
+    $items=@(@(& $field $Value 'Evidence')|Where-Object {$null -ne $_ -and ($_ -isnot [string] -or $_.Trim())})
+    if(!$reason -or $reason.Length -gt 1024 -or $items.Count -gt 100){throw (New-SBError 'tracker.evidence.correction.invalid')}
+    foreach($item in $items){
+        if($item -is [string] -and $item -notmatch '^[^|]+\|[^|]+$'){throw (New-SBError 'tracker.evidence.invalid')}
+    }
+    @{reason=$reason;evidence=@($items|ForEach-Object {ConvertTo-SBTaskEvidence $_})}
+}
 function ConvertTo-SBTaskEnrichment($Value) {
     # #608: pointer to a light-model proposal kept in a work folder: SecondBrain-relative path, SHA-256 of proposal.json, status and time.
     # Only the pointer reaches the tracker; the proposal is applied, if ever, through a reviewed update.
@@ -1096,6 +1110,10 @@ function Assert-SBTrackerUpdateFields([hashtable]$Fields) {
     if($Fields.ContainsKey('Execution') -and $Fields.Execution -cnotin @('autonomous','user_required','unspecified')){throw (New-SBError 'tracker.execution.invalid')}
     if($Fields.ContainsKey('Requires')){[void](ConvertTo-SBTaskRequires $Fields.Requires)}
     if($Fields.ContainsKey('Enrichment')){[void](ConvertTo-SBTaskEnrichment $Fields.Enrichment)}
+    if($Fields.ContainsKey('EvidenceCorrection')){
+        [void](ConvertTo-SBEvidenceCorrection $Fields.EvidenceCorrection)
+        if($Fields.ContainsKey('Evidence')){throw (New-SBError 'tracker.evidence.correction.invalid')}
+    }
 }
 function Edit-SBTrackerTaskFields($Target,$Archive,[string]$TaskId,[hashtable]$Fields,$Executor) {
     # Applies one update to the in-memory tracker and archive; the caller saves (one task: Update-SBTrackerTask; several: Invoke-SBTrackerTaskBatch).
@@ -1144,11 +1162,25 @@ function Edit-SBTrackerTaskFields($Target,$Archive,[string]$TaskId,[hashtable]$F
     }
     if($Fields.ContainsKey('Enrichment')){$task.extensions.enrichment=ConvertTo-SBTaskEnrichment $Fields.Enrichment}
     if($Fields.ContainsKey('Evidence') -and $Fields.Evidence){if(!$task.ContainsKey('evidence')){$task.evidence=@()};$task.evidence+=@(@($Fields.Evidence)|ForEach-Object {ConvertTo-SBTaskEvidence $_})}
+    $corrected=$null
+    if($Fields.ContainsKey('EvidenceCorrection')){
+        $correction=ConvertTo-SBEvidenceCorrection $Fields.EvidenceCorrection
+        $previous=@(@($task['evidence'])|Where-Object {$null -ne $_})
+        $audit=[ordered]@{at=(Get-SBNow).ToString('o');reason=$correction.reason;previousCount=$previous.Count;replacementCount=@($correction.evidence).Count;previous=@($previous)}
+        $task.extensions.evidenceCorrections=@(@($task.extensions['evidenceCorrections']|Where-Object {$_})+@($audit))
+        $task.evidence=@($correction.evidence)
+        $corrected=$correction.reason
+    }
     # #607: every update of an open task (CLI, MCP, batch, the app's analysis) re-runs the same readiness assessment.
     if([string]$task.status -cnotin @('done','cancelled')){[void](Set-SBTaskReadiness $task (@($next.tasks)+@($Archive.data.tasks)) (Split-Path $Target.path) $Target.identity)}
     $closing=$Fields.ContainsKey('Status') -and $Fields.Status -eq 'done'
     if($closing -and !$wasDone){Set-SBTaskClosure $next $TaskId}
     $record=New-SBTaskRunRecord -Task $task -Before $before -Executor $Executor
+    # #669: a correction always records itself in the ledger, with the replaced and the replacement counts.
+    if($null -ne $corrected){
+        $record=New-SBTaskRunRecord -Task $task -Before $before -Executor $Executor -Created -Reason ('Evidence correction: '+$corrected)
+        $record.event='evidence'
+    }
     # A reviewed analysis that rewrites the task records itself even when status and execution stay the same.
     if(!$record -and ($Fields.ContainsKey('Decisions') -or $Fields.ContainsKey('Acceptance'))){$record=New-SBTaskRunRecord -Task $task -Executor $Executor -Created;$record.event='analysis'}
     @{taskId=$TaskId;status=$task.status;closing=$closing;record=$record}
@@ -1281,6 +1313,7 @@ Export-ModuleMember -Function @(
     'Set-SBTaskClosure',
     'Get-SBClosureAdvice',
     'ConvertTo-SBTaskEvidence',
+    'ConvertTo-SBEvidenceCorrection',
     'ConvertTo-SBTaskEvidenceList',
     'ConvertTo-SBTaskDecisions',
     'Get-SBTaskRequiresValues',

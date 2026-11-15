@@ -253,6 +253,38 @@ try {
     Assert-Pending ($again.code -eq 2) '#588: an answered decision cannot be answered again'
     $relink=Invoke-PendingCli 'knowledge.ps1' @('-CheckoutPath',$checkout,'-UpdateTaskId','T-2','-Decision',$decisionId)
     Assert-Pending ($relink.code -ne 0) '#588: linking an answered decision is refused'
+    # #669: audited evidence correction through the CLI: preview without authorization, then apply; evidence stays append-only otherwise.
+    $evTaskOf={param([string]$Id) @((Read-SBJson $trackerPath $null).tasks|Where-Object id -eq $Id)[0]}
+    $evAdd=Invoke-PendingCli 'knowledge.ps1' @('-CheckoutPath',$checkout,'-UpdateTaskId','T-1','-Evidence','garbled|unverified;second|failed')
+    Assert-Pending ($evAdd.code -eq 0 -and @((& $evTaskOf 'T-1').evidence).Count -ge 2) '#669: evidence is appended as before'
+    $evCount=@((& $evTaskOf 'T-1').evidence).Count
+    $evNoReason=Invoke-PendingCli 'knowledge.ps1' @('-CheckoutPath',$checkout,'-UpdateTaskId','T-1','-CorrectEvidence','-Evidence','good|passed','-CorrectionAuthorization','owner ok')
+    Assert-Pending ($evNoReason.code -ne 0 -and @((& $evTaskOf 'T-1').evidence).Count -eq $evCount) '#669: a correction without a reason is refused and writes nothing'
+    $evPreview=Invoke-PendingCli 'knowledge.ps1' @('-CheckoutPath',$checkout,'-UpdateTaskId','T-1','-CorrectEvidence','-CorrectionReason','garbled by old parsing','-Evidence','good|passed')
+    Assert-Pending ($evPreview.code -eq 0 -and $evPreview.text -match '"apply":\s*false' -and @((& $evTaskOf 'T-1').evidence).Count -eq $evCount) '#669: without authorization the correction only previews'
+    $evBad=Invoke-PendingCli 'knowledge.ps1' @('-CheckoutPath',$checkout,'-UpdateTaskId','T-1','-CorrectEvidence','-CorrectionReason','x','-Evidence','nooutcome','-CorrectionAuthorization','owner ok')
+    Assert-Pending ($evBad.code -ne 0 -and @((& $evTaskOf 'T-1').evidence).Count -eq $evCount) '#669: a replacement entry without outcome is refused'
+    $evApply=Invoke-PendingCli 'knowledge.ps1' @('-CheckoutPath',$checkout,'-UpdateTaskId','T-1','-CorrectEvidence','-CorrectionReason','garbled by old parsing','-Evidence','good|passed','-CorrectionAuthorization','owner ok')
+    $evAfter=& $evTaskOf 'T-1'
+    Assert-Pending ($evApply.code -eq 0 -and @($evAfter.evidence).Count -eq 1 -and $evAfter.evidence[0].reference -ceq 'good' -and @($evAfter.extensions.evidenceCorrections).Count -eq 1 -and @($evAfter.extensions.evidenceCorrections[0].previous).Count -eq $evCount) '#669: an authorized correction replaces the evidence and keeps the previous entries'
+    # #665: a pinned copy of scripts/, config/ and VERSION writes the live dossier when SECONDBRAIN_BRAIN_ROOT names the live brain, even after a task
+    # broke the live knowledge.ps1; an invalid override is refused and without it the copy would use its own parent as brain.
+    $snapRoot=Join-Path $fixture 'snapshot-665'
+    foreach($item in @('scripts','config')){Copy-Item -LiteralPath (Join-Path $brain $item) -Destination (Join-Path $snapRoot $item) -Recurse -Force}
+    Copy-Item -LiteralPath (Join-Path $brain 'VERSION') -Destination (Join-Path $snapRoot 'VERSION') -Force
+    [IO.File]::WriteAllText((Join-Path $brain 'scripts/knowledge.ps1'),"throw 'live knowledge.ps1 edited by a task'`n")
+    $pinned={param([string]$Override,[string[]]$CliArguments)
+        $env:SECONDBRAIN_BRAIN_ROOT=$Override
+        try{$out=@(& pwsh -NoProfile -File (Join-Path $snapRoot 'scripts/knowledge.ps1') -ConfigPath $configPath -CheckoutPath $checkout @CliArguments 2>&1|Out-String);@{code=$LASTEXITCODE;text=($out -join "`n")}}
+        finally{Remove-Item Env:SECONDBRAIN_BRAIN_ROOT -ErrorAction SilentlyContinue}
+    }
+    $liveBroken=Invoke-PendingCli 'knowledge.ps1' @('-CheckoutPath',$checkout,'-Tasks')
+    Assert-Pending ($liveBroken.code -ne 0) '#665: the live knowledge.ps1 edited by a task no longer runs'
+    $pinnedRun=& $pinned $brain @('-UpdateTaskId','T-2','-StateReason','recorded by the pinned scripts')
+    Assert-Pending ($pinnedRun.code -eq 0 -and (@((Read-SBJson $trackerPath $null).tasks|Where-Object id -eq 'T-2')[0].extensions.stateReason -ceq 'recorded by the pinned scripts')) ('#665: the pinned copy records the outcome in the live dossier: '+$pinnedRun.text)
+    $badOverride=& $pinned (Join-Path $fixture 'not-a-brain') @('-Tasks')
+    Assert-Pending ($badOverride.code -ne 0 -and $badOverride.text -match 'SECONDBRAIN_BRAIN_ROOT') '#665: an override that is not a SecondBrain checkout is refused'
+    Copy-Item -LiteralPath (Join-Path $snapRoot 'scripts/knowledge.ps1') -Destination (Join-Path $brain 'scripts/knowledge.ps1') -Force
     # #645: the reviewed apply and reject of a stored enrichment proposal through the CLI.
     $enrDir=Join-Path $brain 'enrich-645-cli';[void][IO.Directory]::CreateDirectory($enrDir);$enrFile=Join-Path $enrDir 'proposal.json'
     $writeProposal={param([string]$TaskId,[string]$Text) [IO.File]::WriteAllText($enrFile,(ConvertTo-SBJson ([ordered]@{kind='task-enrichment';taskId=$TaskId;status='proposed';proposal=[ordered]@{description=$Text}})),[Text.UTF8Encoding]::new($false))}

@@ -65,6 +65,23 @@ try{
     Assert-Gu ($list[0].checkoutExists -and !$list[1].checkoutExists) 'missing checkout flagged'
     Assert-Gu ($list[0].gitUpdate.mode -ceq 'branch-pr' -and $list[0].gitUpdate.confirmed -and !$list[1].gitUpdate.confirmed) 'effective gitUpdate reported per project'
     Assert-Gu ((@($fileA,$fileB,$cfg)|ForEach-Object {Get-SBFileHash $_}) -join ',' -ceq ($hashes -join ',')) 'projects -List writes nothing'
+    # Workspaces (#662): listed as kind workspace without a tracker, with output scope and access; status lists them too.
+    $wsDir=Join-Path $root 'ws-one';[IO.Directory]::CreateDirectory((Join-Path $wsDir 'out'))|Out-Null
+    $station=Read-SBJson $cfg @{}
+    $station.workspaces=@(@{kind='workspace';identity='local:abc123';name='ws-one';path=$wsDir;dossier='02-areas/workspace-ws-one-abc';outputScope=@('out')})
+    [IO.File]::WriteAllText($cfg,(ConvertTo-SBJson $station))
+    $out=& pwsh -NoProfile -File (Join-Path $brain 'scripts/projects.ps1') -List -ConfigPath $cfg 2>&1|Out-String
+    Assert-Gu ($LASTEXITCODE -eq 0) ('projects -List with a workspace succeeds: '+$out)
+    $list=@(($out|ConvertFrom-Json).projects)
+    $ws=@($list|Where-Object {$_.kind -ceq 'workspace'})
+    Assert-Gu ($list.Count -eq 3 -and $ws.Count -eq 1 -and $ws[0].identity -ceq 'local:abc123' -and $ws[0].tasks.total -eq 0 -and $ws[0].access -ceq 'scoped-write' -and $ws[0].outputScope -contains 'out' -and $ws[0].checkoutExists) 'workspace listed with scope and access, no tracker'
+    Assert-Gu (@($list|Where-Object {$_.kind -ceq 'repository'}).Count -eq 2) 'repositories keep kind repository'
+    Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Host.psm1') -Force
+    Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Portable.psm1') -Force
+    $hostCfg=Get-SBHostConfigPath $brain;[IO.Directory]::CreateDirectory((Split-Path $hostCfg))|Out-Null
+    [IO.File]::WriteAllText($hostCfg,(ConvertTo-SBJson (Read-SBJson $cfg @{})))
+    $status=Get-SBSetupStatus $brain
+    Assert-Gu (@($status.workspaces).Count -eq 1 -and $status.workspaces[0].access -ceq 'scoped-write') 'setup status lists the workspace'
     'SUCCESS GITUPDATE: '+$script:guChecks+' checks'
 }finally{
     $full=[IO.Path]::GetFullPath($root);$boundary=[IO.Path]::GetFullPath((Get-SBTestRoot)).TrimEnd('\','/')+[IO.Path]::DirectorySeparatorChar

@@ -50,7 +50,7 @@ Add-SBMessages @{
 # Writer busy beyond the wait limit: exit 3 (the message identifies the owner).
 trap { if (Test-SBWriteDeniedError $_) { Write-SBWriteDeniedDiagnostic $_ $PSCommandPath $PSBoundParameters; exit 4 }; if (Test-SBBusyError $_) { [Console]::Error.WriteLine($_.Exception.Message); exit 3 }; break }
 
-$brain = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+$brain = (Get-SBBrainRootPath)
 
 if ($Verify) {
     $targetZip = $BackupPath

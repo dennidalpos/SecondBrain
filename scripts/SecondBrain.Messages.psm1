@@ -48,6 +48,7 @@ function Add-SBReportDiagnostic([System.Collections.IDictionary]$Record, [string
 
 Add-SBMessages @{
     'report.reason.unverified' = @{ en = 'Outcome could not be verified; see technical details' }
+    'core.brainroot.invalid'    = @{ en = 'SECONDBRAIN_BRAIN_ROOT is not a SecondBrain checkout (VERSION and scripts/SecondBrain.Core.psm1 are missing): {0}' }
     'core.version.missing'      = @{ en = 'VERSION file missing: restore it from the checkout (git restore VERSION)' }
     'core.reparse.unwritable'   = @{ en = 'Reparse point is not writable: {0}' }
     'core.concurrent.modified'  = @{ en = 'Concurrent modification: {0}' }

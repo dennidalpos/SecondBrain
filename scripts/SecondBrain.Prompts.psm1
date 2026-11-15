@@ -607,7 +607,7 @@ function Get-SBWorkflowCheckout([string]$Path, [string[]]$AllowedOwners, $Bindin
     if(@($Bindings|Where-Object {$null -ne $_}).Count){$identity=Resolve-SBBoundIdentity $root $Bindings}
     if(!$identity -and !$AllowedOwners.Count){
         Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Host.psm1')
-        $hostConfig=Get-SBHostConfigPath ([IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..')))
+        $hostConfig=Get-SBHostConfigPath ((Get-SBBrainRootPath))
         $local=Read-SBJson $hostConfig @{bindings=@()}
         $binding=@($local.bindings|Where-Object path -eq $root)
         if($binding.Count -eq 1){$identity=$binding[0].identity}

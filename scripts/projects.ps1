@@ -14,6 +14,7 @@ $ErrorActionPreference='Stop'
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Access.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Para.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Workspace.psm1') -Force
 try{
     $config=Read-SBConfiguration $ConfigPath -ReadOnly
     $statuses=@('todo','in_progress','blocked','done','cancelled')
@@ -36,6 +37,7 @@ try{
             }
         }
         [ordered]@{
+            kind='repository'
             identity=[string]$binding.identity
             name=[IO.Path]::GetFileName(([string]$binding.path).TrimEnd('\','/'))
             path=[string]$binding.path
@@ -46,7 +48,26 @@ try{
             gitUpdate=(Get-SBGitUpdate $record)
         }
     })
-    ConvertTo-SBJson @{projects=$projects}
+    # Workspaces (#662): listed read-only, without a tracker; the runner and task reads refuse them.
+    $workstation=Read-SBJson $config.configPath @{}
+    $workspaces=@(foreach($entry in @(Get-SBWorkspaceEntries $workstation|Sort-Object {[string]$_.identity})){
+        $scope=if($entry.ContainsKey('outputScope')){@($entry.outputScope)}else{@()}
+        $zero=[ordered]@{total=0};foreach($s in $statuses){$zero[$s]=0}
+        [ordered]@{
+            kind='workspace'
+            identity=[string]$entry.identity
+            name=[string]$entry.name
+            path=[string]$entry.path
+            dossier=$(if($entry.ContainsKey('dossier')){[string]$entry.dossier}else{''})
+            checkoutExists=[bool](Test-Path -LiteralPath ([string]$entry.path) -PathType Container)
+            tasks=$zero
+            trackerUpdatedAt=$null
+            gitUpdate=$null
+            outputScope=$scope
+            access=$(if($scope.Count){'scoped-write'}else{'read-only'})
+        }
+    })
+    ConvertTo-SBJson @{projects=@($projects+$workspaces)}
     exit 0
 }catch{
     Write-Error $_ -ErrorAction Continue

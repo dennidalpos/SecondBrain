@@ -14,7 +14,7 @@ $ErrorActionPreference='Stop'
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.SetupStatus.psm1') -Force
 try{
-    $brain=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+    $brain=(Get-SBBrainRootPath)
     $status=Get-SBSetupWizardStatus -BrainRoot $brain -WorkspacePath $WorkspacePath -SettingsPath $SettingsPath
     ConvertTo-SBJson $status
     if(!$status.activated -or $status.recommended.Count){exit 1};exit 0

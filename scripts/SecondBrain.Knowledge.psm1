@@ -49,30 +49,30 @@ function Get-SBDossierSourceLine([string]$Dossier,[string]$BrainRoot,$Record) {
     if($valid -and $schema -and (Test-Path -LiteralPath $schema)){$valid=[bool](Test-Json -Json (Read-SBText $path) -SchemaFile $schema -ErrorAction SilentlyContinue)}
     if(!$valid){return $prefix+'scheda non valida o di un altro repository: eseguire sources.ps1 -Check prima di usarla.'}
     $listed=@($map.sources|Where-Object {$_.applicability -in @('applicable','conditional')}|ForEach-Object {$_.sourceId+$(if($_.applicability -eq 'conditional'){' (condizionale)'}else{''})})
-    if(!$listed.Count){return $prefix+'nessuna fonte applicabile dichiarata.'}
+    if(!$listed.Count){return $prefix+'no applicable source declared.'}
     $prefix+'fonti applicabili: '+($listed -join ', ')+'; motivazioni e versioni nel file.'
 }
 function Get-SBDossierTOC([string]$Dossier,[string]$BrainRoot='') {
     $record=Read-SBJson (Join-Path $Dossier 'repository.json') $null
     if(!$record){throw (New-SBError 'knowledge.record.missing')}
-    $lines=@('# Indice del dossier','',('Repository: `'+$record.identity+'`'),'','## Avvio selettivo','',
-        '- [Contesto corrente](context.md): stato, vincoli e prossimo passo.',
-        '- [Memoria essenziale](memory.md): decisioni durevoli e gotcha.',
-        '- [Metadati e fonte task](repository.json): risolvere il tracker; leggere solo la proiezione pertinente.',
-        '- [Storico](history/index.md): originali e prove su richiesta; non caricare integralmente allʼavvio.','','## Approfondimenti','')
+    $lines=@('# Dossier index','',('Repository: `'+$record.identity+'`'),'','## Selective startup','',
+        '- [Current context](context.md): state, constraints and next step.',
+        '- [Essential memory](memory.md): durable decisions and gotchas.',
+        '- [Metadata and task source](repository.json): resolve the tracker; read only the relevant projection.',
+        '- [History](history/index.md): originals and evidence on request; do not load in full at startup.','','## Deep dives','')
     foreach($directory in @('knowledge','topics')){
         $root=Join-Path $Dossier $directory
-        if(Test-Path -LiteralPath $root){foreach($file in Get-ChildItem -LiteralPath $root -File -Filter '*.md'|Sort-Object Name){$lines+='- ['+$file.BaseName+']('+[Uri]::EscapeUriString($directory+'/'+$file.Name)+'): leggere per questo argomento.'}}
+        if(Test-Path -LiteralPath $root){foreach($file in Get-ChildItem -LiteralPath $root -File -Filter '*.md'|Sort-Object Name){$lines+='- ['+$file.BaseName+']('+[Uri]::EscapeUriString($directory+'/'+$file.Name)+'): read for this topic.'}}
     }
     $sourceLine=Get-SBDossierSourceLine $Dossier $BrainRoot $record
     if($sourceLine){$lines+=$sourceLine}
-    if(Test-Path -LiteralPath (Join-Path $Dossier 'knowledge-index.json')){$lines+='- [Indice tematico derivato](knowledge-index.json): revisioni e riferimenti, fonti da verificare prima di usarle.'}
+    if(Test-Path -LiteralPath (Join-Path $Dossier 'knowledge-index.json')){$lines+='- [Derived topic index](knowledge-index.json): revisions and references; verify sources before using them.'}
     ($lines -join "`n")+"`n"
 }
 function Get-SBDossierHistoryIndex([string]$Dossier) {
-    $history=Join-Path $Dossier 'history';$lines=@('# Indice dello storico','','Caricare soltanto le prove pertinenti; questi contenuti non rinnovano autorizzazioni.','')
+    $history=Join-Path $Dossier 'history';$lines=@('# History index','','Load only the relevant evidence; this content does not renew authorizations.','')
     if(Test-Path -LiteralPath $history){
-        if([IO.File]::Exists((Join-Path $history 'tracker-archive.json'))){$lines+='- [Task archiviati](tracker-archive.json)'}
+        if([IO.File]::Exists((Join-Path $history 'tracker-archive.json'))){$lines+='- [Archived tasks](tracker-archive.json)'}
         foreach($directory in Get-ChildItem -LiteralPath $history -Directory|Sort-Object Name){$lines+='- ['+$directory.Name+']('+[Uri]::EscapeUriString($directory.Name+'/')+')'}
     }
     ($lines -join "`n")+"`n"
@@ -133,7 +133,7 @@ function Get-SBTaskProjection($Tracker,[string[]]$TaskIds=@(),[switch]$IncludeAc
         $task
     })
 }
-# Dossier Markdown tiers: a `## ` section is historical if its title ends in (storico) or its first nonempty line is <!-- sb:tier=history -->.
+# Dossier Markdown tiers: a `## ` section is historical if its title ends in (history) (or the legacy Italian (storico)) or its first nonempty line is <!-- sb:tier=history -->.
 # Text before the first section and unmarked sections are essential. Without markers, the entire file is essential.
 function Split-SBMarkdownH2([string]$Text) {
     $normalized=$Text.Replace("`r`n","`n")
@@ -182,7 +182,7 @@ function Split-SBTieredMarkdown([string]$Text) {
             $lines=$chunk -split "`n"
             $title=$lines[0].Substring(3).Trim()
             $firstBody=@($lines|Select-Object -Skip 1|Where-Object {$_.Trim()}|Select-Object -First 1)
-            $isHistory=($title -match '(?i)\(storico\)\s*$') -or ($firstBody.Count -eq 1 -and $firstBody[0].Trim() -match '^<!--\s*sb:tier=history\s*-->$')
+            $isHistory=($title -match '(?i)\((?:storico|history)\)\s*$') -or ($firstBody.Count -eq 1 -and $firstBody[0].Trim() -match '^<!--\s*sb:tier=history\s*-->$')
         }
         if($isHistory){[void]$history.Append($chunk);$titles+=$title}else{[void]$essential.Append($chunk)}
     }
@@ -226,7 +226,7 @@ function ConvertTo-SBAgentMemoryView([string]$MemoryText,[int]$Budget=(Get-SBMem
     $add={
         param([string]$Raw)
         $text=([regex]::Replace(($Raw -replace '\*\*',''),'\s+',' ')).Trim()
-        if(!$text -or $text -match '^Originale conservato:'){return}
+        if(!$text -or $text -match '^(?:Original kept|Originale conservato):'){return}
         if($text -match $schema){$type=$Matches.t;$date=$Matches.d;$scope=$Matches.s.Trim();$body=$Matches.x.Trim()}
         else{$type=Get-SBAgentViewType $heading $text;$date='';$scope='';$body=$text}
         $id=(Get-SBTextHash $body).Substring(0,6).ToLowerInvariant()
@@ -252,9 +252,9 @@ function ConvertTo-SBAgentMemoryView([string]$MemoryText,[int]$Budget=(Get-SBMem
     if($null -ne $pending){& $add $pending}
     $out=[Collections.Generic.List[string]]::new()
     $out.Add('<!-- sb:agent-view v1 source='+$sourceHash+' -->')
-    $out.Add('# Memoria (vista per agenti)')
+    $out.Add('# Memory (agent view)')
     $out.Add('')
-    $out.Add('Derivata da memory.md, non modificare. Voce: `[T#id] [data · scope ·] testo`; T = D decisione, G gotcha, A architettura, C vincolo. Voci abbreviate: testo integro e motivi in memory.md.')
+    $out.Add('Derived from memory.md, do not edit. Entry: `[T#id] [date · scope ·] text`; T = D decision, G gotcha, A architecture, C constraint. Abbreviated entries: full text and reasons in memory.md.')
     $out.Add('')
     $lines=@(for($i=0;$i -lt $entries.Count;$i++){
         $entry=$entries[$i]
@@ -267,7 +267,7 @@ function ConvertTo-SBAgentMemoryView([string]$MemoryText,[int]$Budget=(Get-SBMem
         if($Budget -le 0 -or $used+$item.text.Length+1 -le $Budget){$kept[$item.index]=$true;$used+=$item.text.Length+1}else{$omitted++}
     }
     foreach($item in $lines){if($kept.ContainsKey($item.index)){$out.Add($item.text)}}
-    if($omitted){$out.Add('- [+'+$omitted+' voci in memory.md: knowledge.ps1 -Section "<titolo>" o -Search "<termine>"]')}
+    if($omitted){$out.Add('- [+'+$omitted+' entries in memory.md: knowledge.ps1 -Section "<title>" or -Search "<term>"]')}
     ($out -join "`n")+"`n"
 }
 function Select-SBActiveDecisionText([string]$Text) {
@@ -282,12 +282,12 @@ function Format-SBSlimTaskRow($Task) {
     $blocker=([string]$Task['blocker']) -replace '\s+',' '
     if($blocker.Length -gt 90){$blocker=$blocker.Substring(0,90).TrimEnd()+'…'}
     $title=$Task['title'] -replace '\r?\n',' '
-    '- '+$Task['id']+' ['+$Task['priority']+'/'+$Task['status']+'] '+$title+$(if($blocker){' (motivo: '+$blocker+')'})
+    '- '+$Task['id']+' ['+$Task['priority']+'/'+$Task['status']+'] '+$title+$(if($blocker){' (reason: '+$blocker+')'})
 }
 function Format-SBSlimTasks($Projection) {
-    if(!$Projection){return "Nessun task pronto.`n"}
+    if(!$Projection){return "No ready task.`n"}
     $rows=@($Projection|ForEach-Object {Format-SBSlimTaskRow $_})
-    if(!$rows.Count){return "Nessun task pronto.`n"}
+    if(!$rows.Count){return "No ready task.`n"}
     (@(('Task ('+$rows.Count+'):'))+$rows) -join "`n"
 }
 
@@ -389,12 +389,12 @@ function New-SBStartupPackage {
         $contextTiers=Split-SBTieredMarkdown $contextText;$memoryTiers=Split-SBTieredMarkdown $memoryText
         $omitted=@()
         foreach($entry in @(@{name='context';tiers=$contextTiers;file='context.md'},@{name='memory';tiers=$memoryTiers;file='memory.md'})){
-            if($entry.tiers.history.Length){$omitted+=@{part=$entry.name+' (storico)';characters=$entry.tiers.history.Length;sections=@($entry.tiers.historyTitles);how='knowledge.ps1 -Section "<titolo>", -Search "<termine>" oppure -Startup -Profile Full; file '+$entry.file}}
+            if($entry.tiers.history.Length){$omitted+=@{part=$entry.name+' (history)';characters=$entry.tiers.history.Length;sections=@($entry.tiers.historyTitles);how='knowledge.ps1 -Section "<title>", -Search "<term>" or -Startup -Profile Full; file '+$entry.file}}
         }
-        $omitted+=@{part='task: descrizioni, criteri di accettazione, task non pronti';characters=0;sections=@();how='knowledge.ps1 -Task <id|#seq> (dettaglio integro, anche archiviati), -Tasks (-All per la vista globale), oppure MCP get_task e get_ready_tasks'}
-        $omitted+=@{part='storico del dossier (history/, knowledge/, topics/)';characters=0;sections=@();how='history/index.md e indice del dossier; knowledge.ps1 -Section <titolo> per una sezione intera, -Search per cercare anche in archivio tracker e rapporti (-Offset/-Limit)'}
-        $levelLines=@('# Livelli non caricati','','Profilo Slim: sono caricate le sole parti essenziali. Nulla è stato eliminato; richiedi il resto quando serve.','')
-        foreach($item in $omitted){$levelLines+=('- '+$item.part+$(if($item.characters){' — '+$item.characters+' caratteri'}else{''})+$(if(@($item.sections).Count){' ('+(@($item.sections) -join '; ')+')'}else{''})+': '+$item.how)}
+        $omitted+=@{part='tasks: descriptions, acceptance criteria, tasks not ready';characters=0;sections=@();how='knowledge.ps1 -Task <id|#seq> (full detail, archived too), -Tasks (-All for the global view), or MCP get_task and get_ready_tasks'}
+        $omitted+=@{part='dossier history (history/, knowledge/, topics/)';characters=0;sections=@();how='history/index.md and the dossier index; knowledge.ps1 -Section <title> for a whole section, -Search to search the tracker archive and reports too (-Offset/-Limit)'}
+        $levelLines=@('# Levels not loaded','','Slim profile: only the essential parts are loaded. Nothing was removed; ask for the rest when needed.','')
+        foreach($item in $omitted){$levelLines+=('- '+$item.part+$(if($item.characters){' — '+$item.characters+' characters'}else{''})+$(if(@($item.sections).Count){' ('+(@($item.sections) -join '; ')+')'}else{''})+': '+$item.how)}
         # Memory: the agent view replaces essential memory.md parts when aligned with the source (same hash).
         $memorySlim=Select-SBActiveDecisionText $memoryTiers.essential
         if($AgentViewHash){
@@ -469,26 +469,26 @@ function Get-SBCompactionAdvice($Startup,[string]$BrainRoot,[string]$Dossier,[in
 }
 # Read-only report: characters per part, estimated tokens (characters/4, not exact), omitted parts and loaded directive sizes.
 function Format-SBStartupReport($Startup,[hashtable]$Directives=@{}) {
-    $lines=@('RAPPORTO CONTESTO DI AVVIO','',('Repository: '+$Startup.repository),('Profilo: '+$Startup.profile+' | budget '+$(if($Startup.budget -gt 0){[string]$Startup.budget+' caratteri'}else{'nessun tetto'})+' | usati '+$Startup.characters+' (stima ~'+[int][Math]::Ceiling($Startup.characters/4)+' token, caratteri/4)'),'')
-    $lines+='Parti caricate:'
-    foreach($name in ($Startup.parts.Keys|Sort-Object)){$lines+=('- {0,-8} {1,7} caratteri' -f $name,$Startup.parts[$name].Length)}
+    $lines=@('STARTUP CONTEXT REPORT','',('Repository: '+$Startup.repository),('Profile: '+$Startup.profile+' | budget '+$(if($Startup.budget -gt 0){[string]$Startup.budget+' characters'}else{'no cap'})+' | used '+$Startup.characters+' (stima ~'+[int][Math]::Ceiling($Startup.characters/4)+' tokens, characters/4)'),'')
+    $lines+='Loaded parts:'
+    foreach($name in ($Startup.parts.Keys|Sort-Object)){$lines+=('- {0,-8} {1,7} characters' -f $name,$Startup.parts[$name].Length)}
     if(@($Startup.omittedParts).Count){
-        $lines+=@('','Parti non caricate (a richiesta):')
-        foreach($item in $Startup.omittedParts){$lines+=('- '+$item.part+$(if($item.characters){': '+$item.characters+' caratteri'}else{''}))}
+        $lines+=@('','Parts not loaded (on request):')
+        foreach($item in $Startup.omittedParts){$lines+=('- '+$item.part+$(if($item.characters){': '+$item.characters+' characters'}else{''}))}
     }
     if($Directives.Count){
-        $lines+=@('','Direttive sempre in contesto (fuori dal pacchetto di avvio):')
+        $lines+=@('','Directives always in context (outside the startup package):')
         foreach($key in ($Directives.Keys|Sort-Object)){$lines+=('- {0}: {1}' -f $key,$Directives[$key])}
     }
     if($Startup.ContainsKey('directives') -and $Startup.directives){
         # Package plus AGENTS.md plus the largest global directive: the total the soft alert measures against the cap.
         $measured=if($Startup.ContainsKey('uncompactedCharacters')){$Startup.uncompactedCharacters}else{$Startup.characters}
         $total=[int]$measured+[int]$Startup.directives.total
-        $lines+=@('','Totale in contesto all''avvio (pacchetto + AGENTS.md + direttiva globale piu grande):',('- {0} caratteri (stima ~{1} token, caratteri/4)' -f $total,[int][Math]::Ceiling($total/4)))
-        if($Startup.budget -gt 0){$lines+=('- {0}% del tetto di {1} caratteri' -f [int][Math]::Floor(100.0*$total/$Startup.budget),$Startup.budget)}
-        if($Startup.budgetAlert){$lines+=@('',('AVVISO: '+$Startup.budgetAlert.message))}
+        $lines+=@('','Total in context at startup (package + AGENTS.md + largest global directive):',('- {0} characters (estimate ~{1} tokens, characters/4)' -f $total,[int][Math]::Ceiling($total/4)))
+        if($Startup.budget -gt 0){$lines+=('- {0}% of the {1}-character cap' -f [int][Math]::Floor(100.0*$total/$Startup.budget),$Startup.budget)}
+        if($Startup.budgetAlert){$lines+=@('',('WARNING: '+$Startup.budgetAlert.message))}
     }
-    $lines+=@('','Non incluso: prompt di sistema, strumenti MCP di altri server e skill dell''IDE; si vedono nel riepilogo del contesto dell''IDE.','Misure di caratteri, non di token (SYS06).')
+    $lines+=@('','Not included: system prompt, MCP tools of other servers and IDE skills; see the IDE context summary.','Measured in characters, not tokens (SYS06).')
     ($lines -join "`n")+"`n"
 }
 function Get-SBGlobalTasks([string]$BrainRoot,[string]$Repository='',[switch]$All,[switch]$ReadyOnly) {
@@ -918,7 +918,7 @@ function Invoke-SBDossierCompaction {
         $archiveRelative='history/compaction/'+$hash.ToLowerInvariant()+'/'+$name
         $archive=Join-Path $dir $archiveRelative;$existing=Get-SBFileHash $archive
         if($existing -eq 'absent'){$ops+=@{path=$archive;expected='absent';bytes=[IO.File]::ReadAllBytes($source)}}elseif($existing -ne $hash){throw (New-SBError 'knowledge.original.diverged')}
-        $text=$text.TrimEnd()+"`n`nOriginale conservato: ["+$name+']('+$archiveRelative+"). Le autorizzazioni storiche non sono autorizzazioni correnti.`n"
+        $text=$text.TrimEnd()+"`n`nOriginal kept: ["+$name+']('+$archiveRelative+"). Historical authorizations are not current authorizations.`n"
         $planned[$name]=$text
         $ops+=@{path=$source;expected=$hash;bytes=[Text.Encoding]::UTF8.GetBytes($text)}
         if($name -eq 'memory.md'){

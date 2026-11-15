@@ -6,7 +6,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { open } from "@tauri-apps/plugin-dialog";
 import { $, busy, call, el, fmtDuration, onBusyClick, input, option, select, setError, since, baseName, type AgentCaps, type AgentStatus, type LightChoice, type Source } from "./common";
 import { initRegistry, showRegistry } from "./registry";
-import { initTracker, showTracker } from "./tracker";
+import { initTracker, showRunEndNextSteps, showTracker } from "./tracker";
 import { analyzeMany, analyzeTask, initAnalysis, openAnalysis, openEnrichment, storedAnalysis, verdictOf, VERDICT_LABEL } from "./analysis";
 
 interface ClientInfo { name: string; confidence: string; provider: string | null; runnable: boolean; reason: string | null }
@@ -738,7 +738,28 @@ async function finishRun(rep: RunReport) {
   persistNote(ended, false);
   updateSteps();
   refreshTasks();
+  showRunEnd();
 }
+// #664 and #663: when a run ends the window shows the Git and GitHub preference and the proposed next steps (preview, then confirm).
+const normPath = (v: string) => v.split("\\").join("/").replace(/\/+$/, "").toLowerCase();
+const samePath = (a: string, b: string) => normPath(a) === normPath(b);
+async function showRunEnd() {
+  if (!state.repo) return;
+  const repo = state.repo;
+  $("run-end-box").hidden = false;
+  $("run-end-git").textContent = "";
+  const r = await call<{ projects: { path: string; gitUpdate: { mode: string; branch: string; confirmed: boolean } | null }[] }>("list_projects", {});
+  const g = r?.projects.find((p) => samePath(p.path, repo))?.gitUpdate;
+  if (g) $("run-end-git").textContent = `Git and GitHub update for this project: ${g.mode}${g.mode === "none" ? "" : " on " + g.branch}${g.confirmed ? "" : " (proposed default, not confirmed: edit it in the Tracker tab)"}. The app and the runner never commit or push.`;
+  await showRunEndNextSteps(repo);
+}
+document.addEventListener("sb-open-task", async (e) => {
+  const { repo, taskId } = (e as CustomEvent<{ repo: string; taskId: string }>).detail;
+  if (!state.repo || !samePath(state.repo, repo)) { input("repo-path").value = repo; if (!(await loadRepository())) return; }
+  state.selected = new Set(state.tasks.some((t) => t.id === taskId) ? [taskId] : []);
+  renderTasks();
+  selectTab("queue");
+});
 function attachRun(rep: RunReport) {
   // Follow a run from the start of its events: one started here, or one found again after the window was reopened.
   stopPolling();
@@ -746,6 +767,7 @@ function attachRun(rep: RunReport) {
   state.run.folder = rep.folder ?? ""; state.run.offset = 0;
   if (rep.status) state.run.pid = rep.status.pid;
   $("run-steps").replaceChildren(); $("run-results").replaceChildren(); $("run-log").textContent = "";
+  $("run-end-box").hidden = true;
   renderStatus(rep);
   pullEvents();
   state.timers.events = window.setInterval(pullEvents, 1000);

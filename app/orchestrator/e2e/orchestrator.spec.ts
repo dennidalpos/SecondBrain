@@ -503,3 +503,80 @@ test("a refused power request asks Run anyway or Cancel: Cancel starts nothing, 
   expect(status.powerRequest.acquired).toBe(false);
   await closeApp(app);
 });
+
+test("run end: the Git preference and the next steps appear, and an action needs a preview and a confirmation (#664)", async () => {
+  const app = await launch({ repo: fixture.checkout, agentSeconds: 3 });
+  const { page } = app;
+  await expect(page.locator("#q-tasks tr")).not.toHaveCount(0, { timeout: 60_000 });
+  await page.locator("#q-tasks tr").first().locator('input[type="checkbox"]').check();
+  await page.locator("#q-start").click();
+  await expect(page.locator("#run-verdict")).toHaveText("Finished", { timeout: 180_000 });
+  // The panel appears by itself when the run ends, with the preference and the proposals.
+  await expect(page.locator("#run-end-box")).toBeVisible({ timeout: 90_000 });
+  await expect(page.locator("#run-end-git")).toContainText("Git and GitHub update", { timeout: 60_000 });
+  await expect(page.locator("#run-next-list li")).not.toHaveCount(0, { timeout: 90_000 });
+  const withTask = page.locator("#run-next-list li").filter({ has: page.locator("button.next-preview") }).first();
+  const before = fs.readFileSync(fixture.tracker, "utf8");
+  // Nothing happens without the explicit steps: the confirm button is hidden until the preview, and the preview itself changes nothing.
+  await expect(withTask.locator("button.primary")).toBeHidden();
+  await withTask.locator("button.next-preview").click();
+  await expect(withTask).toContainText("Nothing is started or written");
+  await expect(page.locator('.steps button[data-tab="run"]')).toHaveAttribute("aria-selected", "true");
+  await withTask.locator("button.primary").click();
+  await expect(page.locator('.steps button[data-tab="queue"]')).toHaveAttribute("aria-selected", "true", { timeout: 30_000 });
+  expect(fs.readFileSync(fixture.tracker, "utf8")).toBe(before);
+  await closeApp(app);
+});
+
+test("tracker: the Git and GitHub preference is saved only after a preview and an explicit confirmation (#663)", async () => {
+  const app = await launch({ repo: fixture.checkout });
+  const { page } = app;
+  const file = path.join(fixture.dossier, "repository.json");
+  const before = fs.readFileSync(file, "utf8");
+  await page.locator('.steps button[data-tab="tracker"]').click();
+  await expect(page.locator("#trk-project option")).toHaveCount(1, { timeout: 60_000 });
+  await expect(page.locator("#trk-git-box")).toBeVisible();
+  await expect(page.locator("#trk-git-apply")).toBeDisabled();
+  await page.locator("#trk-git-mode").selectOption("branch-pr");
+  await page.locator("#trk-git-branch").fill("feature/e2e");
+  await expect(page.locator("#trk-git-apply")).toBeDisabled();
+  await page.locator("#trk-git-preview").click();
+  await expect(page.locator("#trk-git-plan")).toContainText("branch-pr on feature/e2e", { timeout: 60_000 });
+  await expect(page.locator("#trk-git-apply")).toBeEnabled();
+  expect(fs.readFileSync(file, "utf8")).toBe(before);
+  // Changing the values invalidates the preview.
+  await page.locator("#trk-git-branch").fill("feature/other");
+  await expect(page.locator("#trk-git-apply")).toBeDisabled();
+  await page.locator("#trk-git-branch").fill("feature/e2e");
+  await page.locator("#trk-git-preview").click();
+  await expect(page.locator("#trk-git-apply")).toBeEnabled({ timeout: 60_000 });
+  await page.locator("#trk-git-apply").click();
+  await expect(page.locator("#trk-git-plan")).toContainText("Saved", { timeout: 60_000 });
+  const record = JSON.parse(fs.readFileSync(file, "utf8"));
+  expect(record.gitUpdate).toEqual({ mode: "branch-pr", branch: "feature/e2e" });
+  await expect(page.locator("#trk-facts")).not.toContainText("not confirmed", { timeout: 60_000 });
+  expect(readTracker().tasks.length).toBeGreaterThan(0);
+  await closeApp(app);
+});
+
+// #598: one screenshot of every tab on the synthetic fixture, taken only when SB_E2E_SHOTS names an output folder. Everything that can show a
+// local path (inputs, monospace values, definition lists, the recent list) is masked, so the images hold synthetic task data only.
+test("screenshots of every tab with synthetic data (only with SB_E2E_SHOTS)", async () => {
+  const out = process.env.SB_E2E_SHOTS;
+  test.skip(!out, "SB_E2E_SHOTS not set");
+  fs.mkdirSync(out!, { recursive: true });
+  const app = await launch({ repo: fixture.checkout });
+  const { page } = app;
+  await page.setViewportSize({ width: 1180, height: 820 });
+  await expect(page.locator('.steps button[data-tab="queue"]')).toBeEnabled({ timeout: 60_000 });
+  await page.waitForTimeout(3_000);
+  const masks = () => [page.locator("input"), page.locator(".mono"), page.locator("dd"), page.locator("#repo-info"), page.locator("#recent"), page.locator("code"), page.locator("#repo-tracker"), page.locator("#run-folder")];
+  for (const tab of ["repo", "directives", "queue", "run", "registry", "tracker", "settings"]) {
+    await page.locator(`.steps button[data-tab="${tab}"]`).click();
+    if (tab === "registry") await expect(page.locator("#reg-rows tr").first()).toBeVisible({ timeout: 60_000 });
+    if (tab === "tracker") await expect(page.locator("#trk-rows tr").first()).toBeVisible({ timeout: 60_000 });
+    await page.waitForTimeout(500);
+    await page.screenshot({ path: path.join(out!, `${tab}.png`), mask: masks(), maskColor: "#cfd4da" });
+  }
+  await closeApp(app);
+});

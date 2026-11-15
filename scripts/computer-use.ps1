@@ -24,7 +24,7 @@ try{
     if($Table){ConvertTo-SBJson @{capabilities=@(Get-SBComputerUseCapabilities|ForEach-Object {$_})};exit 0}
     if(!$CodexApps){throw (New-SBError 'computeruse.usage')}
     if(!@($AppId|Where-Object {$_}).Count){throw (New-SBError 'computeruse.appid.required')}
-    $brain=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+    $brain=(Get-SBBrainRootPath)
     ConvertTo-SBJson (Set-SBCodexComputerUseApps -BrainRoot $brain -AppIds $AppId -ConfigPath $CodexConfigPath -Apply:$Apply -PreviewSha256 $PreviewSha256)
     exit 0
 }catch{

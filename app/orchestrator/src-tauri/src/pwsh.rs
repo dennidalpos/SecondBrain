@@ -109,8 +109,13 @@ pub fn script_command(pwsh: &str, root: &Path, script: &str, args: &[String]) ->
 
 /// The SecondBrain CLIs print one JSON document on stdout, possibly after other lines: parse from the first bracket.
 pub fn parse_json_output(stdout: &str) -> Result<Value, String> {
-    let start = stdout.find(|c| c == '{' || c == '[').ok_or_else(|| "Nessun JSON nell'output dello script.".to_string())?;
-    serde_json::from_str(stdout[start..].trim()).map_err(|e| format!("Invalid JSON from the script: {e}"))
+    let start = stdout.find(|c| c == '{' || c == '[').ok_or_else(|| "No JSON in the script output.".to_string())?;
+    // The first JSON value only: some scripts print a plain-text summary line after it.
+    match serde_json::Deserializer::from_str(stdout[start..].trim()).into_iter::<Value>().next() {
+        Some(Ok(v)) => Ok(v),
+        Some(Err(e)) => Err(format!("Invalid JSON from the script: {e}")),
+        None => Err("No JSON in the script output.".to_string()),
+    }
 }
 
 /// Runs one script to completion: JSON on success, stderr and stdout as the error otherwise.
@@ -151,6 +156,14 @@ pub fn kill_tree(pid: u32) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn json_before_a_summary_line() {
+        let v = parse_json_output("{\"apply\":false}
+Preview: rerun with -Apply
+").unwrap();
+        assert_eq!(v["apply"], false);
+    }
 
     #[test]
     fn json_after_noise() {

@@ -21,7 +21,7 @@ Add-SBMessages @{
     'mcp.title.submit_dossier_write' = @{ en = 'Submit approved write' }
     'mcp.write.param.requestId' = @{ en = 'Idempotent request ID: 32 lowercase hexadecimal characters' }
     'mcp.write.param.operation' = @{ en = 'Restricted operation to preview' }
-    'mcp.write.param.payload' = @{ en = 'Operation data: task.status (taskId,status,reason?), task.update (taskId plus at least one of status?,reason?,priority?,execution?,stream?,awaiting?,requires?,evidence? (1 to 20 items, "reference|outcome" strings or {reference,outcome} objects; outcome passed, failed, partial or unverified, default unverified; always appended, never cleared or replaced; an empty array is rejected); an empty string clears stream and awaiting, an empty array clears requires), task.new (title,acceptance,provenance,description?,priority?,pointer?,requires?), memory.append (content), activity.append (taskId,sessionId,when,outcome,detail), history.save (path,content)' }
+    'mcp.write.param.payload' = @{ en = 'Operation data: task.status (taskId,status,reason?), task.update (taskId + one of status,reason,priority,execution,stream,awaiting,requires,evidence (1-20 "reference|outcome", passed|failed|partial|unverified; appended)), task.evidence.correct (taskId,reason,evidence[]), task.new (title,acceptance,provenance,description?,priority?,pointer?,requires?), memory.append (content), activity.append (taskId,sessionId,when,outcome,detail), history.save (path,content)' }
     'mcp.write.param.planHash' = @{ en = 'SHA-256 of the exact plan approved through the CLI' }
     'mcp.write.preview.description' = @{ en = 'Previews a dossier write plan without writing; approve it with mcp-write.ps1 before submit_dossier_write.' }
     'mcp.write.submit.description' = @{ en = 'Queues one idempotent request approved by the local CLI receipt; MCP arguments cannot grant approval.' }
@@ -297,7 +297,7 @@ function Get-SBMcpToolDefinitions {
     )
     $scopeProperties=@{repository=@{type='string';description=(Get-SBMessage 'mcp.description.get_task.repository')};checkoutPath=@{type='string';description=(Get-SBMessage 'mcp.description.get_startup_context.checkoutPath')};requestId=@{type='string';pattern='^[a-f0-9]{32}$';description=(Get-SBMessage 'mcp.write.param.requestId')}}
     $previewProperties=@{}+$scopeProperties
-    $previewProperties.operation=@{type='string';description=(Get-SBMessage 'mcp.write.param.operation');enum=@('task.status','task.update','task.new','memory.append','activity.append','history.save')}
+    $previewProperties.operation=@{type='string';description=(Get-SBMessage 'mcp.write.param.operation');enum=@('task.status','task.update','task.evidence.correct','task.new','memory.append','activity.append','history.save')}
     $previewProperties.payload=@{type='object';description=(Get-SBMessage 'mcp.write.param.payload')}
     $submitProperties=@{}+$scopeProperties
     $submitProperties.planHash=@{type='string';pattern='^[A-F0-9]{64}$';description=(Get-SBMessage 'mcp.write.param.planHash')}
@@ -800,7 +800,7 @@ function Start-SBMcpServer {
         [ValidateSet('full','reader','executor')][string]$ToolProfile='full'
     )
     if (!$BrainRoot) {
-        $BrainRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+        $BrainRoot = (Get-SBBrainRootPath)
     }
     $script:SBMcpToolProfile=$ToolProfile
     $script:SBMcpConfigPath=$ConfigPath

@@ -20,7 +20,7 @@ $config=$null;$lock=$null
 try{$config=Read-SBConfiguration $ConfigPath}catch{if(!$Check){throw}}
 if($config){$lock=Enter-SBOperation $config $SessionId -ReadOnly:$Check}
 try {
-    $brain=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+    $brain=(Get-SBBrainRootPath)
     $publicCatalog=Read-SBWorkflowCatalog $brain -ValidateBodies -ValidateReferences
     # #589: private dossier cards and workflows (keys, collisions, references) and no private ID or key in public files.
     $private=Test-SBPrivateAssets -BrainRoot $brain -PublicCatalog $publicCatalog

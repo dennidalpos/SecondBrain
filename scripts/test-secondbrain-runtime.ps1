@@ -246,7 +246,7 @@ Assert-Runtime ((& $codeOf 'masked-http-x') -ceq 'unknown-area') 'area sconosciu
 Assert-Runtime ((& $codeOf 'work-20261101-flat') -ceq 'legacy-layout') 'cartella piatta segnalata come layout legacy'
 Assert-Runtime ($own.outOfSchemaCount -eq 10 -and $own.byReason.Count -eq 10) 'rapporto con un motivo per ogni cartella fuori schema'
 $ownIndex=Get-SBRuntimeIndex $ownBrain @() 90
-Assert-Runtime ($ownIndex.markdown -match '## Cartelle fuori schema' -and $ownIndex.markdown -match 'repository-mismatch' -and $ownIndex.markdown -match 'foreign-content' -and $ownIndex.ownership.outOfSchemaCount -eq 10) 'indice di .runtime con la sezione delle cartelle fuori schema'
+Assert-Runtime ($ownIndex.markdown -match '## Folders outside the schema' -and $ownIndex.markdown -match 'repository-mismatch' -and $ownIndex.markdown -match 'foreign-content' -and $ownIndex.ownership.outOfSchemaCount -eq 10) 'indice di .runtime con la sezione delle cartelle fuori schema'
 $ownAfter=@(Get-ChildItem -LiteralPath $ownRuntime -Recurse -Force -File|ForEach-Object {$_.FullName+'|'+(Get-SBFileHash $_.FullName)})
 Assert-Runtime ($ownBefore.Count -eq 26 -and ($ownBefore -join ';') -ceq ($ownAfter -join ';')) 'controllo in sola lettura: nessun file creato o rimosso'
 # Test-runner fixture lifecycle: managed manifest opens with the run, closes on every outcome and is selected only after expiry.

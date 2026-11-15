@@ -60,6 +60,20 @@ Example:
 
 `Export` previews unless `-Apply`, writes only under `.runtime` and never into a checkout: copy the package where the client expects it. `claude-code` produces `.claude/agents/<name>.md` with only the allowed `mcp__secondbrain__*` tools; the file is the same for schema 1 and 2. Other clients get the normalized JSON (with the schema 2 fields for a schema 2 definition) until their native format is verified with the adapters of the [memory cycle](memory-cycle.md). Without `-ParentTools` the parent is read-only with all read tools.
 
+## Management (#622)
+
+Schema 2 definitions are authored and retired with the same script. Every operation previews unless `-Apply`, validates the result like `Validate` (including the cards against the catalog), writes with a verified backup and never changes a definition of another repository.
+
+    pwsh -NoProfile -File scripts/subagents.ps1 -Operation Create -Repository <identity> -DefinitionPath new-agent.json [-Apply]
+    pwsh -NoProfile -File scripts/subagents.ps1 -Operation Edit -Repository <identity> -Name reviewer -DefinitionPath wording.json [-Apply]
+    pwsh -NoProfile -File scripts/subagents.ps1 -Operation Revise -Repository <identity> -Name reviewer -DefinitionPath reviewer.json [-Apply]
+    pwsh -NoProfile -File scripts/subagents.ps1 -Operation Retire -Repository <identity> -Name reviewer -Status deprecated -ReplacedBy agt-1a2b3c4d [-Apply]
+
+- **Create** assigns `agt-` plus 8 hex digits when `id` is missing (never an ID already in use, retired ones included), forces revision 1 and defaults the status to `draft` (`active` is allowed; the other states are reached by `Retire`).
+- **Edit** changes only `description` and `context`; the revision stays. A change to `role`, `permissions`, `cards`, `output` or `bounds` is refused: use Revise.
+- **Revise** takes the full definition of the same `id` and `name`, bumps the revision by one (a kept or missing number is replaced by the next one) and refuses a breaking change: a widened permission (write, an added tool) or a changed output contract needs a new definition and `Retire` of the old one with `replacedBy`.
+- **Retire** moves the status forward only (active to deprecated to retired, `-Status`), optionally records `-ReplacedBy` (an existing active or draft definition). The file and its ID stay on disk.
+
 ## Register
 
 Subagent jobs are ordinary records with two extra fields, `parent` (the parent's `session`) and `agent` (the definition name). They go together, require `source=mcp`, and the parent session must already be in the register for the same repository, otherwise the append is rejected. Build them with `New-SBSubagentActivityRecord`; appending still needs `activityLogEnabled` (activation: #348).

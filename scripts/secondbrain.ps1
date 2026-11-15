@@ -105,7 +105,7 @@ Add-SBMessages @{
 
 if ($All) { [Console]::Error.WriteLine((Get-SBMessage 'cli.setup.all.removed')); exit 2 }
 try {
-    $brain = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+    $brain = (Get-SBBrainRootPath)
     if ($Setup) {
         if ($Status -or $PSBoundParameters.ContainsKey('Unbind')) {
             if ($Status -and $PSBoundParameters.ContainsKey('Unbind')) { throw (New-SBError 'cli.alternatives') }

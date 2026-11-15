@@ -269,7 +269,7 @@ function Restore-SBParaTransaction([string]$ManifestPath,[string]$BrainRoot,[str
             Assert-SBWriteGuard;[IO.File]::Delete($marker)
             foreach($created in $createdPaths){Remove-SBParaEmptyAncestors $created $BrainRoot}
         }
-        'Nessun ripristino necessario'
+        'No recovery needed'
     }
 }
 

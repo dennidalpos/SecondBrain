@@ -13,7 +13,7 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.MemoryCycle.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Access.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
-$brain=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+$brain=(Get-SBBrainRootPath)
 if($Operation -eq 'Adapter'){ConvertTo-SBJson (Get-SBCycleAdapter $Client $brain $Repository $ObservationPath);exit 0}
 $inputObject=$null
 if($Operation -in @('Capture','Promote','Permit')){

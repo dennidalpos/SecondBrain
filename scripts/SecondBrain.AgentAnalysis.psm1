@@ -105,7 +105,7 @@ function Invoke-SBAgentOneShot {
     param([Parameter(Mandatory)][string]$Provider,[string]$Model,[string]$Effort,[Parameter(Mandatory)][string]$Prompt,[Parameter(Mandatory)][string]$SchemaPath,
         [Parameter(Mandatory)][string]$CheckoutPath,[string]$OutputFolder,[string]$BrainRoot,[string]$HostId,[int]$TimeoutSeconds=600,[string]$AgentPath,
         [switch]$AllowCustomModel,$Capabilities,[int]$MaxAttempts=2)
-    if(!$BrainRoot){$BrainRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))}
+    if(!$BrainRoot){$BrainRoot=(Get-SBBrainRootPath)}
     if(!$HostId){$HostId=Get-SBHostId}
     $info=Get-SBAgentProvider $Provider
     $caps=if($Capabilities){$Capabilities}else{Get-SBAgentCapabilities -Provider $Provider -BrainRoot $BrainRoot -AgentPath $AgentPath}

@@ -10,6 +10,7 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.MemoryCycle.psm1')
 Add-SBMessages @{
     'subagent.invalid' = @{ en = 'Invalid subagent definition ({0})' }
     'subagent.permission' = @{ en = 'The subagent requests permissions beyond its parent ({0})' }
+    'subagent.manage' = @{ en = 'Subagent definition change refused: {0}' }
     'subagent.fallback' = @{ en = 'Client without a verified native format: export the normalized definition; installation grants no permission.' }
 }
 $script:SBSubagentReadTools=@('get_startup_context','get_ready_tasks','get_task','search_knowledge','list_prompts','get_prompt_home','get_prompt')
@@ -239,4 +240,104 @@ function New-SBSubagentActivityRecord([string]$Repository,[string]$User,[string]
     $key=$Repository+"`n"+$ParentSession+"`n"+$Agent+"`n"+$Session+"`n"+$When+"`n"+$Outcome
     @{schemaVersion=1;eventId=(Get-SBTextHash $key).Substring(0,32).ToLowerInvariant();user=$User;repository=$Repository;taskId=$TaskId;session=$Session;when=$When;where=$Where;computer=$Computer;outcome=$Outcome;detail=$Detail;parent=$ParentSession;agent=$Agent}
 }
-Export-ModuleMember -Function @('Get-SBSubagentTools','Get-SBSubagentDirectory','Test-SBSubagentDefinition','Resolve-SBSubagentCards','Read-SBSubagentCatalog','Get-SBSubagentSummary','Get-SBSubagentValidateReport','Get-SBSubagentResolveReport','Read-SBSubagentDefinitions','Resolve-SBSubagentPermissions','ConvertTo-SBSubagentExport','Export-SBSubagents','New-SBSubagentActivityRecord')
+# Management operations (#622): Create, Edit, Revise and Retire schema 2 definitions with the validation of Test-SBSubagentDefinition.
+# They only build a plan (before, after, bytes, expected hash); Save-SBSubagentManagePlan writes it with a verified backup. A definition never grants authorization.
+$script:SBSubagentManageEditable=@('description','context')
+function ConvertTo-SBSubagentPlain($Value) { (ConvertTo-SBJson $Value)|ConvertFrom-Json -AsHashtable }
+function New-SBSubagentId([object[]]$Entries) {
+    $taken=@($Entries|Where-Object {$_.definition.Contains('id')}|ForEach-Object {$_.definition.id})
+    do{$id='agt-'+((New-SBId) -replace '[^0-9a-f]','').PadRight(8,'0').Substring(0,8)}while($id -in $taken)
+    $id
+}
+function Test-SBSubagentWidened($Old,$New) {
+    # Compatible changes only narrow or keep permissions and keep the output contract; anything else needs a new ID (asset contracts 1.2).
+    if($New.permissions.write -and !$Old.permissions.write){return 'write permission widened'}
+    foreach($tool in @($New.permissions.tools)){if($tool -cnotin @($Old.permissions.tools)){return ('tool added: '+$tool)}}
+    if((ConvertTo-SBJson $New.output) -cne (ConvertTo-SBJson $Old.output)){return 'output contract changed'}
+    $null
+}
+function Get-SBSubagentManagePlan {
+    param([Parameter(Mandatory)][string]$Dossier,$Catalog,[Parameter(Mandatory)][ValidateSet('Create','Edit','Revise','Retire')][string]$Action,
+        $Definition,[string]$Name,[string]$Status,[string]$ReplacedBy)
+    $refuse={param($why) throw (New-SBError 'subagent.manage' @($why))}
+    $entries=@(Read-SBSubagentDefinitions $Dossier $Catalog)
+    $directory=Get-SBSubagentDirectory $Dossier
+    $current=$null
+    if($Action -ne 'Create'){
+        if(!$Name){& $refuse 'name required'}
+        $current=@($entries|Where-Object {$_.definition.name -ceq $Name})
+        if($current.Count -ne 1){& $refuse ('unknown definition '+$Name)}
+        $current=$current[0]
+        if([int]$current.definition.schemaVersion -ne 2){& $refuse 'schema 1 definitions are migrated by creating a schema 2 definition'}
+    }
+    $after=$null
+    switch($Action){
+        'Create' {
+            if($Definition -isnot [Collections.IDictionary]){& $refuse 'definition required'}
+            $after=ConvertTo-SBSubagentPlain $Definition
+            $after.schemaVersion=2
+            if(!$after.Contains('revision')){$after.revision=1}elseif($after.revision -ne 1){& $refuse 'a new definition starts at revision 1'}
+            if(!$after.Contains('status')){$after.status='draft'}elseif($after.status -cnotin @('draft','active')){& $refuse 'a new definition is draft or active'}
+            if($after.Contains('id') -and ($after.id -in @($entries|Where-Object {$_.definition.Contains('id')}|ForEach-Object {$_.definition.id}))){& $refuse 'id already used'}
+            if(!$after.Contains('id')){$after.id=New-SBSubagentId $entries}
+            if(@($entries|Where-Object {$_.definition.name -ceq $after.name}).Count){& $refuse ('definition exists: '+$after.name)}
+        }
+        'Edit' {
+            if($Definition -isnot [Collections.IDictionary]){& $refuse 'definition required'}
+            $after=ConvertTo-SBSubagentPlain $current.definition
+            $incoming=ConvertTo-SBSubagentPlain $Definition
+            foreach($key in $incoming.Keys){
+                if($key -cnotin $script:SBSubagentManageEditable){
+                    if((ConvertTo-SBJson $incoming[$key]) -cne (ConvertTo-SBJson $after[$key])){& $refuse ('Edit changes only '+($script:SBSubagentManageEditable -join ' and ')+' (wording); '+$key+' is a contract field: use Revise')}
+                    continue
+                }
+                $after[$key]=$incoming[$key]
+            }
+            if((ConvertTo-SBJson $after) -ceq (ConvertTo-SBJson $current.definition)){& $refuse 'nothing changed'}
+        }
+        'Revise' {
+            if($Definition -isnot [Collections.IDictionary]){& $refuse 'definition required'}
+            $after=ConvertTo-SBSubagentPlain $Definition
+            $old=$current.definition
+            foreach($key in 'id','name','status'){
+                if(!$after.Contains($key)){$after[$key]=$old[$key]}elseif($after[$key] -cne $old[$key]){& $refuse ($key+' cannot change in a revision')}
+            }
+            if($after.Contains('replacedBy') -and !$old.Contains('replacedBy')){& $refuse 'use Retire to set replacedBy'}
+            $after.schemaVersion=2
+            if(!$after.Contains('revision') -or $after.revision -eq $old.revision){$after.revision=[int]$old.revision+1}elseif($after.revision -ne ([int]$old.revision+1)){& $refuse ('the next revision is '+([int]$old.revision+1))}
+            $widened=Test-SBSubagentWidened $old $after
+            if($widened){& $refuse ('breaking change ('+$widened+'): create a new definition and retire this one with replacedBy')}
+            if((ConvertTo-SBJson $after) -ceq (ConvertTo-SBJson $old)){& $refuse 'nothing changed'}
+        }
+        'Retire' {
+            $order=@('draft','active','deprecated','retired')
+            if($Status -cnotin @('deprecated','retired')){& $refuse 'Status must be deprecated or retired'}
+            $old=$current.definition
+            if($order.IndexOf($Status) -le $order.IndexOf([string]$old.status)){& $refuse ('transitions only go forward: '+$old.status+' -> '+$Status+' is not allowed')}
+            $after=ConvertTo-SBSubagentPlain $old
+            $after.status=$Status
+            if($ReplacedBy){
+                if($ReplacedBy -cnotmatch '^agt-[0-9a-f]{8}$' -or $ReplacedBy -ceq $old.id){& $refuse 'replacedBy'}
+                if(!@($entries|Where-Object {$_.definition.Contains('id') -and $_.definition.id -ceq $ReplacedBy -and $_.definition.status -cin @('active','draft')}).Count){& $refuse 'replacedBy must name an existing active or draft definition'}
+                $after.replacedBy=$ReplacedBy
+            }
+        }
+    }
+    [void](Test-SBSubagentDefinition $after)
+    [void](Resolve-SBSubagentCards $after $Catalog)
+    $path=Join-Path $directory ($after.name+'.json')
+    $before=if($current){$current.definition}else{$null}
+    $bytes=[Text.UTF8Encoding]::new($false).GetBytes((ConvertTo-SBJson $after))
+    @{action=$Action;name=$after.name;id=$after.id;revision=$after.revision;status=$after.status;path=$path;before=$before;after=$after;bytes=$bytes;expected=(Get-SBFileHash $path)}
+}
+function Save-SBSubagentManagePlan($Plan,[string]$BackupRoot) {
+    Assert-SBPlainPath $Plan.path
+    [void][IO.Directory]::CreateDirectory((Split-Path $Plan.path))
+    [void](Write-SBFile $Plan.path $Plan.bytes $Plan.expected $BackupRoot)
+    @{state='applied';action=$Plan.action;name=$Plan.name;id=$Plan.id;revision=$Plan.revision;status=$Plan.status}
+}
+function Get-SBSubagentManageView($Plan,[bool]$Applied) {
+    @{state=$(if($Applied){'applied'}else{'preview'});action=$Plan.action;name=$Plan.name;id=$Plan.id;revision=$Plan.revision;status=$Plan.status;previousRevision=$(if($Plan.before){$Plan.before.revision}else{$null});previousStatus=$(if($Plan.before){$Plan.before.status}else{$null})}
+}
+
+Export-ModuleMember -Function @('ConvertTo-SBSubagentPlain','Get-SBSubagentManagePlan','Save-SBSubagentManagePlan','Get-SBSubagentManageView','Get-SBSubagentTools','Get-SBSubagentDirectory','Test-SBSubagentDefinition','Resolve-SBSubagentCards','Read-SBSubagentCatalog','Get-SBSubagentSummary','Get-SBSubagentValidateReport','Get-SBSubagentResolveReport','Read-SBSubagentDefinitions','Resolve-SBSubagentPermissions','ConvertTo-SBSubagentExport','Export-SBSubagents','New-SBSubagentActivityRecord')

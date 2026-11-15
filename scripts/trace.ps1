@@ -64,6 +64,6 @@ $config=Read-SBConfiguration $ConfigPath -ReadOnly:(!$writing)
 $lock=Enter-SBOperation $config $SessionId -ReadOnly:(!$writing)
 try{
     $result=Set-SBTraceHook $brain $config.backupRoot -Remove:$UninstallHook -Apply:$Apply -SettingsPath $SettingsPath
-    if(!$Apply){$result.message='Anteprima: nessuna modifica. Con -Apply (e una sessione Write) il file viene salvato con backup.'}
+    if(!$Apply){$result.message='Preview: nothing changed. With -Apply (and a Write session) the file is saved with a backup.'}
     ConvertTo-SBJson $result
 }finally{Exit-SBOperation $lock}

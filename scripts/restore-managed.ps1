@@ -30,7 +30,7 @@ Add-SBMessages @{
 trap { if (Test-SBWriteDeniedError $_) { Write-SBWriteDeniedDiagnostic $_ $PSCommandPath $PSBoundParameters; exit 4 }; if (Test-SBBusyError $_) { [Console]::Error.WriteLine($_.Exception.Message); exit 3 }; break }
 if($List){
     $config=Read-SBConfiguration $ConfigPath -ReadOnly
-    $brain=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+    $brain=(Get-SBBrainRootPath)
     $roots=@($config.backupRoot,$config.localStateBackupRoot,(Join-Path $brain '.runtime/backups/mcp-pairing'))|Where-Object {$_ -and (Test-Path -LiteralPath $_ -PathType Container)}|Select-Object -Unique
     $installRoot=Join-Path $config.localStateRoot 'install-backups'
     $wanted=if($Path){[IO.Path]::GetFullPath($Path)}else{$null}

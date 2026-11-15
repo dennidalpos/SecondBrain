@@ -49,7 +49,7 @@ Add-SBMessages @{
     'decisionscli.repository' = @{ en = 'Working repository not resolvable: run from the checkout or give -CheckoutPath' }
     'decisionscli.options' = @{ en = '-OptionsJson must be a JSON array of 2 to 4 {id,label,description,recommended?} objects' }
 }
-$brain=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'));$lock=$null
+$brain=(Get-SBBrainRootPath);$lock=$null
 $write=$PSCmdlet.ParameterSetName -ne 'List'
 try{
     # Writes are queued (like knowledge.ps1 buffered writes), so the session itself only reads.

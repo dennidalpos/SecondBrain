@@ -17,7 +17,7 @@ try {
     Assert-SBPlainPath $PlanPath
     if((Get-Item -LiteralPath $PlanPath).Length -gt 256KB){throw (New-SBError 'mcpwritecli.size')}
     $plan=Read-SBJson $PlanPath $null
-    $brain=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+    $brain=(Get-SBBrainRootPath)
     $config=Read-SBConfiguration $ConfigPath
     $lock=Enter-SBOperation $config $SessionId
     $result=Approve-SBMcpWritePlan $brain $ConfigPath $plan $ExpectedPlanHash $Authorization $SessionId

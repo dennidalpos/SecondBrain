@@ -48,7 +48,7 @@ Add-SBMessages @{
     'promptscli.bootstrap' = @{ en = 'Bootstrap: use the current SecondBrain checkout, with no preset paths.' }
     'promptscli.output.created' = @{ en = 'Created: {0}' }
 }
-$brain=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+$brain=(Get-SBBrainRootPath)
 $lock=$null
 try {
     # #474: prompt reads never integrate pending writes (knowledge.ps1 -FlushPending does).

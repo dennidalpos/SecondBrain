@@ -52,7 +52,7 @@ Add-SBMessages @{
     'agents.analysis.awaiting' = @{ en = 'The task awaits {0}: the analysis cannot clear the wait without an explicit answer of the owner' }
     'agents.analysis.authorization' = @{ en = '-Kind task-apply needs -Authorization (reference to the owner confirmation)' }
 }
-$brain=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+$brain=(Get-SBBrainRootPath)
 $configArgs=if($ConfigPath){@('-ConfigPath',$ConfigPath)}else{@()}
 $utf8=[Text.UTF8Encoding]::new($false)
 $maxRounds=3

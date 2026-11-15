@@ -194,6 +194,17 @@ Assert-Agent ((Get-SBAgentQuota -Provider claude).state -ceq 'unknown') 'Claude 
 Assert-Agent ((Get-SBAgentQuota -Provider claude -Observation @{state='exhausted';resetAt=$now.AddHours(1).ToString('o');observedAt=$now.ToString('o')}).state -ceq 'exhausted') 'an observed exhaustion with a future reset is exhausted'
 Assert-Agent ((Get-SBAgentQuota -Provider claude -Observation @{state='exhausted';resetAt=$now.AddHours(-1).ToString('o');observedAt=$now.AddHours(-3).ToString('o')}).state -ceq 'unknown') 'an exhaustion past its reset is unknown'
 Assert-Agent ((Get-SBAgentQuota -Provider claude -Observation @{state='exhausted';resetAt=$null;observedAt=$now.ToString('o')}).state -ceq 'unknown') 'an exhaustion without a reset time does not block'
+# #668: queue decision before each task, from synthetic readings.
+$d=Get-SBQueueQuotaDecision -Quota $cq -Now $now
+Assert-Agent ($d.action -ceq 'wait' -and $d.level -ceq 'exhausted' -and $d.resetAt) 'queue waits for an exhausted quota until its reset'
+$d=Get-SBQueueQuotaDecision -Quota @{state='available';windows=@(@{usedPercent=97.0;resetAt=$now.AddHours(2).ToString('o')},@{usedPercent=10.0;resetAt=$now.AddDays(3).ToString('o')})} -Now $now
+Assert-Agent ($d.action -ceq 'wait' -and $d.level -ceq 'low' -and $d.resetAt -ceq $now.AddHours(2).ToString('o')) 'queue waits for a low window until its reset'
+$d=Get-SBQueueQuotaDecision -Quota @{state='available';windows=@(@{usedPercent=97.0;resetAt=$now.AddHours(-1).ToString('o')})} -Now $now
+Assert-Agent ($d.action -ceq 'go' -and $d.level -ceq 'ok') 'a window past its reset is not low'
+$d=Get-SBQueueQuotaDecision -Quota (Get-SBAgentQuota -Provider gemini) -Now $now
+Assert-Agent ($d.action -ceq 'go' -and $d.level -ceq 'unknown' -and $d.reason -ceq 'unsupported') 'a provider without a quota source is unknown and proceeds'
+$d=Get-SBQueueQuotaDecision -Quota @{state='available';windows=@()} -Now $now
+Assert-Agent ($d.action -ceq 'go' -and $d.level -ceq 'ok') 'available quota proceeds'
 # #602: provider, state, source, observedAt and reason on every reading; unknown always says why and is never available.
 function Test-QuotaReading($Q,[string]$State,[string]$Source,$Reason,[string]$Label){
     $fields=@('provider','state','source','observedAt','reason')|Where-Object {!$Q.Contains($_)}

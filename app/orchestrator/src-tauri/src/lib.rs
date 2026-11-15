@@ -476,6 +476,40 @@ async fn list_projects(app: AppHandle) -> Result<Value, String> {
     script(app, "projects.ps1", vec!["-List".into()]).await
 }
 
+/// Git and GitHub update preference (#663): `-SetGitUpdate` of para.ps1. Without `apply` it only previews; with it the owner has confirmed in the window
+/// (`-Apply -Confirmed`). The runner and delegates still never commit or push.
+fn git_update_args(identity: &str, mode: &str, branch: Option<&str>, apply: bool) -> Result<Vec<String>, String> {
+    if identity.is_empty() || identity.len() > 200 || !identity.chars().all(|c| c.is_ascii_alphanumeric() || "._:/-".contains(c)) {
+        return Err("Invalid project identity.".into());
+    }
+    if !["commit-push-main", "branch-pr", "none"].contains(&mode) {
+        return Err(format!("Invalid mode: {mode}"));
+    }
+    let mut args: Vec<String> = vec!["-SetGitUpdate".into(), "-GitMode".into(), mode.into(), "-Only".into(), identity.into()];
+    let branch = branch.map(str::trim).filter(|b| !b.is_empty());
+    if mode == "none" {
+        if branch.is_some() {
+            return Err("No branch is allowed with mode none.".into());
+        }
+    } else if let Some(b) = branch {
+        if b.len() > 100 || b.contains("..") || b.starts_with('-') || !b.chars().all(|c| c.is_ascii_alphanumeric() || "._/-".contains(c)) {
+            return Err(format!("Invalid branch: {b}"));
+        }
+        args.push("-GitBranch".into());
+        args.push(b.into());
+    }
+    if apply {
+        args.push("-Apply".into());
+        args.push("-Confirmed".into());
+    }
+    Ok(args)
+}
+
+#[tauri::command]
+async fn set_git_update(app: AppHandle, identity: String, mode: String, branch: Option<String>, apply: bool) -> Result<Value, String> {
+    script(app, "para.ps1", git_update_args(&identity, &mode, branch.as_deref(), apply)?).await
+}
+
 #[tauri::command]
 async fn next_steps(app: AppHandle, repo: String) -> Result<Value, String> {
     // Read-only: reasoned next steps for the project (next-steps.ps1); an action is only named here, the owner chooses it.
@@ -722,6 +756,7 @@ pub fn run() {
             read_registry,
             list_projects,
             next_steps,
+            set_git_update,
             list_runs,
             add_run_note
         ])
@@ -731,7 +766,7 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-    use super::{analysis_args, browser_args, enrichment_decision_args, queue_args, registry_args, repo_argument, valid_token, QueueRequest, RegistryQuery};
+    use super::{analysis_args, browser_args, enrichment_decision_args, git_update_args, queue_args, registry_args, repo_argument, valid_token, QueueRequest, RegistryQuery};
 
     fn queue(task_ids: &[&str], resume: Option<&str>) -> QueueRequest {
         QueueRequest {
@@ -828,6 +863,20 @@ mod tests {
         assert!(reject.contains(&"-RejectEnrichment".to_string()) && !reject.contains(&"-EnrichmentAuthorization".to_string()));
         assert!(enrichment_decision_args(&dir, "T-1", true, "  ").is_err());
         assert!(enrichment_decision_args(&dir, "T 1;x", false, "").is_err());
+    }
+
+    #[test]
+    fn git_update_arguments() {
+        let preview = git_update_args("github.com/test/a", "branch-pr", Some("feature/x"), false).unwrap();
+        assert!(preview.contains(&"-SetGitUpdate".to_string()) && !preview.contains(&"-Apply".to_string()) && !preview.contains(&"-Confirmed".to_string()));
+        assert!(preview.windows(2).any(|w| w == ["-GitBranch", "feature/x"]));
+        let apply = git_update_args("github.com/test/a", "commit-push-main", None, true).unwrap();
+        assert!(apply.contains(&"-Apply".to_string()) && apply.contains(&"-Confirmed".to_string()) && !apply.contains(&"-GitBranch".to_string()));
+        assert!(git_update_args("github.com/test/a", "none", Some("main"), false).is_err());
+        assert!(git_update_args("github.com/test/a", "force-push", None, false).is_err());
+        assert!(git_update_args("github.com/test/a", "branch-pr", Some("a..b"), false).is_err());
+        assert!(git_update_args("github.com/test/a", "branch-pr", Some("--x"), false).is_err());
+        assert!(git_update_args("bad id;x", "none", None, false).is_err());
     }
 
     #[test]

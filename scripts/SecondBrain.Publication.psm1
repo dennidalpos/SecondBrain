@@ -496,7 +496,7 @@ function Install-SBPublicationHook {
             preview = $true
             repositoryPath = $root
             hookPath = $hookFile
-            message = "Anteprima: specificare -Apply per installare l'hook pre-push in $hookFile"
+            message = "Preview: specify -Apply to install the pre-push hook in $hookFile"
         }
     }
     
@@ -547,7 +547,7 @@ function Uninstall-SBPublicationHook {
             applied = $false
             preview = $true
             hookPath = $hookFile
-            message = "Anteprima: specificare -Apply per rimuovere l'hook pre-push $hookFile"
+            message = "Preview: specify -Apply to remove the pre-push hook $hookFile"
         }
     }
     

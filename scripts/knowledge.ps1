@@ -22,7 +22,7 @@ param([Parameter(ParameterSetName='Tasks')][switch]$Tasks,[Parameter(ParameterSe
     [Parameter(Mandatory,ParameterSetName='TaskNew')][string]$NewTask,[Parameter(ParameterSetName='TaskNew')][string]$TaskId,[Parameter(ParameterSetName='TaskNew')][Parameter(ParameterSetName='TaskUpdate')][AllowEmptyString()][string]$Description,
     [Parameter(ParameterSetName='TaskNew')][Parameter(ParameterSetName='TaskUpdate')][string]$Priority='P2',[Parameter(ParameterSetName='TaskNew')][Parameter(ParameterSetName='TaskUpdate')][ValidateSet('autonomous','user_required','unspecified')][string]$Execution='autonomous',
     [Parameter(ParameterSetName='TaskNew')][Parameter(ParameterSetName='TaskUpdate')][AllowEmptyCollection()][AllowEmptyString()][string[]]$DependsOn=@(),[Parameter(Mandatory,ParameterSetName='TaskNew')][Parameter(ParameterSetName='TaskUpdate')][string[]]$Acceptance,
-    [Parameter(ParameterSetName='TaskUpdate')][string]$DecisionsFile,[Parameter(ParameterSetName='TaskUpdate')][string]$EnrichmentFile,[Parameter(ParameterSetName='TaskUpdate')][switch]$ApplyEnrichment,[Parameter(ParameterSetName='TaskUpdate')][switch]$RejectEnrichment,[Parameter(ParameterSetName='TaskUpdate')][string]$EnrichmentAuthorization,[Parameter(ParameterSetName='TaskUpdate')][string[]]$Evidence,
+    [Parameter(ParameterSetName='TaskUpdate')][string]$DecisionsFile,[Parameter(ParameterSetName='TaskUpdate')][string]$EnrichmentFile,[Parameter(ParameterSetName='TaskUpdate')][switch]$ApplyEnrichment,[Parameter(ParameterSetName='TaskUpdate')][switch]$RejectEnrichment,[Parameter(ParameterSetName='TaskUpdate')][string]$EnrichmentAuthorization,[Parameter(ParameterSetName='TaskUpdate')][string[]]$Evidence,[Parameter(ParameterSetName='TaskUpdate')][switch]$CorrectEvidence,[Parameter(ParameterSetName='TaskUpdate')][string]$CorrectionReason,[Parameter(ParameterSetName='TaskUpdate')][string]$CorrectionAuthorization,
     [Parameter(Mandatory,ParameterSetName='Registry')][switch]$Registry,[Parameter(ParameterSetName='Registry')][string]$Tool,[Parameter(ParameterSetName='Registry')][string]$TaskStatus,
     [Parameter(ParameterSetName='Registry')][ValidateSet('include','exclude','only')][string]$Archived='include',[Parameter(ParameterSetName='Registry')][string]$Filter,
     [Parameter(ParameterSetName='Registry')][ValidateRange(0,[int]::MaxValue)][int]$Page=0,[Parameter(ParameterSetName='Registry')][ValidateRange(0,500)][int]$PageSize=50,
@@ -65,10 +65,11 @@ Add-SBMessages @{
     'knowledgecli.pending.size' = @{ en = 'Content exceeds the 2 MiB limit' }
     'knowledgecli.repository.all' = @{ en = 'Working repository not resolvable: run from the checkout, give -Repository or -CheckoutPath (-All for the read-only global task view)' }
     'knowledgecli.lifecycle.working' = @{ en = 'The lifecycle can be changed only for the working repository' }
+    'knowledgecli.evidence.reason' = @{ en = '-CorrectEvidence needs -CorrectionReason; the replacement list is given with -Evidence (omit it to remove every entry) and cannot be combined with other fields' }
     'knowledgecli.repository.checkout' = @{ en = 'Working repository not resolvable: run from the checkout or give -CheckoutPath' }
     'knowledgecli.params.incompatible' = @{ en = 'Incompatible parameters: -All and -Repository' }
 }
-$brain=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'));$lock=$null
+$brain=(Get-SBBrainRootPath);$lock=$null
 try{
     $bufferedWrite=($UpdateTaskId -or $NewTask -or $SaveFile -or $AppendFile)
     $readOnly=($bufferedWrite -or $UpdateTasksFile -or (!$Apply -and !$SetLifecycle -and !$DiscardPending))
@@ -190,7 +191,7 @@ try{
         }
         # With pwsh -File, lists arrive as one string: ';' separates acceptance criteria; evidence is reference|outcome, appended only; ';' separates entries, so a reference cannot contain ';' (commas are kept as they are).
         if($PSBoundParameters.ContainsKey('Acceptance')){$arguments.Acceptance=@($Acceptance|ForEach-Object{$_ -split ';'}|ForEach-Object{$_.Trim()}|Where-Object{$_})}
-        if($PSBoundParameters.ContainsKey('Evidence')){$arguments.Evidence=@(ConvertTo-SBTaskEvidenceList $Evidence)}
+        if($PSBoundParameters.ContainsKey('Evidence') -and !$CorrectEvidence){$arguments.Evidence=@(ConvertTo-SBTaskEvidenceList $Evidence)}
         if($DecisionsFile){Assert-SBPlainPath $DecisionsFile;$arguments.Decisions=@(ConvertTo-SBTaskDecisions (Read-SBText $DecisionsFile))}
         # #608: only a pointer to the light-model proposal (inside the SecondBrain checkout, e.g. a work folder) reaches the tracker.
         if($EnrichmentFile){
@@ -212,9 +213,29 @@ try{
             $arguments=@{TaskId=$enrichId}
             foreach($k in $enrichUpdate.Keys){$arguments[$k]=$enrichUpdate[$k]}
         }
+        # #669: audited correction of one task's evidence (append-only otherwise). Without -CorrectionAuthorization it only previews the
+        # replacement; with the owner's authorization text it writes through the same pending queue, keeping the replaced entries in the task.
+        $correctionPreview=$null
+        if($CorrectEvidence){
+            if(!$CorrectionReason -or @($arguments.Keys|Where-Object {$_ -notin @('TaskId','Evidence')}).Count){throw (New-SBError 'knowledgecli.evidence.reason')}
+            $replacement=@(@($Evidence)|ForEach-Object{([string]$_) -split ';'}|ForEach-Object{$_.Trim()}|Where-Object{$_})
+                        $arguments.EvidenceCorrection=@{Reason=$CorrectionReason;Evidence=@($replacement)}
+            [void](ConvertTo-SBEvidenceCorrection $arguments.EvidenceCorrection)
+            if([string]::IsNullOrWhiteSpace($CorrectionAuthorization)){
+                $resolvedTracker=Resolve-SBTracker -BrainRoot $brain -Identity $working -AllowedOwners @()
+                $trackerData=Read-SBJson $resolvedTracker.path $null
+                $correctionId=Resolve-SBTrackerTaskId $UpdateTaskId @($trackerData.tasks)
+                $correctionTask=@($trackerData.tasks|Where-Object {[string]$_.id -ceq $correctionId})
+                if($correctionTask.Count -ne 1){throw (New-SBError 'tracker.task.notfound' @($UpdateTaskId))}
+                $correctionPreview=@{apply=$false;taskId=$correctionId;reason=$CorrectionReason;current=@($correctionTask[0].evidence);replacement=@($replacement);note='Rerun with -CorrectionAuthorization <the owner authorization text> to apply; the replaced entries stay in the task'}
+            }
+        }
+        if($null -ne $correctionPreview){$result=$correctionPreview}
+        else{
         if($arguments.Count -eq 1){throw (New-SBError 'tracker.update.empty')}
         $submission=New-SBPendingWrite -BrainRoot $brain -Repository $working -Operation task.update -Arguments $arguments -Config $config -SessionId $SessionId
         $result=Complete-SBPendingSubmission $submission $config $SessionId
+        }
     }
     elseif($UpdateTasksFile){
         # #595: several updates of the working repository's tracker in one process, one writer lock and one transaction; all or nothing.
