@@ -314,6 +314,14 @@ $knowledge=Join-Path $PSScriptRoot 'knowledge.ps1'
 if(!$Run){Initialize-RunnerInvocation}
 # One repository only: the given checkout. When it is not the SecondBrain checkout, prompts carry the absolute SecondBrain tool paths.
 $targets=@(@{identity=$null;path=[IO.Path]::GetFullPath($CheckoutPath)});$skipped=@()
+# The runner stays tied to registered repositories: a registered workspace (no Git) is refused (#621).
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Workspace.psm1')
+try{
+    $workspaceConfig=Read-SBConfiguration $ConfigPath -ReadOnly
+    Assert-SBNotWorkspace (Read-SBJson $workspaceConfig.configPath @{}) $targets[0].path
+}catch{
+    if(Test-SBError $_ 'workspace.runner.refused'){[Console]::Error.WriteLine($_.Exception.Message);exit 2}
+}
 # -Resume: the queue left by a quota stop (interrupted task first, then the tasks not reached), with the same selection rules.
 $script:resumeFrom=$null
 if($Resume){
