@@ -38,18 +38,30 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
-if (-not $Checkout) { $Checkout = (& git rev-parse --show-toplevel 2>$null) }
-if (-not $Checkout) { throw 'Not inside a Git checkout; pass -Checkout.' }
-$Checkout = (Resolve-Path -LiteralPath $Checkout).Path
 if (-not $SecondBrain) {
     $candidates = @($env:SECONDBRAIN_HOME, (Split-Path -Parent $PSScriptRoot)) | Where-Object { $_ }
     $SecondBrain = $candidates | Where-Object { Test-Path -LiteralPath (Join-Path $_ 'scripts\knowledge.ps1') } | Select-Object -First 1
 }
-if (-not $SecondBrain) { throw 'SecondBrain not found; set SECONDBRAIN_HOME or pass -SecondBrain.' }
+# Messages come from the SecondBrain modules (a pinned copy runs from the work folder, so $PSScriptRoot is not enough).
+$moduleRoot = if ($SecondBrain) { Join-Path $SecondBrain 'scripts' } else { $PSScriptRoot }
+Import-Module (Join-Path $moduleRoot 'SecondBrain.Core.psm1')
+Import-Module (Join-Path $moduleRoot 'SecondBrain.Messages.psm1')
+Add-SBMessages @{
+    'orchestrate.checkout.missing' = @{ en = 'Not inside a Git checkout; pass -Checkout' }
+    'orchestrate.brain.missing' = @{ en = 'SecondBrain not found; set SECONDBRAIN_HOME or pass -SecondBrain' }
+    'orchestrate.identity.missing' = @{ en = 'No GitHub origin to identify the repository; pass -WorkDir' }
+    'orchestrate.dossier.missing' = @{ en = "No dossier with identity '{0}' in {1}" }
+    'orchestrate.claude.missing' = @{ en = 'claude CLI not found; pass -ClaudePath' }
+    'orchestrate.git.status' = @{ en = 'git status failed: {0}' }
+}
+if (-not $SecondBrain) { throw (New-SBError 'orchestrate.brain.missing') }
+if (-not $Checkout) { $Checkout = (& git rev-parse --show-toplevel 2>$null) }
+if (-not $Checkout) { throw (New-SBError 'orchestrate.checkout.missing') }
+$Checkout = (Resolve-Path -LiteralPath $Checkout).Path
 $origin = (& git -C $Checkout remote get-url origin 2>$null)
 $identity = if ($origin -match 'github\.com[:/]+([^/]+)/([^/]+?)(?:\.git)?/?$') { ('github.com/{0}/{1}' -f $Matches[1], $Matches[2]).ToLowerInvariant() } else { $null }
 if (-not $WorkDir) {
-    if (-not $identity) { throw 'No GitHub origin to identify the repository; pass -WorkDir.' }
+    if (-not $identity) { throw (New-SBError 'orchestrate.identity.missing') }
     Push-Location $Checkout
     try { $init = & pwsh -NoProfile -File (Join-Path $SecondBrain 'scripts\work.ps1') -Repository $identity -Init -Category report -Slug task-run | Out-String | ConvertFrom-Json }
     finally { Pop-Location }
@@ -57,7 +69,7 @@ if (-not $WorkDir) {
 }
 New-Item -ItemType Directory -Force -Path $WorkDir | Out-Null
 if ($Run -and -not $Pinned) {
-    $copy = Join-Path $WorkDir ('orchestrate-tasks.pinned-{0:yyyyMMddHHmmss}.ps1' -f (Get-Date))
+    $copy = Join-Path $WorkDir ('orchestrate-tasks.pinned-{0:yyyyMMddHHmmss}.ps1' -f (Get-SBNow -Local))
     Copy-Item -LiteralPath $PSCommandPath -Destination $copy
     $forward = @{ Checkout = $Checkout; WorkDir = $WorkDir; SecondBrain = $SecondBrain; Model = $Model; Effort = $Effort; PermissionMode = $PermissionMode
         AllowedTools = $AllowedTools; DisallowedTools = $DisallowedTools; TimeoutMinutes = $TimeoutMinutes; MaxTasks = $MaxTasks; MaxWaitHours = $MaxWaitHours
@@ -71,15 +83,15 @@ if ($Run -and -not $Pinned) {
 $eventsFile = Join-Path $WorkDir 'events.jsonl'
 $statusFile = Join-Path $WorkDir 'status.json'
 $stopFile = Join-Path $WorkDir 'stop.flag'
-$state = [ordered]@{ phase = 'starting'; pid = $PID; startedAt = (Get-Date).ToString('o'); model = $Model; effort = $Effort; current = $null; done = @(); failed = @(); parked = @(); skipped = @(); waitingUntil = $null; updatedAt = $null }
+$state = [ordered]@{ phase = 'starting'; pid = $PID; startedAt = (Get-SBNow -Local).ToString('o'); model = $Model; effort = $Effort; current = $null; done = @(); failed = @(); parked = @(); skipped = @(); waitingUntil = $null; updatedAt = $null }
 
 function Write-State([string]$Phase) {
     if ($Phase) { $state.phase = $Phase }
-    $state.updatedAt = (Get-Date).ToString('o')
+    $state.updatedAt = (Get-SBNow -Local).ToString('o')
     $state | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statusFile -Encoding utf8
 }
 function Write-Event([string]$Kind, [string]$Message, $Data = $null) {
-    $record = [ordered]@{ time = (Get-Date).ToString('o'); event = $Kind; message = $Message }
+    $record = [ordered]@{ time = (Get-SBNow -Local).ToString('o'); event = $Kind; message = $Message }
     if ($null -ne $Data) { $record.data = $Data }
     ($record | ConvertTo-Json -Compress -Depth 6) | Add-Content -LiteralPath $eventsFile -Encoding utf8
     [Console]::Error.WriteLine("[$Kind] $Message")
@@ -108,7 +120,7 @@ function Get-Property($Object, [string]$Name, $Default = $null) {
 if (-not $TrackerPath) {
     $match = Get-ChildItem -Path (Join-Path $SecondBrain '01-projects') -Filter repository.json -Recurse -Depth 1 -ErrorAction SilentlyContinue |
         Where-Object { (Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json).identity -eq $identity } | Select-Object -First 1
-    if (-not $match) { throw "No dossier with identity '$identity' in $SecondBrain-projects." }
+    if (-not $match) { throw (New-SBError 'orchestrate.dossier.missing' @($identity, (Join-Path $SecondBrain '01-projects'))) }
     $TrackerPath = Join-Path $match.DirectoryName 'tracker.json'
 }
 $dossier = Split-Path -Parent $TrackerPath
@@ -176,7 +188,7 @@ Finish with at most 10 lines: outcome, evidence references, what is left, any bl
 function Resolve-Claude {
     if ($ClaudePath) { return $ClaudePath }
     $cmd = Get-Command claude -ErrorAction SilentlyContinue
-    if (-not $cmd) { throw 'claude CLI not found; pass -ClaudePath.' }
+    if (-not $cmd) { throw (New-SBError 'orchestrate.claude.missing') }
     $cmd.Source
 }
 
@@ -209,13 +221,13 @@ function Read-Outcome([string]$OutFile) {
 }
 
 function Wait-ForReset($OutcomeResetAt) {
-    $now = [DateTimeOffset]::Now
+    $now = (Get-SBNow -Local)
     $until = if ($OutcomeResetAt -and $OutcomeResetAt -gt $now) { $OutcomeResetAt.AddSeconds(60) } else { $now.AddMinutes(30) }
     if (($until - $now).TotalHours -gt $script:waitBudgetHours) { return $false }
     $script:waitBudgetHours -= ($until - $now).TotalHours
     $state.waitingUntil = $until.ToString('o'); Write-State 'waiting-quota'
     Write-Event 'quota' "Waiting for the quota reset until $($until.ToString('o'))"
-    while ([DateTimeOffset]::Now -lt $until) {
+    while ((Get-SBNow -Local) -lt $until) {
         if (Test-Stop) { return $false }
         Start-Sleep -Seconds 30
     }
@@ -224,7 +236,7 @@ function Wait-ForReset($OutcomeResetAt) {
 }
 
 function Invoke-ClaudeTask($task) {
-    $stamp = '{0:yyyyMMdd-HHmmss}-{1}' -f (Get-Date), $task.seq
+    $stamp = '{0:yyyyMMdd-HHmmss}-{1}' -f (Get-SBNow -Local), $task.seq
     $promptFile = Join-Path $WorkDir "prompt-$stamp.txt"
     $outFile = Join-Path $WorkDir "out-$stamp.jsonl"
     $errFile = Join-Path $WorkDir "err-$stamp.txt"
@@ -239,7 +251,7 @@ function Invoke-ClaudeTask($task) {
 
 function Get-ChangedPaths {
     $status = Invoke-Git @('status', '--porcelain=v1', '-z', '--untracked-files=all')
-    if ($status.Code -ne 0) { throw "git status failed: $($status.Text)" }
+    if ($status.Code -ne 0) { throw (New-SBError 'orchestrate.git.status' @($status.Text)) }
     @($status.Text -split "`0" | Where-Object { $_.Length -gt 3 } | ForEach-Object { $_.Substring(3) } | Where-Object { $_ -notmatch '^\.claude/agents/' })
 }
 

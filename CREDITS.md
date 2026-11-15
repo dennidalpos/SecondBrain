@@ -24,7 +24,7 @@ Il [manifest](scripts/source-requirements.txt) dichiara `markitdown[pdf,docx]==0
 
 ### Orchestratore desktop (`app/orchestrator`)
 
-Il repository contiene il sorgente dell'app e i lock delle dipendenze; nessun binario o pacchetto di installazione è distribuito: l'app si compila sulla postazione con `npm ci` e `cargo`. Versioni risolte dai lock, licenze dai metadati dei pacchetti (`package.json` installati, `cargo metadata`) del 2026-11-12.
+Il repository contiene il sorgente dell'app e i lock delle dipendenze; nessun binario o pacchetto di installazione è distribuito: l'app si compila sulla postazione con `npm ci` e `cargo`. Versioni risolte dai lock, licenze dai metadati dei pacchetti (`package.json` installati, `cargo metadata`) del 2026-11-12, riverificate sui lock il 2026-11-14 (versioni e conteggi invariati). Il progetto è MIT (file `LICENSE`, dichiarato in `package.json` e `Cargo.toml`).
 
 | Componente | Versione | Licenza (SPDX) | Ruolo | Sorgente |
 | --- | --- | --- | --- | --- |
