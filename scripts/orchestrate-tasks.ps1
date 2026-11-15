@@ -11,6 +11,7 @@ Default is a preview (selection and prompts, nothing runs). Switches:
   -InstallAgent           write the context-free supervisor agent definition for -Provider into the checkout; never overwrites a file.
   -Provider               claude (default), codex or gemini; the headless CLI comes from SecondBrain.AgentAdapters (-AgentPath overrides the executable).
   -ConfirmExtendedTools   required before -PermissionMode, -AllowedTools or -DisallowedTools differ from the defaults; recorded in status.json.
+  -OnlyIds                restrict the selection to these task ids (comma separated).
   -HealthChecks           comma list of tracker,tasks,quick,check run after each task (default all four).
   -AllowNoPowerRequest    run even when the Windows power request (no idle sleep) is refused.
 Per task: tree must be clean (except when resuming the interrupted task), mark in_progress, run the session (prompt on stdin, timeout),
@@ -45,6 +46,7 @@ param(
     [string]$ExcludePattern = 'computer-use|a schermo|a video|screen proof|installer firmato|Windows isolato',
     [string]$SelfPattern = 'orchestrate-tasks|run-ready-tasks|SecondBrain\.TaskRunner|SecondBrain\.AgentAdapters|SecondBrain\.RunnerStatus',
     [string[]]$ExcludeIds = @(),
+    [string[]]$OnlyIds = @(),
     [string]$Branch,
     [Alias('ClaudePath')][string]$AgentPath,
     [ValidatePattern('^(tracker|tasks|quick|check)(,(tracker|tasks|quick|check))*$')][string]$HealthChecks = 'tracker,tasks,quick,check',
@@ -60,6 +62,9 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+# With pwsh -File a comma list arrives as one string: split every element.
+$ExcludeIds = @($ExcludeIds | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+$OnlyIds = @($OnlyIds | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
 if (-not $SecondBrain) {
     $candidates = @($env:SECONDBRAIN_HOME, (Split-Path -Parent $PSScriptRoot)) | Where-Object { $_ }
     $SecondBrain = $candidates | Where-Object { Test-Path -LiteralPath (Join-Path $_ 'scripts\knowledge.ps1') } | Select-Object -First 1
@@ -255,7 +260,7 @@ if ($Run -and -not $Pinned) {
     Copy-Item -LiteralPath $PSCommandPath -Destination $copy
     $forward = @{ Checkout = $Checkout; WorkDir = $WorkDir; SecondBrain = $SecondBrain; Provider = $Provider; Effort = $Effort; PermissionMode = $PermissionMode
         AllowedTools = $AllowedTools; DisallowedTools = $DisallowedTools; TimeoutMinutes = $TimeoutMinutes; MaxTasks = $MaxTasks; MaxWaitHours = $MaxWaitHours
-        ExcludePattern = $ExcludePattern; SelfPattern = $SelfPattern; ExcludeIds = $ExcludeIds; Run = $true; Pinned = $true }
+        ExcludePattern = $ExcludePattern; SelfPattern = $SelfPattern; ExcludeIds = $ExcludeIds; OnlyIds = $OnlyIds; Run = $true; Pinned = $true }
     if ($Model) { $forward.Model = $Model }
     if ($TrackerPath) { $forward.TrackerPath = $TrackerPath }
     if ($AgentPath) { $forward.AgentPath = $AgentPath }
@@ -282,6 +287,7 @@ if ($resume) {
 }
 
 function Write-State([string]$Phase) {
+    if (-not $Run) { return }   # a preview never touches the state of a run
     if ($Phase) { $state.phase = $Phase }
     $state.updatedAt = (Get-SBNow -Local).ToString('o')
     $state | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statusFile -Encoding utf8
@@ -289,7 +295,7 @@ function Write-State([string]$Phase) {
 function Write-Event([string]$Kind, [string]$Message, $Data = $null) {
     $record = [ordered]@{ time = (Get-SBNow -Local).ToString('o'); event = $Kind; message = $Message }
     if ($null -ne $Data) { $record.data = $Data }
-    ($record | ConvertTo-Json -Compress -Depth 6) | Add-Content -LiteralPath $eventsFile -Encoding utf8
+    if ($Run) { ($record | ConvertTo-Json -Compress -Depth 6) | Add-Content -LiteralPath $eventsFile -Encoding utf8 }
     [Console]::Error.WriteLine("[$Kind] $Message")
 }
 function Write-Notice([string]$Reason) {
@@ -330,6 +336,7 @@ function Get-Queue {
     $archive = if (Test-Path -LiteralPath $archivePath) { @((Read-Json $archivePath).tasks) } else { @() }
     $queue = foreach ($task in $tasks) {
         if ($task.execution -ne 'autonomous' -or $task.status -notin 'todo', 'in_progress') { continue }
+        if ($OnlyIds.Count -and $task.id -notin $OnlyIds -and "#$($task.seq)" -notin $OnlyIds) { continue }
         if ($task.id -in $ExcludeIds -or $task.id -in $state.failed -or $task.id -in $state.done -or $task.id -in $state.parked -or ($script:attempts[$task.id] -ge 2)) { continue }
         $ext = Get-Property $task 'extensions'
         $stream = [string](Get-Property $ext 'stream' '')
@@ -523,6 +530,7 @@ if (-not $Run) {
     Write-State 'preview'
     return
 }
+if (Test-Path -LiteralPath $stopFile) { Remove-Item -LiteralPath $stopFile -Force; Write-Event 'stop-flag-cleared' 'A stop.flag left by a previous run was removed at start' }
 $state.branch = Get-CurrentBranch
 if (Test-ProtectedBranch $state.branch) { throw (New-SBError 'orchestrate.branch.protected' @($state.branch)) }
 $state.authorization = [ordered]@{ profile = $(if ($extended) { 'extended' } else { 'standard' }); confirmed = [bool]$ConfirmExtendedTools; confirmedBy = $env:USERNAME
