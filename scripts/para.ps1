@@ -20,8 +20,12 @@ param(
     [Parameter(Mandatory,ParameterSetName='Customer')][switch]$SetCustomer,
     [Parameter(ParameterSetName='Customer')][string]$Customer,
     [Parameter(ParameterSetName='Customer')][switch]$Clear,
-    [Parameter(ParameterSetName='Migrate')][Parameter(ParameterSetName='Customer')][switch]$Apply,
-    [Parameter(ParameterSetName='Migrate')][Parameter(Mandatory,ParameterSetName='Customer')][string[]]$Only,
+    [Parameter(Mandatory,ParameterSetName='GitUpdate')][switch]$SetGitUpdate,
+    [Parameter(Mandatory,ParameterSetName='GitUpdate')][ValidateSet('commit-push-main','branch-pr','none')][string]$GitMode,
+    [Parameter(ParameterSetName='GitUpdate')][string]$GitBranch,
+    [Parameter(ParameterSetName='GitUpdate')][switch]$Confirmed,
+    [Parameter(ParameterSetName='Migrate')][Parameter(ParameterSetName='Customer')][Parameter(ParameterSetName='GitUpdate')][switch]$Apply,
+    [Parameter(ParameterSetName='Migrate')][Parameter(Mandatory,ParameterSetName='Customer')][Parameter(Mandatory,ParameterSetName='GitUpdate')][string[]]$Only,
     [Parameter(Mandatory,ParameterSetName='Archive')][switch]$Archive,
     [Parameter(Mandatory,ParameterSetName='Restore')][switch]$Restore,
     [Parameter(Mandatory,ParameterSetName='Archive')][Parameter(Mandatory,ParameterSetName='Restore')][Parameter(Mandatory,ParameterSetName='Status')][string]$EntityId
@@ -58,13 +62,16 @@ Add-SBMessages @{
     'paracli.customer.plan' = @{ en = 'Customer preview ({0} dossiers): rerun with -Apply to write repository.json (PARA ids and tasks unchanged)' }
     'paracli.customer.done' = @{ en = 'Customer assigned to {0} dossiers; PARA ids, identities and tasks verified unchanged' }
     'paracli.customer.diverged' = @{ en = 'Post-write check failed: identifiers diverge for {0}' }
+    'paracli.gitupdate.confirm' = @{ en = 'Writing gitUpdate needs -Confirmed: the owner must explicitly accept this way of updating Git and GitHub' }
+    'paracli.gitupdate.plan' = @{ en = 'gitUpdate preview ({0} dossiers): rerun with -Apply -Confirmed to write repository.json (identities and tasks unchanged)' }
+    'paracli.gitupdate.done' = @{ en = 'gitUpdate written for {0} dossiers; the runner and delegates still never commit or push' }
     'paracli.tracker.changed' = @{ en = 'Tracker modified while preparing the move' }
 }
 $config=Read-SBConfiguration $ConfigPath
 if(!$BackupRoot){$BackupRoot=$config.backupRoot}
 if($config.ContainsKey('mode') -and $config.mode -eq 'portable'){$BackupRoot=Assert-SBCentralDataPath $config.brainRoot $BackupRoot}
 if((Read-SBJson (Join-Path $config.brainRoot 'config/shared.json') @{}).schemaVersion -ne 1){throw (New-SBError 'paracli.policy.invalid')}
-$writing=$BuildIndex -or $NewProject -or $NewResource -or $NewArea -or $SetStatus -or $Archive -or $Restore -or ($MigrateToProjects -and $Apply) -or ($SetCustomer -and $Apply)
+$writing=$BuildIndex -or $NewProject -or $NewResource -or $NewArea -or $SetStatus -or $Archive -or $Restore -or ($MigrateToProjects -and $Apply) -or ($SetCustomer -and $Apply) -or ($SetGitUpdate -and $Apply)
 $lock=Enter-SBOperation $config $SessionId -ReadOnly:(!$writing)
 try {
     $index=Get-SBParaIndex $config.brainRoot $config.allowedOwners
@@ -203,6 +210,35 @@ try {
                 if($new.Count -ne 1 -or $new[0].repository -cne $old.repository -or $new[0].path -cne $old.path -or $new[0].paraHash -cne $old.paraHash -or $new[0].trackerHash -cne $old.trackerHash -or $new[0].taskIds -cne $old.taskIds){throw (New-SBError 'paracli.customer.diverged' @($old.id))}
             }
             (Get-SBMessage 'paracli.customer.done' @($plan.Count))
+        }
+    }elseif($SetGitUpdate){
+        # Git and GitHub update preference per repository: only the "gitUpdate" field of repository.json changes. Preview by default;
+        # -Apply also needs -Confirmed. The value is a proposal for task closing, not an authorization: the runner and delegates never commit or push.
+        $value=[ordered]@{mode=$GitMode}
+        if($GitMode -ne 'none'){$value.branch=$(if($GitBranch){$GitBranch}else{'main'})}elseif($GitBranch){throw (New-SBError 'para.gitupdate.invalid')}
+        if(!(Test-SBGitUpdate $value)){throw (New-SBError 'para.gitupdate.invalid')}
+        $Only=@($Only|ForEach-Object {$_ -split ','}|ForEach-Object {$_.Trim()}|Where-Object {$_})
+        $selected=@($index.entities|Where-Object {(Test-SBRepoDossier $_) -and ($_.id -in $Only -or $_.repository -in $Only)})
+        if(!$selected.Count){throw (New-SBError 'paracli.customer.none')}
+        if($Apply -and !$Confirmed){throw (New-SBError 'paracli.gitupdate.confirm')}
+        $plan=@(foreach($item in ($selected|Sort-Object id)){
+            $path=Join-Path (Resolve-SBParaPath $config.brainRoot $item.path) 'repository.json'
+            $record=Read-SBJson $path $null
+            $before=Get-SBGitUpdate $record
+            $record.gitUpdate=$value
+            $bytes=[Text.Encoding]::UTF8.GetBytes((ConvertTo-SBJson $record))
+            $previous=Get-SBFileHash $path
+            [ordered]@{id=$item.id;repository=$item.repository;path=$item.path;before=$before;after=$value;changed=($previous -ne (Get-SBHash $bytes));file=$path;expected=$previous;bytes=$bytes}
+        })
+        $view=@($plan|ForEach-Object {[ordered]@{id=$_.id;repository=$_.repository;path=$_.path;before=$_.before;after=$_.after;changed=$_.changed}})
+        if(!$Apply){
+            ConvertTo-SBJson @{apply=$false;dossiers=$view}
+            (Get-SBMessage 'paracli.gitupdate.plan' @($plan.Count))
+        }else{
+            $ops=@($plan|Where-Object changed|ForEach-Object {@{path=$_.file;expected=$_.expected;bytes=$_.bytes}})
+            if($ops.Count){Invoke-SBParaTransaction $ops $BackupRoot $config.brainRoot}
+            ConvertTo-SBJson @{apply=$true;dossiers=$view}
+            (Get-SBMessage 'paracli.gitupdate.done' @($plan.Count))
         }
     }elseif($Archive -or $Restore){
         $matches=@($index.entities|Where-Object id -eq $EntityId)

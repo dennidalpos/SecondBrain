@@ -113,6 +113,9 @@ try {
     & (Join-Path $PSScriptRoot 'test-secondbrain-knowledge-index.ps1')
     & (Join-Path $PSScriptRoot 'test-secondbrain-customer.ps1')
     & (Join-Path $PSScriptRoot 'test-secondbrain-workspace.ps1')
+    & (Join-Path $PSScriptRoot 'test-secondbrain-gitupdate.ps1')
+    & (Join-Path $PSScriptRoot 'test-secondbrain-skills.ps1')
+    & (Join-Path $PSScriptRoot 'test-secondbrain-nextsteps.ps1')
     'SUCCESS TRACE: '+$script:checks+' verifiche; runtime='+$PSVersionTable.PSVersion
 } finally {
     $full=[IO.Path]::GetFullPath($root);$boundary=[IO.Path]::GetFullPath((Get-SBTestRoot)).TrimEnd('\','/')+[IO.Path]::DirectorySeparatorChar

@@ -4,6 +4,7 @@ $ErrorActionPreference='Stop'
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Host.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Trace.psm1')
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Para.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Add-SBMessages @{
     'setupstatus.exit.inactive'     = @{ en = 'Exit 1: the workstation is not activated; run sb setup to activate it' }
@@ -17,6 +18,7 @@ Add-SBMessages @{
     'setupstatus.launcher.reason'   = @{ en = 'Lets the runner execute ready tasks; requires SECONDBRAIN_HOME.' }
     'setupstatus.activity.reason'   = @{ en = 'Optional team activity register: requires a declared privacy notice and retention.' }
     'setupstatus.account.reason'    = @{ en = 'Account instructions are not a file: paste them by hand (text in istruzioni-globali.md) and prove them with an observation receipt; otherwise the global directives do not apply in chats.' }
+    'setupstatus.gitupdate.reason'  = @{ en = 'Choose how SecondBrain proposes Git and GitHub updates at task closing (default: commit and push on the main branch). It is a preference: nothing is committed or pushed without your explicit confirmation, and the runner never commits.' }
     'setupstatus.blocked.inactive'  = @{ en = 'Workstation not activated: run SYS03 first.' }
 }
 function New-SBFeature([string]$Id,[string]$State,[string]$Evidence,[string]$Command,[string[]]$Prerequisites=@(),[string]$Risk='low',[bool]$Recommended=$false,[string]$ReasonKey,[string]$Scope='') {
@@ -76,6 +78,9 @@ function Get-SBSetupFeatureStatus {
         $hookFile=Join-Path $path '.git/hooks/pre-push'
         $hookOn=(Test-Path -LiteralPath $hookFile -PathType Leaf) -and ([IO.File]::ReadAllText($hookFile) -match 'SecondBrain pre-push hook')
         $features+=New-SBFeature 'publication-hook' $(if($hookOn){'enabled'}elseif($remote){'available'}else{'unsupported'}) ('pre-push in '+$path) ('pwsh -NoProfile -File scripts/publication.ps1 -InstallHook -RepositoryPath "'+$path+'"') @('SECONDBRAIN_HOME') 'low' ($remote -and !$hookOn) 'setupstatus.publication.reason' ([string]$binding.identity)
+        $gitRecord=$null;if($binding.ContainsKey('dossier') -and $binding.dossier){$recordPath=Join-Path $brain ([string]$binding.dossier+'/repository.json');if(Test-Path -LiteralPath $recordPath -PathType Leaf){try{$gitRecord=Read-SBJson $recordPath $null}catch{$gitRecord=$null}}}
+        $gitUpdate=Get-SBGitUpdate $gitRecord
+        $features+=New-SBFeature 'git-update' $(if($gitUpdate.confirmed){'enabled'}else{'available'}) ('gitUpdate '+$gitUpdate.mode+' on '+$gitUpdate.branch+$(if($gitUpdate.confirmed){''}else{' (proposed default, not confirmed)'})) ('pwsh -NoProfile -File scripts/para.ps1 -SetGitUpdate -GitMode '+$gitUpdate.mode+' -GitBranch '+$gitUpdate.branch+' -Only "'+[string]$binding.identity+'"') @('workstation-activated') 'low' $false 'setupstatus.gitupdate.reason' ([string]$binding.identity)
         $launcher=Join-Path $path '.secondbrain/run-tasks.ps1'
         $launcherOn=Test-Path -LiteralPath $launcher -PathType Leaf
         $features+=New-SBFeature 'task-launcher' $(if($launcherOn){'enabled'}else{'available'}) ('launcher in '+$path) ('pwsh -NoProfile -File scripts/install-task-launcher.ps1 -Repository '+[string]$binding.identity) @('SECONDBRAIN_HOME') 'medium' $false 'setupstatus.launcher.reason' ([string]$binding.identity)

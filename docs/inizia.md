@@ -4,6 +4,24 @@
 
 Load one local Git project's context through the CLI, then optionally connect an agent. Use Windows, PowerShell 7.5+ and Git 2.42+. Dossiers and runtime files are ignored by Git and need their own backups.
 
+## Install with one prompt
+
+In a compatible agent (Claude Code, Codex or Antigravity) with a shell tool, send:
+
+~~~text
+Install https://github.com/dennidalpos/secondbrain, follow the procedures for my system, tell me where to place it and start the guided setup.
+~~~
+
+The agent should follow this procedure and stop for your confirmation at each step marked "ask":
+
+1. Read-only preflight: Windows, PowerShell 7.5+ (`pwsh --version`) and Git 2.42+ (`git --version`). Report anything missing and how to install it; install nothing without asking.
+2. Location (ask): propose a short local path outside any product repository and outside cloud-synced folders (for example `C:/Projects/SecondBrain`), because dossiers, runtime files and backups live inside the clone and are ignored by Git. Wait for your answer.
+3. Clone (ask) with `git clone https://github.com/dennidalpos/secondbrain.git <chosen path>`; never clone into a non-empty folder.
+4. Project choice (ask): list candidate local Git checkouts and let you pick; then run the read-only preview `pwsh -NoProfile -File scripts/secondbrain.ps1 -Setup -PreviewOnly -Roots <project> -Select <project>` and show the plan.
+5. Guided setup (ask before every write): continue with `sb setup` (prompt SYS17), which walks activation (SYS03), MCP (SYS15) and directives (SYS01) and offers optional features one at a time. Do not use `-Yes` unless you ask for it.
+
+The repository's `AGENTS.md` repeats this entry point, so an agent opening a fresh clone finds the same procedure. Load and write evidence of the real agent session remain separate from file alignment (see [Inspect the result](#inspect-the-result)).
+
 ## Clone and choose a project
 
 Follow the [README quick start](../README.md#quick-start-load-one-projects-context). It provides the complete clone, read-only preview, explicit activation and Startup commands. The example chooses one existing Git checkout, selects no IDE and uses NoRegisterEnvironment.
@@ -47,6 +65,17 @@ Review the activation and MCP plans. Enter APPLICA only for the displayed scope;
 
 Setup performs Sync for the approved selection. Do not immediately repeat a global Sync merely because an example used it in the past. Use targeted checks and preserve dirty-file conflicts. See [security and side effects](sicurezza.md).
 
+## Git and GitHub updates
+
+SecondBrain asks how to update Git and GitHub for each repository instead of assuming. At task closing a write prompt tells the agent to ask you (commit and push on the main branch is the default proposal; alternatives are a branch with a pull request, or nothing) and then to record the answer in the repository dossier:
+
+~~~powershell
+pwsh -NoProfile -File scripts/para.ps1 -SetGitUpdate -GitMode commit-push-main -GitBranch main -Only <identity>
+pwsh -NoProfile -File scripts/para.ps1 -SetGitUpdate -GitMode commit-push-main -GitBranch main -Only <identity> -Apply -Confirmed
+~~~
+
+The first command previews; writing needs both `-Apply` and `-Confirmed`. The stored `gitUpdate` value is a preference for what to propose, not an authorization: the agent still shows what will be committed and runs it only after you confirm in that session, and the runner and delegates never commit or push. `sb setup` lists it as the `git-update` feature.
+
 ## Optional MCP pairing
 
 Client scopes differ: Codex and Claude Desktop use user-level pairing; Cursor, VS Code, Claude Code and Antigravity support explicit project scopes in the implementation. See the [target and scope table](ide-e-mcp.md#instruction-and-configuration-targets).
@@ -77,3 +106,15 @@ Continue with [daily use](uso-quotidiano.md). Use the [bug form](https://github.
 ## Guided first-run setup
 
 On a clean machine, after cloning, ask your agent for `sb setup` (prompt SYS17). It runs `scripts/setup-status.ps1` (read-only: preflight, detected IDEs, and which optional features are enabled, available or unsupported, with the reason and a preview command for each), then walks activation (SYS03), MCP (SYS15) and directives (SYS01) with a confirmation before every write, and finally offers the optional features one at a time. Recommendations come from the current state of the workstation, not from your command history; nothing is enabled without your confirmation. The JSON lists recommended features first, adds a per-feature `summary` and an `exit` object that explains the exit code (1 means recommendations or not activated, not an error).
+
+## Skills for your agents
+
+Ask your agent for `sb skills` (prompt SYS18) in a project. It runs `scripts/skills.ps1 -Analyze` (read-only), proposes only skills that the project's facts justify (detected check commands, layout, changelog, CI), and installs the ones you select for Claude Code, Codex or Antigravity, at project scope (inside the checkout, shareable through Git) or user scope (all your projects). Install previews first; `-Apply` writes `<skill>/SKILL.md` with a backup, and a skill you edited is a conflict that is skipped unless you pass `-Overwrite`.
+
+| Agent | Project folder | User folder | Source (checked 2026-11-15) |
+|---|---|---|---|
+| Claude Code | `.claude/skills/` | `~/.claude/skills/` | [Claude Code skills](https://code.claude.com/docs/en/skills) |
+| Codex | `.agents/skills/` | `~/.agents/skills/` | [Codex skills](https://learn.chatgpt.com/docs/build-skills) |
+| Antigravity | `.agents/skills/` | `~/.gemini/config/skills/` | [Antigravity skills](https://antigravity.google/docs/skills) |
+
+The folders come from the vendors' documentation, which has changed over time (older Codex and Antigravity paths differ); until a real session lists the skill, SecondBrain reports it as written, not as loaded.

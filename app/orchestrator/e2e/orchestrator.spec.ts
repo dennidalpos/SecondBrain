@@ -290,6 +290,26 @@ test("registry: every task with its tool badge, archived tasks and the runner hi
   await closeApp(app);
 });
 
+test("tracker: the bound projects are listed and the selected tracker is read without writing", async () => {
+  const app = await launch({ repo: fixture.checkout });
+  const { page } = app;
+  const before = fs.readFileSync(fixture.tracker, "utf8");
+  await page.locator('.steps button[data-tab="tracker"]').click();
+  await expect(page.locator("#trk-project option")).toHaveCount(1, { timeout: 60_000 });
+  await expect(page.locator("#trk-facts")).toContainText(fixture.identity);
+  await expect(page.locator("#trk-facts")).toContainText("proposed default, not confirmed");
+  await expect(page.locator("#trk-rows tr")).toHaveCount(5, { timeout: 60_000 });
+  await expect(page.locator("#trk-rows tr").filter({ hasText: "E2E-0" })).toContainText("archived");
+  await page.locator("#trk-status").selectOption("done");
+  await expect(page.locator("#trk-rows tr")).toHaveCount(1, { timeout: 30_000 });
+  await page.locator("#trk-next-load").click();
+  await expect(page.locator("#trk-next-list li")).not.toHaveCount(0, { timeout: 90_000 });
+  await expect(page.locator("#trk-next-list")).toContainText("Git and GitHub");
+  await expect(page.locator("#trk-next-list")).toContainText("Run the next ready task");
+  expect(fs.readFileSync(fixture.tracker, "utf8")).toBe(before);
+  await closeApp(app);
+});
+
 test("queue: a task that cannot run alone is analyzed, the owner answers and the update makes it autonomous", async () => {
   const app = await launch({ repo: fixture.checkout });
   const { page } = app;

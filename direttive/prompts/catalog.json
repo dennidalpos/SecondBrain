@@ -2284,6 +2284,29 @@
       }
     },
     {
+      "id": "pmt-3d7b91c4",
+      "code": "SYS18",
+      "category": "system",
+      "summary": "Analyze a project, propose skills and install the selected ones",
+      "target": "central",
+      "mode": "write",
+      "scope": "central",
+      "requires": "a project checkout, the agents and scope to install into, and confirmation before each write",
+      "example": "sb skills: analyze this project and install the useful skills for claude-code and codex",
+      "file": "SYS18.md",
+      "related": [
+        "pmt-8bc4e0db",
+        "pmt-9ef61b3d"
+      ],
+      "i18n": {
+        "it": {
+          "summary": "Analizza un progetto, proponi skill e installa quelle scelte",
+          "requires": "un checkout del progetto, gli agent e l'ambito di installazione e conferma prima di ogni scrittura",
+          "example": "sb skills: analizza questo progetto e installa le skill utili per claude-code e codex"
+        }
+      }
+    },
+    {
       "id": "pmt-08bff671",
       "code": "TST01",
       "category": "test",

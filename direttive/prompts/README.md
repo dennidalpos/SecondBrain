@@ -691,6 +691,12 @@ WORKSTATION AND IDES
   • Needs: fresh SecondBrain checkout, one supported IDE and confirmation before each write
   • Example: sb setup: configure this clean workstation with vscode
 
+🔥 SYS18 | Analyze a project, propose skills and install the selected ones
+  • ID: pmt-3d7b91c4
+  • Scope: central | Mode: write
+  • Needs: a project checkout, the agents and scope to install into, and confirmation before each write
+  • Example: sb skills: analyze this project and install the useful skills for claude-code and codex
+
 
 DOSSIER, SOURCES AND DIRECTIVES
 🔥 MEM05 | Create, update and archive projects, areas and resources of the central PARA.

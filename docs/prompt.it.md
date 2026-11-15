@@ -1,6 +1,6 @@
 # Prompt
 
-121 prompt in un'unica lista, in 17 aree e due gruppi (repository corrente e SecondBrain centrale). Scegli, aggiungi il tuo obiettivo, e l'agente ha tutto ciò che serve.
+122 prompt in un'unica lista, in 17 aree e due gruppi (repository corrente e SecondBrain centrale). Scegli, aggiungi il tuo obiettivo, e l'agente ha tutto ciò che serve.
 
 ```text
 sb prompt list

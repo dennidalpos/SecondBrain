@@ -691,6 +691,12 @@ POSTAZIONE E IDE
   • Cosa serve: checkout SecondBrain nuovo, un IDE supportato e conferma prima di ogni scrittura
   • Esempio d'uso: sb setup: configura questa postazione pulita con vscode
 
+🔥 SYS18 | Analizza un progetto, proponi skill e installa quelle scelte
+  • ID: pmt-3d7b91c4
+  • Ambito: central | Modalità: write
+  • Cosa serve: un checkout del progetto, gli agent e l'ambito di installazione e conferma prima di ogni scrittura
+  • Esempio d'uso: sb skills: analizza questo progetto e installa le skill utili per claude-code e codex
+
 
 DOSSIER, FONTI E DIRETTIVE
 🔥 MEM05 | Crea, aggiorna e archivia progetti, aree e risorse del PARA centrale.

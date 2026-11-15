@@ -3,6 +3,7 @@ Set-StrictMode -Version Latest
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Add-SBMessages @{
+    'para.gitupdate.invalid' = @{ en = 'Invalid gitUpdate: mode must be commit-push-main, branch-pr or none; branch must be a plain branch name' }
     'para.path.unconfined' = @{ en = 'PARA path is not relative or not confined' }
     'para.path.outside' = @{ en = 'Path outside the PARA root' }
     'para.reparse.knowledge' = @{ en = 'Reparse point in PARA knowledge' }
@@ -354,7 +355,25 @@ function Wait-SBDirectoryGone([string]$Path,[int]$TimeoutMs=3000) {
     while([IO.Directory]::Exists($Path) -and $watch.ElapsedMilliseconds -lt $TimeoutMs){Start-Sleep -Milliseconds 20}
 }
 
+function Test-SBGitUpdate($Value) {
+    # gitUpdate in repository.json: how SecondBrain proposes to update Git and GitHub at task closing. A preference, never an authorization to run.
+    if($Value -isnot [Collections.IDictionary] -or !$Value.Contains('mode')){return $false}
+    if([string]$Value['mode'] -cnotin @('commit-push-main','branch-pr','none')){return $false}
+    foreach($key in @($Value.Keys)){if($key -cnotin @('mode','branch')){return $false}}
+    if($Value.Contains('branch')){$b=[string]$Value['branch'];if($b -notmatch '^[A-Za-z0-9][A-Za-z0-9._/-]{0,99}$' -or $b -match '\.\.|//|\.lock$|/$'){return $false}}
+    $true
+}
+function Get-SBGitUpdate($RepositoryRecord) {
+    # Effective preference: the stored value, or the proposed default (commit and push on the main branch) marked as not yet confirmed.
+    if($RepositoryRecord -is [Collections.IDictionary] -and $RepositoryRecord.Contains('gitUpdate') -and (Test-SBGitUpdate $RepositoryRecord['gitUpdate'])){
+        $stored=$RepositoryRecord['gitUpdate']
+        return [ordered]@{mode=[string]$stored['mode'];branch=$(if($stored.Contains('branch')){[string]$stored['branch']}else{'main'});confirmed=$true}
+    }
+    [ordered]@{mode='commit-push-main';branch='main';confirmed=$false}
+}
 Export-ModuleMember -Function @(
+    'Test-SBGitUpdate',
+    'Get-SBGitUpdate',
     'Resolve-SBParaPath',
     'Get-SBParaEntities',
     'Get-SBParaIndex',

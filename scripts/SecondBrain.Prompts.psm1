@@ -352,6 +352,7 @@ Add-SBMessages @{
     'cmd.compose' = @{ en = 'Composes the prompt with the repository context and runs it within the session permissions.' }
     'cmd.activate' = @{ en = 'SYS03: read-only discovery, map of repositories and IDEs, activation after confirmation. Alias: sb activate.' }
     'cmd.setup' = @{ en = 'SYS17: guided first-run setup of SecondBrain, IDE, agent, directives and MCP, with optional features proposed from the state. Alias: sb configura.' }
+    'cmd.skills' = @{ en = 'SYS18: analyzes the project, proposes skills from its facts and installs the selected ones for Claude Code, Codex or Antigravity at project or user scope, with preview and confirmation (scripts/skills.ps1).' }
     'cmd.check' = @{ en = 'SYS04: checks the alignment of managed assets without fixing. Alias: sb check.' }
     'cmd.sync' = @{ en = 'Applies the approved texts to managed assets and proposes the new ones, preserving conflicts. Alias: sb sync.' }
     'mode.run' = @{ en = 'run' }
@@ -416,6 +417,7 @@ function Get-SBWorkflowCommands {
         @{command='sb prompt KEY: objective';aliases=@();scope='repository';does=(Get-SBWorkflowMessage 'cmd.compose');mode=(Get-SBWorkflowMessage 'mode.card');script='scripts/prompts.ps1 -Compose -Prompt KEY -Objective TEXT'},
         @{command='sb activate';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.activate');mode=(Get-SBWorkflowMessage 'mode.write');script='scripts/secondbrain.ps1 -Setup -Interactive'},
         @{command='sb setup';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.setup');mode=(Get-SBWorkflowMessage 'mode.write');script='scripts/setup-status.ps1'},
+        @{command='sb skills';aliases=@();scope='repository';does=(Get-SBWorkflowMessage 'cmd.skills');mode=(Get-SBWorkflowMessage 'mode.write');script='scripts/skills.ps1'},
         @{command='sb check';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.check');mode=(Get-SBWorkflowMessage 'mode.verify');script='scripts/secondbrain.ps1 -Check'},
         @{command='sb sync';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.sync');mode=(Get-SBWorkflowMessage 'mode.write');script='scripts/secondbrain.ps1 -Sync'},
         @{command='sb compact';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.compact');mode=(Get-SBWorkflowMessage 'mode.write');script='scripts/knowledge.ps1 -Compact -CandidatePath FILE'},
@@ -681,6 +683,24 @@ function Get-SBWorkflowContext {
 }
 
 # Next-prompt candidates: the card's related prompts (central ones only when working inside SecondBrain) and ready tasks from repositories in context.
+function Get-SBGitUpdateClosingLines($Context,$Prompt) {
+    # Closing rule for write prompts: how Git and GitHub are updated is a per-repository owner choice (repository.json gitUpdate); never assumed.
+    if($Prompt.mode -ne 'write'){return @()}
+    $lines=@()
+    foreach($record in @($Context.repositories)){
+        if(!$record.dossier){continue}
+        $stored=$null;$path=Join-Path ([string]$record.dossier) 'repository.json'
+        if(Test-Path -LiteralPath $path -PathType Leaf){try{$stored=Read-SBJson $path $null}catch{$stored=$null}}
+        $pref=Get-SBGitUpdate $stored
+        $label=if($record.identity){[string]$record.identity}else{'this repository'}
+        if($pref.confirmed){
+            $lines+=('- Git and GitHub for '+$label+': the owner chose '+$pref.mode+' on '+$pref.branch+'. Propose that update at closing, show what will be committed, and run it only after the owner confirms in this session; delegates and the runner never commit or push.')
+        }else{
+            $lines+=('- Git and GitHub for '+$label+': no choice recorded. At closing ask the owner with the question tool how to update Git and GitHub (commit and push on the main branch is the default proposal; alternatives: branch and pull request, or nothing); after the answer record it with `scripts/para.ps1 -SetGitUpdate -GitMode <mode> -GitBranch <branch> -Only <identity> -Apply -Confirmed`. Commit or push nothing before the answer.')
+        }
+    }
+    @($lines)
+}
 function Get-SBWorkflowNextProposals([string]$BrainRoot,$Catalog,$Prompt,$Context) {
     $centralHere=(@($Context.repositories).Count -eq 1 -and [IO.Path]::GetFullPath($Context.repositories[0].checkout) -eq [IO.Path]::GetFullPath($BrainRoot))
     $prompts=@()
@@ -734,6 +754,7 @@ function New-SBWorkflowComposition([string]$BrainRoot,$Catalog,$Prompt,$Context,
     if($proposals.prompts.Count){$lines+=@($T.nextPrompts)+@($proposals.prompts|ForEach-Object {'- '+$_.code+': '+(Get-SBWorkflowField $_ 'summary' $language)})}
     if($proposals.tasks.Count){$lines+=@($T.nextTasks)+@($proposals.tasks|ForEach-Object {'- '+$_.id+' ['+$_.priority+'/'+$_.status+'] '+$_.title})}
     if(!$proposals.prompts.Count -and !$proposals.tasks.Count){$lines+=$T.nextNone}
+    $lines+=@(Get-SBGitUpdateClosingLines $Context $Prompt)
     $lines+=@($T.nextNote,'</next_steps>','</prompt>')
     ($lines -join "`n").TrimEnd()+"`n"
 }

@@ -471,6 +471,18 @@ async fn read_registry(app: AppHandle, query: RegistryQuery) -> Result<Value, St
 }
 
 #[tauri::command]
+async fn list_projects(app: AppHandle) -> Result<Value, String> {
+    // Read-only: the projects bound on this workstation with the task counts of each tracker (projects.ps1 -List).
+    script(app, "projects.ps1", vec!["-List".into()]).await
+}
+
+#[tauri::command]
+async fn next_steps(app: AppHandle, repo: String) -> Result<Value, String> {
+    // Read-only: reasoned next steps for the project (next-steps.ps1); an action is only named here, the owner chooses it.
+    script(app, "next-steps.ps1", vec!["-CheckoutPath".into(), checkout(&repo)?]).await
+}
+
+#[tauri::command]
 async fn list_runs(app: AppHandle, repo: String, limit: Option<u32>) -> Result<Value, String> {
     let n = limit.unwrap_or(50).min(1000).to_string();
     script(app, "runner-status.ps1", vec!["-CheckoutPath".into(), checkout(&repo)?, "-List".into(), "-Limit".into(), n]).await
@@ -708,6 +720,8 @@ pub fn run() {
             view_task_enrichment,
             decide_task_enrichment,
             read_registry,
+            list_projects,
+            next_steps,
             list_runs,
             add_run_note
         ])

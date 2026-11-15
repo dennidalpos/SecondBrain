@@ -12,6 +12,7 @@ Repository knowledge lives in the SecondBrain dossier; code, guides, and publish
 <!-- secondbrain:repository:end -->
 
 ## Setup
+- Fresh clone or "install SecondBrain": follow `docs/inizia.md#install-with-one-prompt` (preflight, ask for the location, preview, `sb setup`); ask before every write.
 - PowerShell 7.5+ and Git on Windows; nothing to install. Scripts are in `scripts/`, directive and prompt texts in `direttive/`, documentation in `docs/`.
 - The clone is the SecondBrain root: `.runtime/` (Git-ignored) holds the workstation's configuration, sessions, fixtures and backups.
 

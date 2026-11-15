@@ -24,6 +24,7 @@
       <button role="tab" data-tab="queue" disabled><span class="num">3</span> Queue</button>
       <button role="tab" data-tab="run" disabled><span class="num">4</span> Run</button>
       <button role="tab" data-tab="registry" disabled><span class="num">5</span> Registry</button>
+      <button role="tab" data-tab="tracker"><span class="num">6</span> Tracker</button>
       <span class="spacer"></span>
       <button role="tab" data-tab="settings" class="settings-tab">Settings</button>
     </nav>
@@ -212,6 +213,37 @@
           </table>
           <p id="reg-runs-empty" class="muted small" hidden>No runner run for this repository on this workstation.</p>
         </div>
+      </section>
+
+      <section id="tab-tracker" class="panel" role="tabpanel" hidden>
+        <h2>Project trackers</h2>
+        <p class="muted">Read-only view of the trackers of the projects bound on this workstation. Pick a project to load its tasks; nothing here changes a tracker.</p>
+        <div class="row">
+          <label class="inline">Project <select id="trk-project"></select></label>
+          <span class="spacer"></span>
+          <span id="trk-state" class="muted small"></span>
+          <button id="trk-refresh">Refresh</button>
+        </div>
+        <p id="trk-error" class="error" hidden></p>
+        <dl id="trk-facts" class="facts compact" hidden></dl>
+        <section class="analysis-card" id="trk-next-box">
+          <h3>Next steps</h3>
+          <p class="muted small">Reasoned proposals from the tracker, the last run, the Git and GitHub preference and the installed skills. Nothing starts from here: copy the action you choose and run it yourself.</p>
+          <div class="row"><button id="trk-next-load">Propose next steps</button><span id="trk-next-state" class="muted small"></span></div>
+          <p id="trk-next-error" class="error" hidden></p>
+          <ol id="trk-next-list" class="sections"></ol>
+        </section>
+        <div id="trk-counts" class="tool-list"></div>
+        <div class="row">
+          <select id="trk-status" aria-label="Status"></select>
+          <input id="trk-search" type="text" placeholder="Search by ID or title" aria-label="Search" />
+        </div>
+        <table class="tasks registry">
+          <thead><tr><th>#</th><th>ID</th><th>Title</th><th>Status</th><th>Priority</th><th>Last activity</th></tr></thead>
+          <tbody id="trk-rows"></tbody>
+        </table>
+        <p id="trk-empty" class="muted small" hidden>No task matches these filters.</p>
+        <div class="row"><button id="trk-prev">← Previous</button><button id="trk-next">Next →</button></div>
       </section>
 
       <section id="tab-settings" class="panel" role="tabpanel" hidden>

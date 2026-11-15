@@ -68,6 +68,8 @@ Check the returned repository identity, profile and withinBudget value. A budget
 
 For interactive selection, team setup and a new agent session, continue with [Getting started](docs/inizia.md).
 
+**Install with one prompt.** In a compatible agent, send: "Install https://github.com/dennidalpos/secondbrain, follow the procedures for my system, tell me where to place it and start the guided setup." The agent checks the prerequisites, asks where to place the clone, previews the setup and asks before every write ([procedure](docs/inizia.md#install-with-one-prompt)).
+
 ## Common tasks
 
 Run from the SecondBrain checkout. Keep $project set to the selected project path.
@@ -80,7 +82,7 @@ pwsh -NoProfile -File scripts/secondbrain.ps1 -Check
 - **Read project knowledge:** use Startup, task lookup or search; [daily use](docs/uso-quotidiano.md) explains the CLI and chat conventions.
 - **Change a task or memory:** review the operation and its approval requirements. The [MCP write guide](docs/riferimento/mcp-writes.md) covers the local receipt for each submitted operation.
 - **Run the ready tasks:** `scripts/run-ready-tasks.ps1` runs them one at a time with Claude Code, Codex or Gemini CLI; the [desktop orchestrator](docs/orchestratore.md) picks the repository, the directives, the model and the effort level. Open it without an IDE with `pwsh -NoProfile -File start.ps1` from the clone root.
-- **Use prompt cards:** 121 English cards with Italian counterparts cover development, review, documentation and maintenance. [Prompt guide](docs/prompt.md).
+- **Use prompt cards:** 122 English cards with Italian counterparts cover development, review, documentation and maintenance. [Prompt guide](docs/prompt.md).
 - **Back up private knowledge:** preserve the dossier and recovery records separately from Git. [Backup and recovery](docs/sicurezza.md).
 
 A new dossier has no recorded tasks, so an empty ready-task list is expected.
@@ -148,7 +150,7 @@ Servono Windows, PowerShell 7.5+ e Git 2.42+. I comandi copiabili sono nella sez
 
 ### Compiti comuni e configurazione
 
-Consulta i task pronti, carica il dossier e usa una delle 121 schede prompt. Le scritture MCP richiedono un piano e una ricevuta CLI locale per operazione. [Uso quotidiano](docs/uso-quotidiano.md) · [Scritture approvate](docs/riferimento/mcp-writes.md) · [Agenti e MCP](docs/ide-e-mcp.md).
+Consulta i task pronti, carica il dossier e usa una delle 122 schede prompt. Le scritture MCP richiedono un piano e una ricevuta CLI locale per operazione. [Uso quotidiano](docs/uso-quotidiano.md) · [Scritture approvate](docs/riferimento/mcp-writes.md) · [Agenti e MCP](docs/ide-e-mcp.md).
 
 ### Limiti e aiuto
 

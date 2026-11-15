@@ -6,6 +6,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { open } from "@tauri-apps/plugin-dialog";
 import { $, busy, call, el, fmtDuration, onBusyClick, input, option, select, setError, since, baseName, type AgentCaps, type AgentStatus, type LightChoice, type Source } from "./common";
 import { initRegistry, showRegistry } from "./registry";
+import { initTracker, showTracker } from "./tracker";
 import { analyzeMany, analyzeTask, initAnalysis, openAnalysis, openEnrichment, storedAnalysis, verdictOf, VERDICT_LABEL } from "./analysis";
 
 interface ClientInfo { name: string; confidence: string; provider: string | null; runnable: boolean; reason: string | null }
@@ -105,6 +106,7 @@ function selectTab(name: string) {
   document.querySelectorAll<HTMLButtonElement>(".steps button[data-tab]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === name)));
   document.querySelectorAll<HTMLElement>(".panel").forEach((p) => (p.hidden = p.id !== "tab-" + name));
   if (name === "registry") showRegistry();
+  if (name === "tracker") showTracker();
 }
 function updateSteps() {
   const loaded = Boolean(state.repo);
@@ -828,6 +830,7 @@ async function start() {
     if (state.launch.rootError) setError("repo-error", state.launch.rootError);
   }
   initRegistry(() => state.repo);
+  initTracker();
   initAnalysis({ repo: () => state.repo, identity: () => state.identity, light: currentLight, onChange: () => { renderSkipped(); } });
   await loadSettings();
   await renderRecent();
