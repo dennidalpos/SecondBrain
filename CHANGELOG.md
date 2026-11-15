@@ -2,8 +2,18 @@
 
 Formato [Keep a Changelog](https://keepachangelog.com/it-IT/1.1.0/). La numerazione segue il file `VERSION`. Questo registro cambia solo quando accetti un cambio di versione: vedi [Cambiare versione](docs/uso-quotidiano.md).
 
-> Versione corrente: **2.16.0**, numerazione reimpostata il 2026-11-04 con le funzionalità attuali conservate. Le sezioni seguenti mantengono la cronologia dei rilasci precedenti.
+> Versione corrente: **2.17.0**, numerazione reimpostata il 2026-11-04 con le funzionalità attuali conservate. Le sezioni seguenti mantengono la cronologia dei rilasci precedenti.
 
+## [2.17.0] - 2026-11-16
+
+Onboarding creates the repository instruction files by default, a repository tracker can be merged into an existing dossier, and `ide-map.ps1 -Guide` turns the IDE directive check into a step-by-step guide.
+
+### Added
+- `ide-map.ps1 -Guide`: checks automatically the managed block of each file-based IDE and the account text of each manual one (revisions and hash) and the observation receipts; for every integration that still needs a person it prints the steps for that client and, once, the exact text to copy, with the `-Setup -IdeAccount` declaration command carrying revision and hash.
+- `import-tracker.ps1 -Merge`: merges a checkout tracker into an existing dossier tracker with a preview, a plan hash required by `-Apply`, a verified backup and `-RollbackMerge`; conflicts are reported and never overwritten, and `sb check` reports unmerged tasks as `tracker-merge`.
+
+### Changed
+- A repository activated for the first time gets `AGENTS.md` (managed block) and the `CLAUDE.md` and `GEMINI.md` pointers by default, created when absent, with text outside the managed blocks kept; `-RepositoryFiles none` opts out and a repeated activation keeps the earlier choice. This supersedes the empty default of #484 for new bindings; bindings created earlier are unchanged.
 ## [2.16.0] - 2026-11-14
 
 A run closes in a fixed order and removes only its own registered temporary files, and accepted tasks are counted apart from process successes.
