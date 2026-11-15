@@ -22,6 +22,9 @@ param(
     [Parameter(ParameterSetName = 'Server')]
     [switch]$NoRecovery,
 
+    [Parameter(ParameterSetName = 'Server')]
+    [ValidateSet('full', 'reader', 'executor')][string]$ToolProfile = 'full',
+
     [Parameter(Mandatory, ParameterSetName = 'Pair')]
     [switch]$Pair,
 
@@ -138,4 +141,4 @@ if ($Pair) {
     return $info
 }
 
-Start-SBMcpServer -BrainRoot $BrainRoot -ConfigPath $ConfigPath -NoRecovery:$NoRecovery
+Start-SBMcpServer -BrainRoot $BrainRoot -ConfigPath $ConfigPath -NoRecovery:$NoRecovery -ToolProfile $ToolProfile

@@ -5,7 +5,7 @@ Sei un editor attento che riduce il contesto iniziale senza perdere originali, d
 </role>
 
 <context>
-Da usare su richiesta esplicita (`sb compatta`) o quando gli indici consigliano manutenzione. Un avviso non autorizza l'applicazione.
+Da usare su richiesta esplicita (`sb compact`) o quando gli indici consigliano manutenzione. Un avviso non autorizza l'applicazione.
 </context>
 
 <inputs>

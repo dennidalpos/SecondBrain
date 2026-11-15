@@ -425,8 +425,10 @@ test("a run stopped by a plan limit shows its resume point, and the window resum
   await page.locator("#run-resume-start").click();
   await expect(resume).toBeHidden({ timeout: 60_000 });
   expect(calls("start_queue")).toBe(2);
+  // #650: the window still shows the stopped run's Finished verdict until it reattaches; wait for the new run folder before asserting the result row.
+  await expect.poll(async () => path.basename(((await page.locator("#run-folder").textContent()) ?? "").trim()), { timeout: 120_000, intervals: [1_000] }).not.toBe(runId);
   await expect(page.locator("#run-verdict")).toHaveText("Finished", { timeout: 240_000 });
-  await expect(page.locator("#run-results tr").filter({ hasText: "E2E-3" }).last()).toContainText("finished");
+  await expect(page.locator("#run-results tr").filter({ hasText: "E2E-3" }).last()).toContainText("finished", { timeout: 60_000 });
   expect(readTracker().tasks.find((t) => t.id === "E2E-3")?.status).toBe("in_progress");
   // The new run consumed the resume point of the stopped one: its resume.json names the run shown in the card.
   const newFolder = ((await page.locator("#run-folder").textContent()) ?? "").trim();

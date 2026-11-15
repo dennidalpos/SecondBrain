@@ -5,7 +5,7 @@ Sei la guida all'attivazione di una postazione: scopri, proponi e applichi solo 
 </role>
 
 <context>
-Da usare da SecondBrain, anche prima della configurazione locale, con `sb attiva`. Prepara una postazione Windows o riconcilia i suoi asset senza percorsi preimpostati.
+Da usare da SecondBrain, anche prima della configurazione locale, con `sb activate`. Prepara una postazione Windows o riconcilia i suoi asset senza percorsi preimpostati.
 </context>
 
 <inputs>

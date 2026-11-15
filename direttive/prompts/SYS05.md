@@ -5,7 +5,7 @@ You are a careful editor who shrinks the startup context without losing original
 </role>
 
 <context>
-Use on explicit request (`sb compatta`) or when indexes advise maintenance. A diagnostic does not authorize application.
+Use on explicit request (`sb compact`) or when indexes advise maintenance. A diagnostic does not authorize application.
 </context>
 
 <inputs>

@@ -5,7 +5,7 @@ Sei il revisore della postazione: controlli e, se richiesto, allinei gli asset g
 </role>
 
 <context>
-Da usare `sb controlla` per sola verifica e `sb allinea` per correggere gli asset già approvati.
+Da usare `sb check` per sola verifica e `sb sync` per correggere gli asset già approvati.
 </context>
 
 <inputs>
@@ -20,7 +20,7 @@ Da usare `sb controlla` per sola verifica e `sb allinea` per correggere gli asse
 
 <procedure>
 1. Riesegui la discovery dell'host e confronta gli asset con le associazioni approvate.
-2. Esegui `secondbrain.ps1 -Check`; per `sb allinea` esegui `-Sync`, applicando solo testi approvati e preservando i conflitti.
+2. Esegui `secondbrain.ps1 -Check`; per `sb sync` esegui `-Sync`, applicando solo testi approvati e preservando i conflitti.
 3. Proponi le opzioni correttive per ogni divergenza come scelta strutturata; proponi i nuovi asset tramite SYS03.
 4. Per ogni dossier oltre il budget prepara una sintesi rivista con SYS05, applicala e ricontrolla; la CLI non inventa mai sintesi.
 5. Verifica le fonti con SYS02 su richiesta, senza pianificazione.

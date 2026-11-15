@@ -122,6 +122,25 @@ function ConvertTo-SBMcpJson($Value) {
     ConvertTo-SBStableValue $Value | ConvertTo-Json -Depth 40 -Compress
 }
 
+# Tool subsets per profile (#653): full keeps all 13 tools; reader keeps the dossier and prompt reads; executor keeps what a task run needs.
+# A tool outside the active profile is absent from tools/list and refused by tools/call as unknown. Legacy aliases resolve before the check in Invoke-SBMcpToolCall only for tools the profile allows.
+function Get-SBMcpProfileTools([string]$ToolProfile) {
+    switch ($ToolProfile) {
+        'reader' { return @('get_startup_context','get_ready_tasks','get_task','search_knowledge','list_prompts','get_prompt_home','get_prompt','get_decisions') }
+        'executor' { return @('get_startup_context','get_ready_tasks','get_task','search_knowledge','get_prompt','check_publication') }
+        default { return $null }
+    }
+}
+
+function Test-SBMcpToolInProfile([string]$ToolName) {
+    $active=Get-Variable -Name SBMcpToolProfile -Scope Script -ValueOnly -ErrorAction SilentlyContinue
+    $allowed=Get-SBMcpProfileTools ([string]$active)
+    if ($null -eq $allowed) { return $true }
+    $legacyAliases = Get-SBMcpDeprecatedToolAliases
+    if ($legacyAliases.Contains($ToolName)) { $ToolName = $legacyAliases[$ToolName] }
+    return ($ToolName -in $allowed)
+}
+
 function Get-SBMcpToolDefinitions {
     $definitions=@(
         @{
@@ -619,7 +638,7 @@ function Invoke-SBMcpMessage([string]$BrainRoot, $Message) {
                 }
             }
             'tools/list' {
-                $tools = Get-SBMcpToolDefinitions
+                $tools = @(Get-SBMcpToolDefinitions | Where-Object { Test-SBMcpToolInProfile $_.name })
                 return ConvertTo-SBMcpJson @{
                     jsonrpc = '2.0'
                     id = $id
@@ -633,6 +652,7 @@ function Invoke-SBMcpMessage([string]$BrainRoot, $Message) {
                 $args = if ($params.ContainsKey('arguments')) { $params.arguments } else { @{} }
                 
                 try {
+                    if (!(Test-SBMcpToolInProfile $toolName)) { throw (New-SBError 'mcp.tool.unknown' @($toolName)) }
                     $output = Invoke-SBMcpToolCall -BrainRoot $BrainRoot -ToolName $toolName -Arguments $args
                     $contentBlocks = @(@{ type = 'text'; text = $output })
                     $notice = Get-SBMcpDeprecationNotice $toolName
@@ -776,11 +796,13 @@ function Start-SBMcpServer {
     param(
         [string]$BrainRoot,
         [string]$ConfigPath,
-        [switch]$NoRecovery
+        [switch]$NoRecovery,
+        [ValidateSet('full','reader','executor')][string]$ToolProfile='full'
     )
     if (!$BrainRoot) {
         $BrainRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
     }
+    $script:SBMcpToolProfile=$ToolProfile
     $script:SBMcpConfigPath=$ConfigPath
     $script:SBMcpNoRecovery=[bool]$NoRecovery
     

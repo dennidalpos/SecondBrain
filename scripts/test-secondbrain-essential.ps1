@@ -818,6 +818,20 @@ if('pending' -in $Groups){
     Check ((Get-SBFileHash (Join-Path $dossier 'memory.md')) -ceq $memoryBefore -and @($pureTools|Where-Object {!$_.annotations.readOnlyHint}).Count -eq 1 -and @($pureTools|Where-Object {!$_.annotations.readOnlyHint})[0].name -ceq 'submit_dossier_write') '#474: MCP lists tools without draining the queue; only submit_dossier_write is not read-only'
     $pureMcp=& $mcpModule {param($root) Invoke-SBMcpMessage $root @{jsonrpc='2.0';id=31;method='tools/list';params=@{_meta=@{noRecovery=$true}}}} $brain
     Check (($pureMcp|ConvertFrom-Json -AsHashtable).result.tools.Count -eq 13 -and (Get-SBFileHash (Join-Path $dossier 'memory.md')) -ceq $memoryBefore) 'MCP request NoRecovery lists tools without draining the queue'
+    # #653: tools/list size budget per profile, measured 2026-11-15 on the compact JSON response (full 10678, reader 6668, executor 5347 characters).
+    # Raise a budget only with a measured reason recorded in docs/ide-e-mcp.md.
+    $profileBudgets=[ordered]@{full=@(10700,13);reader=@(6700,8);executor=@(5400,6)}
+    try{
+        foreach($profileName in $profileBudgets.Keys){
+            & $mcpModule {param($name) $script:SBMcpToolProfile=$name} $profileName
+            $listJson=& $mcpModule {param($root) Invoke-SBMcpMessage $root @{jsonrpc='2.0';id=32;method='tools/list';params=@{}}} $brain
+            $listedCount=@(($listJson|ConvertFrom-Json -AsHashtable).result.tools).Count
+            Check ($listedCount -eq $profileBudgets[$profileName][1] -and $listJson.Length -le $profileBudgets[$profileName][0]) ("MCP profile $profileName lists $listedCount tools within its size budget ($($listJson.Length) of $($profileBudgets[$profileName][0]) characters)")
+        }
+        & $mcpModule {$script:SBMcpToolProfile='reader'}
+        $refusedCall=(& $mcpModule {param($root) Invoke-SBMcpMessage $root @{jsonrpc='2.0';id=33;method='tools/call';params=@{name='submit_dossier_write';arguments=@{}}}} $brain)|ConvertFrom-Json -AsHashtable
+        Check ($refusedCall.result.isError -and $refusedCall.result.content[0].text -match 'Unknown tool') 'MCP reader profile refuses a tool outside its subset'
+    } finally { & $mcpModule {$script:SBMcpToolProfile='full'} }
     [void](Invoke-SBPendingWrites -BrainRoot $brain -Config $cfg)
     Reject {New-SBPendingWrite -BrainRoot $brain -Repository $identity -Operation task.update -Arguments @{TaskId='T-1';DependsOn=@('T-1')} -Config $cfg} 'invalid dependency graph rejected before queuing'
     $target=Join-Path $brain 'untracked.txt';Put $target 'original';$hash=Get-SBFileHash $target

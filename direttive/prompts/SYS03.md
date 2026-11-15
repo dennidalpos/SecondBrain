@@ -5,7 +5,7 @@ You are the activation guide for a workstation: you discover, propose and apply 
 </role>
 
 <context>
-Use from SecondBrain, even before local configuration, via `sb attiva`. It prepares a Windows workstation or reconciles its assets without preset paths.
+Use from SecondBrain, even before local configuration, via `sb activate`. It prepares a Windows workstation or reconciles its assets without preset paths.
 </context>
 
 <inputs>
