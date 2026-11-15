@@ -479,6 +479,23 @@ function Get-ScriptsManifest {
     $manifest
 }
 $healthSet = @($HealthChecks -split ',')
+# The repository can already fail a check for reasons that are not the run's (for example advisory memory notices in -Check): the exit codes
+# at the start are the baseline, and only a check that passed at the start can fail the run. A failing -Quick is repeated once.
+$script:healthBaseline = @{}
+function Invoke-SelfCheck([string]$Name) {
+    $script = if ($Name -eq 'quick') { 'test-secondbrain.ps1' } else { 'secondbrain.ps1' }
+    $switchName = if ($Name -eq 'quick') { '-Quick' } else { '-Check' }
+    $text = & pwsh -NoProfile -File (Join-Path $SecondBrain "scripts\$script") $switchName 2>&1 | Out-String
+    $code = $LASTEXITCODE
+    if ($code -ne 0 -and $Name -eq 'quick') { $text = & pwsh -NoProfile -File (Join-Path $SecondBrain "scripts\$script") $switchName 2>&1 | Out-String; $code = $LASTEXITCODE }
+    [pscustomobject]@{ Code = $code; Last = ($text.Trim() -split "`n")[-1].Trim() }
+}
+function Get-HealthBaseline {
+    foreach ($name in 'quick', 'check') {
+        if ($name -in $healthSet) { $script:healthBaseline[$name] = (Invoke-SelfCheck $name).Code }
+    }
+    if ($script:healthBaseline.Count) { Write-Event 'health-baseline' 'Exit codes of the self checks at the start of the run' $script:healthBaseline }
+}
 function Test-Health([string]$Label) {
     $problems = @()
     try { [void](Get-Tasks) } catch { $problems += "tracker unreadable: $($_.Exception.Message)" }
@@ -486,13 +503,10 @@ function Test-Health([string]$Label) {
         $tasks = Invoke-Knowledge @('-Tasks')
         if ($tasks.Code -ne 0) { $problems += "knowledge.ps1 -Tasks exit $($tasks.Code)" }
     }
-    if ('quick' -in $healthSet) {
-        $quick = & pwsh -NoProfile -File (Join-Path $SecondBrain 'scripts	est-secondbrain.ps1') -Quick 2>&1 | Out-String
-        if ($LASTEXITCODE -ne 0) { $problems += "test-secondbrain.ps1 -Quick exit ${LASTEXITCODE}: $($quick.Trim().Split("`n")[-1])" }
-    }
-    if ('check' -in $healthSet) {
-        $check = & pwsh -NoProfile -File (Join-Path $SecondBrain 'scripts\secondbrain.ps1') -Check 2>&1 | Out-String
-        if ($LASTEXITCODE -ne 0) { $problems += "secondbrain.ps1 -Check exit ${LASTEXITCODE}: $($check.Trim().Split("`n")[-1])" }
+    foreach ($name in 'quick', 'check') {
+        if ($name -notin $healthSet) { continue }
+        $result = Invoke-SelfCheck $name
+        if ($result.Code -ne 0 -and $script:healthBaseline[$name] -eq 0) { $problems += "$name exit $($result.Code): $($result.Last)" }
     }
     $now = Get-ScriptsManifest
     $changed = @($now.Keys | Where-Object { $script:scriptsManifest[$_] -ne $now[$_] })
@@ -521,6 +535,7 @@ if ($power.supported -and -not $power.acquired -and -not $AllowNoPowerRequest) {
     throw (New-SBError 'orchestrate.power.refused' @($power.error))
 }
 $script:scriptsManifest = Get-ScriptsManifest
+Get-HealthBaseline
 $script:waitBudgetHours = $MaxWaitHours
 $consecutiveFailures = 0
 $executed = 0
@@ -595,9 +610,11 @@ try {
         $reference = "report/$(Split-Path -Leaf $WorkDir)/$(Split-Path -Leaf $attempt.OutFile)"
         $summary = ("session $(if ($ok) { 'ended' } else { 'failed' }); $(if ($commitHash) { "commit $commitHash on $($state.branch)" } else { 'no file changes' }); $($attempt.Outcome.text)" -replace '\s+', ' ')
         if ($summary.Length -gt 300) { $summary = $summary.Substring(0, 300) }
-        $recorded = Invoke-Knowledge @('-UpdateTaskId', $task.id, '-Evidence', "$reference|$summary")
-        if ($recorded.Code -eq 0 -and $recorded.Text -match '"state":\s*"applied"') { Write-Event 'evidence' "#$($task.seq) run evidence recorded in the tracker" }
-        else { Write-Event 'evidence' "#$($task.seq) run evidence not accepted by the tracker (task already closed or archived); see $reference" @{ summary = $summary } }
+        # The tracker accepts only reference|outcome with outcome passed, failed, partial or unverified; the text stays in the event.
+        $outcomeWord = if (-not $ok) { 'failed' } elseif ($after.status -eq 'done') { 'passed' } else { 'unverified' }
+        $recorded = Invoke-Knowledge @('-UpdateTaskId', $task.id, '-Evidence', "$reference|$outcomeWord")
+        if ($recorded.Code -eq 0 -and $recorded.Text -match '"state":\s*"applied"') { Write-Event 'evidence' "#$($task.seq) run evidence recorded in the tracker ($outcomeWord)" @{ summary = $summary } }
+        else { Write-Event 'evidence' "#$($task.seq) run evidence not accepted by the tracker: $(($recorded.Text.Trim() -split "`n")[0]); see $reference" @{ summary = $summary } }
         $state.current = $null; $state.currentId = $null
         $health = Test-Health "after #$($task.seq)"
         if (-not $health.Ok) {

@@ -13,7 +13,7 @@
 - `-Status` prints the latest run (phase, pid alive, interrupted, current task, counters, notice, last events); `-Stop` creates `stop.flag` so the run ends before the next task.
 - Resume: a run cut while `running` (pid gone) is resumed by running `-Run` again. The work folder and counters come from `status.json`; the interrupted task goes first, its dirty tree is accepted for that task only, and its prompt says to continue the partial work.
 - `-InstallAgent -Provider claude|codex|gemini` writes a context-free supervisor agent definition into the checkout and never overwrites an existing file. Only the Claude Code format (`.claude/agents/task-queue-supervisor.md`) is verified; the Codex and Gemini files are plain definitions to adapt.
-- Limits: the SecondBrain scripts cannot be pinned (the brain root is the parent of `scripts/` and the dossier write guard refuses junctions), so their SHA-256 manifest is taken at start and a change is reported as `scripts-changed` after each task. Evidence is refused by the tracker for a task the session already closed (it is archived); the run evidence then stays in the work folder. Extended tool access works with Claude Code only. The quota is not read before each task.
+- Limits: the SecondBrain scripts cannot be pinned (the brain root is the parent of `scripts/` and the dossier write guard refuses junctions), so their SHA-256 manifest is taken at start and a change is reported as `scripts-changed` after each task. The health check compares `-Quick` and `-Check` with their exit codes at the start of the run, so a repository that already fails one of them is not stopped by it. Extended tool access works with Claude Code only. The quota is not read before each task.
 
 ## Note: full permissions for the runner
 
