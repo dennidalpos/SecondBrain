@@ -212,3 +212,32 @@ table.registry .reg-row.archived td { color: var(--muted); }
 .reg-runs { padding: 4px 0; }
 .state-done { color: var(--ok); }
 .state-blocked, .state-cancelled { color: var(--warn); }
+
+/* Usability and accessibility (G10, WCAG 2.2): skip link, strong focus, reflow at 1024x768 and 200% zoom, 24px targets. */
+.skip-link { position: absolute; left: 8px; top: -48px; z-index: 10; padding: 8px 12px; background: var(--accent); color: var(--accent-text); border-radius: 6px; }
+.skip-link:focus { top: 8px; }
+main:focus { outline: none; }
+.steps button:focus-visible { outline-offset: -2px; background: var(--accent-soft); }
+table.registry .reg-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+button, select { min-height: 24px; }
+input[type="checkbox"], input[type="radio"] { min-width: 24px; min-height: 24px; }
+.steps button[aria-selected="true"] { font-weight: 650; }
+.badge::before { content: "Status: "; font-weight: 400; }
+@media (max-width: 1100px) {
+  .bar { flex-wrap: wrap; gap: 8px 16px; padding: 8px 16px; }
+  .steps { flex-wrap: wrap; padding: 4px 12px 0; }
+  .steps .spacer { display: none; }
+  main { padding: 14px 16px 32px; overflow-wrap: anywhere; }
+  .recent li { grid-template-columns: 1fr auto; }
+  .recent-path { grid-column: 1 / -1; }
+}
+@media (max-width: 700px) {
+  .facts { grid-template-columns: 1fr; }
+  table.tasks { display: block; overflow-x: auto; }
+  .budget-bar { flex-basis: 100px; }
+  dialog { max-width: calc(100vw - 24px); }
+}
+@media (forced-colors: active) {
+  .steps button[aria-selected="true"] { border-bottom-color: Highlight; }
+  .badge, .tag { border: 1px solid CanvasText; }
+}

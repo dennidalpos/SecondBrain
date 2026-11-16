@@ -78,7 +78,7 @@ function lastOutcome(t: RegistryTask): string {
 function renderTask(t: RegistryTask): HTMLTableRowElement[] {
   const row = el("tr", { className: "reg-row" + (t.archived ? " archived" : "") });
   row.tabIndex = 0;
-  const tools = el("span", { className: "tool-list" }, ...t.tools.map((x) => toolBadge(x)));
+  row.setAttribute("aria-expanded", "false");  const tools = el("span", { className: "tool-list" }, ...t.tools.map((x) => toolBadge(x)));
   const status = el("span", { className: "state-" + t.status }, STATUS_LABEL[t.status] ?? t.status);
   const title = el("span", {}, t.title, t.archived ? el("span", { className: "tag" }, "archived") : "");
   [t.seq != null ? String(t.seq) : "—", t.id, title, status, tools, fmtDate(t.lastActivity ?? t.closedAt), lastOutcome(t), String(t.runs.length)].forEach((c) => row.append(el("td", {}, c)));
@@ -90,6 +90,7 @@ function renderTask(t: RegistryTask): HTMLTableRowElement[] {
   const toggle = () => {
     detail.hidden = !detail.hidden;
     row.classList.toggle("open", !detail.hidden);
+    row.setAttribute("aria-expanded", String(!detail.hidden));
     if (!detail.hidden && !cell.childElementCount) cell.append(renderRuns(t));
   };
   row.addEventListener("click", toggle);

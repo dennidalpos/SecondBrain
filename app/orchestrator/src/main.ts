@@ -104,7 +104,7 @@ function analyzable(code: string): boolean { return /^(execution|status|awaiting
 
 // Steps
 function selectTab(name: string) {
-  document.querySelectorAll<HTMLButtonElement>(".steps button[data-tab]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === name)));
+  document.querySelectorAll<HTMLButtonElement>(".steps button[data-tab]").forEach((b) => { b.setAttribute("aria-selected", String(b.dataset.tab === name)); b.tabIndex = b.dataset.tab === name ? 0 : -1; });
   document.querySelectorAll<HTMLElement>(".panel").forEach((p) => (p.hidden = p.id !== "tab-" + name));
   state.tab = name;
   renderNoRepoNote();
@@ -139,6 +139,19 @@ function renderHome() {
 // A tab chosen by the person is never overridden by the startup preload.
 let navigated = false;
 document.querySelectorAll<HTMLButtonElement>(".steps button[data-tab]").forEach((b) => b.addEventListener("click", () => { if (!b.disabled) { navigated = true; selectTab(b.dataset.tab!); } }));
+// WAI-ARIA tabs: arrow keys, Home and End move between sections (roving tabindex); Tab then leaves the list for the panel.
+document.querySelector<HTMLElement>(".steps")!.addEventListener("keydown", (e) => {
+  const tabs = Array.from(document.querySelectorAll<HTMLButtonElement>(".steps button[data-tab]")).filter((b) => !b.disabled);
+  const at = tabs.indexOf(document.activeElement as HTMLButtonElement);
+  if (at < 0) return;
+  const next = e.key === "ArrowRight" ? (at + 1) % tabs.length : e.key === "ArrowLeft" ? (at - 1 + tabs.length) % tabs.length : e.key === "Home" ? 0 : e.key === "End" ? tabs.length - 1 : -1;
+  if (next < 0) return;
+  e.preventDefault();
+  navigated = true;
+  selectTab(tabs[next].dataset.tab!);
+  tabs[next].focus();
+});
+selectTab(state.tab);
 $("home-runner").addEventListener("click", () => { navigated = true; selectTab(state.run.active ? "run" : "queue"); });
 $("home-setup").addEventListener("click", () => { navigated = true; selectTab("repo"); });
 $("home-library").addEventListener("click", () => { navigated = true; selectTab(state.repo ? "registry" : "tracker"); });
