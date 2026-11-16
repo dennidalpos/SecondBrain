@@ -30,7 +30,6 @@ Schema 2 implements section 4 of the [asset contracts](asset-contracts.md#4-agen
 | `cards` | Optional list of `pmt-` IDs or roles the agent may compose (no card codes, no duplicates) |
 | `output` | `{kind: text\|report\|object, schema?}`; `schema` is a `config/<path>.json` and is required for `object` |
 | `bounds` | `{depth: 1, budget: {turns?, minutes?}}`; `depth` must be 1 (a delegate cannot delegate); `budget` needs at least one of `turns` (1–1000) or `minutes` (1–1440) |
-
 | `model` | Optional `{provider: any\|claude\|codex\|gemini, name?}`; `name` needs a provider other than `any`. A preference for the parent, never a permission |
 
 Example:
@@ -82,7 +81,7 @@ Schema 2 definitions are authored and retired with the same script. Every operat
 
 ## Shipped presets (#624)
 
-`direttive/agents/presets/` holds 24 schema 2 definitions (status `active`, revision 1, IDs `agt-5e000001` to `agt-5e000018`): repo-explorer, requirements-analyst, planner, implementer, debugger, code-reviewer, unit-tester, integration-tester, ui-tester, accessibility-reviewer, security-reviewer, dependency-reviewer, performance-analyst, documentation-writer, release-checker, ci-diagnostician, data-analyst, query-validator, researcher, document-drafter, document-reviewer, tutor, personal-project-planner and file-organizer. They are supported use cases, not a popularity ranking, and are copied into a dossier's `subagents/` folder with `Create`.
+`direttive/agents/presets/` holds 24 schema 2 definitions (status `active`, revision 1, IDs `agt-5e000001` to `agt-5e000018`, the last digits being hexadecimal): repo-explorer, requirements-analyst, planner, implementer, debugger, code-reviewer, unit-tester, integration-tester, ui-tester, accessibility-reviewer, security-reviewer, dependency-reviewer, performance-analyst, documentation-writer, release-checker, ci-diagnostician, data-analyst, query-validator, researcher, document-drafter, document-reviewer, tutor, personal-project-planner and file-organizer. They are supported use cases, not a popularity ranking, and are copied into a dossier's `subagents/` folder with `Create` (for example `-Operation Create -Repository <identity> -DefinitionPath direttive/agents/presets/code-reviewer.json -Apply`; without `-Apply` it previews the definition). `Validate`, `Resolve` and `Export` read the dossier's `subagents/` folder, so they report nothing to export until a definition is created there; in a dossier with no `subagents/` folder `Validate` and `Resolve` currently fail with a PowerShell property error (known gap, see #688 evidence).
 
 Schema 2 has no dedicated fields for sources and boundaries, so each `context` declares five labelled lines: `Sources`, `Boundaries`, `Tools` (equal to `permissions.tools`), `Writes` and `Expected output`. `permissions.write` is true only for documentation-writer, document-drafter and personal-project-planner, and then only through the reviewed MCP write path. `test-secondbrain-subagents.ps1` validates all 24 and checks those lines. Native client loading is not covered here.
 
