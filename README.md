@@ -1,7 +1,6 @@
 # SecondBrain for Coding Agents
 
-![Version 2.17.0](https://img.shields.io/badge/version-2.17.0-blue) ![Windows](https://img.shields.io/badge/Windows-0078D6) ![PowerShell 7.5+](https://img.shields.io/badge/PowerShell-7.5%2B-5391FE) [![CI](https://github.com/dennidalpos/secondbrain/actions/workflows/ci.yml/badge.svg)](https://github.com/dennidalpos/secondbrain/actions/workflows/ci.yml)
-
+![Version 2.17.0](https://img.shields.io/badge/version-2.17.0-blue) ![Windows](https://img.shields.io/badge/Windows-0078D6) ![PowerShell 7.5+](https://img.shields.io/badge/PowerShell-7.5%2B-5391FE)
 English · [Italiano](#italiano)
 
 **Project context, decisions, tasks and shared rules for coding agents on Windows.**
@@ -81,7 +80,7 @@ pwsh -NoProfile -File scripts/secondbrain.ps1 -Check
 
 - **Read project knowledge:** use Startup, task lookup or search; [daily use](docs/uso-quotidiano.md) explains the CLI and chat conventions.
 - **Change a task or memory:** review the operation and its approval requirements. The [MCP write guide](docs/riferimento/mcp-writes.md) covers the local receipt for each submitted operation.
-- **Run the ready tasks:** `scripts/run-ready-tasks.ps1` runs them one at a time with Claude Code, Codex or Gemini CLI; the [desktop orchestrator](docs/orchestratore.md) picks the repository, the directives, the model and the effort level. Open it without an IDE with `pwsh -NoProfile -File start.ps1` from the clone root.
+- **Run the ready tasks:** `scripts/run-ready-tasks.ps1` runs them one at a time with Claude Code, Codex or Gemini CLI; the [desktop orchestrator](docs/orchestratore.md) picks the repository, the directives, the model and the effort level. Open it without an IDE with `pwsh -NoProfile -File start.ps1` from the clone root. To work through the ready tasks unattended, `scripts/orchestrate-tasks.ps1` previews the selection by default; `-Run` works on a `queue/<date>` branch, commits locally and never pushes ([guide](docs/orchestrate-tasks.md)).
 - **Use prompt cards:** 122 English cards with Italian counterparts cover development, review, documentation and maintenance. [Prompt guide](docs/prompt.md).
 - **Back up private knowledge:** preserve the dossier and recovery records separately from Git. [Backup and recovery](docs/sicurezza.md).
 
@@ -109,6 +108,7 @@ PARA organizes the dossier; startup loads an essential layer before deeper histo
 ## Limits of the current version
 
 - Windows only; PowerShell and Git are required.
+- Setup discovery skips folders named `AppData`, `Windows`, `Program Files`, `node_modules` and `.venv`; a local `config/local/allowlist.json`, when present, limits it to the listed repositories.
 - Context loading must be requested through the CLI, MCP or an agent workflow. Setup does not make every client remember or capture every chat automatically.
 - Native memory capture remains partial. The native bridge accepts only a native Stop event and binds Permit Apply to the reviewed preview hash, tested on synthetic fixtures only. Use the guided workflow and read the [known memory-cycle limits](docs/riferimento/memory-cycle.md#known-limits) before enabling a native bridge.
 - Synthetic fixtures do not qualify real IDE sessions, account permissions, crashes or multiple physical hosts on SMB.
