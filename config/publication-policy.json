@@ -286,11 +286,11 @@
       "sha256": "BDC4BA2C8A9FD39AEFC7FFF20F71A9EA5653685F1444CCB91D2549F0F55603D8"
     },
     {
-      "gitBlob": "a9324f05ac30b82640448ae14534cd4dc3fb6637",
+      "gitBlob": "8d25925d7fbfcf287e3d47ed603a50f1aa0c136b",
       "path": "docs/assets/orchestrator-directives.png",
       "reason": "Reviewed 2026-11-16: screenshot of the real orchestrator binary (app 0.1.0, SecondBrain 2.17.0) on the synthetic fixture; only neutral D:\\sb-shots paths and a test identity, no host ID, user name, email or token; PNG chunks IHDR, iCCP (standard profile), IDAT, IEND.",
       "reviewed": true,
-      "sha256": "2772D8394824C5ECD2D1213E761E517EB16FE7803AA76A814D9F1C1B7903E959"
+      "sha256": "6FEF6B266B6AC5A0FDCB32B87A1C214FA91CD9720E1FC5D5CE67A8C89C39A1B8"
     },
     {
       "gitBlob": "7b9fedc6ccba15322a81e1be9db40602297b573d",
@@ -300,11 +300,11 @@
       "sha256": "9D344B44833FC13588C56BBC9E6501F5552B9DCAA0AC736B28A23CDB27C10867"
     },
     {
-      "gitBlob": "3523f1171c85a332c60dc3b767cf0096c333a4a7",
+      "gitBlob": "7805837238ddecb360976c67412b6bbfb9e669df",
       "path": "docs/assets/orchestrator-queue.png",
       "reason": "Reviewed 2026-11-16: screenshot of the real orchestrator binary (app 0.1.0, SecondBrain 2.17.0) on the synthetic fixture; only neutral D:\\sb-shots paths and a test identity, no host ID, user name, email or token; PNG chunks IHDR, iCCP (standard profile), IDAT, IEND.",
       "reviewed": true,
-      "sha256": "DDC3B3400E5BC1DC90C6D8C45F1055F42036495B3B09ED7C0B4875F4831FCE70"
+      "sha256": "1BDD13AD659B57589608603F500E011F21CA48A0ACFCE4C9EB8BE33821BB4DE4"
     },
     {
       "gitBlob": "c34c57cb76dfcb327de327115ecfb2f280fd26d8",
@@ -314,18 +314,18 @@
       "sha256": "C01408E10324009D26A8F6D8125C7CBA0380156EE5078E9F94C5B9AE0F498307"
     },
     {
-      "gitBlob": "850fe3f5466bfa45be4905da0cb529d554339d6e",
+      "gitBlob": "5c1d241573b5a51b45d93f9f694449ea32ac3182",
       "path": "docs/assets/orchestrator-registry.png",
       "reason": "Reviewed 2026-11-16: screenshot of the real orchestrator binary (app 0.1.0, SecondBrain 2.17.0) on the synthetic fixture; only neutral D:\\sb-shots paths and a test identity, no host ID, user name, email or token; PNG chunks IHDR, iCCP (standard profile), IDAT, IEND.",
       "reviewed": true,
-      "sha256": "F37024CAA0FAEB012382D7BCB60E6630E3CBB55AD899E94B1F68AB9B1115D0C8"
+      "sha256": "688BC9F2F236C6B2F9FFB5D01C4D96B25590D5508AB67C5C67D9B9427FBC6260"
     },
     {
-      "gitBlob": "5673ea7f703a9ae006ce76618bebb29d5724675c",
+      "gitBlob": "f04ef68a4094626aa48dcf12bbd8b5dea2333464",
       "path": "docs/assets/orchestrator-repository.png",
       "reason": "Reviewed 2026-11-16: screenshot of the real orchestrator binary (app 0.1.0, SecondBrain 2.17.0) on the synthetic fixture; only neutral D:\\sb-shots paths and a test identity, no host ID, user name, email or token; PNG chunks IHDR, iCCP (standard profile), IDAT, IEND.",
       "reviewed": true,
-      "sha256": "CF85ED3109FF0C8DE37DD0D7928AE4EA6EEA441F7A3A221A760BA4DD7DF0353C"
+      "sha256": "32D0231A2FD61B55360C4E40A94690F61CED715EE1F46F7E0E013F86E804C45D"
     },
     {
       "gitBlob": "8dba55e7535b64848c046de59b1d73f88e418460",
@@ -335,11 +335,11 @@
       "sha256": "D79C3DF3C534828A91E75099813C94087A267186D5A2F522677679B249AFAA0D"
     },
     {
-      "gitBlob": "5f33b18f79f981236447c128564264e7856f0457",
+      "gitBlob": "7f39ed8618a86e627ac6cb1eb4cecf2960e6c1dc",
       "path": "docs/assets/orchestrator-tracker.png",
       "reason": "Reviewed 2026-11-16: screenshot of the real orchestrator binary (app 0.1.0, SecondBrain 2.17.0) on the synthetic fixture; only neutral D:\\sb-shots paths and a test identity, no host ID, user name, email or token; PNG chunks IHDR, iCCP (standard profile), IDAT, IEND.",
       "reviewed": true,
-      "sha256": "9859FA997F09E15F8B19256A6512A0BA5C1343B6F69ADC6B46A161BDAE6AD2B6"
+      "sha256": "D29EDD8EBE2DE652B2FA0051EE18F1C1AD0704A4A72A692D121F0F974691B55B"
     },
   ],
   "ignoredReviews": [
