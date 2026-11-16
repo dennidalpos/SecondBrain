@@ -18,8 +18,9 @@ $script:SBSubagentWriteTools=@('preview_dossier_write','submit_dossier_write')
 $script:SBSubagentSpecialTools=@('check_publication')
 $script:SBSubagentFields=@('schemaVersion','name','description','role','context','permissions')
 # Schema 2 (docs/riferimento/asset-contracts.md section 4): identity, revisioning, composable cards, output contract and delegation bounds.
-$script:SBSubagentFields2=@('schemaVersion','id','name','revision','status','description','role','context','permissions','cards','output','bounds','replacedBy')
-$script:SBSubagentOptional2=@('cards','replacedBy')
+$script:SBSubagentFields2=@('schemaVersion','id','name','revision','status','description','role','context','permissions','cards','output','bounds','replacedBy','model')
+$script:SBSubagentOptional2=@('cards','replacedBy','model')
+$script:SBSubagentProviders=@('any','claude','codex','gemini')
 $script:SBSubagentPermissionFields=@('tools','write')
 $script:SBSubagentStatuses=@('draft','active','deprecated','retired')
 $script:SBSubagentOutputKinds=@('text','report','object')
@@ -77,6 +78,13 @@ function Test-SBSubagentDefinition($Definition) {
                 if($refs.ContainsKey($ref)){& $fail 'cards duplicate'}
                 $refs[$ref]=$true
             }
+        }
+        if($Definition.Contains('model')){
+            $model=$Definition.model
+            if($model -isnot [Collections.IDictionary]){& $fail 'model'}
+            foreach($key in $model.Keys){if($key -cnotin @('provider','name')){& $fail ('model.'+$key)}}
+            if($model.provider -isnot [string] -or $model.provider -cnotin $script:SBSubagentProviders){& $fail 'model.provider'}
+            if($model.Contains('name') -and ($model.name -isnot [string] -or $model.name -cnotmatch '^[A-Za-z0-9._:/@\[\]-]{1,120}$' -or $model.provider -ceq 'any')){& $fail 'model.name'}
         }
         $out=$Definition.output
         if($out -isnot [Collections.IDictionary]){& $fail 'output'}
@@ -184,28 +192,88 @@ function Resolve-SBSubagentPermissions($Definition,$Parent) {
       writeAuthorization='parent-reviewed-mcp-write';inherited=$true}
 }
 
+# Native client formats (sources: docs/riferimento/source-provenance-3-0.md, checked 2026-11-16). Every definition field a client cannot
+# represent is listed under `unsupported` instead of being dropped silently; `enforcement` separates what the client itself enforces
+# (a tool allowlist) from what is only declared (text the model may ignore, or a restriction the parent session owns).
+$script:SBSubagentNativeClients=@{
+    'claude-code'=@{provider='claude';format='claude-code-markdown';path='.claude/agents/{0}.md'}
+    'codex'=@{provider='codex';format='codex-toml';path='.codex/agents/{0}.toml'}
+    'gemini'=@{provider='gemini';format='gemini-markdown';path='.gemini/agents/{0}.md'}
+}
+function Get-SBSubagentNativeClients { ,@($script:SBSubagentNativeClients.Keys|Sort-Object) }
+function ConvertTo-SBNativeString([string]$Text) { (ConvertTo-Json ([string]$Text) -Compress) }
+
 function ConvertTo-SBSubagentExport($Definition,$Permissions,[string]$Client) {
-    $adapter=Get-SBCycleAdapter $Client
+    $native=$script:SBSubagentNativeClients[$Client]
+    $adapter=if($Client -ne 'gemini'){Get-SBCycleAdapter $Client}else{$null}
     $tools=@($Permissions.tools)
     $normalized=[ordered]@{schemaVersion=1;name=$Definition.name;description=$Definition.description;role=$Definition.role;context=$Definition.context;
         permissions=[ordered]@{tools=$tools;write=[bool]$Permissions.write;writeAuthorization=$Permissions.writeAuthorization}}
-    if([int]$Definition.schemaVersion -eq 2){
+    $v2=[int]$Definition.schemaVersion -eq 2
+    $summary=$null
+    if($v2){
         $summary=Get-SBSubagentSummary $Definition
         $normalized=[ordered]@{schemaVersion=2;id=$Definition.id;name=$Definition.name;revision=$Definition.revision;status=$Definition.status;description=$Definition.description;role=$Definition.role;context=$Definition.context;
             permissions=$normalized.permissions;cards=@(if($Definition.Contains('cards')){$Definition.cards});output=$summary.output;bounds=$summary.bounds}
     }
-    if($Client -ceq 'claude-code'){
-        $mcpTools=@($tools|ForEach-Object {'mcp__secondbrain__'+$_}) -join ', '
-        $oneLine=($Definition.description -replace '\s+',' ').Trim()
-        $body="---`nname: "+$Definition.name+"`ndescription: "+(ConvertTo-Json $oneLine -Compress)+"`ntools: "+$mcpTools+"`n---`n`n"+$Definition.role.Trim()+"`n`n"+$Definition.context.Trim()+"`n"
-        return @{client=$Client;format='claude-code-markdown';relativePath=('.claude/agents/'+$Definition.name+'.md');content=$body.Replace("`r`n","`n");liveVerified=$adapter.liveVerified;note=$null}
+    if(!$native){
+        return @{client=$Client;format='normalized-json';relativePath=('subagents/'+$Definition.name+'.'+$Client+'.json');content=(ConvertTo-SBJson $normalized);liveVerified=$false;note=(Get-SBMessage 'subagent.fallback');unsupported=@();enforcement=$null}
     }
-    @{client=$Client;format='normalized-json';relativePath=('subagents/'+$Definition.name+'.'+$Client+'.json');content=(ConvertTo-SBJson $normalized);liveVerified=$false;note=(Get-SBMessage 'subagent.fallback')}
+    $oneLine=($Definition.description -replace '\s+',' ').Trim()
+    $text=$Definition.role.Trim()+"`n`n"+$Definition.context.Trim()+"`n"
+    $unsupported=@()
+    $hasModel=$Definition.Contains('model') -and $Definition.model -and $Definition.model.Contains('name') -and $Definition.model.name
+    $modelName=if($hasModel -and $Definition.model.provider -ceq $native.provider){[string]$Definition.model.name}else{$null}
+    if($hasModel -and !$modelName){$unsupported+=,@{field='model';reason=('preference for provider '+$Definition.model.provider+' does not apply to '+$Client)}}
+    $metadata=@('id','revision','status','cards','output','bounds')
+    switch($Client){
+        'claude-code' {
+            $mcpTools=@($tools|ForEach-Object {'mcp__secondbrain__'+$_}) -join ', '
+            $content="---`nname: "+$Definition.name+"`ndescription: "+(ConvertTo-SBNativeString $oneLine)+"`ntools: "+$mcpTools+"`n"
+            if($modelName){$content+="model: "+(ConvertTo-SBNativeString $modelName)+"`n"}
+            $content+="---`n`n"+$text
+            if($v2){foreach($f in $metadata){$unsupported+=,@{field=$f;reason='no frontmatter field in the Claude Code subagent format'}}}
+            $enforced=@('tools');$declared=@('write')
+        }
+        'codex' {
+            # The TOML file inherits the parent's permissions, provider and MCP servers and cannot override them: nothing is enforceable here.
+            $permissionText='Allowed SecondBrain MCP tools: '+($tools -join ', ')+'. Write access: '+$(if($Permissions.write){'only through the reviewed MCP write path'}else{'none'})+'.'
+            $content="name = "+(ConvertTo-SBNativeString $Definition.name)+"`ndescription = "+(ConvertTo-SBNativeString $oneLine)+"`n"
+            if($modelName){$content+="model = "+(ConvertTo-SBNativeString $modelName)+"`n"}
+            $content+="developer_instructions = "+(ConvertTo-SBNativeString ($text.TrimEnd("`n")+"`n`n"+$permissionText))+"`n"
+            $unsupported+=,@{field='permissions.tools';reason='Codex custom agents inherit the parent session and have no per-tool allowlist; the allowed tools are declared in the instructions only'}
+            $unsupported+=,@{field='permissions.write';reason='sandbox and write access are inherited from the parent session and cannot be overridden by the agent file'}
+            if($v2){foreach($f in $metadata){$unsupported+=,@{field=$f;reason='no field in the Codex custom agent TOML'}}}
+            $enforced=@();$declared=@('tools','write')
+        }
+        'gemini' {
+            # Gemini CLI loads agents only with experimental.enableAgents; MCP tools are addressed as mcp_<server>_<tool>.
+            $content="---`nname: "+$Definition.name+"`ndescription: "+(ConvertTo-SBNativeString $oneLine)+"`nkind: local`ntools:`n"
+            foreach($tool in $tools){$content+="  - mcp_secondbrain_"+$tool+"`n"}
+            if($modelName){$content+="model: "+(ConvertTo-SBNativeString $modelName)+"`n"}
+            $budget=if($v2){$summary.bounds.budget}else{$null}
+            if($budget -and $budget.Contains('turns')){$content+="max_turns: "+[int]$budget.turns+"`n"}
+            if($budget -and $budget.Contains('minutes')){$content+="timeout_mins: "+[int]$budget.minutes+"`n"}
+            $content+="---`n`n"+$text
+            if($tools.Count -eq 0){$unsupported+=,@{field='permissions.tools';reason='an empty tool list means all tools in Gemini CLI; the agent would not be restricted'}}
+            if($v2){foreach($f in @('id','revision','status','cards','output')){$unsupported+=,@{field=$f;reason='no frontmatter field in the Gemini CLI subagent format'}}}
+            $enforced=@('tools');$declared=@('write')
+        }
+    }
+    $enforcement=[ordered]@{enforcedByClient=@($enforced);declaredOnly=@($declared);tools=$(if($enforced.Count){'client-allowlist'}else{'declared'});
+        write=$(if($Client -ceq 'codex'){'declared'}elseif($Permissions.write){'declared-reviewed-mcp-write-path'}else{'no-write-tool-in-allowlist'})}
+    @{client=$Client;format=$native.format;relativePath=($native.path -f $Definition.name);content=$content.Replace("`r`n","`n");liveVerified=$(if($adapter){$adapter.liveVerified}else{$false});note=$null;unsupported=@($unsupported);enforcement=$enforcement}
 }
 
 # Export to a package folder (never into a checkout): preview by default, apply writes verified files.
 # Draft and retired definitions are not runnable (asset-contracts section 1.3) and stay out of the export.
-function Export-SBSubagents([string]$Dossier,[string]$Client,$Parent,[string]$OutputRoot,[string]$BackupRoot,[switch]$Apply,$Catalog) {
+function Export-SBSubagents([string]$Dossier,[string]$Client,$Parent,[string]$OutputRoot,[string]$BackupRoot,[switch]$Apply,$Catalog,$Capabilities) {
+    # $Capabilities: optional output of Get-SBAgentCapabilities for the client's provider; the report then says whether the CLI is installed.
+    $probe=$null
+    $nativeClient=$script:SBSubagentNativeClients[$Client]
+    if($Capabilities -and $nativeClient){
+        $probe=[ordered]@{provider=$nativeClient.provider;installed=[bool]$Capabilities.installed;status=$Capabilities.status;version=$Capabilities.version}
+    }
     $all=@(Read-SBSubagentDefinitions $Dossier $Catalog)
     $runnable={param($e) !$e.definition.Contains('status') -or $e.definition.status -cin @('active','deprecated')}
     $entries=@($all|Where-Object {& $runnable $_})
@@ -214,7 +282,7 @@ function Export-SBSubagents([string]$Dossier,[string]$Client,$Parent,[string]$Ou
     foreach($entry in $entries){
         $permissions=Resolve-SBSubagentPermissions $entry.definition $Parent
         $export=ConvertTo-SBSubagentExport $entry.definition $permissions $Client
-        $files+=,@{name=$entry.definition.name;relativePath=$export.relativePath;format=$export.format;sourceSha256=$entry.sha256;contentSha256=(Get-SBTextHash $export.content);content=$export.content;liveVerified=$export.liveVerified;note=$export.note}
+        $files+=,@{name=$entry.definition.name;relativePath=$export.relativePath;format=$export.format;sourceSha256=$entry.sha256;contentSha256=(Get-SBTextHash $export.content);content=$export.content;liveVerified=$export.liveVerified;note=$export.note;unsupported=@($export.unsupported);enforcement=$export.enforcement}
     }
     $root=[IO.Path]::GetFullPath($OutputRoot)
     $changed=@()
@@ -232,7 +300,7 @@ function Export-SBSubagents([string]$Dossier,[string]$Client,$Parent,[string]$Ou
         }
     }
     @{state=$(if(!$changed.Count){'unchanged'}elseif($Apply){'applied'}else{'preview'});client=$Client;count=$files.Count;changed=@($changed|ForEach-Object {$_.file.relativePath});skipped=$skipped;
-      files=@($files|ForEach-Object {@{name=$_.name;relativePath=$_.relativePath;format=$_.format;sourceSha256=$_.sourceSha256;contentSha256=$_.contentSha256;liveVerified=$_.liveVerified}})}
+      files=@($files|ForEach-Object {@{name=$_.name;relativePath=$_.relativePath;format=$_.format;sourceSha256=$_.sourceSha256;contentSha256=$_.contentSha256;liveVerified=$_.liveVerified;unsupported=@($_.unsupported);enforcement=$_.enforcement}});probe=$probe}
 }
 
 # Register record of a subagent job: always references the parent session (validated by the register against the log).
@@ -337,7 +405,7 @@ function Save-SBSubagentManagePlan($Plan,[string]$BackupRoot) {
     @{state='applied';action=$Plan.action;name=$Plan.name;id=$Plan.id;revision=$Plan.revision;status=$Plan.status}
 }
 function Get-SBSubagentManageView($Plan,[bool]$Applied) {
-    @{state=$(if($Applied){'applied'}else{'preview'});action=$Plan.action;name=$Plan.name;id=$Plan.id;revision=$Plan.revision;status=$Plan.status;previousRevision=$(if($Plan.before){$Plan.before.revision}else{$null});previousStatus=$(if($Plan.before){$Plan.before.status}else{$null})}
+    @{state=$(if($Applied){'applied'}else{'preview'});action=$Plan.action;name=$Plan.name;id=$Plan.id;revision=$Plan.revision;status=$Plan.status;previousRevision=$(if($Plan.before){$Plan.before.revision}else{$null});previousStatus=$(if($Plan.before){$Plan.before.status}else{$null});definition=$Plan.after}
 }
 
-Export-ModuleMember -Function @('ConvertTo-SBSubagentPlain','Get-SBSubagentManagePlan','Save-SBSubagentManagePlan','Get-SBSubagentManageView','Get-SBSubagentTools','Get-SBSubagentDirectory','Test-SBSubagentDefinition','Resolve-SBSubagentCards','Read-SBSubagentCatalog','Get-SBSubagentSummary','Get-SBSubagentValidateReport','Get-SBSubagentResolveReport','Read-SBSubagentDefinitions','Resolve-SBSubagentPermissions','ConvertTo-SBSubagentExport','Export-SBSubagents','New-SBSubagentActivityRecord')
+Export-ModuleMember -Function @('ConvertTo-SBSubagentPlain','Get-SBSubagentManagePlan','Save-SBSubagentManagePlan','Get-SBSubagentManageView','Get-SBSubagentTools','Get-SBSubagentDirectory','Test-SBSubagentDefinition','Resolve-SBSubagentCards','Read-SBSubagentCatalog','Get-SBSubagentSummary','Get-SBSubagentValidateReport','Get-SBSubagentResolveReport','Read-SBSubagentDefinitions','Resolve-SBSubagentPermissions','ConvertTo-SBSubagentExport','Export-SBSubagents','Get-SBSubagentNativeClients','New-SBSubagentActivityRecord')

@@ -23,7 +23,7 @@ try{
     Assert-Sk ((Get-SBSkillRoot 'antigravity' 'user' '' $homeDir) -ceq [IO.Path]::GetFullPath((Join-Path $homeDir '.gemini/config/skills'))) 'antigravity user folder'
     Assert-Sk ((Get-SBSkillRoot 'codex' 'user' '' $homeDir) -ceq [IO.Path]::GetFullPath((Join-Path $homeDir '.agents/skills'))) 'codex user folder'
     $threw=$false;try{Get-SBSkillRoot 'unknown' 'project' $project}catch{$threw=$true};Assert-Sk $threw 'unknown client refused'
-    Assert-Sk (@(Get-SBSkillClientInfo|Where-Object liveVerified).Count -eq 0) 'no client is marked live-verified'
+    Assert-Sk ((@(Get-SBSkillClientInfo|Where-Object liveVerified|ForEach-Object client)|Sort-Object) -join ',') -ceq 'antigravity,claude-code' 'only clients observed listing a skill are live-verified (codex not observed)'
 
     # Facts and proposals come from detected facts only.
     $facts=Get-SBProjectFacts $project

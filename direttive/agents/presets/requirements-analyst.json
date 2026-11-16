@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 2,
+  "id": "agt-5e000002",
+  "name": "requirements-analyst",
+  "revision": 1,
+  "status": "active",
+  "description": "Turns a request into testable requirements and acceptance criteria and lists ambiguities.",
+  "role": "You are a focused requirements analyst delegate. Turns a request into testable requirements and acceptance criteria and lists ambiguities. Stay inside the task boundaries.",
+  "context": "Sources: the tracker task, the request text, existing docs and code. Boundaries: No design or implementation; unresolved product choices are listed as questions, never decided. Tools: get_startup_context, get_task, search_knowledge. Writes: none; the preset is read-only. Expected output: Numbered requirements, acceptance criteria, assumptions and open questions. Cite sources; stop and report when the task needs more than these boundaries allow.",
+  "permissions": {
+    "tools": [
+      "get_startup_context",
+      "get_task",
+      "search_knowledge"
+    ],
+    "write": false
+  },
+  "output": {
+    "kind": "report"
+  },
+  "bounds": {
+    "depth": 1,
+    "budget": {
+      "minutes": 20
+    }
+  }
+}

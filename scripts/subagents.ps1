@@ -8,6 +8,7 @@ Definitions live in <dossier>/subagents/<name>.json: schema 1 (role, context, pe
 -Operation Resolve: shows effective permissions against a parent (-ParentTools, -ParentWrite); requesting more than the parent is an error. Also reports lifecycle, output, bounds and resolved cards.
 -Operation Create|Edit|Revise|Retire (#622): authoring and lifecycle of schema 2 definitions; preview unless -Apply. Create and Revise take -DefinitionPath (JSON), Edit changes only description and context, Retire takes -Status deprecated|retired and optionally -ReplacedBy. A breaking change is refused: create a new definition and retire the old one.
 -Operation Export: renders definitions for -Client into -OutputPath (under .runtime); preview unless -Apply. Never writes into a checkout.
+Native formats: claude-code (.claude/agents/*.md), codex (.codex/agents/*.toml), gemini (.gemini/agents/*.md); other clients get the normalized JSON. Each file reports `unsupported` (definition fields the client cannot represent) and `enforcement` (what the client enforces versus what is only declared). -Probe adds the installed CLI's status and version.
 A definition carries no authorization; writes stay behind the parent's reviewed MCP write path.
 .EXAMPLE
 pwsh -NoProfile -File scripts/subagents.ps1 -Operation Export -Repository github.com/my-org/my-product -Client claude-code -OutputPath .runtime/export/agents
@@ -17,7 +18,7 @@ param(
     [Parameter(Mandatory)][ValidateSet('Validate','Resolve','Export','Create','Edit','Revise','Retire')][string]$Operation,
     [Parameter(Mandatory)][string]$Repository,
     [string[]]$ParentTools,[switch]$ParentWrite,
-    [ValidateSet('claude-code','codex','antigravity','vscode','android-studio','claude','cursor','windsurf','continue','jetbrains')][string]$Client,
+    [ValidateSet('claude-code','codex','gemini','antigravity','vscode','android-studio','claude','cursor','windsurf','continue','jetbrains')][string]$Client,[switch]$Probe,
     [string]$OutputPath,[string]$ConfigPath,[string]$SessionId,[switch]$Apply,
     [string]$Name,[string]$DefinitionPath,[ValidateSet('deprecated','retired')][string]$Status,[string]$ReplacedBy
 )
@@ -26,7 +27,7 @@ $ErrorActionPreference='Stop'
 foreach($m in 'Core','Access','Host','Para','Knowledge','Subagents'){Import-Module (Join-Path $PSScriptRoot ('SecondBrain.'+$m+'.psm1'))}
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Add-SBMessages @{'subagent.cli'=@{ en = 'Subagents: missing or out-of-scope parameter ({0})' }}
-$brain=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+$brain=Get-SBBrainRootPath
 if(!(Test-SBRepositoryIdentity $Repository)){throw (New-SBError 'subagent.cli' @('repository'))}
 $dossier=Resolve-SBParaPath $brain (Resolve-SBWorkingDossier $brain $Repository)
 $catalog=Read-SBSubagentCatalog $brain
@@ -72,7 +73,15 @@ $owned=$null;$lock=$null
 try{
     if($Apply -and !$SessionId){$owned=& (Join-Path $PSScriptRoot 'access.ps1') -Start -Mode Write -Client subagents -Repository $Repository -ConfigPath $config.configPath|ConvertFrom-Json -AsHashtable;$SessionId=$owned.sessionId}
     $lock=Enter-SBOperation $config $SessionId -ReadOnly:(!$Apply)
-    ConvertTo-SBJson (Export-SBSubagents $dossier $Client $parent $root $config.backupRoot -Apply:$Apply -Catalog $catalog)
+    $capabilities=$null
+    if($Probe){
+        $providers=@{'claude-code'='claude';codex='codex';gemini='gemini'}
+        if($providers.ContainsKey($Client)){
+            Import-Module (Join-Path $PSScriptRoot 'SecondBrain.AgentAdapters.psm1')
+            $capabilities=Get-SBAgentCapabilities -Provider $providers[$Client] -BrainRoot $brain
+        }
+    }
+    ConvertTo-SBJson (Export-SBSubagents $dossier $Client $parent $root $config.backupRoot -Apply:$Apply -Catalog $catalog -Capabilities $capabilities)
 }finally{
     if($lock){Exit-SBOperation $lock}
     if($owned){& (Join-Path $PSScriptRoot 'access.ps1') -End -SessionId $SessionId -ConfigPath $config.configPath|Out-Null}

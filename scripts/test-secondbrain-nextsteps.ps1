@@ -33,4 +33,9 @@ Assert-Ns ((Ids (Get-SBNextSteps -Tasks @() -Ready @() -Runs @($clean) -GitUpdat
 $blocked=@(@{id='B-1';seq=9;status='blocked';title='b';priority='P2'})
 Assert-Ns ((Ids (Get-SBNextSteps -Tasks $blocked -Ready @() -Runs @() -GitUpdate $confirmed -HasSkills $true)) -ceq 'unblock') 'blocked without ready proposes to decide'
 Assert-Ns ((Ids (Get-SBNextSteps -Tasks $blocked -Ready $ready -Runs @() -GitUpdate $confirmed -HasSkills $true)) -ceq 'run-next') 'ready work wins over the unblock step'
+# Follow-up proposals and the card (#672): data only, the window writes through the task tool after a preview and a confirmation.
+$ver=$steps|Where-Object id -eq 'verify-acceptance'
+Assert-Ns ($ver.followUp.title -and $ver.followUp.description -and @($ver.followUp.acceptance).Count -ge 1 -and $ver.followUp.priority -cmatch '^P[0-3]$') 'verify step carries a complete follow-up task'
+Assert-Ns (@(@($ver.followUp.acceptance)|Where-Object {$_ -match ';'}).Count -eq 0) 'criteria hold no semicolon'
+Assert-Ns ((@($steps|Where-Object id -eq 'skills')[0]).card.file -ceq 'SYS18.md') 'skills step names its card'
 'SUCCESS NEXTSTEPS: '+$script:nsChecks+' checks'

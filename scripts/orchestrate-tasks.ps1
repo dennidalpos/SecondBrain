@@ -293,7 +293,7 @@ $statusFile = Join-Path $WorkDir 'status.json'
 $stopFile = Join-Path $WorkDir 'stop.flag'
 $noticeFile = Join-Path $WorkDir 'NOTICE.txt'
 $state = [ordered]@{ kind = 'orchestrate-tasks'; checkout = $Checkout; phase = 'starting'; pid = $PID; startedAt = (Get-SBNow -Local).ToString('o'); provider = $Provider; model = $Model; effort = $Effort; branch = $null
-    current = $null; currentId = $null; done = @(); failed = @(); parked = @(); skipped = @(); waitingUntil = $null; power = $null; authorization = $null; notice = $null; updatedAt = $null }
+    current = $null; currentId = $null; done = @(); failed = @(); parked = @(); skipped = @(); waitingUntil = $null; quotaObserved = $null; power = $null; authorization = $null; notice = $null; updatedAt = $null }
 $resumeId = $null
 if ($resume) {
     foreach ($name in 'done', 'failed', 'parked', 'skipped') { $state[$name] = @(Get-Property $resume $name @()) }
@@ -423,10 +423,10 @@ function ConvertTo-ResetTime($Value) {
     try { [DateTimeOffset]$Value } catch { $null }
 }
 function Read-Outcome([string]$OutFile, $Process) {
-    $o = [ordered]@{ result = $null; isError = $false; quota = $false; resetAt = $null; text = '' }
+    $o = [ordered]@{ result = $null; isError = $false; quota = $false; resetAt = $null; text = ''; observation = $null }
     if ($Provider -ne 'claude') {
         $limit = Get-SBAgentLimitState -Provider $Provider -Output $Process.output -ErrorOutput $Process.error -ExitCode $Process.exitCode
-        if ($limit -and $limit.state -eq 'quota') { $o.quota = $true; $o.resetAt = ConvertTo-ResetTime $limit.resetAt }
+        if ($limit -and $limit.state -eq 'quota') { $o.quota = $true; $o.resetAt = ConvertTo-ResetTime $limit.resetAt; $o.observation = New-QuotaObservation 'exhausted' $o.resetAt }
         $o.isError = ($null -ne $Process.exitCode -and $Process.exitCode -ne 0)
         $o.text = [string](Get-SBAgentFinalOutput $Process.output)
         if ($o.text.Length -gt 600) { $o.text = $o.text.Substring($o.text.Length - 600) }
@@ -439,10 +439,15 @@ function Read-Outcome([string]$OutFile, $Process) {
         $type = Get-Property $j 'type'
         if ($type -eq 'rate_limit_event') {
             $info = Get-Property $j 'rate_limit_info'
-            if ($info -and (Get-Property $info 'status') -eq 'rejected') {
+            $infoStatus = if ($info) { [string](Get-Property $info 'status') } else { '' }
+            $reset = if ($info) { Get-Property $info 'resetsAt' } else { $null }
+            if ($infoStatus -eq 'rejected') {
                 $o.quota = $true
-                $reset = Get-Property $info 'resetsAt'
                 if ($reset) { $o.resetAt = [DateTimeOffset]::FromUnixTimeSeconds([long]$reset) }
+                $o.observation = New-QuotaObservation 'exhausted' $o.resetAt
+            }
+            elseif ($infoStatus -and -not $o.quota) {
+                $o.observation = New-QuotaObservation 'available' $(if ($reset) { [DateTimeOffset]::FromUnixTimeSeconds([long]$reset) } else { $null })
             }
         }
         elseif ($type -eq 'result') {
@@ -454,8 +459,17 @@ function Read-Outcome([string]$OutFile, $Process) {
     if ($o.isError -and $o.text -match "(?i)hit your limit|reached your|out of usage|limit reached") {
         $o.quota = $true
         if ($o.text -match 'limit reached\|(\d{9,11})') { $o.resetAt = [DateTimeOffset]::FromUnixTimeSeconds([long]$Matches[1]) }
+        $o.observation = New-QuotaObservation 'exhausted' $o.resetAt
     }
     [pscustomobject]$o
+}
+
+function New-QuotaObservation([string]$State, $ResetAt) {
+    # #681: what the agent reported, in the shape Get-SBRunnerQuotaObservation reads (status.json quotaObserved). An exhausted observation
+    # needs a reset time; without one the default pause of Wait-ForReset (30 minutes) is recorded.
+    $now = Get-SBNow -Local
+    if ($State -eq 'exhausted' -and -not $ResetAt) { $ResetAt = $now.AddMinutes(30) }
+    [ordered]@{ provider = $Provider; state = $State; status = $(if ($State -eq 'exhausted') { 'limit' } else { 'ok' }); resetAt = $(if ($ResetAt) { ([DateTimeOffset]$ResetAt).ToString('o') } else { $null }); observedAt = $now.ToString('o'); source = 'agent' }
 }
 
 function Wait-ForReset($OutcomeResetAt) {
@@ -609,6 +623,7 @@ try {
         Write-Event 'start' "#$($task.seq) $($task.title)"
         [void](Invoke-Knowledge @('-UpdateTaskId', $task.id, '-Status', 'in_progress', '-StateReason', 'Started by orchestrate-tasks.ps1'))
         $attempt = Invoke-AgentTask $task $resuming
+        if ($attempt.Outcome.observation) { $state.quotaObserved = $attempt.Outcome.observation; Write-State '' }
         if ($attempt.Outcome.quota) {
             Write-Event 'quota' "Quota limit during #$($task.seq)"
             if (Wait-ForReset $attempt.Outcome.resetAt) { continue }

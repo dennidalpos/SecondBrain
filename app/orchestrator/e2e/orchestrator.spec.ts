@@ -528,6 +528,36 @@ test("run end: the Git preference and the next steps appear, and an action needs
   await closeApp(app);
 });
 
+test("run end: a follow-up task is created only after a preview and a confirmation, and a card opens without writing (#672)", async () => {
+  const app = await launch({ repo: fixture.checkout, agentSeconds: 3 });
+  const { page } = app;
+  await expect(page.locator("#q-tasks tr")).not.toHaveCount(0, { timeout: 60_000 });
+  await page.locator("#q-tasks tr").first().locator('input[type="checkbox"]').check();
+  await page.locator("#q-start").click();
+  await expect(page.locator("#run-verdict")).toHaveText("Finished", { timeout: 180_000 });
+  await expect(page.locator("#run-end-box")).toBeVisible({ timeout: 90_000 });
+  await expect(page.locator("#run-next-list li")).not.toHaveCount(0, { timeout: 90_000 });
+  const before = fs.readFileSync(fixture.tracker, "utf8");
+  const count = readTracker().tasks.length;
+  const step = page.locator("#run-next-list li").filter({ has: page.locator("button.followup-preview-btn") }).first();
+  await expect(step.locator("button.followup-confirm")).toBeHidden();
+  await step.locator("button.followup-preview-btn").click();
+  await expect(step.locator(".followup-preview")).toContainText("nothing written yet", { timeout: 60_000 });
+  expect(fs.readFileSync(fixture.tracker, "utf8")).toBe(before);
+  await step.locator("button.followup-confirm").click();
+  await expect(step.locator(".followup-result")).toContainText("Task created", { timeout: 90_000 });
+  await expect.poll(() => readTracker().tasks.length, { timeout: 60_000 }).toBe(count + 1);
+  // The card opens read-only: the tracker does not change.
+  const after = fs.readFileSync(fixture.tracker, "utf8");
+  const card = page.locator("#run-next-list li").filter({ has: page.locator("button.card-open") }).first();
+  if (await card.count()) {
+    await card.locator("button.card-open").click();
+    await expect(card.locator(".card-view")).toBeVisible({ timeout: 30_000 });
+    expect(fs.readFileSync(fixture.tracker, "utf8")).toBe(after);
+  }
+  await closeApp(app);
+});
+
 test("tracker: the Git and GitHub preference is saved only after a preview and an explicit confirmation (#663)", async () => {
   const app = await launch({ repo: fixture.checkout });
   const { page } = app;
@@ -556,6 +586,83 @@ test("tracker: the Git and GitHub preference is saved only after a preview and a
   expect(record.gitUpdate).toEqual({ mode: "branch-pr", branch: "feature/e2e" });
   await expect(page.locator("#trk-facts")).not.toContainText("not confirmed", { timeout: 60_000 });
   expect(readTracker().tasks.length).toBeGreaterThan(0);
+  await closeApp(app);
+});
+
+test("tracker: the agent wizard validates each step, previews the definition and saves exactly that file (#623)", async () => {
+  const app = await launch({ repo: fixture.checkout });
+  const { page } = app;
+  const file = path.join(fixture.dossier, "subagents", "e2e-reviewer.json");
+  expect(fs.existsSync(file)).toBe(false);
+  await page.locator('.steps button[data-tab="tracker"]').click();
+  await expect(page.locator("#agw-box")).toBeVisible({ timeout: 60_000 });
+  const next = page.locator("#agw-next");
+  const error = page.locator("#agw-error");
+  const stepVisible = (n: number) => expect(page.locator(`.agw-step[data-step="${n}"]`)).toBeVisible();
+  // Step 1: an invalid name and an empty purpose keep the wizard on the step.
+  await page.locator("#agw-template").selectOption("reviewer");
+  await page.locator("#agw-name").fill("Bad Name");
+  await next.click();
+  await expect(error).toContainText("lowercase");
+  await stepVisible(1);
+  await page.locator("#agw-name").fill("e2e-reviewer");
+  await next.click();
+  await stepVisible(2);
+  await next.click();
+  // Step 3: a model needs a provider.
+  await stepVisible(3);
+  await page.locator("#agw-model").fill("opus");
+  await next.click();
+  await expect(error).toContainText("provider");
+  await page.locator("#agw-provider").selectOption("claude");
+  await next.click();
+  // Step 4: a write tool without the write permission is refused.
+  await stepVisible(4);
+  await page.locator('#agw-tools input[value="submit_dossier_write"]').check();
+  await next.click();
+  await expect(error).toContainText("write permission");
+  await page.locator('#agw-tools input[value="submit_dossier_write"]').uncheck();
+  await next.click();
+  await stepVisible(5);
+  await page.locator("#agw-cards").fill("Not A Card");
+  await next.click();
+  await expect(error).toContainText("Cards");
+  await page.locator("#agw-cards").fill("");
+  await next.click();
+  // Step 6: an object output needs a schema; the budget is required.
+  await stepVisible(6);
+  await page.locator("#agw-output").selectOption("object");
+  await next.click();
+  await expect(error).toContainText("schema");
+  await page.locator("#agw-output").selectOption("report");
+  await page.locator("#agw-turns").fill("0");
+  await next.click();
+  await expect(error).toContainText("Turns");
+  await page.locator("#agw-turns").fill("12");
+  await next.click();
+  await stepVisible(7);
+  await expect(page.locator("#agw-save")).toBeDisabled();
+  await page.locator("#agw-preview").click();
+  await expect(page.locator("#agw-plan")).toContainText("e2e-reviewer", { timeout: 60_000 });
+  expect(fs.existsSync(file)).toBe(false);
+  await expect(page.locator("#agw-save")).toBeEnabled();
+  const shown = JSON.parse((await page.locator("#agw-plan").textContent())!.split("\n").slice(1).join("\n"));
+  expect(shown.id).toMatch(/^agt-[0-9a-f]{8}$/);
+  // Going back and changing a value invalidates the preview.
+  await page.locator("#agw-back").click();
+  await page.locator("#agw-turns").fill("13");
+  await expect(page.locator("#agw-save")).toBeHidden();
+  await next.click();
+  await expect(page.locator("#agw-save")).toBeDisabled();
+  await page.locator("#agw-preview").click();
+  await expect(page.locator("#agw-save")).toBeEnabled({ timeout: 60_000 });
+  const reviewed = JSON.parse((await page.locator("#agw-plan").textContent())!.split("\n").slice(1).join("\n"));
+  expect(reviewed.bounds.budget.turns).toBe(13);
+  await page.locator("#agw-save").click();
+  await expect(page.locator("#agw-plan")).toContainText("Saved exactly as previewed", { timeout: 60_000 });
+  // The saved file is the previewed definition.
+  expect(JSON.parse(fs.readFileSync(file, "utf8"))).toEqual(reviewed);
+  expect(reviewed.model).toEqual({ provider: "claude", name: "opus" });
   await closeApp(app);
 });
 

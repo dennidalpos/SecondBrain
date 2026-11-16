@@ -364,21 +364,21 @@ function Test-SBSetupPreflight([string]$BrainRoot,[switch]$ReadOnly) {
     try{[void](Get-SBSharedPolicy $BrainRoot);$shared.ok=$true}catch{$shared.detail=$_.Exception.Message}
     $checks+=$shared
     $revision=Get-SBApprovedDirectiveRevision $BrainRoot
-    $checks+=@{name='direttive-approvate';ok=[bool]$revision;blocking=$false;detail=$(if($revision){'revisione '+$revision.version}else{'direttive non approvate: la distribuzione (Sync) resta sospesa'})}
+    $checks+=@{name='direttive-approvate';ok=[bool]$revision;blocking=$false;detail=$(if($revision){'revision '+$revision.version}else{'directives not approved: distribution (Sync) stays suspended'})}
     $driveLetter=if($BrainRoot -match '^(?<d>[A-Za-z]):'){$Matches.d}else{$null}
     $mapped=if($driveLetter){Get-PSDrive -Name $driveLetter -PSProvider FileSystem -ErrorAction SilentlyContinue}else{$null}
     if($mapped -and $mapped.DisplayRoot){
-        $checks+=@{name='drive-mappato';ok=$false;blocking=$false;detail="Cervello su drive mappato ${driveLetter}: ($($mapped.DisplayRoot)). Il mapping e per utente e sessione: altri utenti, servizi e agent non lo vedono. Preferire il percorso UNC."}
+        $checks+=@{name='drive-mappato';ok=$false;blocking=$false;detail="Brain on mapped drive ${driveLetter}: ($($mapped.DisplayRoot)). The mapping is per user and session: other users, services and agents do not see it. Prefer the UNC path."}
     }
     if($git){
         $top=try{Invoke-SBGit $BrainRoot @('rev-parse','--show-toplevel')}catch{@{code=-1;error=$_.Exception.Message}}
         if($top.code -ne 0 -and $top.error -match 'dubious ownership'){
-            $checks+=@{name='git-proprietario';ok=$false;blocking=$false;detail="git rifiuta il cervello (proprietario diverso dall'utente corrente). Eseguire: git config --global --add safe.directory '$($BrainRoot -replace '\\','/')'"}
+            $checks+=@{name='git-proprietario';ok=$false;blocking=$false;detail="git refuses the brain (owner differs from the current user). Run: git config --global --add safe.directory '$($BrainRoot -replace '\\','/')'"}
         }
     }
     if($BrainRoot.StartsWith('\\')){
-        $policy=try{(Get-ExecutionPolicy).ToString()}catch{'sconosciuta'}
-        $checks+=@{name='percorso-unc';ok=$false;blocking=$false;detail="Cervello su percorso di rete: se git segnala 'dubious ownership' aggiungere il percorso a safe.directory; ExecutionPolicy corrente $policy (RemoteSigned o Unblock-File per gli script)."}
+        $policy=try{(Get-ExecutionPolicy).ToString()}catch{'unknown'}
+        $checks+=@{name='percorso-unc';ok=$false;blocking=$false;detail="Brain on a network path: if git reports 'dubious ownership' add the path to safe.directory; current ExecutionPolicy $policy (RemoteSigned or Unblock-File for the scripts)."}
     }
     $checks
 }
@@ -525,13 +525,13 @@ function Invoke-SBSetup {
             if($fields.ContainsKey('revision') -or $fields.ContainsKey('hash')){throw (New-SBError 'portable.observed.pair' @($spec))}
             $receiptValues=Read-SBAccountObservationReceipt $brain $fields.observation $found[0].id $parts[1]
             $entry.observedRevision=$receiptValues.observedRevision;$entry.observedHash=$receiptValues.observedHash
-            $entry.accountObservation='Testo account letto da una ricevuta sotto .runtime (hash '+$receiptValues.receiptSha256+'); il caricamento in una chat resta non verificato.'
+            $entry.accountObservation='Account text read from a receipt under .runtime (hash '+$receiptValues.receiptSha256+'); loading in a chat remains unverified.'
         }
         if($fields.ContainsKey('revision') -or $fields.ContainsKey('hash')){
             if($found[0].mode -ne 'manual'){throw (New-SBError 'portable.observed.manual' @($found[0].name))}
             if(!$fields.ContainsKey('revision') -or !$fields.ContainsKey('hash') -or $fields.revision -notmatch '^\d+(\.\d+)+$' -or $fields.hash -notmatch '^[0-9A-Fa-f]{64}$'){throw (New-SBError 'portable.observed.pair' @($spec))}
             $entry.observedRevision=$fields.revision;$entry.observedHash=$fields.hash.ToUpperInvariant()
-            $entry.accountObservation='Testo account dichiarato dall utente come osservato nelle impostazioni; il caricamento in una chat resta non verificato.'
+            $entry.accountObservation='Account text declared by the user as observed in the settings; loading in a chat remains unverified.'
         }
         $accountEntries+=$entry
         if($found[0].id -notin @($chosenIdes|ForEach-Object {$_.id})){$chosenIdes+=$found[0]}
@@ -667,14 +667,14 @@ function Invoke-SBSetup {
             permissionConfigurationComplete=(@($mcpItems|Where-Object {$_.PermissionAction -notin @('applied','unchanged')}).Count -eq 0);clientSessionVerified=$false}
     }
     $env:SECONDBRAIN_HOME=$brain
-    $result.environment=if($doRegister){'registrata (variabile utente SECONDBRAIN_HOME)'}else{'non registrata: il percorso vale solo per questo processo'}
+    $result.environment=if($doRegister){'registered (user variable SECONDBRAIN_HOME)'}else{'not registered: the path is valid only for this process'}
     $result.stage='applied';$result.applied=$true;$result.activation=$applied
     try{
         $config=Read-SBConfiguration $configPath -BrainRoot $brain
         $sync=Invoke-SBPortableSync -Config $config -Check:(!$AndSync) -SessionId $SessionId
         $result.check=[ordered]@{mode=$(if($AndSync){'sync'}else{'check'});aligned=[bool]$sync.aligned;filesAligned=[bool]$sync.filesAligned;repositories=$sync.repositories;issues=@($sync.issues|ForEach-Object {$_.kind}|Sort-Object -Unique)}
     }catch{if(Test-SBWriteDeniedError $_){throw};$result.check=[ordered]@{mode='check';error=$_.Exception.Message}}
-    $result.next=if($AndSync){'Verificare caricamento IDE e account (manuale).'}else{'Distribuire le direttive con secondbrain.ps1 -Sync dopo aver riletto il -Check.'}
+    $result.next=if($AndSync){'Verify IDE and account loading (manual).'}else{'Distribute the directives with secondbrain.ps1 -Sync after rereading -Check.'}
     $result.setupReport=$paths.setupResult
     $reportLock=Enter-SBOperation (Read-SBConfiguration $configPath -BrainRoot $brain) $SessionId
     try{
@@ -687,8 +687,8 @@ function Get-SBIDEStaleObservation($Ide,[string]$GlobalText) {
     if(!$Ide.ContainsKey('observedHash') -or !$Ide.observedHash){return $null}
     $text=$GlobalText.Trim()
     if([string]$Ide.observedHash -ceq (Get-SBTextHash $text)){return $null}
-    $expected=if($text -match 'Revisi(?:on|one) (\d+(?:\.\d+)+)'){$Matches[1]}else{'sconosciuta'}
-    $observed=if($Ide.ContainsKey('observedRevision') -and $Ide.observedRevision){[string]$Ide.observedRevision}else{'sconosciuta'}
+    $expected=if($text -match 'Revisi(?:on|one) (\d+(?:\.\d+)+)'){$Matches[1]}else{'unknown'}
+    $observed=if($Ide.ContainsKey('observedRevision') -and $Ide.observedRevision){[string]$Ide.observedRevision}else{'unknown'}
     @{observedRevision=$observed;expectedRevision=$expected}
 }
 function Get-SBIDEContextState($Ide,$State) {

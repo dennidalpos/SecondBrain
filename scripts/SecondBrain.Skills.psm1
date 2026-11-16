@@ -12,10 +12,11 @@ Add-SBMessages @{
 }
 
 # Per-client skill folders, from the official documentation checked on 2026-11-15. liveVerified stays false until a real session shows the skill loaded.
+# Observed 2026-11-16 (project scope, synthetic project, headless print mode): Claude Code and Antigravity (agy) listed a skill written by skills.ps1. Codex CLI was not installed, so it stays false; user scope was not observed.
 $script:SBSkillClients=[ordered]@{
-    'claude-code'=@{label='Claude Code';project='.claude/skills';user='.claude/skills';source='https://code.claude.com/docs/en/skills';checked='2026-11-15';liveVerified=$false}
+    'claude-code'=@{label='Claude Code';project='.claude/skills';user='.claude/skills';source='https://code.claude.com/docs/en/skills';checked='2026-11-15';liveVerified=$true}
     'codex'=@{label='Codex';project='.agents/skills';user='.agents/skills';source='https://learn.chatgpt.com/docs/build-skills';checked='2026-11-15';liveVerified=$false}
-    'antigravity'=@{label='Antigravity';project='.agents/skills';user='.gemini/config/skills';source='https://antigravity.google/docs/skills';checked='2026-11-15';liveVerified=$false}
+    'antigravity'=@{label='Antigravity';project='.agents/skills';user='.gemini/config/skills';source='https://antigravity.google/docs/skills';checked='2026-11-15';liveVerified=$true}
 }
 function Get-SBSkillClients { @($script:SBSkillClients.Keys) }
 function Get-SBSkillRoot([string]$Client,[string]$Scope,[string]$CheckoutPath='',[string]$HomeRoot='') {

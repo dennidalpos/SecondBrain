@@ -241,11 +241,11 @@ try {
     Assert-Quick (($picked.id -join ',') -ceq 'G,A,B') 'runner: solo todo autonomi, fuori da qualifiche e attese umane, per priorita e seq'
     Assert-Quick (@(Select-SBRunnableTasks $synth 1).Count -eq 1) 'runner: MaxTasks limita la selezione'
     Assert-Quick ((New-SBTaskRunPrompt $picked[0]).Contains('nessun commit')-or(New-SBTaskRunPrompt $picked[0]).Contains('Nessun commit')-or(New-SBTaskRunPrompt $picked[0]).Contains('commit, push')) 'runner: il prompt vieta commit e push'
-    Assert-Quick ((New-SBTaskRunPrompt $picked[0]).Contains('Perimetro: lavora solo sul repository di questo checkout')) 'runner: il prompt limita il lavoro al repository del checkout'
+    Assert-Quick ((New-SBTaskRunPrompt $picked[0]).Contains('Scope: work only on the repository of this checkout')) 'runner: the prompt limits the work to the checkout repository'
     Assert-Quick (!(New-SBTaskRunPrompt $picked[0]).Contains('Letture consentite')) 'runner: il prompt non cita allowlist di lettura (#475)'
     $decidedTask=[pscustomobject]@{id='D-1';seq=9;extensions=[pscustomobject]@{decisions=@([pscustomobject]@{questionId='q1';question='Quale sezione?';answer='Installazione'},@{questionId='q2';question='Senza risposta'})}}
     $decidedPrompt=New-SBTaskRunPrompt $decidedTask
-    Assert-Quick ($decidedPrompt.Contains('Decisioni della persona') -and $decidedPrompt.Contains('- Quale sezione? -> Installazione') -and !$decidedPrompt.Contains('Senza risposta') -and !(New-SBTaskRunPrompt $picked[0]).Contains('Decisioni della persona')) 'runner: il prompt riporta le decisioni della persona con risposta, solo se presenti'
+    Assert-Quick ($decidedPrompt.Contains('Decisions already taken by the owner') -and $decidedPrompt.Contains('- Quale sezione? -> Installazione') -and !$decidedPrompt.Contains('Senza risposta') -and !(New-SBTaskRunPrompt $picked[0]).Contains('Decisions already taken by the owner')) 'runner: the prompt carries the owner decisions with an answer, only when present'
     # Read-scope guard (#382, #475): inactive without the runner variable; in a runner session global and foreign reads and writes are refused.
     $scopeNames=Get-SBRunnerScopeVariables;$savedScope=@{};foreach($n in $scopeNames.Values){$savedScope[$n]=[Environment]::GetEnvironmentVariable($n)}
     function Test-QuickScope([scriptblock]$Call){try{& $Call;$true}catch{$false}}

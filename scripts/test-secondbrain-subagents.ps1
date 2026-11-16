@@ -21,6 +21,44 @@ function Save-Def($def,[string]$file){
     [IO.File]::WriteAllText((Join-Path $dir $file),(ConvertTo-SBJson $def))
 }
 $readParent=@{tools=@((Get-SBSubagentTools).read);write=$false}
+# Shipped presets (#624): 24 definitions validate against schema 2 and each declares sources, boundaries, tools, writes and output.
+$presetFiles=@(Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot '../direttive/agents/presets') -Filter '*.json' -File)
+Assert-Sub ($presetFiles.Count -eq 24) 'exactly 24 presets ship'
+$presetIds=@{}
+foreach($file in $presetFiles){
+    $pd=(Get-Content -LiteralPath $file.FullName -Raw)|ConvertFrom-Json -AsHashtable
+    Assert-Sub (Test-SBSubagentDefinition $pd) ('preset valid: '+$file.Name)
+    Assert-Sub ($pd.schemaVersion -eq 2 -and $pd.name -ceq $file.BaseName -and !$presetIds.ContainsKey($pd.id)) ('preset identity: '+$file.Name)
+    $presetIds[$pd.id]=$true
+    foreach($label in 'Sources: ','Boundaries: ','Tools: ','Writes: ','Expected output: '){Assert-Sub $pd.context.Contains($label) ('preset declares '+$label+': '+$file.Name)}
+    Assert-Sub $pd.context.Contains('Tools: '+(@($pd.permissions.tools) -join ', ')+'.') ('preset Tools line matches permissions: '+$file.Name)
+    $readOnlyLine=$pd.context.Contains('Writes: none; the preset is read-only.')
+    Assert-Sub (!($readOnlyLine -and $pd.permissions.write)) ('preset Writes line matches write flag: '+$file.Name)
+    Assert-Sub ($pd.status -ceq 'active' -and $pd.bounds.depth -eq 1 -and $pd.output.kind -cin @('text','report')) ('preset status, depth and output: '+$file.Name)
+}
+# Fixture evaluations (#625): every preset has one synthetic scenario; the definition must fit it (static evaluation, no live client).
+$evalFile=Join-Path $PSScriptRoot '../direttive/agents/evaluations/fixtures.json'
+$evalDoc=Get-Content -LiteralPath $evalFile -Raw|ConvertFrom-Json
+$evals=@($evalDoc.evaluations)
+Assert-Sub ($evals.Count -eq $presetFiles.Count) 'one fixture evaluation per preset'
+$evalSeen=@{}
+foreach($ev in $evals){
+    $evFile=@($presetFiles|Where-Object {$_.BaseName -ceq $ev.preset})
+    Assert-Sub ($evFile.Count -eq 1 -and !$evalSeen.ContainsKey($ev.preset)) ('evaluation targets one preset: '+$ev.preset)
+    $evalSeen[$ev.preset]=$true
+    $pd=Get-Content -LiteralPath $evFile[0].FullName -Raw|ConvertFrom-Json
+    Assert-Sub ($ev.id -ceq $pd.id -and -not [string]::IsNullOrWhiteSpace($ev.scenario)) ('evaluation id and scenario: '+$ev.preset)
+    $evTools=@($pd.permissions.tools)
+    foreach($t in @($ev.requiredTools)){Assert-Sub ($evTools -contains $t) ('scenario tool '+$t+' allowed: '+$ev.preset)}
+    $hasWriteTool=($evTools -contains 'submit_dossier_write')
+    Assert-Sub ([bool]$ev.dossierWrite -eq [bool]$pd.permissions.write -and $hasWriteTool -eq [bool]$pd.permissions.write) ('scenario write need matches permissions: '+$ev.preset)
+    Assert-Sub ($pd.output.kind -ceq $ev.outputKind) ('scenario output kind: '+$ev.preset)
+    Assert-Sub ($pd.context.Contains($ev.expectedOutputPhrase) -and $pd.context.Contains($ev.expectedBoundaryPhrase)) ('scenario output and boundary declared: '+$ev.preset)
+    $evParent=@{tools=@((Get-SBSubagentTools).read)+@((Get-SBSubagentTools).write)+@((Get-SBSubagentTools).special);write=$true}
+    $evPerm=Resolve-SBSubagentPermissions (ConvertTo-SBJson $pd|ConvertFrom-Json -AsHashtable) $evParent
+    Assert-Sub ($evPerm.tools.Count -eq $evTools.Count) ('scenario permissions resolve under a full parent: '+$ev.preset)
+    if($pd.permissions.write){Reject-Sub { Resolve-SBSubagentPermissions (ConvertTo-SBJson $pd|ConvertFrom-Json -AsHashtable) $readParent } ('write preset refused under a read-only parent: '+$ev.preset)}
+}
 # Definition format.
 Assert-Sub (Test-SBSubagentDefinition (New-Def 'reviewer')) 'valid definition accepted'
 $cases=@(
@@ -68,8 +106,21 @@ $md=Get-Content -LiteralPath (Join-Path $out '.claude/agents/reviewer.md') -Raw
 Assert-Sub ($applied.state -eq 'applied' -and $md.StartsWith("---`nname: reviewer`n") -and $md.Contains('tools: mcp__secondbrain__get_task, mcp__secondbrain__search_knowledge') -and !$md.Contains('submit_dossier_write')) 'claude-code export lists only the allowed MCP tools'
 Assert-Sub ((Export-SBSubagents $dossier 'claude-code' $readParent $out $backups -Apply).state -eq 'unchanged') 'export is idempotent'
 $codex=Export-SBSubagents $dossier 'codex' $readParent $out $backups -Apply
-$json=Read-SBJson (Join-Path $out 'subagents/reviewer.codex.json') $null
-Assert-Sub ($codex.state -eq 'applied' -and $json.permissions.write -eq $false -and !$codex.files[0].liveVerified) 'other clients get the normalized definition, not live-verified'
+$toml=Get-Content -LiteralPath (Join-Path $out '.codex/agents/reviewer.toml') -Raw
+Assert-Sub ($codex.state -eq 'applied' -and $toml.StartsWith("name = `"reviewer`"`n") -and $toml.Contains('developer_instructions = "') -and !$codex.files[0].liveVerified) 'codex gets a native TOML agent, not live-verified'
+Assert-Sub ($toml.Contains('Allowed SecondBrain MCP tools: get_task, search_knowledge') -and !$toml.Contains('submit_dossier_write')) 'codex instructions declare only the allowed tools'
+$codexFields=@($codex.files[0].unsupported|ForEach-Object {$_.field})
+Assert-Sub ('permissions.tools' -in $codexFields -and 'permissions.write' -in $codexFields -and $codex.files[0].enforcement.tools -ceq 'declared' -and @($codex.files[0].enforcement.enforcedByClient).Count -eq 0) 'codex reports unsupported permissions as declared only'
+$gem=Export-SBSubagents $dossier 'gemini' $readParent $out $backups -Apply
+$gmd=Get-Content -LiteralPath (Join-Path $out '.gemini/agents/reviewer.md') -Raw
+Assert-Sub ($gem.state -eq 'applied' -and $gmd.StartsWith("---`nname: reviewer`n") -and $gmd.Contains("kind: local`ntools:`n  - mcp_secondbrain_get_task`n  - mcp_secondbrain_search_knowledge`n") -and !$gmd.Contains('submit_dossier_write')) 'gemini export lists only the allowed MCP tools'
+Assert-Sub ($gem.files[0].enforcement.tools -ceq 'client-allowlist' -and $gem.files[0].format -ceq 'gemini-markdown') 'gemini tool allowlist is enforced by the client'
+Assert-Sub ((Export-SBSubagents $dossier 'codex' $readParent $out $backups -Apply).state -eq 'unchanged' -and (Export-SBSubagents $dossier 'gemini' $readParent $out $backups -Apply).state -eq 'unchanged') 'native exports are idempotent'
+$probed=Export-SBSubagents $dossier 'gemini' $readParent $out $backups -Capabilities @{installed=$false;status='not-found';version=$null}
+Assert-Sub ($probed.probe.provider -ceq 'gemini' -and !$probed.probe.installed -and $probed.probe.status -ceq 'not-found') 'probe result is reported with the export'
+$norm=Export-SBSubagents $dossier 'vscode' $readParent $out $backups -Apply
+$json=Read-SBJson (Join-Path $out 'subagents/reviewer.vscode.json') $null
+Assert-Sub ($norm.state -eq 'applied' -and $json.permissions.write -eq $false -and !$norm.files[0].liveVerified) 'clients without a native format get the normalized definition'
 Reject-Sub { Export-SBSubagents $dossier 'claude-code' @{tools=@('get_task');write=$false} $out $backups } 'export fails when a definition exceeds the parent'
 Reject-Sub { Export-SBSubagents $dossier 'nonexistent' $readParent $out $backups } 'unknown client rejected'
 # Schema 2 (asset-contracts section 4): identity, revisioning, cards with mode check, output contract, bounds.
@@ -89,6 +140,16 @@ function New-Def2([string]$name,[string[]]$cards=@(),[bool]$write=$false){
 }
 Assert-Sub (Test-SBSubagentDefinition (New-Def2 'reviewer')) 'schema 2 definition accepted'
 Assert-Sub (Test-SBSubagentDefinition (New-Def2 'reviewer' @('pmt-0000a001','analysis.task'))) 'schema 2 definition with cards accepted'
+$v2def=New-Def2 'reviewer'
+$v2def.model=[ordered]@{provider='gemini';name='gemini-2.5-pro'}
+$v2perm=Resolve-SBSubagentPermissions $v2def $readParent
+$v2claude=ConvertTo-SBSubagentExport $v2def $v2perm 'claude-code'
+$v2gemini=ConvertTo-SBSubagentExport $v2def $v2perm 'gemini'
+$v2codex=ConvertTo-SBSubagentExport $v2def $v2perm 'codex'
+Assert-Sub ('bounds' -in @($v2claude.unsupported|ForEach-Object {$_.field}) -and 'model' -in @($v2claude.unsupported|ForEach-Object {$_.field}) -and !$v2claude.content.Contains('model:')) 'claude export reports bounds and a foreign model preference instead of dropping them'
+Assert-Sub ($v2gemini.content.Contains("model: `"gemini-2.5-pro`"`n") -and $v2gemini.content.Contains("max_turns: 20`n") -and 'bounds' -notin @($v2gemini.unsupported|ForEach-Object {$_.field}) -and 'cards' -in @($v2gemini.unsupported|ForEach-Object {$_.field})) 'gemini export maps model and turn budget and reports the rest'
+Assert-Sub ($v2codex.content.Contains('"description"') -or $v2codex.content.Contains('description = ')) 'codex export carries the description'
+Assert-Sub ($v2claude.enforcement.write -ceq 'no-write-tool-in-allowlist' -and $v2codex.enforcement.write -ceq 'declared') 'write restriction is enforceable only where the client has an allowlist'
 $cases2=@(
     @{n='missing id';f={$d=New-Def2 'a';$d.Remove('id');$d}},
     @{n='bad id';f={$d=New-Def2 'a';$d.id='agt-XYZ';$d}},
@@ -153,7 +214,7 @@ Assert-Sub ($s1.schemaVersion -eq 1 -and $s1.bounds.depth -eq 1 -and $null -eq $
 $md1=(ConvertTo-SBSubagentExport $v1 (Resolve-SBSubagentPermissions $v1 $readParent) 'claude-code').content
 $md2=(ConvertTo-SBSubagentExport $v2 (Resolve-SBSubagentPermissions $v2 $readParent) 'claude-code').content
 Assert-Sub ($md1 -ceq $md2) 'claude-code export is unchanged by schema 2'
-$n2=(ConvertTo-SBSubagentExport $v2 (Resolve-SBSubagentPermissions $v2 $readParent) 'codex').content|ConvertFrom-Json -AsHashtable
+$n2=(ConvertTo-SBSubagentExport $v2 (Resolve-SBSubagentPermissions $v2 $readParent) 'vscode').content|ConvertFrom-Json -AsHashtable
 Assert-Sub ($n2.schemaVersion -eq 2 -and $n2.id -ceq 'agt-0000b001' -and $n2.bounds.depth -eq 1 -and $n2.cards[0] -ceq 'analysis.task') 'normalized export carries schema 2 fields'
 $draft=New-Def2 'drafted';$draft.id='agt-0000b003';$draft.status='draft'
 [IO.File]::WriteAllText((Join-Path $dir2 'drafted.json'),(ConvertTo-SBJson $draft))
@@ -199,6 +260,18 @@ $bad=New-Def2 'badone' @('pmt-0000a003')
 Reject-Sub { Get-SBSubagentManagePlan -Dossier $dossier3 -Catalog $catalog -Action Create -Definition $bad } 'a card above the agent permissions is refused on create'
 $withRev=New-Def2 'rev2';$withRev.revision=2
 Reject-Sub { Get-SBSubagentManagePlan -Dossier $dossier3 -Catalog $catalog -Action Create -Definition $withRev } 'a new definition starts at revision 1'
+# Wizard (#623): optional model, and the preview carries the definition that Save writes.
+$wm=New-Def2 'wizard-agent';$wm.Remove('id');$wm.model=[ordered]@{provider='claude';name='opus'}
+$plan=Get-SBSubagentManagePlan -Dossier $dossier3 -Catalog $catalog -Action Create -Definition $wm
+$view=Get-SBSubagentManageView $plan $false
+Assert-Sub ($view.definition.model.provider -ceq 'claude' -and $view.definition.id -ceq $plan.id) 'the manage view carries the definition with its assigned ID'
+[void](Save-SBSubagentManagePlan $plan $backups)
+$saved=(Read-SBText (Join-Path $dossier3 'subagents/wizard-agent.json'))|ConvertFrom-Json -AsHashtable
+Assert-Sub ((ConvertTo-SBJson $saved) -ceq (ConvertTo-SBJson $view.definition)) 'the saved file equals the previewed definition'
+foreach($badModel in @(@{provider='any';name='x'},@{provider='other'},@{provider='claude';name='bad name!'},@{provider='claude';extra=1},'claude')){
+    $wb=New-Def2 'wizard-bad';$wb.Remove('id');$wb.model=$badModel
+    Reject-Sub { Get-SBSubagentManagePlan -Dossier $dossier3 -Catalog $catalog -Action Create -Definition $wb } 'an invalid model is refused'
+}
 # Edit: wording only, no revision bump.
 $edit=@{description='A clearer description.'}
 $plan=Get-SBSubagentManagePlan -Dossier $dossier3 -Catalog $catalog -Action Edit -Name planner -Definition $edit
@@ -247,4 +320,37 @@ foreach($mutate in $mutations){
 }
 $orphan=New-SBSubagentActivityRecord $repo 'SYNTH\ada' 'PC1' 'T-1' 'other-repo-parent' 'reviewer' 'child-2' '2026-11-07T11:00:00Z' 'started' 'x'
 Reject-Sub { Add-SBActivityRecords $dossier @($orphan) $backups $config -Apply } 'unknown parent session is rejected on append'
+# Agent runs (#627): start, stop, inspect and resume on fixtures; no live agent and no service.
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.AgentRuns.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Decisions.psm1') -Force
+$runRoot=Join-Path $brain '.runtime/agent-runs'
+$runDef=[ordered]@{schemaVersion=2;id='agt-0a0b0c0d';name='runner-fixture';revision=1;status='active'}
+$fixtureProc=Start-Process -FilePath (Get-Process -Id $PID).Path -ArgumentList @('-NoProfile','-Command','Start-Sleep -Seconds 120') -PassThru -WindowStyle Hidden
+try{
+    $started=Start-SBAgentRun -RunRoot $runRoot -Repository $repo -Definition $runDef -TaskId 'T-1' -ProcessId $fixtureProc.Id
+    Assert-Sub ($started.state -ceq 'running' -and $started.attempts -eq 1 -and $started.processAlive) 'run starts with a live recorded process'
+    Assert-Sub ((Get-SBAgentRunInspection $runRoot $started.runId).agent.id -ceq 'agt-0a0b0c0d') 'inspect shows the definition ID, not a copy'
+    Assert-Sub ((Get-SBAgentRunInspection $runRoot).count -eq 1) 'inspect lists the runs'
+    Reject-Sub { Start-SBAgentRun -RunRoot $runRoot -Repository $repo -Definition ([ordered]@{schemaVersion=2;id='agt-0a0b0c0e';name='x';revision=1;status='draft'}) } 'a draft definition cannot run'
+    Reject-Sub { Resume-SBAgentRun -RunRoot $runRoot -RunId $started.runId -Dossier $dossier } 'a running run cannot resume'
+    $stopped=Stop-SBAgentRun -RunRoot $runRoot -RunId $started.runId
+    Assert-Sub ($stopped.state -ceq 'stopped' -and $stopped.result -ceq 'process-stopped' -and !$stopped.processAlive) 'stop ends the recorded process'
+    Assert-Sub ($fixtureProc.WaitForExit(10000)) 'the fixture process is gone'
+    Reject-Sub { Stop-SBAgentRun -RunRoot $runRoot -RunId $started.runId } 'a stopped run cannot stop again'
+    $resumed=Resume-SBAgentRun -RunRoot $runRoot -RunId $started.runId -Dossier $dossier
+    Assert-Sub ($resumed.state -ceq 'running' -and $resumed.attempts -eq 2) 'resume adds an attempt'
+    $opened=New-SBDecisionRecord -Data (Read-SBDecisions $dossier $repo).data -Kind choice -Question 'Which path?' -Options @(@{id='a';label='A';description='A'},@{id='b';label='B';description='B'}) -Scope task -Through structured-tool -AskedBy agent -TaskId 'T-1'
+    $decisionId=$opened.record.id
+    [IO.File]::WriteAllText((Get-SBDecisionPath $dossier),(ConvertTo-SBJson $opened.data))
+    $waiting=Suspend-SBAgentRun -RunRoot $runRoot -RunId $started.runId -DecisionId $decisionId
+    Assert-Sub ($waiting.state -ceq 'waiting-user' -and $waiting.decisionId -ceq $decisionId) 'run waits on a decision'
+    Reject-Sub { Resume-SBAgentRun -RunRoot $runRoot -RunId $started.runId -Dossier $dossier } 'an open decision blocks resume'
+    $answered=Set-SBDecisionAnswer -Data (Read-SBDecisions $dossier $repo).data -Id $decisionId -Option 'a'
+    [IO.File]::WriteAllText((Get-SBDecisionPath $dossier),(ConvertTo-SBJson $answered.data))
+    Assert-Sub ((Resume-SBAgentRun -RunRoot $runRoot -RunId $started.runId -Dossier $dossier).attempts -eq 3) 'an answered decision lets the run resume'
+    $done=Stop-SBAgentRun -RunRoot $runRoot -RunId $started.runId -Outcome finished
+    Assert-Sub ($done.state -ceq 'finished' -and !$done.processAlive) 'a run finishes'
+    Reject-Sub { Resume-SBAgentRun -RunRoot $runRoot -RunId $started.runId -Dossier $dossier } 'a finished run cannot resume'
+    Reject-Sub { Get-SBAgentRunInspection $runRoot 'run-zzzzzzzz' } 'an invalid run ID is refused'
+}finally{if(!$fixtureProc.HasExited){$fixtureProc.Kill($true)}}
 'SUCCESS SUBAGENTS: '+$script:subChecks+' checks; retained fixture '+$root

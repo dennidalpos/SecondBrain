@@ -439,7 +439,7 @@ function Resolve-SBWorkRoot([string]$BrainRoot,[string]$HostId,[string]$Relative
         $root=[IO.Path]::GetFullPath((Join-Path $hostRoot $Relative));$location='local-override'
     }else{
         $root=Assert-SBCentralDataPath $BrainRoot (Join-Path (Get-SBLocalRoot $BrainRoot $HostId) $Relative)
-        if($BrainRoot.StartsWith('\\')){$advice+='Cervello su share: le cartelle di lavoro (evidenze, rapporti, lavoro degli agenti) risiedono sulla rete. Impostare SECONDBRAIN_WORK_LOCAL_ROOT su un disco locale per prestazioni e per non mescolare i dati tra host.'}
+        if($BrainRoot.StartsWith('\\')){$advice+='Brain on a share: the work folders (evidence, reports, agent work) live on the network. Set SECONDBRAIN_WORK_LOCAL_ROOT to a local disk for performance and to keep data from mixing across hosts.'}
     }
     @{root=$root;location=$location;advice=$advice}
 }

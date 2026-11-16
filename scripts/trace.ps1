@@ -25,10 +25,11 @@ param(
     [Parameter(ParameterSetName='Install')][Parameter(ParameterSetName='Uninstall')][string]$ConfigPath,
     [Parameter(ParameterSetName='Install')][Parameter(ParameterSetName='Uninstall')][string]$SessionId
 )
-$brain=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 if($PSCmdlet.ParameterSetName -eq 'Event'){
     # Fail-open: ignore every error; never block the turn.
     try{
+        Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
+        $brain=Get-SBBrainRootPath
         Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Trace.psm1')
         $stdin=''
         if([Console]::IsInputRedirected){$stdin=[Console]::In.ReadToEnd()}
@@ -44,6 +45,7 @@ if($PSCmdlet.ParameterSetName -eq 'Event'){
 }
 $ErrorActionPreference='Stop'
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1') -Force
+$brain=Get-SBBrainRootPath
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Access.psm1') -Force
 # Writer busy beyond the wait limit: exit 3 (the message identifies the owner).
 trap { if (Test-SBWriteDeniedError $_) { Write-SBWriteDeniedDiagnostic $_ $PSCommandPath $PSBoundParameters; exit 4 }; if (Test-SBBusyError $_) { [Console]::Error.WriteLine($_.Exception.Message); exit 3 }; break }

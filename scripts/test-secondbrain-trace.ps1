@@ -109,6 +109,7 @@ try {
     & (Join-Path $PSScriptRoot 'test-secondbrain-memory-cycle.ps1')
     & (Join-Path $PSScriptRoot 'test-secondbrain-activity.ps1')
     & (Join-Path $PSScriptRoot 'test-secondbrain-subagents.ps1')
+    & (Join-Path $PSScriptRoot 'test-secondbrain-subagents-cli.ps1')
     & (Join-Path $PSScriptRoot 'test-secondbrain-ide-observation.ps1')
     & (Join-Path $PSScriptRoot 'test-secondbrain-knowledge-index.ps1')
     & (Join-Path $PSScriptRoot 'test-secondbrain-customer.ps1')

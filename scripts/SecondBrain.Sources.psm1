@@ -272,7 +272,7 @@ function Get-SBSourceCategory([string]$Kind) {
 function Get-SBSourceCatalog($Registry) {
     $entries=@($Registry.sources|ForEach-Object {@{id=$_.id;title=$_.title;kind=$_.kind;category=(Get-SBSourceCategory $_.kind);domains=$_.domains;acceptedVersion=$_.acceptedVersion;versions=$_.versions;path='entries/'+$_.id+'/metadata.json';metadataSha256=$_._hash}})
     $catalog=@{schemaVersion=1;resourceId='resource-authoritative-sources';sources=$entries}
-    $lines=@('# Registro comune delle fonti autorevoli','','Indice generato dalle schede. Le guide sono consultive; le prescrizioni comuni seguono il processo di approvazione delle direttive.','','| Fonte | Categoria | Tipo | Ambiti | Versione accettata |','|---|---|---|---|---|')
+    $lines=@('# Common registry of authoritative sources','','Index generated from the cards. Guides are advisory; common requirements follow the directive approval process.','','| Source | Category | Type | Scopes | Accepted version |','|---|---|---|---|---|')
     foreach($entry in $entries){$lines+='| ['+$entry.title.Replace('|','\|')+']('+ $entry.path +') | '+$entry.category+' | '+$entry.kind+' | '+($entry.domains -join ', ')+' | '+$(if($entry.acceptedVersion){$entry.acceptedVersion}else{'da revisionare / riferimento'})+' |'}
     @{json=ConvertTo-SBJson $catalog;markdown=($lines -join "`n")+"`n"}
 }
@@ -508,7 +508,7 @@ function Invoke-SBSourceCollect($Config,$Registry,[string]$SourceId,[string]$Pyt
     [void](Add-SBReportDiagnostic $result 'sources')
     if(Test-Path -LiteralPath $transcript){
         $previousHash=Get-SBFileHash $transcript
-        $prefix=@(('# Trascrizione della fonte: '+$source.title),'',('Ente: '+$source.issuer),('Fonte originale: '+$canonical.download.finalUrl),('SHA-256 originale: '+$canonical.download.sha256),('Riutilizzo: '+$source.rights.notes),('Condizioni: '+$source.rights.reference),'','Conversione locale di formato; revisione separata dalla estrazione. Non costituisce una dichiarazione di vigenza o conformita.','','---','') -join "`n"
+        $prefix=@(('# Transcription of the source: '+$source.title),'',('Issuer: '+$source.issuer),('Original source: '+$canonical.download.finalUrl),('Original SHA-256: '+$canonical.download.sha256),('Reuse: '+$source.rights.notes),('Terms: '+$source.rights.reference),'','Local format conversion; review is separate from extraction. It is not a statement of effectiveness or compliance.','','---','') -join "`n"
         if($source.ContainsKey('dataset')){$prefix+="`nMetadati del dataset:`n"+(ConvertTo-SBJson $source.dataset)+"`n---`n"}
         Write-SBFile $transcript ([Text.Encoding]::UTF8.GetBytes($prefix+"`n"+(Read-SBText $transcript))) $previousHash $Config.backupRoot|Out-Null
     }
@@ -686,7 +686,7 @@ function Get-SBSourceCardProposal($Registry,[string]$Reference,[string]$OriginId
         schemaVersion=1;id=$id;title=('Riferimento da verificare: '+$citation.reference);kind=$kind;issuer=$issuer
         domains=@($origin.domains);jurisdictions=@($jurisdictions);language=$origin.language
         officialId=$citation.reference;edition='da-verificare';publicationDate=$null
-        rights=@{status='reference-only';reference='Condizioni di riutilizzo da verificare';notes='Proposta: nessun download finche le condizioni di riutilizzo non sono verificate.'}
+        rights=@{status='reference-only';reference='Reuse terms to be verified';notes='Proposal: no download until the reuse terms are verified.'}
         endpoints=@();versions=@();acceptedVersion=$null
         relatedSources=@(@{id=$origin.id;relation='related'})
         effectiveDates=@(@{provision='Entrata in vigore';date=$null;status='requires-verification';reference='Da verificare'})

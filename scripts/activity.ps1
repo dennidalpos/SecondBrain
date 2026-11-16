@@ -23,7 +23,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 foreach($m in 'Core','Access','Host','Para','Knowledge','Activity'){Import-Module (Join-Path $PSScriptRoot ('SecondBrain.'+$m+'.psm1'))}
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
-$brain=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+$brain=Get-SBBrainRootPath
 if(!(Test-SBRepositoryIdentity $Repository)){throw (New-SBError 'activity.invalid' @('repository'))}
 $dossier=Resolve-SBParaPath $brain (Resolve-SBWorkingDossier $brain $Repository)
 if($Operation -eq 'Validate'){

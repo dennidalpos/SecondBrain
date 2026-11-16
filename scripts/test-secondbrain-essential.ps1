@@ -819,6 +819,7 @@ if('pending' -in $Groups){
     $pureMcp=& $mcpModule {param($root) Invoke-SBMcpMessage $root @{jsonrpc='2.0';id=31;method='tools/list';params=@{_meta=@{noRecovery=$true}}}} $brain
     Check (($pureMcp|ConvertFrom-Json -AsHashtable).result.tools.Count -eq 13 -and (Get-SBFileHash (Join-Path $dossier 'memory.md')) -ceq $memoryBefore) 'MCP request NoRecovery lists tools without draining the queue'
     # #653: tools/list size budget per profile, measured 2026-11-15 on the compact JSON response (full 10678, reader 6668, executor 5347 characters).
+    # #673: after trimming descriptions the full profile measures 10505 (margin 195), reader 6477, executor 5198.
     # Raise a budget only with a measured reason recorded in docs/ide-e-mcp.md.
     $profileBudgets=[ordered]@{full=@(10700,13);reader=@(6700,8);executor=@(5400,6)}
     try{

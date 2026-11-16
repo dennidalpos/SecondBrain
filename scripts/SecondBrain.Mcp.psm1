@@ -43,7 +43,7 @@ Add-SBMessages @{
     'mcp.description.get_runner_status.tail' = @{ en = 'Recent events (20)' }
     'mcp.description.list_prompts.repositoryPath' = @{ en = 'Repository checkout: adds its private cards' }
     'mcp.title.get_decisions' = @{ en = 'User decisions' }
-    'mcp.description.get_decisions' = @{ en = 'User decisions of the repository (decisions.json): open, answered or withdrawn. Only the user answers.' }
+    'mcp.description.get_decisions' = @{ en = 'User decisions (decisions.json): open, answered or withdrawn. Only the user answers.' }
     'mcp.description.get_decisions.status' = @{ en = 'Only this status' }
     'mcp.description.get_decisions.taskId' = @{ en = 'Only decisions of this task' }
     'mcp.description.get_decisions.id' = @{ en = 'One decision (dec- ID)' }
@@ -52,7 +52,7 @@ Add-SBMessages @{
     'mcp.json.request' = @{ en = 'Invalid Request: jsonrpc must be 2.0' }
     'mcp.json.method' = @{ en = 'Method not found: {0}' }
     'mcp.json.internal' = @{ en = 'Internal error: {0}' }
-    'mcp.description.get_startup_context' = @{ en = 'Startup context. slim (default): essential parts within the cap; full: complete. Unchanged revision: no parts repeated.' }
+    'mcp.description.get_startup_context' = @{ en = 'Startup context. slim (default): essential parts; full: complete. Unchanged revision: no parts.' }
     'mcp.description.get_startup_context.repository' = @{ en = 'Repository identity; default: working checkout' }
     'mcp.description.get_startup_context.checkoutPath' = @{ en = 'Checkout used to resolve the repository' }
     'mcp.description.get_startup_context.dossier' = @{ en = 'Relative dossier (e.g. 01-projects/X)' }
@@ -73,11 +73,11 @@ Add-SBMessages @{
     'mcp.description.get_task.repository' = @{ en = 'Repository identity' }
     'mcp.description.get_task.checkoutPath' = @{ en = 'Checkout used to resolve the repository' }
     'mcp.description.get_task.dossier' = @{ en = 'Relative dossier' }
-    'mcp.description.search_knowledge' = @{ en = 'Search the working repository dossier (context, memory, tracker, archive, reports). 20 matches and 10000 characters; with hasMore use offset=nextOffset.' }
+    'mcp.description.search_knowledge' = @{ en = 'Search the repository dossier (context, memory, tracker, archive, reports). 20 matches, 10000 characters; hasMore: offset=nextOffset.' }
     'mcp.description.search_knowledge.query' = @{ en = 'Text to search' }
     'mcp.description.search_knowledge.budget' = @{ en = 'Character cap (0 = none)' }
     'mcp.description.search_knowledge.allDossiers' = @{ en = 'All active dossiers' }
-    'mcp.description.search_knowledge.customer' = @{ en = 'Customer (repository.json customer field): restrict to the customer''s dossiers' }
+    'mcp.description.search_knowledge.customer' = @{ en = 'Restrict to this customer''s dossiers (repository.json)' }
     'mcp.description.search_knowledge.includeOriginals' = @{ en = 'Include compacted originals' }
     'mcp.description.search_knowledge.dossier' = @{ en = 'Relative dossier' }
     'mcp.description.search_knowledge.repository' = @{ en = 'Repository identity' }
@@ -86,7 +86,7 @@ Add-SBMessages @{
     'mcp.description.search_knowledge.category' = @{ en = 'Categories (default: all but prompt)' }
     'mcp.description.search_knowledge.previousRevision' = @{ en = 'Previous revision: if unchanged, unchanged=true' }
     'mcp.description.search_knowledge.limit' = @{ en = 'Maximum matches (0 = all)' }
-    'mcp.description.list_prompts' = @{ en = 'Prompt catalog by category; compact=true gives one line per prompt, to report in full.' }
+    'mcp.description.list_prompts' = @{ en = 'Prompt catalog by category; compact=true: one line per prompt.' }
     'mcp.description.list_prompts.category' = @{ en = 'Category or code prefix' }
     'mcp.description.list_prompts.compact' = @{ en = 'One line per prompt' }
     'mcp.description.get_prompt_home' = @{ en = 'sb prompt screen: sb commands and scripts; with repositoryPath, state and next step.' }
@@ -109,7 +109,7 @@ Add-SBMessages @{
     'mcp.mode.invalid' = @{ en = 'Invalid mode: use literal or relevance' }
     'mcp.search.invalid' = @{ en = 'offset, limit and budget must be non-negative integers' }
     'mcp.startup.invalid' = @{ en = 'budget must be a non-negative integer and taskIds an array of IDs' }
-    'mcp.description.get_prompt.repositoryPath' = @{ en = 'Current repository checkout (optional): adds context and ready tasks to the next steps; without a dossier the composition stays standalone.' }
+    'mcp.description.get_prompt.repositoryPath' = @{ en = 'Working checkout (optional): adds context and ready tasks' }
     'mcp.prompt.required' = @{ en = 'The prompt parameter is required for get_prompt' }
     'mcp.path.required' = @{ en = 'The repositoryPath parameter is required for check_publication' }
     'mcp.tool.deprecated' = @{ en = 'Deprecated alias {0}: use {1}. The alias will be removed in a future version.' }

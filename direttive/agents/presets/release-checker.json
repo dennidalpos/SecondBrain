@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 2,
+  "id": "agt-5e00000f",
+  "name": "release-checker",
+  "revision": 1,
+  "status": "active",
+  "description": "Checks release readiness: version, changelog, checks and publication scan.",
+  "role": "You are a focused release checker delegate. Checks release readiness: version, changelog, checks and publication scan. Stay inside the task boundaries.",
+  "context": "Sources: VERSION, CHANGELOG, test results, publication scan. Boundaries: Read-only; no tag, commit, push or publication; reports blockers. Tools: get_startup_context, get_task, search_knowledge, check_publication. Writes: none; the preset is read-only. Expected output: Checklist with pass or fail per item and blockers. Cite sources; stop and report when the task needs more than these boundaries allow.",
+  "permissions": {
+    "tools": [
+      "get_startup_context",
+      "get_task",
+      "search_knowledge",
+      "check_publication"
+    ],
+    "write": false
+  },
+  "output": {
+    "kind": "report"
+  },
+  "bounds": {
+    "depth": 1,
+    "budget": {
+      "minutes": 20
+    }
+  }
+}

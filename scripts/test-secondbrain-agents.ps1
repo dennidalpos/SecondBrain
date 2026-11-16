@@ -5,6 +5,7 @@ $ErrorActionPreference='Stop'
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Host.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.AgentAdapters.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.RunnerStatus.psm1') -Force
 . (Join-Path $PSScriptRoot 'test-helpers.ps1')
 $script:agentChecks=0
 function Assert-Agent($Condition,[string]$Message){if(!$Condition){throw ('FAIL AGENTS: '+$Message)};$script:agentChecks++}
@@ -316,6 +317,22 @@ try{
     Assert-AgentError {Invoke-FakeOneShot 'valid' 'blocked'} 'quota|Quota' 'an exhausted quota stops the analysis before the CLI runs'
     Assert-Agent (@(Get-ChildItem -LiteralPath (Join-Path $fixture 'oneshot-log/blocked') -Filter 'prompt-*.txt' -ErrorAction SilentlyContinue).Count -eq 0) 'the CLI is not started when the quota is exhausted'
     Remove-Item -LiteralPath $statusDir -Recurse -Force
+    # #681: the queue's own status.json (folder *-task-run*) is read too; fresh and stale observations, and none at all.
+    $queueDir=Join-Path $brain ('.runtime/hosts/'+(Get-SBHostId)+'/repos/r1/report/20261112-task-run-1')
+    $none681=Get-SBRunnerQuotaObservation $brain (Get-SBHostId) 'claude'
+    $q0=Get-SBAgentQuota -Provider claude -Observation $none681
+    Assert-Agent ($q0.state -eq 'unknown' -and (Get-SBQueueQuotaDecision -Quota $q0).action -eq 'go') 'no observation: unknown, and the queue goes on'
+    Write-AgentFixture (Join-Path $queueDir 'status.json') (ConvertTo-SBJson @{kind='orchestrate-tasks';quotaObserved=@{provider='claude';state='available';status='ok';resetAt=$null;observedAt=$now.AddMinutes(-5).ToString('o');source='agent'}})
+    $q1=Get-SBAgentQuota -Provider claude -Observation (Get-SBRunnerQuotaObservation $brain (Get-SBHostId) 'claude')
+    Assert-Agent ($q1.source -eq 'runner-observation' -and $q1.state -eq 'available' -and (Get-SBQueueQuotaDecision -Quota $q1).level -eq 'ok') ('a fresh queue observation is read: '+(ConvertTo-SBJson $q1))
+    Write-AgentFixture (Join-Path $queueDir 'status.json') (ConvertTo-SBJson @{kind='orchestrate-tasks';quotaObserved=@{provider='claude';state='exhausted';status='limit';resetAt=$now.AddHours(2).ToString('o');observedAt=$now.ToString('o');source='agent'}})
+    $q2=Get-SBAgentQuota -Provider claude -Observation (Get-SBRunnerQuotaObservation $brain (Get-SBHostId) 'claude')
+    Assert-Agent ($q2.source -eq 'runner-observation' -and (Get-SBQueueQuotaDecision -Quota $q2).level -eq 'exhausted') 'a rate limit reported by the queue agent makes the next check exhausted'
+    Write-AgentFixture (Join-Path $queueDir 'status.json') (ConvertTo-SBJson @{kind='orchestrate-tasks';quotaObserved=@{provider='claude';state='available';status='ok';resetAt=$null;observedAt=$now.AddMinutes(-90).ToString('o');source='agent'}})
+    $q3=Get-SBAgentQuota -Provider claude -Observation (Get-SBRunnerQuotaObservation $brain (Get-SBHostId) 'claude')
+    $d3=Get-SBQueueQuotaDecision -Quota $q3
+    Assert-Agent ($q3.source -eq 'runner-observation' -and $q3.state -eq 'unknown' -and $q3.reason -eq 'stale' -and $d3.level -eq 'unknown' -and $d3.action -eq 'go') 'a stale observation is unknown and never blocks'
+    Remove-Item -LiteralPath $queueDir -Recurse -Force
     $notReady=Get-SBAgentCapabilities -Provider claude -BrainRoot $brain -NoProbe -ConfigPaths $none
     Assert-AgentError {Invoke-SBAgentOneShot -Provider claude -Prompt 'x' -SchemaPath $schemaFile -CheckoutPath $checkout -BrainRoot $brain -AgentPath $oneShotCli -Capabilities $notReady} 'not-found' 'a CLI that is not ready is refused with its state'
     # #608: light-model enrichment only for incomplete tasks; the proposal is schema-validated, limited to the gaps and stored, not applied.

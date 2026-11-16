@@ -588,7 +588,7 @@ function Get-SBRuntimeIndex([string]$BrainRoot,[string[]]$ProtectedPaths=@(),[in
     $rows=@();$details=@()
     foreach($entry in @($report.entries|Sort-Object @{Expression={$order[$_.category]}},@{Expression={$_.bytes};Descending=$true},name)){
         $key=$entry.name.ToLowerInvariant()
-        $owner=if($writers.ContainsKey($key)){$writers[$key]}else{'agente o attività manuale (nessun codice)'}
+        $owner=if($writers.ContainsKey($key)){$writers[$key]}else{'agent or manual activity (no code)'}
         $conventional=$entry.name -match '^(work|evidence|fixture|tmp|report)-\d{8}-[a-z0-9][a-z0-9-]*$'
         $name=$entry.name+$(if($entry.kind -eq 'directory'){'/'}else{''})
         $rows+='| `'+$name+'` | '+$entry.category+' | '+(& $format $entry.bytes)+' | '+$entry.files+' | '+$entry.newestWriteUtc.Substring(0,10)+' | '+$entry.references.mentions+' | '+$owner+$(if($conventional){' (nome conforme)'}else{''})+' | '+$entry.recovery+' |'
