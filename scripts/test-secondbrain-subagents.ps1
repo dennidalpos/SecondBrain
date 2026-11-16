@@ -320,4 +320,37 @@ foreach($mutate in $mutations){
 }
 $orphan=New-SBSubagentActivityRecord $repo 'SYNTH\ada' 'PC1' 'T-1' 'other-repo-parent' 'reviewer' 'child-2' '2026-11-07T11:00:00Z' 'started' 'x'
 Reject-Sub { Add-SBActivityRecords $dossier @($orphan) $backups $config -Apply } 'unknown parent session is rejected on append'
+# Agent runs (#627): start, stop, inspect and resume on fixtures; no live agent and no service.
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.AgentRuns.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Decisions.psm1') -Force
+$runRoot=Join-Path $brain '.runtime/agent-runs'
+$runDef=[ordered]@{schemaVersion=2;id='agt-0a0b0c0d';name='runner-fixture';revision=1;status='active'}
+$fixtureProc=Start-Process -FilePath (Get-Process -Id $PID).Path -ArgumentList @('-NoProfile','-Command','Start-Sleep -Seconds 120') -PassThru -WindowStyle Hidden
+try{
+    $started=Start-SBAgentRun -RunRoot $runRoot -Repository $repo -Definition $runDef -TaskId 'T-1' -ProcessId $fixtureProc.Id
+    Assert-Sub ($started.state -ceq 'running' -and $started.attempts -eq 1 -and $started.processAlive) 'run starts with a live recorded process'
+    Assert-Sub ((Get-SBAgentRunInspection $runRoot $started.runId).agent.id -ceq 'agt-0a0b0c0d') 'inspect shows the definition ID, not a copy'
+    Assert-Sub ((Get-SBAgentRunInspection $runRoot).count -eq 1) 'inspect lists the runs'
+    Reject-Sub { Start-SBAgentRun -RunRoot $runRoot -Repository $repo -Definition ([ordered]@{schemaVersion=2;id='agt-0a0b0c0e';name='x';revision=1;status='draft'}) } 'a draft definition cannot run'
+    Reject-Sub { Resume-SBAgentRun -RunRoot $runRoot -RunId $started.runId -Dossier $dossier } 'a running run cannot resume'
+    $stopped=Stop-SBAgentRun -RunRoot $runRoot -RunId $started.runId
+    Assert-Sub ($stopped.state -ceq 'stopped' -and $stopped.result -ceq 'process-stopped' -and !$stopped.processAlive) 'stop ends the recorded process'
+    Assert-Sub ($fixtureProc.WaitForExit(10000)) 'the fixture process is gone'
+    Reject-Sub { Stop-SBAgentRun -RunRoot $runRoot -RunId $started.runId } 'a stopped run cannot stop again'
+    $resumed=Resume-SBAgentRun -RunRoot $runRoot -RunId $started.runId -Dossier $dossier
+    Assert-Sub ($resumed.state -ceq 'running' -and $resumed.attempts -eq 2) 'resume adds an attempt'
+    $opened=New-SBDecisionRecord -Data (Read-SBDecisions $dossier $repo).data -Kind choice -Question 'Which path?' -Options @(@{id='a';label='A';description='A'},@{id='b';label='B';description='B'}) -Scope task -Through structured-tool -AskedBy agent -TaskId 'T-1'
+    $decisionId=$opened.record.id
+    [IO.File]::WriteAllText((Get-SBDecisionPath $dossier),(ConvertTo-SBJson $opened.data))
+    $waiting=Suspend-SBAgentRun -RunRoot $runRoot -RunId $started.runId -DecisionId $decisionId
+    Assert-Sub ($waiting.state -ceq 'waiting-user' -and $waiting.decisionId -ceq $decisionId) 'run waits on a decision'
+    Reject-Sub { Resume-SBAgentRun -RunRoot $runRoot -RunId $started.runId -Dossier $dossier } 'an open decision blocks resume'
+    $answered=Set-SBDecisionAnswer -Data (Read-SBDecisions $dossier $repo).data -Id $decisionId -Option 'a'
+    [IO.File]::WriteAllText((Get-SBDecisionPath $dossier),(ConvertTo-SBJson $answered.data))
+    Assert-Sub ((Resume-SBAgentRun -RunRoot $runRoot -RunId $started.runId -Dossier $dossier).attempts -eq 3) 'an answered decision lets the run resume'
+    $done=Stop-SBAgentRun -RunRoot $runRoot -RunId $started.runId -Outcome finished
+    Assert-Sub ($done.state -ceq 'finished' -and !$done.processAlive) 'a run finishes'
+    Reject-Sub { Resume-SBAgentRun -RunRoot $runRoot -RunId $started.runId -Dossier $dossier } 'a finished run cannot resume'
+    Reject-Sub { Get-SBAgentRunInspection $runRoot 'run-zzzzzzzz' } 'an invalid run ID is refused'
+}finally{if(!$fixtureProc.HasExited){$fixtureProc.Kill($true)}}
 'SUCCESS SUBAGENTS: '+$script:subChecks+' checks; retained fixture '+$root

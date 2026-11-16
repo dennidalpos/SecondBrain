@@ -99,3 +99,19 @@ Result of the recorded run: 24 of 24 presets pass. This is a static evaluation o
 ## Register
 
 Subagent jobs are ordinary records with two extra fields, `parent` (the parent's `session`) and `agent` (the definition name). They go together, require `source=mcp`, and the parent session must already be in the register for the same repository, otherwise the append is rejected. Build them with `New-SBSubagentActivityRecord`; appending still needs `activityLogEnabled` (activation: #348).
+
+## Running agents (#627)
+
+`scripts/agent-runs.ps1` starts, stops, inspects and resumes one agent run. A run is a private record `<run root>/<run id>/agent-run.json` (run root under `.runtime`, run ID `run-` plus 8 hex digits) that holds the definition's `id`, `name` and `revision` (never a copy of the definition), the task, the parent session, the state and one entry per attempt (start, end, process ID, process start time, outcome). States: `running`, `waiting-user`, `stopped`, `finished`, `failed`.
+
+    pwsh -NoProfile -File scripts/agent-runs.ps1 -Operation Start -Repository <identity> -RunRoot .runtime/agent-runs -Name reviewer [-TaskId <id>] [-ProcessId <pid>] -Apply
+    pwsh -NoProfile -File scripts/agent-runs.ps1 -Operation Inspect -Repository <identity> -RunRoot .runtime/agent-runs [-RunId run-1a2b3c4d]
+    pwsh -NoProfile -File scripts/agent-runs.ps1 -Operation Wait -Repository <identity> -RunRoot .runtime/agent-runs -RunId <run> -DecisionId dec-0a1b2c3d -Apply
+    pwsh -NoProfile -File scripts/agent-runs.ps1 -Operation Resume -Repository <identity> -RunRoot .runtime/agent-runs -RunId <run> [-ProcessId <pid>] -Apply
+    pwsh -NoProfile -File scripts/agent-runs.ps1 -Operation Stop -Repository <identity> -RunRoot .runtime/agent-runs -RunId <run> [-Outcome stopped|finished|failed] -Apply
+
+- **Start** needs an `active` schema 2 definition. `-ProcessId` is the process the caller launched; the record keeps its start time so a reused ID is never mistaken for it.
+- **Stop** ends the recorded process only when its ID and start time still match, closes the attempt and marks the run.
+- **Wait** links the run to a decision of `decisions.json`. **Resume** of a waiting run requires that decision to be answered by the user; an open or withdrawn decision blocks it. Stopped runs resume without a decision. Each resume is a new attempt.
+- **Inspect** is read-only and reports state, attempts and whether the last process is still alive.
+- Start, Stop, Wait and Resume preview unless `-Apply`. No service, scheduled task or background auto-resume exists: every transition is an explicit call. Verified on fixtures only (`liveVerified=false`); no live agent CLI is launched by this script.
