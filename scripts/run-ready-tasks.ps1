@@ -593,7 +593,7 @@ foreach($plan in $plans){
         # Resume note: the interrupted task of a -Resume, or the one this run stopped on before waiting for the reset.
         $interrupted=if($script:interruptedHere -and [string]$script:interruptedHere.id -eq [string]$task.id){$script:interruptedHere}elseif($script:resumeFrom -and $script:resumeFrom.interrupted -is [hashtable] -and [string]$script:resumeFrom.interrupted.id -eq [string]$task.id){$script:resumeFrom.interrupted}else{$null}
         if($interrupted){
-            $prompt+="`nRipresa: una sessione precedente su questo task si e fermata per limite di quota. Prima di tutto leggi $($interrupted.folder) (agent-output.jsonl, report.json) e lo stato Git del checkout, conserva il lavoro gia fatto e prosegui dal punto interrotto senza ripeterlo."
+            $prompt+="`nResume: a previous session on this task stopped at a quota limit. First read $($interrupted.folder) (agent-output.jsonl, report.json) and the Git state of the checkout, keep the work already done and continue from where it stopped without repeating it."
         }
         # The prompt as sent, kept for the run only (regenerable from the tracker): registered so closure removes it (#605).
         if($script:runTemp){
@@ -667,7 +667,7 @@ foreach($plan in $plans){
             $script:runStatus.quotaObserved=[ordered]@{provider=$Provider;state='exhausted';status='limit';kind=$(if($prior){$prior.kind}else{$null});resetAt=$(if($prior -and $prior.resetAt){$prior.resetAt}elseif($limit.resetAt){$limit.resetAt}else{$null});observedAt=(Get-SBNow).ToString('o');source='agent';message=$limit.message}
             # The interrupted task goes back to todo when the agent left it in progress, so -Resume selects it again.
             if($statusAfter -eq 'in_progress'){
-                $record.requeued=Invoke-RunnerTaskUpdate @('-UpdateTaskId',[string]$task.id,'-Status','todo','-StateReason','Interrotto dal limite di quota del runner: riprendere con run-ready-tasks.ps1 -Resume latest','-CheckoutPath',$checkout)
+                $record.requeued=Invoke-RunnerTaskUpdate @('-UpdateTaskId',[string]$task.id,'-Status','todo','-StateReason','Interrupted by the runner quota limit: resume with run-ready-tasks.ps1 -Resume latest','-CheckoutPath',$checkout)
                 if($record.requeued -ne $false){$record.statusAfter='todo'}
             }
             Save-RunnerResumePoint ([ordered]@{id=[string]$task.id;seq=$task.seq;folder=$root;statusAfter=$record.statusAfter}) 'quota' $limit

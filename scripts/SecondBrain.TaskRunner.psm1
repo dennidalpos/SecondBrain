@@ -165,23 +165,23 @@ function New-SBTaskRunPrompt($Task,[string]$ScriptsRoot,[string]$CheckoutPath,[s
     $id=Get-SBRunnerValue $Task 'id'
     # With a scripts root and a checkout (multi-repository run) the agent starts in a product checkout, where scripts/knowledge.ps1 does not exist:
     # the extra line gives it the absolute SecondBrain tools and the checkout that resolves the dossier.
-    $where=if($ScriptsRoot -and $CheckoutPath){"Strumenti SecondBrain in $ScriptsRoot (usa $ScriptsRoot\knowledge.ps1 con -CheckoutPath `"$CheckoutPath`" al posto di scripts/knowledge.ps1), oppure i tool MCP secondbrain."}else{$null}
+    $where=if($ScriptsRoot -and $CheckoutPath){"SecondBrain tools in $ScriptsRoot (use $ScriptsRoot\knowledge.ps1 with -CheckoutPath `"$CheckoutPath`" instead of scripts/knowledge.ps1), or the secondbrain MCP tools."}else{$null}
     # Owner decisions recorded by the orchestrator analysis (extensions.decisions): the agent applies them and never asks again.
     $field={param($o,[string]$n) if($o -is [Collections.IDictionary]){$o[$n]}else{Get-SBRunnerValue $o $n}}
     $decisions=@(@(& $field (& $field $Task 'extensions') 'decisions')|Where-Object {$_ -and (& $field $_ 'answer')})
     $decided=if($decisions.Count){
-        @('Decisioni della persona (gia prese: applicale e non chiederle di nuovo):')+@($decisions|ForEach-Object {'- '+([string](& $field $_ 'question')).Trim()+' -> '+([string](& $field $_ 'answer')).Trim()}) -join "`n"
+        @('Decisions already taken by the owner (apply them and do not ask again):')+@($decisions|ForEach-Object {'- '+([string](& $field $_ 'question')).Trim()+' -> '+([string](& $field $_ 'answer')).Trim()}) -join "`n"
     }else{$null}
     @(
-        "Esegui SOLO il task $id (#$(Get-SBRunnerValue $Task 'seq')) del tracker SecondBrain, in questa sessione nuova.",
+        "Execute ONLY task $id (#$(Get-SBRunnerValue $Task 'seq')) of the SecondBrain tracker, in this fresh session.",
         $where,
         $decided,
-        'Procedura: leggi AGENTS.md, carica il contesto con scripts/knowledge.ps1 -Startup, leggi il task con scripts/knowledge.ps1 -Task, esegui il lavoro, verifica ogni criterio di accettazione con strumenti disponibili e funzionanti, poi aggiorna lo stato con scripts/knowledge.ps1 -UpdateTaskId.',
-        'Perimetro: lavora solo sul repository di questo checkout e sul suo tracker; non leggere, prendere o aggiornare task di altri repository e non usare -All, -AllDossiers, all=true e non indicare -Repository di un altro repository.',
-        'Divieti: nessun commit, push, pubblicazione o cancellazione; nessuna applicazione di SYS05 o di pulizie; nessun altro task. Se serve una conferma o una prova live, fermati e riporta il limite nello stato del task senza chiuderlo.',
+        'Procedure: read AGENTS.md, load the context with scripts/knowledge.ps1 -Startup, read the task with scripts/knowledge.ps1 -Task, do the work, verify every acceptance criterion with available, working tools, then update the status with scripts/knowledge.ps1 -UpdateTaskId.',
+        'Scope: work only on the repository of this checkout and its tracker; do not read, take or update tasks of other repositories, do not use -All, -AllDossiers or all=true, and do not pass -Repository of another repository.',
+        'Forbidden: commit, push, publication or deletion; applying SYS05 or cleanups; any other task. If a confirmation or a live proof is needed, stop and report the limit in the task state without closing it.',
         'Closing as done needs evidence: pass -Evidence "<check>|passed" for each verified criterion in the same update; a task closed as done without passed evidence from this session is reopened by the runner.',
         $(if($FindingsPath){"Unresolved problems: before ending, write every actionable problem you found and did not resolve to the findings file $FindingsPath as {`"findings`":[{`"title`":`"...`",`"reproduction`":`"...`",`"evidence`":`"...`",`"acceptance`":[`"...`"],`"existing`":`"<task id or null>`"}]}. Name an existing task in existing when it already covers the problem. Do not create follow-up tasks yourself: the runner matches existing tasks and records linked follow-ups."}else{$null}),
-        'Chiudi con un riepilogo breve: esito per criterio, verifiche eseguite, limiti.'
+        'Close with a short summary: outcome per criterion, checks run, limits.'
     ).Where({$_}) -join "`n"
 }
 function Get-SBRunnerAcceptance($Task,[DateTimeOffset]$AttemptStartedAt) {

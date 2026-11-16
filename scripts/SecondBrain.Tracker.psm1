@@ -921,7 +921,7 @@ function Invoke-SBTrackerRenumber {
         $extra+=@{path=(Join-Path $originalRoot 'tracker-archive.json');expected='absent';bytes=[IO.File]::ReadAllBytes($ArchivePath)}
         $extra+=@{path=[IO.Path]::GetFullPath($ArchivePath);expected=$archiveHash;bytes=[Text.Encoding]::UTF8.GetBytes((ConvertTo-SBJson $archive))}
     }
-    $next.history+=,(ConvertTo-SBTrackerHistoryRecord @{reference=$originalRel+'/tracker.json';sha256=$target.hash;description="Numerazione retroattiva: $seq task (archivio e attivi) in ordine cronologico; originali conservati per hash."})
+    $next.history+=,(ConvertTo-SBTrackerHistoryRecord @{reference=$originalRel+'/tracker.json';sha256=$target.hash;description="Retroactive numbering: $seq tasks (archive and active) in chronological order; originals kept by hash."})
     $saved=Save-SBTrackerData $target $next $BackupRoot -WhatIf:(!$Apply) -ExtraOperations $extra -ArchiveForValidation $archive
     $saved.Remove('data')
     $saved+@{changed=$true;count=$seq;lastSeq=$seq;originals=$originalRel;mapping=$mapping}
@@ -934,8 +934,8 @@ function ConvertTo-SBTrackerHistoryRecord([System.Collections.IDictionary]$Recor
     $next.code = 'tracker.history.note'; $next.messageArgs = @()
     if ($description -ceq 'Esiti storici espliciti usati per risolvere le dipendenze') {
         $next.code = 'tracker.history.dependencies'; $next.messageArgs = @()
-    } elseif ($description -cmatch '^Numerazione retroattiva: (\d+) task \(archivio e attivi\) in ordine cronologico; originali conservati per hash\.$') {
-        $next.code = 'tracker.history.numbered'; $next.messageArgs = @([int]$Matches[1])
+    } elseif ($description -cmatch '^(?:Numerazione retroattiva: (\d+) task \(archivio e attivi\) in ordine cronologico; originali conservati per hash|Retroactive numbering: (\d+) tasks \(archive and active\) in chronological order; originals kept by hash)\.$') {
+        $next.code = 'tracker.history.numbered'; $next.messageArgs = @([int]$(if($Matches[1]){$Matches[1]}else{$Matches[2]}))
     }
     $next
 }

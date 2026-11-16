@@ -92,7 +92,7 @@ if($prompt -match '# Output'){
     [Console]::Out.WriteLine((@{type='result';subtype='success';is_error=$false;result=($answer|ConvertTo-Json -Depth 12 -Compress)}|ConvertTo-Json -Compress -Depth 4))
     exit 0
 }
-$id=if($prompt -match 'SOLO il task (\S+)'){$Matches[1]}else{''}
+$id=if($prompt -match 'ONLY task (\S+)'){$Matches[1]}else{''}
 $pause=if($env:SB_E2E_AGENT_SECONDS){[int]$env:SB_E2E_AGENT_SECONDS}else{3}
 function Emit($o){[Console]::Out.WriteLine(($o|ConvertTo-Json -Compress -Depth 8));[Console]::Out.Flush()}
 # SB_E2E_AGENT_LIMIT_SECONDS: the first run hits a plan limit that resets after that many seconds (marker file beside the brain),

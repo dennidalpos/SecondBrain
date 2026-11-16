@@ -66,7 +66,7 @@ try {
             if(!$valid){$pending++}
             # Multiple accounts for the same IDE: the row shows ID and alias; observed text differing from the approved text is reported as stale.
             $label=$ide.name+$(if($ide.ContainsKey('id')){' ['+$ide.id+$(if($ide.ContainsKey('accountAlias') -and $ide.accountAlias){', alias '+$ide.accountAlias})+']'})
-            $line="${label}: manuale, account/profilo e caricamento "+$(if($valid){'verificati nella sessione osservata'}else{'non verificati o disallineati'})
+            $line="${label}: manual, account/profile and loading "+$(if($valid){'verified in the observed session'}else{'unverified or misaligned'})
             if($ide.ContainsKey('observedHash') -and $ide.observedHash -and [string]$ide.observedHash -cne (Get-SBTextHash $expected)){
                 $pending++
                 $line+="; testo account obsoleto (revisione osservata $(if($ide.ContainsKey('observedRevision') -and $ide.observedRevision){$ide.observedRevision}else{'sconosciuta'}), attesa $expectedRevision)"

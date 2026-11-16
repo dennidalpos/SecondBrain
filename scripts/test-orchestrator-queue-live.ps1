@@ -5,7 +5,7 @@
 # Only synthetic data; the real trackers are never touched.
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'test-git-environment.ps1')
-$gitEnvironment = Enter-SBTestGitEnvironment
+$null = Enter-SBTestGitEnvironment
 . (Join-Path $PSScriptRoot 'test-helpers.ps1')
 $root = Join-Path (Get-SBTestRoot) ('queue-live-' + [guid]::NewGuid().ToString('N').Substring(0, 12))
 $fixtureText = (& pwsh -NoProfile -File (Join-Path $PSScriptRoot 'test-orchestrator-fixture.ps1') -Root $root 2>&1 | Out-String)
@@ -25,7 +25,7 @@ $fake = Join-Path $fx.bin 'fake-claude.ps1'
 [Console]::InputEncoding=[Text.UTF8Encoding]::new($false);[Console]::OutputEncoding=[Text.UTF8Encoding]::new($false)
 if($args -contains '--version'){'9.9.9 (Claude Code)';exit 0}
 $prompt=[Console]::In.ReadToEnd()
-$id=if($prompt -match 'SOLO il task (\S+)|ONLY the task (\S+)|task (E2E-\d)'){($Matches[1],$Matches[2],$Matches[3]|Where-Object{$_}|Select-Object -First 1)}else{''}
+$id=if($prompt -match 'ONLY task (\S+)|ONLY the task (\S+)|task (E2E-\d)'){($Matches[1],$Matches[2],$Matches[3]|Where-Object{$_}|Select-Object -First 1)}else{''}
 $log=Join-Path (Split-Path $env:SB_LIVE_BRAIN) 'sessions.log'
 Add-Content -LiteralPath $log -Value (@{id=$id;args=($args -join ' ');at=[DateTimeOffset]::UtcNow.ToString('o')}|ConvertTo-Json -Compress)
 Set-Content -LiteralPath (Join-Path (Get-Location).Path ("work-$id.txt")) -Value $id

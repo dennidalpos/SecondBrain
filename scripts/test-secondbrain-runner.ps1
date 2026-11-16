@@ -116,7 +116,7 @@ param([string]$Mode='ok')
 # The runner talks UTF-8 on stdin and stdout, like the real agent CLIs.
 [Console]::InputEncoding=[Text.UTF8Encoding]::new($false);[Console]::OutputEncoding=[Text.UTF8Encoding]::new($false)
 $prompt=[Console]::In.ReadToEnd()
-$id=if($prompt -match 'SOLO il task (\S+)'){$Matches[1]}else{''}
+$id=if($prompt -match 'ONLY task (\S+)'){$Matches[1]}else{''}
 function Set-FakeInProgress([string]$Reason){
     & pwsh -NoProfile -File (Join-Path $env:SB_RUNNER_FAKE_BRAIN 'scripts/knowledge.ps1') -ConfigPath $env:SB_RUNNER_FAKE_CONFIG -CheckoutPath (Get-Location).Path -UpdateTaskId $id -Status in_progress -StateReason $Reason|Out-Null
     if($LASTEXITCODE){[Console]::Error.WriteLine('update failed');exit 5}
@@ -262,7 +262,7 @@ switch($Mode){
     $preview=Invoke-Runner @('-MaxTasks','10')
     Assert-Runner ($preview.code -eq 0 -and !$preview.data.run) ('preview succeeds without running: '+$preview.text)
     Assert-Runner ((@($preview.data.tasks|ForEach-Object id) -join ',') -ceq 'R-1,R-2,R-3,R-4,R-5') 'preview selects only autonomous todo tasks outside excluded streams and human waits, by priority and seq'
-    Assert-Runner (@($preview.data.tasks|Where-Object {$_.prompt -notmatch 'nessun commit, push'}).Count -eq 0) 'every planned prompt forbids commit and push'
+    Assert-Runner (@($preview.data.tasks|Where-Object {$_.prompt -notmatch 'Forbidden: commit, push'}).Count -eq 0) 'every planned prompt forbids commit and push'
     Assert-Runner ((Get-SBFileHash $trackerPath) -ceq $hash -and !(Test-Path -LiteralPath (Join-Path $runtime 'repos'))) 'preview writes neither the tracker nor work folders'
 
     # Exclusion reasons (#384): every ready task left out is listed in skipped with its reason; -MaxTasks cuts are reported too.
@@ -327,7 +327,7 @@ switch($Mode){
     $resumed=Invoke-Runner @('-Run','-MaxTasks','1','-AgentArguments','echofail','-Resume',(Split-Path $limitedFolder -Leaf))
     $resumedRecord=@($resumed.data.tasks)[0]
     $resumedPrompt=(Read-SBJson (Join-Path $resumedRecord.folder 'agent-output.json') $null).result
-    Assert-Runner ($resumedRecord.id -eq $limitedRecord.id -and $resumedPrompt -match 'Ripresa:' -and $resumedPrompt -match [regex]::Escape($limitedRecord.folder)) ('-Resume runs the interrupted task first with the resume note: '+$resumed.text)
+    Assert-Runner ($resumedRecord.id -eq $limitedRecord.id -and $resumedPrompt -match 'Resume:' -and $resumedPrompt -match [regex]::Escape($limitedRecord.folder)) ('-Resume runs the interrupted task first with the resume note: '+$resumed.text)
     Assert-Runner ((Read-SBJson (Join-Path $limitedFolder 'resume.json') $null).resumedBy) 'the resume point is marked as used'
     $statusOut=(& pwsh -NoProfile -File (Join-Path $brain 'scripts/runner-status.ps1') -CheckoutPath $checkout -ConfigPath $configPath -Tail 0 2>$null|Out-String)
     $shown=if($statusOut.Contains('{')){$statusOut.Substring($statusOut.IndexOf('{'))|ConvertFrom-Json -AsHashtable}else{$null}
@@ -342,7 +342,7 @@ switch($Mode){
     $waitedTasks=@($waited.data.tasks)
     Assert-Runner ($null -eq $waited.data.stopReason -and $waitedTasks.Count -eq 2 -and $waitedTasks[0].state -eq 'quota' -and $waitedTasks[0].retried -and $waitedTasks[1].id -eq $waitedTasks[0].id -and $waitedTasks[1].exitCode -eq 2) ('-WaitForReset waits for the reset and runs the interrupted task again: '+$waited.text)
     $waitedPrompt=(Read-SBJson (Join-Path $waitedTasks[1].folder 'agent-output.json') $null).result
-    Assert-Runner ($waitedPrompt -match 'Ripresa:' -and $waitedPrompt -match [regex]::Escape($waitedTasks[0].folder)) 'the task run after the wait carries the resume note'
+    Assert-Runner ($waitedPrompt -match 'Resume:' -and $waitedPrompt -match [regex]::Escape($waitedTasks[0].folder)) 'the task run after the wait carries the resume note'
     $waitedFolder=Split-Path $waited.data.status -Parent
     $waitedEvents=Read-SBText (Join-Path $waitedFolder 'events.jsonl')
     Assert-Runner ($waitedEvents -match '"event":"quotawait"' -and $waitedEvents -match '"event":"quotaresumed"' -and $waitedEvents -match '"source":"agent"' -and $waitedEvents -notmatch '"source":"recheck"') ('the wait and the resume are events of the run: '+$waited.text)
@@ -516,7 +516,7 @@ $r|ConvertTo-Json -Compress
         $lines=@(& pwsh -NoProfile -File $launcher2 -MaxTasks 10 2>&1|ForEach-Object {[string]$_})
         $code=$LASTEXITCODE;$text=$lines -join "`n";$i=$text.IndexOf('{');$data=$text.Substring($i)|ConvertFrom-Json -AsHashtable
         Assert-Runner ($code -eq 0 -and !$data.run -and (@($data.tasks|ForEach-Object id) -join ',') -ceq 'S-1,S-2') ('the launcher previews only its own repository tasks: '+$text)
-        Assert-Runner (@($data.tasks|Where-Object {$_.prompt -notmatch 'Strumenti SecondBrain in '}).Count -eq 0) 'prompts launched from a product checkout name the SecondBrain tools and the checkout'
+        Assert-Runner (@($data.tasks|Where-Object {$_.prompt -notmatch 'SecondBrain tools in '}).Count -eq 0) 'prompts launched from a product checkout name the SecondBrain tools and the checkout'
         # Model choice and agent options reach the runner unchanged (a stand-in runner echoes its arguments).
         $echoHome=Join-Path $fixture 'launcher-echo-home'
         Put-Runner (Join-Path $echoHome 'scripts/run-ready-tasks.ps1') "ConvertTo-Json -Compress @(`$args)`n"
@@ -579,7 +579,7 @@ $r|ConvertTo-Json -Compress
     Assert-Runner ((Get-SBFileHash $trackerPath2) -ceq $hash2) 'queue previews and a stopped run leave the tracker unchanged'
     # Queue default selection (#517): the window preselects nothing, so no consent-gated task starts without an explicit choice.
     $orchMain=Get-Content -LiteralPath (Join-Path $PSScriptRoot '..\app\orchestrator\src\main.ts') -Raw
-    Assert-Runner ($orchMain -match 'state\.selected\s*=\s*new Set<string>\(\);' -and $orchMain -notmatch 'state\.selected\s*=\s*new Set\(state\.tasks') 'orchestrator queue preselects no task'
+    Assert-Runner ($orchMain -match 'state\.selected\s*=\s*new Set<string>\(\);' -and $orchMain -notmatch 'state\.selected\s*=\s*new Set\(state\.tasks\.(?:filter|map)') 'orchestrator queue preselects no task'
     Close-RunnerPhase 'orchestrator'
     # Live monitoring: streamed agent steps, status.json and events.jsonl while the agent works, one runner per repository, stall notice, runner-status.ps1.
     Import-Module (Join-Path $PSScriptRoot 'SecondBrain.RunnerStatus.psm1') -Force
