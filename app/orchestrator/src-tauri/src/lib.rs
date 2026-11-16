@@ -560,6 +560,8 @@ fn followup_args(repo: &str, title: &str, description: &str, priority: &str, acc
     if acceptance.is_empty() || acceptance.len() > 10 {
         return Err("One to ten acceptance criteria are required.".into());
     }
+    // -Provenance is mandatory: the dossier's context.md always exists; the pointer names the proposed task.
+    let title_pointer = title.clone();
     let mut criteria = Vec::new();
     for a in acceptance {
         let a = clean_text(a, 300, "acceptance criterion")?;
@@ -573,6 +575,8 @@ fn followup_args(repo: &str, title: &str, description: &str, priority: &str, acc
         "-NewTask".into(), title,
         "-Description".into(), description,
         "-Priority".into(), priority.into(),
+        "-Provenance".into(), "context.md".into(),
+        "-ProvenancePointer".into(), title_pointer,
         "-Acceptance".into(), criteria.join(";"),
     ])
 }
@@ -881,6 +885,9 @@ mod tests {
     fn followup_args_validate_the_task() {
         let ok = followup_args(".", "Title", "Why", "P2", &["one".to_string(), "two".to_string()]).unwrap();
         assert!(ok.contains(&"-NewTask".to_string()) && ok.last().unwrap() == "one;two");
+        let at = |flag: &str| ok.iter().position(|a| a == flag).map(|i| ok[i + 1].clone());
+        assert_eq!(at("-Provenance").as_deref(), Some("context.md"));
+        assert_eq!(at("-ProvenancePointer").as_deref(), Some("Title"));
         assert!(followup_args(".", "", "Why", "P2", &["one".to_string()]).is_err());
         assert!(followup_args(".", "T", "Why", "P9", &["one".to_string()]).is_err());
         assert!(followup_args(".", "T", "Why", "P2", &[]).is_err());
