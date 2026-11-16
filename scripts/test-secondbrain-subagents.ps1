@@ -106,8 +106,21 @@ $md=Get-Content -LiteralPath (Join-Path $out '.claude/agents/reviewer.md') -Raw
 Assert-Sub ($applied.state -eq 'applied' -and $md.StartsWith("---`nname: reviewer`n") -and $md.Contains('tools: mcp__secondbrain__get_task, mcp__secondbrain__search_knowledge') -and !$md.Contains('submit_dossier_write')) 'claude-code export lists only the allowed MCP tools'
 Assert-Sub ((Export-SBSubagents $dossier 'claude-code' $readParent $out $backups -Apply).state -eq 'unchanged') 'export is idempotent'
 $codex=Export-SBSubagents $dossier 'codex' $readParent $out $backups -Apply
-$json=Read-SBJson (Join-Path $out 'subagents/reviewer.codex.json') $null
-Assert-Sub ($codex.state -eq 'applied' -and $json.permissions.write -eq $false -and !$codex.files[0].liveVerified) 'other clients get the normalized definition, not live-verified'
+$toml=Get-Content -LiteralPath (Join-Path $out '.codex/agents/reviewer.toml') -Raw
+Assert-Sub ($codex.state -eq 'applied' -and $toml.StartsWith("name = `"reviewer`"`n") -and $toml.Contains('developer_instructions = "') -and !$codex.files[0].liveVerified) 'codex gets a native TOML agent, not live-verified'
+Assert-Sub ($toml.Contains('Allowed SecondBrain MCP tools: get_task, search_knowledge') -and !$toml.Contains('submit_dossier_write')) 'codex instructions declare only the allowed tools'
+$codexFields=@($codex.files[0].unsupported|ForEach-Object {$_.field})
+Assert-Sub ('permissions.tools' -in $codexFields -and 'permissions.write' -in $codexFields -and $codex.files[0].enforcement.tools -ceq 'declared' -and @($codex.files[0].enforcement.enforcedByClient).Count -eq 0) 'codex reports unsupported permissions as declared only'
+$gem=Export-SBSubagents $dossier 'gemini' $readParent $out $backups -Apply
+$gmd=Get-Content -LiteralPath (Join-Path $out '.gemini/agents/reviewer.md') -Raw
+Assert-Sub ($gem.state -eq 'applied' -and $gmd.StartsWith("---`nname: reviewer`n") -and $gmd.Contains("kind: local`ntools:`n  - mcp_secondbrain_get_task`n  - mcp_secondbrain_search_knowledge`n") -and !$gmd.Contains('submit_dossier_write')) 'gemini export lists only the allowed MCP tools'
+Assert-Sub ($gem.files[0].enforcement.tools -ceq 'client-allowlist' -and $gem.files[0].format -ceq 'gemini-markdown') 'gemini tool allowlist is enforced by the client'
+Assert-Sub ((Export-SBSubagents $dossier 'codex' $readParent $out $backups -Apply).state -eq 'unchanged' -and (Export-SBSubagents $dossier 'gemini' $readParent $out $backups -Apply).state -eq 'unchanged') 'native exports are idempotent'
+$probed=Export-SBSubagents $dossier 'gemini' $readParent $out $backups -Capabilities @{installed=$false;status='not-found';version=$null}
+Assert-Sub ($probed.probe.provider -ceq 'gemini' -and !$probed.probe.installed -and $probed.probe.status -ceq 'not-found') 'probe result is reported with the export'
+$norm=Export-SBSubagents $dossier 'vscode' $readParent $out $backups -Apply
+$json=Read-SBJson (Join-Path $out 'subagents/reviewer.vscode.json') $null
+Assert-Sub ($norm.state -eq 'applied' -and $json.permissions.write -eq $false -and !$norm.files[0].liveVerified) 'clients without a native format get the normalized definition'
 Reject-Sub { Export-SBSubagents $dossier 'claude-code' @{tools=@('get_task');write=$false} $out $backups } 'export fails when a definition exceeds the parent'
 Reject-Sub { Export-SBSubagents $dossier 'nonexistent' $readParent $out $backups } 'unknown client rejected'
 # Schema 2 (asset-contracts section 4): identity, revisioning, cards with mode check, output contract, bounds.
@@ -127,6 +140,16 @@ function New-Def2([string]$name,[string[]]$cards=@(),[bool]$write=$false){
 }
 Assert-Sub (Test-SBSubagentDefinition (New-Def2 'reviewer')) 'schema 2 definition accepted'
 Assert-Sub (Test-SBSubagentDefinition (New-Def2 'reviewer' @('pmt-0000a001','analysis.task'))) 'schema 2 definition with cards accepted'
+$v2def=New-Def2 'reviewer'
+$v2def.model=[ordered]@{provider='gemini';name='gemini-2.5-pro'}
+$v2perm=Resolve-SBSubagentPermissions $v2def $readParent
+$v2claude=ConvertTo-SBSubagentExport $v2def $v2perm 'claude-code'
+$v2gemini=ConvertTo-SBSubagentExport $v2def $v2perm 'gemini'
+$v2codex=ConvertTo-SBSubagentExport $v2def $v2perm 'codex'
+Assert-Sub ('bounds' -in @($v2claude.unsupported|ForEach-Object {$_.field}) -and 'model' -in @($v2claude.unsupported|ForEach-Object {$_.field}) -and !$v2claude.content.Contains('model:')) 'claude export reports bounds and a foreign model preference instead of dropping them'
+Assert-Sub ($v2gemini.content.Contains("model: `"gemini-2.5-pro`"`n") -and $v2gemini.content.Contains("max_turns: 20`n") -and 'bounds' -notin @($v2gemini.unsupported|ForEach-Object {$_.field}) -and 'cards' -in @($v2gemini.unsupported|ForEach-Object {$_.field})) 'gemini export maps model and turn budget and reports the rest'
+Assert-Sub ($v2codex.content.Contains('"description"') -or $v2codex.content.Contains('description = ')) 'codex export carries the description'
+Assert-Sub ($v2claude.enforcement.write -ceq 'no-write-tool-in-allowlist' -and $v2codex.enforcement.write -ceq 'declared') 'write restriction is enforceable only where the client has an allowlist'
 $cases2=@(
     @{n='missing id';f={$d=New-Def2 'a';$d.Remove('id');$d}},
     @{n='bad id';f={$d=New-Def2 'a';$d.id='agt-XYZ';$d}},
@@ -191,7 +214,7 @@ Assert-Sub ($s1.schemaVersion -eq 1 -and $s1.bounds.depth -eq 1 -and $null -eq $
 $md1=(ConvertTo-SBSubagentExport $v1 (Resolve-SBSubagentPermissions $v1 $readParent) 'claude-code').content
 $md2=(ConvertTo-SBSubagentExport $v2 (Resolve-SBSubagentPermissions $v2 $readParent) 'claude-code').content
 Assert-Sub ($md1 -ceq $md2) 'claude-code export is unchanged by schema 2'
-$n2=(ConvertTo-SBSubagentExport $v2 (Resolve-SBSubagentPermissions $v2 $readParent) 'codex').content|ConvertFrom-Json -AsHashtable
+$n2=(ConvertTo-SBSubagentExport $v2 (Resolve-SBSubagentPermissions $v2 $readParent) 'vscode').content|ConvertFrom-Json -AsHashtable
 Assert-Sub ($n2.schemaVersion -eq 2 -and $n2.id -ceq 'agt-0000b001' -and $n2.bounds.depth -eq 1 -and $n2.cards[0] -ceq 'analysis.task') 'normalized export carries schema 2 fields'
 $draft=New-Def2 'drafted';$draft.id='agt-0000b003';$draft.status='draft'
 [IO.File]::WriteAllText((Join-Path $dir2 'drafted.json'),(ConvertTo-SBJson $draft))
