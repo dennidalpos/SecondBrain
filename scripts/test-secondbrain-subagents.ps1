@@ -21,6 +21,21 @@ function Save-Def($def,[string]$file){
     [IO.File]::WriteAllText((Join-Path $dir $file),(ConvertTo-SBJson $def))
 }
 $readParent=@{tools=@((Get-SBSubagentTools).read);write=$false}
+# Shipped presets (#624): 24 definitions validate against schema 2 and each declares sources, boundaries, tools, writes and output.
+$presetFiles=@(Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot '../direttive/agents/presets') -Filter '*.json' -File)
+Assert-Sub ($presetFiles.Count -eq 24) 'exactly 24 presets ship'
+$presetIds=@{}
+foreach($file in $presetFiles){
+    $pd=(Get-Content -LiteralPath $file.FullName -Raw)|ConvertFrom-Json -AsHashtable
+    Assert-Sub (Test-SBSubagentDefinition $pd) ('preset valid: '+$file.Name)
+    Assert-Sub ($pd.schemaVersion -eq 2 -and $pd.name -ceq $file.BaseName -and !$presetIds.ContainsKey($pd.id)) ('preset identity: '+$file.Name)
+    $presetIds[$pd.id]=$true
+    foreach($label in 'Sources: ','Boundaries: ','Tools: ','Writes: ','Expected output: '){Assert-Sub $pd.context.Contains($label) ('preset declares '+$label+': '+$file.Name)}
+    Assert-Sub $pd.context.Contains('Tools: '+(@($pd.permissions.tools) -join ', ')+'.') ('preset Tools line matches permissions: '+$file.Name)
+    $readOnlyLine=$pd.context.Contains('Writes: none; the preset is read-only.')
+    Assert-Sub (!($readOnlyLine -and $pd.permissions.write)) ('preset Writes line matches write flag: '+$file.Name)
+    Assert-Sub ($pd.status -ceq 'active' -and $pd.bounds.depth -eq 1 -and $pd.output.kind -cin @('text','report')) ('preset status, depth and output: '+$file.Name)
+}
 # Definition format.
 Assert-Sub (Test-SBSubagentDefinition (New-Def 'reviewer')) 'valid definition accepted'
 $cases=@(

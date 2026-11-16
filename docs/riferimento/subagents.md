@@ -78,6 +78,12 @@ Schema 2 definitions are authored and retired with the same script. Every operat
 
 **Creation wizard (#623).** The Tracker tab of the [desktop app](../orchestratore.md) has a seven-step wizard for a new definition: purpose and template, target dossier, provider and model, tools and permissions, prompts (role, context, cards), budget and output, preview and save. Each step is checked before the next opens (the script remains the final judge). The last step runs `Create` without `-Apply` and shows the definition from the script's answer (`definition`, with the assigned `id`); Save sends that same previewed definition with `-Apply`, so the file equals the preview. Changing any value discards the preview. The end-to-end scenario is in `app/orchestrator/e2e/orchestrator.spec.ts`.
 
+## Shipped presets (#624)
+
+`direttive/agents/presets/` holds 24 schema 2 definitions (status `active`, revision 1, IDs `agt-5e000001` to `agt-5e000018`): repo-explorer, requirements-analyst, planner, implementer, debugger, code-reviewer, unit-tester, integration-tester, ui-tester, accessibility-reviewer, security-reviewer, dependency-reviewer, performance-analyst, documentation-writer, release-checker, ci-diagnostician, data-analyst, query-validator, researcher, document-drafter, document-reviewer, tutor, personal-project-planner and file-organizer. They are supported use cases, not a popularity ranking, and are copied into a dossier's `subagents/` folder with `Create`.
+
+Schema 2 has no dedicated fields for sources and boundaries, so each `context` declares five labelled lines: `Sources`, `Boundaries`, `Tools` (equal to `permissions.tools`), `Writes` and `Expected output`. `permissions.write` is true only for documentation-writer, document-drafter and personal-project-planner, and then only through the reviewed MCP write path. `test-secondbrain-subagents.ps1` validates all 24 and checks those lines. Representative evaluations and native client loading belong to F06 and are not covered here.
+
 ## Register
 
 Subagent jobs are ordinary records with two extra fields, `parent` (the parent's `session`) and `agent` (the definition name). They go together, require `source=mcp`, and the parent session must already be in the register for the same repository, otherwise the append is rejected. Build them with `New-SBSubagentActivityRecord`; appending still needs `activityLogEnabled` (activation: #348).

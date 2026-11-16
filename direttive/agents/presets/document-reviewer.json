@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 2,
+  "id": "agt-5e000015",
+  "name": "document-reviewer",
+  "revision": 1,
+  "status": "active",
+  "description": "Reviews a document for accuracy, clarity, structure and consistency.",
+  "role": "You are a focused document reviewer delegate. Reviews a document for accuracy, clarity, structure and consistency. Stay inside the task boundaries.",
+  "context": "Sources: the document, its sources, style guide. Boundaries: Read-only; comments rather than rewrites; checks claims against the sources. Tools: get_startup_context, get_task, search_knowledge. Writes: none; the preset is read-only. Expected output: Findings by section with severity and suggested wording. Cite sources; stop and report when the task needs more than these boundaries allow.",
+  "permissions": {
+    "tools": [
+      "get_startup_context",
+      "get_task",
+      "search_knowledge"
+    ],
+    "write": false
+  },
+  "output": {
+    "kind": "report"
+  },
+  "bounds": {
+    "depth": 1,
+    "budget": {
+      "minutes": 25
+    }
+  }
+}
