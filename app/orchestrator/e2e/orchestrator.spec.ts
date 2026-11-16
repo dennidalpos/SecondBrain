@@ -171,6 +171,38 @@ test("home: three actions, concise status, and opening starts no execution (#630
   await closeApp(app);
 });
 
+test("sections: reachable directly, no sequential Next buttons, selected target kept across sections (#631)", async () => {
+  fs.mkdirSync(fixture.configDir, { recursive: true });
+  fs.writeFileSync(settingsFile, JSON.stringify({ secondbrainHome: "", pwshPath: "", recentRepos: [] }));
+  const app = await launch();
+  const { page } = app;
+  const tabs = ["repo", "directives", "queue", "run", "registry", "tracker", "settings"];
+  // No repository yet: every section is enabled and opens; the ones that need a repository say so.
+  for (const tab of tabs) {
+    const b = page.locator(`.steps button[data-tab="${tab}"]`);
+    await expect(b).toBeEnabled();
+    await b.click();
+    await expect(page.locator(`#tab-${tab}`)).toBeVisible();
+  }
+  await page.locator('.steps button[data-tab="queue"]').click();
+  await expect(page.locator("#no-repo-note")).toBeVisible();
+  // The step-by-step buttons are gone from the sections.
+  await expect(page.locator("#repo-next, #dir-next")).toHaveCount(0);
+  // Load a target, then move between sections in any order: it stays selected.
+  await page.locator('.steps button[data-tab="repo"]').click();
+  await page.locator("#repo-path").fill(fixture.checkout);
+  await page.locator("#repo-load").click();
+  await expect(page.locator("#repo-label")).toHaveText(fixture.identity);
+  for (const tab of ["registry", "run", "directives", "tracker", "queue", "repo"]) {
+    await page.locator(`.steps button[data-tab="${tab}"]`).click();
+    await expect(page.locator(`#tab-${tab}`)).toBeVisible();
+    await expect(page.locator("#repo-label")).toHaveText(fixture.identity);
+    await expect(page.locator("#no-repo-note")).toBeHidden();
+  }
+  await expect(page.locator("#repo-path")).toHaveValue(fixture.checkout);
+  await closeApp(app);
+});
+
 test("directives: light-model proposal, preview, approve and apply, reload; the text survives a restart", async () => {
   let app = await launch({ repo: fixture.checkout });
   let { page } = app;

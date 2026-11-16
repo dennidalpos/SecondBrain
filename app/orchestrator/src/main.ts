@@ -61,6 +61,7 @@ const state = {
   skippedSelected: new Set<string>(),
   analyzing: false,
   launch: null as Launch | null,
+  tab: "home",
   repo: "",
   identity: "",
   agents: [] as AgentCaps[],
@@ -105,19 +106,20 @@ function analyzable(code: string): boolean { return /^(execution|status|awaiting
 function selectTab(name: string) {
   document.querySelectorAll<HTMLButtonElement>(".steps button[data-tab]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === name)));
   document.querySelectorAll<HTMLElement>(".panel").forEach((p) => (p.hidden = p.id !== "tab-" + name));
+  state.tab = name;
+  renderNoRepoNote();
   if (name === "registry") showRegistry();
   if (name === "tracker") showTracker();
 }
+// G04 (#631): sections are reachable directly; step-by-step navigation exists only inside the wizards. The selected repository
+// (state.repo) is kept across sections; sections that need one say so instead of being disabled.
+const NEEDS_REPO = new Set(["directives", "queue", "run", "registry"]);
+function renderNoRepoNote() { $("no-repo-note").hidden = Boolean(state.repo) || !NEEDS_REPO.has(state.tab); }
 function updateSteps() {
-  const loaded = Boolean(state.repo);
   const tab = (n: string) => document.querySelector<HTMLButtonElement>(`.steps button[data-tab="${n}"]`)!;
-  tab("directives").disabled = !loaded;
-  tab("queue").disabled = !loaded;
-  tab("run").disabled = !loaded && !state.run.active;
-  tab("registry").disabled = !loaded;
-  tab("repo").classList.toggle("done", loaded);
+  tab("repo").classList.toggle("done", Boolean(state.repo));
   tab("queue").classList.toggle("done", state.run.active || state.run.verdict === "finished");
-  $<HTMLButtonElement>("repo-next").disabled = !loaded;
+  renderNoRepoNote();
   renderHome();
 }
 // Home: read-only status and navigation; it never starts a run.
@@ -140,8 +142,6 @@ document.querySelectorAll<HTMLButtonElement>(".steps button[data-tab]").forEach(
 $("home-runner").addEventListener("click", () => { navigated = true; selectTab(state.run.active ? "run" : "queue"); });
 $("home-setup").addEventListener("click", () => { navigated = true; selectTab("repo"); });
 $("home-library").addEventListener("click", () => { navigated = true; selectTab(state.repo ? "registry" : "tracker"); });
-$("repo-next").addEventListener("click", () => selectTab("directives"));
-$("dir-next").addEventListener("click", () => selectTab("queue"));
 $("run-registry").addEventListener("click", () => selectTab("registry"));
 
 // Settings
@@ -269,6 +269,8 @@ async function doLoadRepository(path: string): Promise<boolean> {
     renderRecent();
     resetRunView();
     updateSteps();
+    // A section opened before the target was loaded shows its data now (sections are reachable without a repository, #631).
+    if (state.tab === "registry") showRegistry();
     await Promise.all([readDirectives(), refreshTasks(), checkExistingRun()]);
     return true;
   }
