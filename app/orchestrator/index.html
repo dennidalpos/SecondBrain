@@ -175,7 +175,6 @@
             <dt>Elapsed</dt><dd id="run-elapsed">—</dd>
             <dt id="run-last-label">Last agent signal</dt><dd id="run-last">—</dd>
             <dt>Progress</dt><dd id="run-counts">—</dd>
-            <dt>Run folder</dt><dd id="run-folder" class="mono small">—</dd>
           </dl>
           <div id="run-resume" class="warning resume-point" hidden>
             <p><strong>Resume point</strong> · <span id="run-resume-text"></span></p>
@@ -197,14 +196,14 @@
             <button id="run-refresh">Refresh status</button>
           </div>
         </div>
-        <h3>Agent steps</h3>
-        <ol id="run-steps" class="steps-log"></ol>
+        <div id="run-problems" class="warning" role="alert" hidden><strong>Agent problems</strong><ul id="run-problem-list" class="small"></ul></div>
+        <details id="run-steps-box"><summary>Agent steps (<span id="run-steps-count">0</span>)</summary><ol id="run-steps" class="steps-log"></ol></details>
         <h3>Outcomes</h3>
         <table class="tasks">
           <thead><tr><th>#</th><th>ID</th><th>Outcome</th><th>Status</th><th>Acceptance</th><th>Seconds</th><th>Folder</th></tr></thead>
           <tbody id="run-results"></tbody>
         </table>
-        <details><summary>Log of the current run</summary><pre id="run-log" class="box log"></pre></details>
+        <details><summary>Run folder and technical log</summary><p class="small">Run folder: <span id="run-folder" class="mono small">—</span></p><pre id="run-log" class="box log"></pre></details>
         <div class="next"><button id="run-registry" class="primary">Go to the registry</button></div>
       </section>
 

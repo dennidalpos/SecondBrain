@@ -131,7 +131,7 @@ export async function refreshRuns() {
     const counts = x.counts ? `${x.counts.done}/${x.counts.total} (${x.counts.succeeded} ok, ${x.counts.failed} ko)` + (x.counts.accepted !== undefined ? ` · ${x.counts.accepted} accepted` : "") : "—";
     const tasks = x.results.map((t) => `#${t.seq} ${t.state}`).join(", ") || "—";
     [fmtDate(x.startedAt), finishCell(x), toolBadge(x.provider || "unknown"), [x.model, x.effort].filter(Boolean).join(" · ") || "CLI defaults",
-      counts, x.stopReason ?? "—", tasks, el("span", { className: "mono small" }, x.folder)].forEach((c) => tr.append(el("td", {}, c)));
+      counts, x.stopReason ?? "—", tasks, el("details", {}, el("summary", {}, "Run folder"), el("span", { className: "mono small" }, x.folder))].forEach((c) => tr.append(el("td", {}, c)));
     return tr;
   }));
 }

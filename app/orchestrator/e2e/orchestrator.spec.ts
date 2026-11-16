@@ -289,6 +289,11 @@ test("a queue run is followed live, survives closing the window and is found aga
   await expect(page.locator("#run-steps")).toContainText("Read: README.md", { timeout: 30_000 });
   await expect(page.locator("#run-task")).toContainText("E2E-1");
   await expect(page.locator("#run-folder")).toContainText("runner-run-");
+  // #635: steps, run folder and log sit behind labelled disclosure (closed by default); progress and errors stay visible.
+  await expect(page.locator("#run-steps-box > summary")).toContainText(/Agent steps \(\d+\)/);
+  await expect(page.locator("#run-steps-box")).not.toHaveAttribute("open", "");
+  await expect(page.locator("#run-counts")).toBeVisible();
+  await expect(page.locator("#run-problems")).toBeHidden();
   // Closing asks what to do; "leave running" closes the window and keeps the detached runner going.
   await page.evaluate(() => (window as unknown as { sbOrchestrator: { requestClose: () => void } }).sbOrchestrator.requestClose());
   await expect(page.locator("#close-dialog")).toBeVisible();
@@ -334,6 +339,7 @@ test("registry: every task with its tool badge, archived tasks and the runner hi
   const finished = page.locator("#reg-run-rows tr").first();
   const folder = ((await finished.locator("td .mono").textContent()) ?? "").trim();
   expect(folder).toMatch(/runner-run-/);
+  await expect(finished.locator("td details > summary")).toHaveText("Run folder");
   await expect(page.locator("#reg-run-rows tr").filter({ hasText: "accepted" }).first()).toContainText(/\d+ ok, \d+ ko\) · \d+ accepted/);
   await expect(finished.locator("td").nth(1)).not.toContainText(/running|interrupted|unknown/);
   const orphanId = "29991231-235959-runner-run-e2eorphan";

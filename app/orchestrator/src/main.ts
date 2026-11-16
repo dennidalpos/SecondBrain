@@ -609,7 +609,7 @@ function resetRunView() {
   setVerdict("idle");
   $("run-task").textContent = "No task in progress";
   for (const id of ["run-elapsed", "run-last", "run-counts", "run-folder"]) $(id).textContent = "—";
-  $("run-steps").replaceChildren(); $("run-results").replaceChildren(); $("run-log").textContent = "";
+  clearSteps(); $("run-steps").replaceChildren(); $("run-results").replaceChildren(); $("run-log").textContent = "";
   $("run-warning").hidden = true; setError("run-error", null);
   $("run-resume").hidden = true; resumePoint = null;
 }
@@ -640,11 +640,15 @@ function addResult(r: RunRecord) {
   [String(r.seq), r.id, badge, `${r.statusBefore} → ${r.statusAfter}`, acceptance, String(r.seconds), el("span", { className: "mono small" }, r.folder)].forEach((c) => tr.append(el("td", {}, c)));
   $("run-results").append(tr);
 }
+function clearSteps() { $("run-problem-list").replaceChildren(); $("run-problems").hidden = true; $("run-steps-count").textContent = "0"; }
 function addStep(ev: EventJson) {
   const time = ev.time ? new Date(ev.time).toLocaleTimeString() : "";
   const steps = $("run-steps");
   steps.append(el("li", { className: "step-" + (ev.kind ?? "text") }, el("span", { className: "muted small" }, time), " ", el("span", { className: "tag" }, ev.kind ?? ""), " ", ev.summary ?? ""));
   while (steps.childElementCount > 300) steps.firstElementChild?.remove();
+  $("run-steps-count").textContent = String(steps.childElementCount);
+  // Errors are never hidden: a failed step is repeated outside the disclosure.
+  if (/error|fail/i.test(ev.kind ?? "")) { $("run-problem-list").append(el("li", {}, `${time} ${ev.summary ?? ev.kind}`)); $("run-problems").hidden = false; }
   steps.lastElementChild?.scrollIntoView({ block: "nearest" });
 }
 function handleEvent(e: RunnerEvent) {
@@ -788,7 +792,7 @@ function attachRun(rep: RunReport) {
   state.run.active = true; state.run.starting = false;
   state.run.folder = rep.folder ?? ""; state.run.offset = 0;
   if (rep.status) state.run.pid = rep.status.pid;
-  $("run-steps").replaceChildren(); $("run-results").replaceChildren(); $("run-log").textContent = "";
+  clearSteps(); $("run-steps").replaceChildren(); $("run-results").replaceChildren(); $("run-log").textContent = "";
   $("run-end-box").hidden = true;
   renderStatus(rep);
   pullEvents();
