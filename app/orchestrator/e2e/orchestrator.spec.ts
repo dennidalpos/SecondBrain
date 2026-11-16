@@ -529,6 +529,10 @@ test("run end: the Git preference and the next steps appear, and an action needs
 });
 
 test("run end: a follow-up task is created only after a preview and a confirmation, and a card opens without writing (#672)", async () => {
+  // E2E-1 is ready again for this scenario (the earlier runs left every task in progress).
+  const reset = spawnSync("pwsh", ["-NoProfile", "-File", path.join(fixture.brain, "scripts", "knowledge.ps1"), "-ConfigPath", fixture.config, "-CheckoutPath", fixture.checkout,
+    "-UpdateTaskId", "E2E-1", "-Status", "todo", "-StateReason", "Ready again for the follow-up scenario"], { encoding: "utf8", env: { ...process.env, SECONDBRAIN_HOME: fixture.brain } });
+  expect(reset.status, reset.stderr).toBe(0);
   const app = await launch({ repo: fixture.checkout, agentSeconds: 3 });
   const { page } = app;
   await expect(page.locator("#q-tasks tr")).not.toHaveCount(0, { timeout: 60_000 });
