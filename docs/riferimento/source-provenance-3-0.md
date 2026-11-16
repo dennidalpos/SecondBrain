@@ -1,0 +1,20 @@
+# Source provenance for 3.0 adapters, presets and accessibility
+
+Plan item A04 (task #599). Every row was fetched from the official page on **2026-11-16** (the checked date). "Version" is what the page itself states; where a page states none, the row says `not stated` and no date or version is inferred. These are reference sources for product design, not a compliance claim, and the pages can change without notice: recheck before relying on a limit.
+
+| Source | Official URL | Checked | Version / date on the page | Limitation to respect |
+|---|---|---|---|---|
+| Claude Code subagents | https://code.claude.com/docs/en/sub-agents | 2026-11-16 | Page date not stated; Claude Code 2.1.318 installed on the workstation at the check | Markdown files with YAML frontmatter in `.claude/agents/` (project) and `~/.claude/agents/` (user). Default cap of 20 concurrent subagents (`CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`) and a nesting-depth limit. The frontmatter field list changes between releases; the adapter must not assume fields beyond the page's reference. |
+| Codex subagents (F07 URL) | https://developers.openai.com/codex/subagents | 2026-11-16 | Page date not stated | **Confirmed live but redirected (HTTP 200) to https://learn.chatgpt.com/docs/agent-configuration/subagents**; use the redirect target as the canonical URL in new citations and keep the old one as an alias. Custom agents are standalone TOML files in `.codex/agents/` or `~/.codex/agents/`; they inherit the parent's permissions, provider and MCP servers and cannot override them. `agents.max_threads` is a legacy alias. |
+| Gemini CLI subagents | https://geminicli.com/docs/core/subagents/ | 2026-11-16 | "Last updated: Jun 8, 2026" (stated by the page). Gemini CLI latest release tag observed: v0.68.0 | Markdown with YAML frontmatter in `.gemini/agents/*.md` (project) and `~/.gemini/agents/*.md` (user); the body is the system prompt. Gated by the `experimental.enableAgents` setting, so the format may change. |
+| MCP elicitation | https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation | 2026-11-16 | Specification version `2025-11-25` | Form mode accepts flat objects with primitive properties only (string, number, boolean, enum); no nested objects. Form mode must not collect passwords, API keys or tokens (URL mode instead). URL mode was introduced in `2025-11-25` and may change. Clients declare the `elicitation` capability; an empty object means form mode only. Actions are accept, decline and cancel. |
+| Windows `PowerSetRequest` | https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-powersetrequest | 2026-11-16 | Page metadata `ms.date` 2018-12-05, `updated_at` 2025-07-01; Windows 7 / Server 2008 R2 minimum (desktop apps only) | Needs a power request object (`PowerCreateRequest`) and a balancing `PowerClearRequest`. Display requests also need a system request. On Modern Standby systems on DC power, system and execution requests end 5 minutes after the sleep timeout; user-initiated sleep ends all requests except away-mode on S3 systems. |
+| WCAG 2.2 | https://www.w3.org/TR/WCAG22/ | 2026-11-16 | W3C Recommendation, 12 December 2024 (dated version https://www.w3.org/TR/2024/REC-WCAG22-20241212/) | The "latest published version" URL can move to a later edition; cite the dated URL for conformance statements. A Recommendation, not a legal requirement: jurisdiction-specific obligations need their own source. |
+
+## F07 Codex URL
+
+The URL cited in F07 (`https://developers.openai.com/codex/subagents`) still resolves, but it now redirects to `https://learn.chatgpt.com/docs/agent-configuration/subagents`. The decision is to replace it with the redirect target and keep the old URL only as an alias.
+
+## Registry status
+
+The common source registry (`03-resources/authoritative-sources`) holds legal, regulatory and dependency cards, and `scripts/sources.ps1` has no command to add a new card. These six vendor and standard pages are therefore recorded in this report, which the acceptance criterion allows ("in the registry or a report"). Promotion to registry cards stays with the source-card procedure.
