@@ -541,6 +541,64 @@ async fn agent_wizard(app: AppHandle, identity: String, definition: Value, apply
     result
 }
 
+fn clean_text(value: &str, max: usize, what: &str) -> Result<String, String> {
+    let v = value.trim();
+    if v.is_empty() || v.chars().count() > max || v.chars().any(|c| c.is_control()) {
+        return Err(format!("Invalid {what}."));
+    }
+    Ok(v.to_string())
+}
+
+/// Arguments of knowledge.ps1 -NewTask for a follow-up task proposed by a next step (#672). `-NewTask` is the SecondBrain task tool:
+/// the window never edits a tracker itself. A criterion cannot contain `;` (the script splits the list on it).
+fn followup_args(repo: &str, title: &str, description: &str, priority: &str, acceptance: &[String]) -> Result<Vec<String>, String> {
+    let title = clean_text(title, 200, "title")?;
+    let description = clean_text(description, 2000, "description")?;
+    if !["P0", "P1", "P2", "P3"].contains(&priority) {
+        return Err(format!("Invalid priority: {priority}"));
+    }
+    if acceptance.is_empty() || acceptance.len() > 10 {
+        return Err("One to ten acceptance criteria are required.".into());
+    }
+    let mut criteria = Vec::new();
+    for a in acceptance {
+        let a = clean_text(a, 300, "acceptance criterion")?;
+        if a.contains(';') {
+            return Err("An acceptance criterion cannot contain ';'.".into());
+        }
+        criteria.push(a);
+    }
+    Ok(vec![
+        "-CheckoutPath".into(), repo.into(),
+        "-NewTask".into(), title,
+        "-Description".into(), description,
+        "-Priority".into(), priority.into(),
+        "-Acceptance".into(), criteria.join(";"),
+    ])
+}
+
+#[tauri::command]
+async fn create_followup_task(app: AppHandle, repo: String, title: String, description: String, priority: String, acceptance: Vec<String>, apply: bool) -> Result<Value, String> {
+    // Preview (apply = false) validates and returns the task exactly as it would be created; nothing is written. With apply the owner has confirmed.
+    let args = followup_args(&checkout(&repo)?, &title, &description, &priority, &acceptance)?;
+    if !apply {
+        return Ok(serde_json::json!({ "apply": false, "task": { "title": title.trim(), "description": description.trim(), "priority": priority, "acceptance": acceptance.iter().map(|a| a.trim()).collect::<Vec<_>>() } }));
+    }
+    let result = script(app, "knowledge.ps1", args).await?;
+    Ok(serde_json::json!({ "apply": true, "result": result }))
+}
+
+#[tauri::command]
+fn open_card(app: AppHandle, file: String) -> Result<String, String> {
+    // Read-only: shows a prompt card of the SecondBrain checkout (direttive/prompts/<CODE>.md); no script runs and nothing is written.
+    let ok = file.len() <= 16 && file.ends_with(".md") && file[..file.len() - 3].chars().enumerate().all(|(i, c)| if i < 2 { c.is_ascii_uppercase() } else { c.is_ascii_uppercase() || c.is_ascii_digit() });
+    if !ok {
+        return Err("Invalid card.".into());
+    }
+    let (_, root) = context(&app)?;
+    read_text_file(root.join("direttive").join("prompts").join(&file).to_string_lossy().into_owned())
+}
+
 #[tauri::command]
 async fn next_steps(app: AppHandle, repo: String) -> Result<Value, String> {
     // Read-only: reasoned next steps for the project (next-steps.ps1); an action is only named here, the owner chooses it.
@@ -787,6 +845,8 @@ pub fn run() {
             read_registry,
             list_projects,
             next_steps,
+            create_followup_task,
+            open_card,
             set_git_update,
             agent_wizard,
             list_runs,
@@ -798,7 +858,7 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-    use super::{analysis_args, browser_args, enrichment_decision_args, git_update_args, agent_wizard_args, queue_args, registry_args, repo_argument, valid_token, QueueRequest, RegistryQuery};
+    use super::{followup_args, analysis_args, browser_args, enrichment_decision_args, git_update_args, agent_wizard_args, queue_args, registry_args, repo_argument, valid_token, QueueRequest, RegistryQuery};
 
     fn queue(task_ids: &[&str], resume: Option<&str>) -> QueueRequest {
         QueueRequest {
@@ -815,6 +875,16 @@ mod tests {
             resume: resume.map(Into::into),
             allow_no_power_request: false,
         }
+    }
+
+    #[test]
+    fn followup_args_validate_the_task() {
+        let ok = followup_args(".", "Title", "Why", "P2", &["one".to_string(), "two".to_string()]).unwrap();
+        assert!(ok.contains(&"-NewTask".to_string()) && ok.last().unwrap() == "one;two");
+        assert!(followup_args(".", "", "Why", "P2", &["one".to_string()]).is_err());
+        assert!(followup_args(".", "T", "Why", "P9", &["one".to_string()]).is_err());
+        assert!(followup_args(".", "T", "Why", "P2", &[]).is_err());
+        assert!(followup_args(".", "T", "Why", "P2", &["a;b".to_string()]).is_err());
     }
 
     #[test]

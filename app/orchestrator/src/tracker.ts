@@ -9,7 +9,11 @@ interface Project {
   gitUpdate: { mode: string; branch: string; confirmed: boolean } | null;
   kind?: "repository" | "workspace"; access?: string; outputScope?: string[];
 }
-interface NextStep { id: string; kind: string; title: string; why: string; action: { type: string; value: string } }
+interface NextStep {
+  id: string; kind: string; title: string; why: string; action: { type: string; value: string };
+  followUp?: { title: string; description: string; priority: string; acceptance: string[] };
+  card?: { id: string; file: string; title: string };
+}
 interface TrackerTask { id: string; seq: number | null; title: string; status: string; priority: string; archived: boolean; lastActivity: string | null; closedAt: string | null }
 interface TrackerPage { total: number; offset: number; nextOffset: number | null; tasks: TrackerTask[] }
 
@@ -117,10 +121,52 @@ function actionText(a: NextStep["action"]): string {
   if (a.type === "task") return `Run task ${a.value} (queue tab, or run-ready-tasks.ps1 -TaskIds ${a.value})`;
   return a.value;
 }
-function stepItem(s: NextStep, repo: string): HTMLElement {
+function stepItem(s: NextStep, repo: string, errId: string): HTMLElement {
   const copy = el("button", {}, "Copy action");
   copy.addEventListener("click", async () => { try { await navigator.clipboard.writeText(actionText(s.action)); copy.textContent = "Copied"; } catch { copy.textContent = "Copy failed"; } });
   const buttons: HTMLElement[] = [copy];
+  const extra: HTMLElement[] = [];
+  if (s.followUp) {
+    // Create follow-up (#672): the preview comes from the backend (validated, nothing written); only Confirm writes, through knowledge.ps1 -NewTask.
+    const f = s.followUp;
+    const box = el("pre", { className: "box small followup-preview", hidden: true });
+    const result = el("div", { className: "small followup-result" });
+    const confirm = el("button", { className: "primary followup-confirm", hidden: true }, "Confirm: create the task");
+    const open = el("button", { className: "followup-preview-btn" }, "Preview follow-up task");
+    const args = (apply: boolean) => ({ repo, title: f.title, description: f.description, priority: f.priority, acceptance: f.acceptance, apply });
+    open.addEventListener("click", async () => {
+      const r = await call<{ task: { title: string; description: string; priority: string; acceptance: string[] } }>("create_followup_task", args(false), errId);
+      if (!r) return;
+      box.textContent = `New task, nothing written yet:\n${r.task.priority} ${r.task.title}\n${r.task.description}\nAcceptance:\n${r.task.acceptance.map((a) => "- " + a).join("\n")}`;
+      box.hidden = false;
+      confirm.hidden = false;
+    });
+    confirm.addEventListener("click", async () => {
+      confirm.disabled = true;
+      const r = await call<{ apply: boolean }>("create_followup_task", args(true), errId);
+      confirm.disabled = false;
+      if (!r) return;
+      result.textContent = "Task created through the SecondBrain task tool.";
+      box.hidden = true;
+      confirm.hidden = true;
+    });
+    buttons.push(open, confirm);
+    extra.push(box, result);
+  }
+  if (s.card) {
+    // Open card (#672): read-only, shows the card text; nothing is written.
+    const c = s.card;
+    const view = el("pre", { className: "box small card-view", hidden: true });
+    const open = el("button", { className: "card-open" }, "Open card");
+    open.addEventListener("click", async () => {
+      const text = await call<string>("open_card", { file: c.file }, errId);
+      if (text == null) return;
+      view.textContent = text;
+      view.hidden = false;
+    });
+    buttons.push(open);
+    extra.push(view);
+  }
   if (s.action.type === "task") {
     const preview = el("div", { className: "box small", hidden: true });
     const confirm = el("button", { className: "primary", hidden: true }, "Confirm: open in the queue");
@@ -136,9 +182,9 @@ function stepItem(s: NextStep, repo: string): HTMLElement {
       confirm.hidden = true;
     });
     buttons.push(open, confirm);
-    return el("li", {}, el("strong", {}, s.title), el("div", { className: "muted small" }, s.why), el("div", { className: "mono small" }, actionText(s.action)), ...buttons, preview);
+    return el("li", {}, el("strong", {}, s.title), el("div", { className: "muted small" }, s.why), el("div", { className: "mono small" }, actionText(s.action)), ...buttons, preview, ...extra);
   }
-  return el("li", {}, el("strong", {}, s.title), el("div", { className: "muted small" }, s.why), el("div", { className: "mono small" }, actionText(s.action)), ...buttons);
+  return el("li", {}, el("strong", {}, s.title), el("div", { className: "muted small" }, s.why), el("div", { className: "mono small" }, actionText(s.action)), ...buttons, ...extra);
 }
 /** Loads the proposals of a project into a list; shared by the Tracker tab and the end of a run. */
 export async function loadNextStepsInto(repo: string, ids: { list: string; state: string; error: string }, token: () => number): Promise<void> {
@@ -148,7 +194,7 @@ export async function loadNextStepsInto(repo: string, ids: { list: string; state
   if (request !== nextRequest) return;
   if (!r) { $(ids.state).textContent = ""; return; }
   $(ids.state).textContent = r.steps.length ? `${r.steps.length} proposals` : "Nothing to propose: the tracker, the last run and the setup are in order.";
-  $(ids.list).replaceChildren(...r.steps.map((s) => stepItem(s, repo)));
+  $(ids.list).replaceChildren(...r.steps.map((s) => stepItem(s, repo, ids.error)));
 }
 /** Panel of proposals shown when a run ends; same preview-then-confirm actions as the Tracker tab. */
 export async function showRunEndNextSteps(repo: string): Promise<void> {

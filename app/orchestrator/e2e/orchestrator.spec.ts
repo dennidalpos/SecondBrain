@@ -528,6 +528,36 @@ test("run end: the Git preference and the next steps appear, and an action needs
   await closeApp(app);
 });
 
+test("run end: a follow-up task is created only after a preview and a confirmation, and a card opens without writing (#672)", async () => {
+  const app = await launch({ repo: fixture.checkout, agentSeconds: 3 });
+  const { page } = app;
+  await expect(page.locator("#q-tasks tr")).not.toHaveCount(0, { timeout: 60_000 });
+  await page.locator("#q-tasks tr").first().locator('input[type="checkbox"]').check();
+  await page.locator("#q-start").click();
+  await expect(page.locator("#run-verdict")).toHaveText("Finished", { timeout: 180_000 });
+  await expect(page.locator("#run-end-box")).toBeVisible({ timeout: 90_000 });
+  await expect(page.locator("#run-next-list li")).not.toHaveCount(0, { timeout: 90_000 });
+  const before = fs.readFileSync(fixture.tracker, "utf8");
+  const count = readTracker().tasks.length;
+  const step = page.locator("#run-next-list li").filter({ has: page.locator("button.followup-preview-btn") }).first();
+  await expect(step.locator("button.followup-confirm")).toBeHidden();
+  await step.locator("button.followup-preview-btn").click();
+  await expect(step.locator(".followup-preview")).toContainText("nothing written yet", { timeout: 60_000 });
+  expect(fs.readFileSync(fixture.tracker, "utf8")).toBe(before);
+  await step.locator("button.followup-confirm").click();
+  await expect(step.locator(".followup-result")).toContainText("Task created", { timeout: 90_000 });
+  await expect.poll(() => readTracker().tasks.length, { timeout: 60_000 }).toBe(count + 1);
+  // The card opens read-only: the tracker does not change.
+  const after = fs.readFileSync(fixture.tracker, "utf8");
+  const card = page.locator("#run-next-list li").filter({ has: page.locator("button.card-open") }).first();
+  if (await card.count()) {
+    await card.locator("button.card-open").click();
+    await expect(card.locator(".card-view")).toBeVisible({ timeout: 30_000 });
+    expect(fs.readFileSync(fixture.tracker, "utf8")).toBe(after);
+  }
+  await closeApp(app);
+});
+
 test("tracker: the Git and GitHub preference is saved only after a preview and an explicit confirmation (#663)", async () => {
   const app = await launch({ repo: fixture.checkout });
   const { page } = app;
