@@ -38,18 +38,18 @@ $tasks=@();$n=0
 foreach($spec in @(@{id='E2E-1';priority='P1'},@{id='E2E-2';priority='P2'},@{id='E2E-3';priority='P3'})){
     $n++
     $task=New-SBTrackerTask @{id=$spec.id;title=('Task '+$spec.id);status='todo'} $identity 'fixture' 'history/seed/report.md' (Get-SBTextHash 'Synthetic provenance') 'fixture'
-    $task.seq=$n;$task.title='#'+$n.ToString('000')+' '+[char]0x2014+' Task sintetico '+$spec.id;$task.priority=$spec.priority;$task.execution='autonomous';$task.extensions=@{stream='evoluzione-team'}
+    $task.seq=$n;$task.title='#'+$n.ToString('000')+' '+[char]0x2014+' Synthetic task '+$spec.id;$task.priority=$spec.priority;$task.execution='autonomous';$task.extensions=@{stream='team-evolution'}
     $tasks+=,$task
 }
 # A task the runner skips (user_required), for the analysis that makes it autonomous.
 $n++
 $manual=New-SBTrackerTask @{id='E2E-4';title='Task E2E-4';status='todo'} $identity 'fixture' 'history/seed/report.md' (Get-SBTextHash 'Synthetic provenance') 'fixture'
-$manual.seq=$n;$manual.title='#'+$n.ToString('000')+' '+[char]0x2014+' Task sintetico da rendere autonomo';$manual.priority='P2';$manual.execution='user_required';$manual.extensions=@{stream='evoluzione-team';stateReason='Serve una scelta della persona'}
+$manual.seq=$n;$manual.title='#'+$n.ToString('000')+' '+[char]0x2014+' Synthetic task to make autonomous';$manual.priority='P2';$manual.execution='user_required';$manual.extensions=@{stream='team-evolution';stateReason='A choice by the owner is needed'}
 $tasks+=,$manual
 # An archived task closed before the ledger existed (the registry shows it with the unknown tool).
 $n++
 $closed=New-SBTrackerTask @{id='E2E-0';title='Task E2E-0';status='done'} $identity 'fixture' 'history/seed/report.md' (Get-SBTextHash 'Synthetic provenance') 'fixture'
-$closed.seq=$n;$closed.title='#'+$n.ToString('000')+' '+[char]0x2014+' Task sintetico archiviato';$closed.priority='P3';$closed.execution='autonomous';$closed.extensions=@{stream='evoluzione-team';lastClosure=@{at='2026-01-15T10:00:00Z';status='done';reason='Chiuso nella fixture'}}
+$closed.seq=$n;$closed.title='#'+$n.ToString('000')+' '+[char]0x2014+' Synthetic archived task';$closed.priority='P3';$closed.execution='autonomous';$closed.extensions=@{stream='team-evolution';lastClosure=@{at='2026-01-15T10:00:00Z';status='done';reason='Closed in the fixture'}}
 Put (Join-Path $dossier 'history/tracker-archive.json') (ConvertTo-SBJson @{schemaVersion=1;repository=$identity;tasks=@($closed)})
 Put (Join-Path $dossier 'tracker.json') (ConvertTo-SBJson @{schemaVersion=1;repository=$identity;updatedAt=[DateTimeOffset]::UtcNow.ToString('o');tasks=$tasks;history=@();extensions=@{lastSeq=$n;archive=@{path='history/tracker-archive.json';archivedTasksCount=1}}})
 [IO.Directory]::CreateDirectory($checkout)|Out-Null
@@ -83,11 +83,11 @@ $prompt=[Console]::In.ReadToEnd()
 # One-shot read-only analyses (agents.ps1 -Analyze): a claude -p --output-format json envelope with the structured answer as text.
 if($prompt -match '# Output'){
     $answer=if($prompt -match 'DOC06'){
-        @{sections=@(@{title='Verifiche';body='- Esegui npm test prima di chiudere un task.';rationale='Script di test del prodotto.';sources=@('README.md')});coveredElsewhere=@(@{topic='Commit e push';where='global'});warnings=@()}
+        @{sections=@(@{title='Checks';body='- Run npm test before closing a task.';rationale='Product test script.';sources=@('README.md')});coveredElsewhere=@(@{topic='Commit and push';where='global'});warnings=@()}
     }elseif($prompt -notmatch 'Answers of the owner so far\s*\r?\n\(none yet\)'){
-        @{taskId='E2E-4';verdict='autonomous-now';summary='Con la scelta fatta il task è autonomo.';blockersRemaining=@();calls=@(@{name='propose_task_update';arguments=@{questionId=$null;header=$null;question=$null;options=$null;multiSelect=$null;recommended=$null;description='Aggiorna il README con la sezione scelta.';acceptance=@('README.md contiene la sezione Installazione','npm test passa');execution='autonomous';awaiting='';requires=@();dependencies=$null;stateReason='Scelta della persona registrata: sezione Installazione.';reason=$null}})}
+        @{taskId='E2E-4';verdict='autonomous-now';summary='With the choice made the task is autonomous.';blockersRemaining=@();calls=@(@{name='propose_task_update';arguments=@{questionId=$null;header=$null;question=$null;options=$null;multiSelect=$null;recommended=$null;description='Update the README with the chosen section.';acceptance=@('README.md contains the Installation section','npm test passa');execution='autonomous';awaiting='';requires=@();dependencies=$null;stateReason='Owner choice recorded: Installation section.';reason=$null}})}
     }else{
-        @{taskId='E2E-4';verdict='needs-answers';summary='Serve sapere quale sezione aggiungere.';blockersRemaining=@();calls=@(@{name='ask_user';arguments=@{questionId='section';header='Sezione';question='Quale sezione aggiungere al README?';options=@(@{id='install';label='Installazione';description='Passi di installazione'},@{id='usage';label='Uso';description='Esempi d''uso'});multiSelect=$false;recommended='install';description=$null;acceptance=$null;execution=$null;awaiting=$null;requires=$null;dependencies=$null;stateReason=$null;reason=$null}})}
+        @{taskId='E2E-4';verdict='needs-answers';summary='We need to know which section to add.';blockersRemaining=@();calls=@(@{name='ask_user';arguments=@{questionId='section';header='Section';question='Which section should be added to the README?';options=@(@{id='install';label='Installation';description='Installation steps'},@{id='usage';label='Usage';description='Usage examples'});multiSelect=$false;recommended='install';description=$null;acceptance=$null;execution=$null;awaiting=$null;requires=$null;dependencies=$null;stateReason=$null;reason=$null}})}
     }
     [Console]::Out.WriteLine((@{type='result';subtype='success';is_error=$false;result=($answer|ConvertTo-Json -Depth 12 -Compress)}|ConvertTo-Json -Compress -Depth 4))
     exit 0
@@ -110,7 +110,7 @@ Start-Sleep -Seconds $pause
 Emit @{type='assistant';message=@{content=@(@{type='tool_use';name='Bash';input=@{command='npm test'}})}}
 Start-Sleep -Seconds $pause
 & pwsh -NoProfile -File (Join-Path $env:SB_E2E_BRAIN 'scripts/knowledge.ps1') -CheckoutPath (Get-Location).Path -UpdateTaskId $id -Status in_progress -StateReason 'Fake agent e2e'|Out-Null
-Emit @{type='assistant';message=@{content=@(@{type='text';text='Task sintetico completato'})}}
+Emit @{type='assistant';message=@{content=@(@{type='text';text='Synthetic task completed'})}}
 Emit @{type='result';subtype='success';is_error=$false;result='ok'}
 exit 0
 '@

@@ -152,12 +152,12 @@ test("directives: light-model proposal, preview, approve and apply, reload; the 
   await expect(page.locator("#dir-light")).toContainText("Claude Code");
   await page.locator("#dir-propose").click();
   await expect(page.locator("#dir-analysis")).toBeVisible({ timeout: 120_000 });
-  await expect(page.locator("#dir-sections")).toContainText("Script di test del prodotto.");
-  await expect(page.locator("#dir-covered")).toContainText("Commit e push");
+  await expect(page.locator("#dir-sections")).toContainText("Product test script.");
+  await expect(page.locator("#dir-covered")).toContainText("Commit and push");
   await page.locator("#dir-use").click();
-  await expect(page.locator("#dir-text")).toHaveValue(/## Verifiche/);
+  await expect(page.locator("#dir-text")).toHaveValue(/## Checks/);
   await expect(page.locator("#dir-apply")).toBeDisabled();
-  const text = "## Direttive sintetiche E2E\n\n- Verifiche: npm test prima di chiudere un task.\n";
+  const text = "## Synthetic E2E directives\n\n- Checks: npm test before closing a task.\n";
   await page.locator("#dir-text").fill(text);
   await page.locator("#dir-preview").click();
   await expect(page.locator("#dir-apply")).toBeEnabled({ timeout: 90_000 });
@@ -165,12 +165,12 @@ test("directives: light-model proposal, preview, approve and apply, reload; the 
   await page.locator("#dir-apply").click();
   await expect(page.locator("#dir-state")).toHaveText("Directives approved and aligned.", { timeout: 120_000 });
   await expect(page.locator("#dir-error")).toBeHidden();
-  expect(fs.readFileSync(path.join(fixture.checkout, "AGENTS.md"), "utf8")).toContain("Direttive sintetiche E2E");
-  expect(fs.readFileSync(path.join(fixture.dossier, "AGENTS.managed.md"), "utf8")).toContain("Direttive sintetiche E2E");
+  expect(fs.readFileSync(path.join(fixture.checkout, "AGENTS.md"), "utf8")).toContain("Synthetic E2E directives");
+  expect(fs.readFileSync(path.join(fixture.dossier, "AGENTS.managed.md"), "utf8")).toContain("Synthetic E2E directives");
   // Editing invalidates nothing on disk; "Ricarica dal dossier" restores the approved text.
   await page.locator("#dir-text").fill("bozza non approvata");
   await page.locator("#dir-reload").click();
-  await expect(page.locator("#dir-text")).toHaveValue(/Direttive sintetiche E2E/);
+  await expect(page.locator("#dir-text")).toHaveValue(/Synthetic E2E directives/);
   // The import command reads Markdown only (the native file dialog itself cannot be driven here).
   const imported = await page.evaluate(async (p) => {
     const internals = (window as unknown as { __TAURI_INTERNALS__: { invoke: (c: string, a: object) => Promise<string> } }).__TAURI_INTERNALS__;
@@ -186,8 +186,8 @@ test("directives: light-model proposal, preview, approve and apply, reload; the 
   app = await launch({ repo: fixture.checkout });
   page = app.page;
   await page.locator('.steps button[data-tab="directives"]').click();
-  await expect(page.locator("#dir-text")).toHaveValue(/Direttive sintetiche E2E/);
-  await expect(page.locator("#dir-current")).toContainText("Direttive sintetiche E2E");
+  await expect(page.locator("#dir-text")).toHaveValue(/Synthetic E2E directives/);
+  await expect(page.locator("#dir-current")).toContainText("Synthetic E2E directives");
   await closeApp(app);
 });
 
@@ -314,7 +314,7 @@ test("queue: a task that cannot run alone is analyzed, the owner answers and the
   const app = await launch({ repo: fixture.checkout });
   const { page } = app;
   const row = page.locator("#q-skipped tr").filter({ hasText: "E2E-4" });
-  await expect(row).toContainText("Serve una scelta della persona", { timeout: 60_000 });
+  await expect(row).toContainText("A choice by the owner is needed", { timeout: 60_000 });
   const calls = watchCalls(page);
   const analyze = row.locator("button", { hasText: "Analyze" });
   await analyze.click();
@@ -322,8 +322,8 @@ test("queue: a task that cannot run alone is analyzed, the owner answers and the
   const dialog = page.locator("#an-dialog");
   await expect(dialog).toBeVisible({ timeout: 120_000 });
   expect(calls("analyze_task")).toBe(1);
-  await expect(dialog.locator("legend")).toContainText("Quale sezione aggiungere al README?");
-  await expect(dialog.locator("label.choice").first()).toContainText("Installazione (recommended)");
+  await expect(dialog.locator("legend")).toContainText("Which section should be added to the README?");
+  await expect(dialog.locator("label.choice").first()).toContainText("Installation (recommended)");
   await expect(page.locator("#an-primary")).toBeDisabled();
   await dialog.locator("label.choice").first().locator("input").check();
   await page.locator("#an-primary").click();
@@ -334,7 +334,7 @@ test("queue: a task that cannot run alone is analyzed, the owner answers and the
   const task = readTracker().tasks.find((t) => t.id === "E2E-4");
   expect(task?.execution).toBe("autonomous");
   expect(task?.acceptance).toContain("npm test passa");
-  expect(JSON.stringify(task?.extensions?.decisions)).toContain("Installazione");
+  expect(JSON.stringify(task?.extensions?.decisions)).toContain("Installation");
   const ledger = fs.readFileSync(path.join(fixture.dossier, "history", "task-runs.jsonl"), "utf8");
   expect(ledger).toMatch(/"taskId":"E2E-4".*"mode":"analysis"/);
   await page.locator("#an-close").click();
