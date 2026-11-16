@@ -155,14 +155,20 @@ function Get-SBRunnerQuotaObservation([string]$BrainRoot,[string]$HostId,[string
     if(!(Test-Path -LiteralPath $repos -PathType Container)){return $null}
     $files=@(Get-ChildItem -LiteralPath $repos -Directory -ErrorAction SilentlyContinue|ForEach-Object {
             $r=Join-Path $_.FullName 'report'
-            if(Test-Path -LiteralPath $r -PathType Container){Get-ChildItem -LiteralPath $r -Directory -Filter '*-runner-run-*' -ErrorAction SilentlyContinue}
+            # #681: the queue (orchestrate-tasks.ps1, folder *-task-run*) records its agent's observations in its own status.json too.
+            if(Test-Path -LiteralPath $r -PathType Container){Get-ChildItem -LiteralPath $r -Directory -ErrorAction SilentlyContinue|Where-Object {$_.Name -like '*-runner-run-*' -or $_.Name -like '*-task-run*'}}
         }|ForEach-Object {Join-Path $_.FullName 'status.json'}|Where-Object {Test-Path -LiteralPath $_ -PathType Leaf}|
         Sort-Object {(Get-Item -LiteralPath $_).LastWriteTimeUtc} -Descending|Select-Object -First 40)
+    $best=$null;$bestAt=[DateTimeOffset]::MinValue
     foreach($f in $files){
         $s=Read-SBRunnerStatusFile $f
-        if($s -and $s.ContainsKey('quotaObserved') -and $s.quotaObserved -is [hashtable] -and [string]$s.quotaObserved.provider -eq $Provider -and $s.quotaObserved.observedAt){return $s.quotaObserved}
+        if($s -and $s.ContainsKey('quotaObserved') -and $s.quotaObserved -is [hashtable] -and [string]$s.quotaObserved.provider -eq $Provider -and $s.quotaObserved.observedAt){
+            $at=[DateTimeOffset]::MinValue
+            if(![DateTimeOffset]::TryParse([string]$s.quotaObserved.observedAt,[Globalization.CultureInfo]::InvariantCulture,[Globalization.DateTimeStyles]::None,[ref]$at)){$at=[DateTimeOffset]::MinValue}
+            if($null -eq $best -or $at -gt $bestAt){$best=$s.quotaObserved;$bestAt=$at}
+        }
     }
-    $null
+    $best
 }
 function Get-SBRunnerResumePoint([string]$BrainRoot,[string]$HostId,[string]$Checkout,[string]$Name='latest') {
     # resume.json written by a quota stop for this checkout: the named run folder, or the newest one ('latest'); $null when there is none.
