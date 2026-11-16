@@ -36,6 +36,29 @@ foreach($file in $presetFiles){
     Assert-Sub (!($readOnlyLine -and $pd.permissions.write)) ('preset Writes line matches write flag: '+$file.Name)
     Assert-Sub ($pd.status -ceq 'active' -and $pd.bounds.depth -eq 1 -and $pd.output.kind -cin @('text','report')) ('preset status, depth and output: '+$file.Name)
 }
+# Fixture evaluations (#625): every preset has one synthetic scenario; the definition must fit it (static evaluation, no live client).
+$evalFile=Join-Path $PSScriptRoot '../direttive/agents/evaluations/fixtures.json'
+$evalDoc=Get-Content -LiteralPath $evalFile -Raw|ConvertFrom-Json
+$evals=@($evalDoc.evaluations)
+Assert-Sub ($evals.Count -eq $presetFiles.Count) 'one fixture evaluation per preset'
+$evalSeen=@{}
+foreach($ev in $evals){
+    $evFile=@($presetFiles|Where-Object {$_.BaseName -ceq $ev.preset})
+    Assert-Sub ($evFile.Count -eq 1 -and !$evalSeen.ContainsKey($ev.preset)) ('evaluation targets one preset: '+$ev.preset)
+    $evalSeen[$ev.preset]=$true
+    $pd=Get-Content -LiteralPath $evFile[0].FullName -Raw|ConvertFrom-Json
+    Assert-Sub ($ev.id -ceq $pd.id -and -not [string]::IsNullOrWhiteSpace($ev.scenario)) ('evaluation id and scenario: '+$ev.preset)
+    $evTools=@($pd.permissions.tools)
+    foreach($t in @($ev.requiredTools)){Assert-Sub ($evTools -contains $t) ('scenario tool '+$t+' allowed: '+$ev.preset)}
+    $hasWriteTool=($evTools -contains 'submit_dossier_write')
+    Assert-Sub ([bool]$ev.dossierWrite -eq [bool]$pd.permissions.write -and $hasWriteTool -eq [bool]$pd.permissions.write) ('scenario write need matches permissions: '+$ev.preset)
+    Assert-Sub ($pd.output.kind -ceq $ev.outputKind) ('scenario output kind: '+$ev.preset)
+    Assert-Sub ($pd.context.Contains($ev.expectedOutputPhrase) -and $pd.context.Contains($ev.expectedBoundaryPhrase)) ('scenario output and boundary declared: '+$ev.preset)
+    $evParent=@{tools=@((Get-SBSubagentTools).read)+@((Get-SBSubagentTools).write)+@((Get-SBSubagentTools).special);write=$true}
+    $evPerm=Resolve-SBSubagentPermissions (ConvertTo-SBJson $pd|ConvertFrom-Json -AsHashtable) $evParent
+    Assert-Sub ($evPerm.tools.Count -eq $evTools.Count) ('scenario permissions resolve under a full parent: '+$ev.preset)
+    if($pd.permissions.write){Reject-Sub { Resolve-SBSubagentPermissions (ConvertTo-SBJson $pd|ConvertFrom-Json -AsHashtable) $readParent } ('write preset refused under a read-only parent: '+$ev.preset)}
+}
 # Definition format.
 Assert-Sub (Test-SBSubagentDefinition (New-Def 'reviewer')) 'valid definition accepted'
 $cases=@(

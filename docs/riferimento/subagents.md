@@ -82,7 +82,17 @@ Schema 2 definitions are authored and retired with the same script. Every operat
 
 `direttive/agents/presets/` holds 24 schema 2 definitions (status `active`, revision 1, IDs `agt-5e000001` to `agt-5e000018`): repo-explorer, requirements-analyst, planner, implementer, debugger, code-reviewer, unit-tester, integration-tester, ui-tester, accessibility-reviewer, security-reviewer, dependency-reviewer, performance-analyst, documentation-writer, release-checker, ci-diagnostician, data-analyst, query-validator, researcher, document-drafter, document-reviewer, tutor, personal-project-planner and file-organizer. They are supported use cases, not a popularity ranking, and are copied into a dossier's `subagents/` folder with `Create`.
 
-Schema 2 has no dedicated fields for sources and boundaries, so each `context` declares five labelled lines: `Sources`, `Boundaries`, `Tools` (equal to `permissions.tools`), `Writes` and `Expected output`. `permissions.write` is true only for documentation-writer, document-drafter and personal-project-planner, and then only through the reviewed MCP write path. `test-secondbrain-subagents.ps1` validates all 24 and checks those lines. Representative evaluations and native client loading belong to F06 and are not covered here.
+Schema 2 has no dedicated fields for sources and boundaries, so each `context` declares five labelled lines: `Sources`, `Boundaries`, `Tools` (equal to `permissions.tools`), `Writes` and `Expected output`. `permissions.write` is true only for documentation-writer, document-drafter and personal-project-planner, and then only through the reviewed MCP write path. `test-secondbrain-subagents.ps1` validates all 24 and checks those lines. Native client loading is not covered here.
+
+## Preset fixture evaluations (#625)
+
+`direttive/agents/evaluations/fixtures.json` gives each of the 24 presets one synthetic scenario (for example a fixture diff for code-reviewer, a CSV of synthetic orders for data-analyst, a CI log for ci-diagnostician). The `subagents` fixtures in `test-secondbrain-subagents.ps1` (run by `-Only trace`) evaluate each definition against its scenario and fail on any miss:
+
+- the tools the scenario needs are in `permissions.tools`, and a dossier write is needed only where `permissions.write` is true;
+- the output kind matches, and `context` declares the scenario's expected output and its boundary;
+- the definition resolves under a parent with full permissions, and a write preset is refused under a read-only parent.
+
+Result of the recorded run: 24 of 24 presets pass. This is a static evaluation of the definitions on synthetic scenarios; no model was run and no live client loaded a preset. The presets are supported use cases and the evaluation does not rank them by popularity or quality.
 
 ## Register
 
