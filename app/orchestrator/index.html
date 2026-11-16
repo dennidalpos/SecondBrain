@@ -19,7 +19,8 @@
       <span id="run-badge" class="badge" data-verdict="idle">Idle</span>
     </header>
     <nav class="steps" role="tablist" aria-label="Steps">
-      <button role="tab" data-tab="repo" aria-selected="true"><span class="num">1</span> Repository</button>
+      <button role="tab" data-tab="home" aria-selected="true">Home</button>
+      <button role="tab" data-tab="repo" aria-selected="false"><span class="num">1</span> Repository</button>
       <button role="tab" data-tab="directives" disabled><span class="num">2</span> Directives</button>
       <button role="tab" data-tab="queue" disabled><span class="num">3</span> Queue</button>
       <button role="tab" data-tab="run" disabled><span class="num">4</span> Run</button>
@@ -29,7 +30,34 @@
       <button role="tab" data-tab="settings" class="settings-tab">Settings</button>
     </nav>
     <main>
-      <section id="tab-repo" class="panel" role="tabpanel">
+      <section id="tab-home" class="panel" role="tabpanel">
+        <h2>Home</h2>
+        <p class="muted">Opening the app only shows the state: nothing runs until you start a queue from the Queue tab.</p>
+        <div class="home-actions">
+          <article class="home-card">
+            <h3>Runner</h3>
+            <p class="muted small">Pick the ready tasks, the agent and the model, then follow the unattended queue.</p>
+            <button id="home-runner" class="primary">Open the Runner</button>
+          </article>
+          <article class="home-card">
+            <h3>Workstation Setup</h3>
+            <p class="muted small">Choose the repository and its directives; the tracker and the dossier are loaded from it.</p>
+            <button id="home-setup" class="primary">Open Workstation Setup</button>
+          </article>
+          <article class="home-card">
+            <h3>Library</h3>
+            <p class="muted small">Tasks, archived tasks, runner history and the project trackers.</p>
+            <button id="home-library" class="primary">Open the Library</button>
+          </article>
+        </div>
+        <h3>Status</h3>
+        <dl class="facts" id="home-status">
+          <dt>Active run</dt><dd id="home-run">No run is active.</dd>
+          <dt>Pending questions</dt><dd id="home-questions">Load a repository to see them.</dd>
+        </dl>
+      </section>
+
+      <section id="tab-repo" class="panel" role="tabpanel" hidden>
         <h2>Repository</h2>
         <p class="muted">A checkout registered in SecondBrain: dossier and tracker are loaded from it. When opened with <code>sb runner</code>, it is already the one you launched the prompt from.</p>
         <div class="row">

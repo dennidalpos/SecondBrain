@@ -68,7 +68,8 @@ async function launch(opts: { repo?: string; agentSeconds?: number; limitSeconds
   }
   if (!page) throw new Error("orchestrator page not found");
   page.on("dialog", (d) => d.accept());
-  await page.waitForSelector("#repo-path");
+  // Attached, not visible: the first tab shown is Home (or the queue with --repo), not the repository form.
+  await page.waitForSelector("#repo-path", { state: "attached" });
   return { proc, browser, page, exited };
 }
 
@@ -134,8 +135,39 @@ test("repository preloaded from --repo, recent entries removed for good across r
   await closeApp(app);
 
   app = await launch();
+  await expect(app.page.locator('.steps button[data-tab="home"]')).toHaveAttribute("aria-selected", "true");
+  await app.page.locator('.steps button[data-tab="repo"]').click();
   await expect(app.page.locator("#recent-empty")).toBeVisible();
   await expect(app.page.locator("#repo-label")).toHaveText("No repository");
+  await closeApp(app);
+});
+
+test("home: three actions, concise status, and opening starts no execution (#630)", async () => {
+  fs.mkdirSync(fixture.configDir, { recursive: true });
+  fs.writeFileSync(settingsFile, JSON.stringify({ secondbrainHome: "", pwshPath: "", recentRepos: [fixture.checkout] }));
+  const runsDir = path.join(fixture.checkout, ".runtime");
+  const before = fs.existsSync(runsDir) ? fs.readdirSync(runsDir).length : 0;
+  const app = await launch();
+  const { page } = app;
+  // Opened without --repo: Home is shown, with the three actions and the status.
+  await expect(page.locator('.steps button[data-tab="home"]')).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#tab-home")).toBeVisible();
+  await expect(page.locator("#tab-home .home-card h3")).toHaveText(["Runner", "Workstation Setup", "Library"]);
+  await expect(page.locator("#home-run")).toHaveText("No run is active.");
+  await expect(page.locator("#home-questions")).toContainText(/None|waiting for the person/);
+  await expect(page.locator("#run-badge")).toHaveText("Idle");
+  // The actions only navigate.
+  await page.locator("#home-setup").click();
+  await expect(page.locator("#tab-repo")).toBeVisible();
+  await page.locator('.steps button[data-tab="home"]').click();
+  await page.locator("#home-runner").click();
+  await expect(page.locator("#tab-queue")).toBeVisible();
+  await page.locator('.steps button[data-tab="home"]').click();
+  await page.locator("#home-library").click();
+  await expect(page.locator("#tab-registry")).toBeVisible();
+  // Nothing ran: still idle, no run folder created by opening and navigating.
+  await expect(page.locator("#run-badge")).toHaveText("Idle");
+  expect(fs.existsSync(runsDir) ? fs.readdirSync(runsDir).length : 0).toBe(before);
   await closeApp(app);
 });
 

@@ -53,7 +53,7 @@ async function launch(opts: { repo?: string; agentSeconds?: number } = {}): Prom
   }
   if (!page) throw new Error("page not found");
   page.on("dialog", (d) => d.accept());
-  await page.waitForSelector("#repo-path");
+  await page.waitForSelector("#repo-path", { state: "attached" });
   return { proc, browser, page, exited };
 }
 async function closeApp(app: App) {

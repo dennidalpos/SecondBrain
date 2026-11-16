@@ -118,10 +118,28 @@ function updateSteps() {
   tab("repo").classList.toggle("done", loaded);
   tab("queue").classList.toggle("done", state.run.active || state.run.verdict === "finished");
   $<HTMLButtonElement>("repo-next").disabled = !loaded;
+  renderHome();
+}
+// Home: read-only status and navigation; it never starts a run.
+function renderHome() {
+  const loaded = Boolean(state.repo);
+  const r = state.run;
+  $("home-run").textContent = r.active || r.starting
+    ? `${RUN_VERDICT_LABEL[r.verdict] ?? r.verdict}${r.status?.task ? `: #${r.status.task.seq} ${r.status.task.title} (${r.status.task.position} of ${r.status.task.total})` : ""}`
+    : "No run is active.";
+  if (!loaded) $("home-questions").textContent = "Load a repository to see them.";
+  else {
+    const pending = state.skipped.filter((s) => /^(execution:user_required|awaiting)/.test(s.reason));
+    $("home-questions").textContent = pending.length ? `${pending.length} task${pending.length === 1 ? "" : "s"} waiting for the person: ${pending.slice(0, 3).map((s) => "#" + (s.seq ?? s.id)).join(", ")}${pending.length > 3 ? "…" : ""}` : "None.";
+  }
+  $<HTMLButtonElement>("home-runner").disabled = !loaded && !r.active;
 }
 // A tab chosen by the person is never overridden by the startup preload.
 let navigated = false;
 document.querySelectorAll<HTMLButtonElement>(".steps button[data-tab]").forEach((b) => b.addEventListener("click", () => { if (!b.disabled) { navigated = true; selectTab(b.dataset.tab!); } }));
+$("home-runner").addEventListener("click", () => { navigated = true; selectTab(state.run.active ? "run" : "queue"); });
+$("home-setup").addEventListener("click", () => { navigated = true; selectTab("repo"); });
+$("home-library").addEventListener("click", () => { navigated = true; selectTab(state.repo ? "registry" : "tracker"); });
 $("repo-next").addEventListener("click", () => selectTab("directives"));
 $("dir-next").addEventListener("click", () => selectTab("queue"));
 $("run-registry").addEventListener("click", () => selectTab("registry"));
@@ -496,6 +514,7 @@ function renderSkipped() {
     return tr;
   }));
   updateAnalyzeButton();
+  renderHome();
 }
 function updateAnalyzeButton() {
   const n = state.skippedSelected.size;
@@ -580,6 +599,7 @@ async function launchQueue(request: QueueRequest, errorBox: string) {
 function setVerdict(v: string) {
   state.run.verdict = v;
   for (const id of ["run-verdict", "run-badge"]) { const b = $(id); b.dataset.verdict = v; b.textContent = RUN_VERDICT_LABEL[v] ?? v; }
+  renderHome();
 }
 function resetRunView() {
   stopPolling();

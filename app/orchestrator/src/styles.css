@@ -141,6 +141,12 @@ table.tasks tbody:empty { display: none; }
 .acceptance-verified { color: var(--ok); }
 .acceptance-unverified { color: var(--warn); }
 
+/* Home: three actions and a concise status. */
+.home-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 12px 0 18px; }
+.home-card { border: 1px solid var(--border); border-radius: 10px; background: var(--surface); padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+.home-card h3 { margin: 0; }
+.home-card button { margin-top: auto; align-self: flex-start; }
+
 dialog { border: 1px solid var(--border); border-radius: 12px; background: var(--surface); color: var(--text); max-width: 520px; padding: 18px 20px; }
 dialog::backdrop { background: rgb(0 0 0 / 0.35); }
 .dialog-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
