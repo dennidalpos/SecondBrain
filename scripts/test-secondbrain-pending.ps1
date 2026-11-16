@@ -284,6 +284,18 @@ try {
     Assert-Pending ($pinnedRun.code -eq 0 -and (@((Read-SBJson $trackerPath $null).tasks|Where-Object id -eq 'T-2')[0].extensions.stateReason -ceq 'recorded by the pinned scripts')) ('#665: the pinned copy records the outcome in the live dossier: '+$pinnedRun.text)
     $badOverride=& $pinned (Join-Path $fixture 'not-a-brain') @('-Tasks')
     Assert-Pending ($badOverride.code -ne 0 -and $badOverride.text -match 'SECONDBRAIN_BRAIN_ROOT') '#665: an override that is not a SecondBrain checkout is refused'
+    # #671: trace.ps1 (one of the scripts that computed the root before importing Core) reports the live brain from the snapshot with the override.
+    $traceStatus={param([string]$Override)
+        $env:SECONDBRAIN_BRAIN_ROOT=$Override
+        try{$out=@(& pwsh -NoProfile -File (Join-Path $snapRoot 'scripts/trace.ps1') -HookStatus -SettingsPath (Join-Path $fixture 'trace-671-settings.json') 2>&1|Out-String);@{code=$LASTEXITCODE;text=($out -join "`n")}}
+        finally{Remove-Item Env:SECONDBRAIN_BRAIN_ROOT -ErrorAction SilentlyContinue}
+    }
+    $liveTraceMark=([IO.Path]::GetFullPath((Join-Path $brain 'scripts/trace.ps1'))).Replace('\','/')
+    $snapTraceMark=([IO.Path]::GetFullPath((Join-Path $snapRoot 'scripts/trace.ps1'))).Replace('\','/')
+    $traceLive=& $traceStatus $brain
+    Assert-Pending ($traceLive.code -eq 0 -and $traceLive.text.Contains($liveTraceMark) -and !$traceLive.text.Contains($snapTraceMark)) ('#671: trace.ps1 from a snapshot uses the live brain with SECONDBRAIN_BRAIN_ROOT: '+$traceLive.text)
+    $traceOwn=& $traceStatus $null
+    Assert-Pending ($traceOwn.code -eq 0 -and $traceOwn.text.Contains($snapTraceMark)) '#671: without the override trace.ps1 uses its own parent'
     Copy-Item -LiteralPath (Join-Path $snapRoot 'scripts/knowledge.ps1') -Destination (Join-Path $brain 'scripts/knowledge.ps1') -Force
     # #645: the reviewed apply and reject of a stored enrichment proposal through the CLI.
     $enrDir=Join-Path $brain 'enrich-645-cli';[void][IO.Directory]::CreateDirectory($enrDir);$enrFile=Join-Path $enrDir 'proposal.json'

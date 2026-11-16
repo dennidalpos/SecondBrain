@@ -24,8 +24,8 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$brain = if ($BrainRoot) { [IO.Path]::GetFullPath($BrainRoot) } else { [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..')) }
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1') -Force
+$brain = if ($BrainRoot) { [IO.Path]::GetFullPath($BrainRoot) } else { Get-SBBrainRootPath }
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Access.psm1') -Force
 trap { if (Test-SBWriteDeniedError $_) { Write-SBWriteDeniedDiagnostic $_ $PSCommandPath $PSBoundParameters; exit 4 }; if (Test-SBBusyError $_) { [Console]::Error.WriteLine($_.Exception.Message); exit 3 }; break }
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Host.psm1') -Force

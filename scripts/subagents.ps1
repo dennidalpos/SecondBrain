@@ -27,7 +27,7 @@ $ErrorActionPreference='Stop'
 foreach($m in 'Core','Access','Host','Para','Knowledge','Subagents'){Import-Module (Join-Path $PSScriptRoot ('SecondBrain.'+$m+'.psm1'))}
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Add-SBMessages @{'subagent.cli'=@{ en = 'Subagents: missing or out-of-scope parameter ({0})' }}
-$brain=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+$brain=Get-SBBrainRootPath
 if(!(Test-SBRepositoryIdentity $Repository)){throw (New-SBError 'subagent.cli' @('repository'))}
 $dossier=Resolve-SBParaPath $brain (Resolve-SBWorkingDossier $brain $Repository)
 $catalog=Read-SBSubagentCatalog $brain
