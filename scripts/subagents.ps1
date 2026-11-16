@@ -34,11 +34,11 @@ $catalog=Read-SBSubagentCatalog $brain
 $tools=Get-SBSubagentTools
 $parent=@{tools=@(if($PSBoundParameters.ContainsKey('ParentTools')){$ParentTools}else{$tools.read});write=[bool]$ParentWrite}
 if($Operation -eq 'Validate'){
-    $entries=Read-SBSubagentDefinitions $dossier $catalog
+    $entries=@(Read-SBSubagentDefinitions $dossier $catalog)
     ConvertTo-SBJson (Get-SBSubagentValidateReport $entries);exit 0
 }
 if($Operation -eq 'Resolve'){
-    $entries=Read-SBSubagentDefinitions $dossier $catalog
+    $entries=@(Read-SBSubagentDefinitions $dossier $catalog)
     ConvertTo-SBJson (Get-SBSubagentResolveReport $entries $parent);exit 0
 }
 if($Operation -in @('Create','Edit','Revise','Retire')){

@@ -88,6 +88,12 @@ Assert-Sub ($w.write -and $w.writeAuthorization -ceq 'parent-reviewed-mcp-write'
 Reject-Sub { Resolve-SBSubagentPermissions (New-Def 'a') @{tools=@('get_task')} } 'malformed parent is rejected'
 # Dossier asset reading.
 Assert-Sub (@(Read-SBSubagentDefinitions $dossier).Count -eq 0) 'no definitions yields an empty list'
+# #690: a dossier without subagents/ gives empty reports, also for the bare $null the pipeline yields.
+$noneEntries=Read-SBSubagentDefinitions $dossier
+$noneValidate=ConvertFrom-Json (ConvertTo-SBJson (Get-SBSubagentValidateReport $noneEntries)) -AsHashtable
+Assert-Sub ($noneValidate.state -ceq 'valid' -and @($noneValidate.definitions).Count -eq 0) 'Validate report is empty without a subagents folder'
+$noneResolve=ConvertFrom-Json (ConvertTo-SBJson (Get-SBSubagentResolveReport $noneEntries @{tools=@('get_task');write=$false})) -AsHashtable
+Assert-Sub (@($noneResolve.agents).Count -eq 0) 'Resolve report is empty without a subagents folder'
 Save-Def (New-Def 'reviewer') 'reviewer.json'
 Save-Def (New-Def 'planner' @('get_ready_tasks','get_task')) 'planner.json'
 $entries=@(Read-SBSubagentDefinitions $dossier)

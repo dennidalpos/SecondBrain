@@ -166,11 +166,11 @@ function Get-SBSubagentSummary($Definition) {
 
 # Reports of the Validate and Resolve operations over entries from Read-SBSubagentDefinitions.
 function Get-SBSubagentValidateReport($Entries) {
-    @{state='valid';definitions=@($Entries|ForEach-Object {@{name=$_.definition.name;schemaVersion=$_.definition.schemaVersion;id=$(if($_.definition.Contains('id')){$_.definition.id}else{$null});sha256=$_.sha256;cards=@($_.cards)}})}
+    @{state='valid';definitions=@(@($Entries)|Where-Object {$null -ne $_}|ForEach-Object {@{name=$_.definition.name;schemaVersion=$_.definition.schemaVersion;id=$(if($_.definition.Contains('id')){$_.definition.id}else{$null});sha256=$_.sha256;cards=@($_.cards)}})}
 }
 
 function Get-SBSubagentResolveReport($Entries,$Parent) {
-    @{parent=$Parent;agents=@($Entries|ForEach-Object {
+    @{parent=$Parent;agents=@(@($Entries)|Where-Object {$null -ne $_}|ForEach-Object {
         $agent=Resolve-SBSubagentPermissions $_.definition $Parent
         $summary=Get-SBSubagentSummary $_.definition
         foreach($key in $summary.Keys){$agent[$key]=$summary[$key]}
