@@ -70,6 +70,17 @@ try{
     # User scope goes under the given home folder only.
     $r=Invoke-Sk @('-Install','-CheckoutPath',$project,'-Select','review-checklist','-Client','antigravity','-Scope','user','-HomeRoot',$homeDir,'-Apply')
     Assert-Sk ($r.code -eq 0 -and (Test-Path -LiteralPath (Join-Path $homeDir '.gemini/config/skills/review-checklist/SKILL.md'))) ('user scope written under the home folder: '+$r.out)
+    # Clients sharing .agents/skills write the path once and exit 0.
+    $r=Invoke-Sk @('-Install','-CheckoutPath',$project,'-Select','project-checks','-Client','codex,antigravity','-Scope','project','-Apply')
+    Assert-Sk ($r.code -eq 0 -and $r.out -notmatch 'Concurrent') ('shared path with codex and antigravity exits 0: '+$r.out)
+    $shared=Join-Path $project '.agents/skills/project-checks/SKILL.md';[IO.File]::Delete($shared)
+    $r=Invoke-Sk @('-Install','-CheckoutPath',$project,'-Select','project-checks','-Client','codex,antigravity','-Scope','project','-Apply')
+    Assert-Sk ($r.code -eq 0 -and ([regex]::Matches($r.out,'project-checks[\\/]+SKILL\.md')).Count -eq 1 -and (Test-Path -LiteralPath $shared)) ('shared path written once: '+$r.out)
+    # A real concurrent change between plan and write is still rejected.
+    Import-Module (Join-Path $brain 'scripts/SecondBrain.Skills.psm1') -Force -ErrorAction SilentlyContinue
+    $stale=Get-SBFileHash $shared;[IO.File]::WriteAllText($shared,'changed meanwhile')
+    $threw=$false;try{Write-SBFile $shared ([Text.Encoding]::UTF8.GetBytes('x')) $stale (Join-Path $runtime 'backups') -BackupDirty|Out-Null}catch{$threw=$true}
+    Assert-Sk ($threw -and [IO.File]::ReadAllText($shared) -ceq 'changed meanwhile') 'stale expected hash is still rejected'
     'SUCCESS SKILLS: '+$script:skChecks+' checks'
 }finally{
     $full=[IO.Path]::GetFullPath($root);$boundary=[IO.Path]::GetFullPath((Get-SBTestRoot)).TrimEnd('\','/')+[IO.Path]::DirectorySeparatorChar

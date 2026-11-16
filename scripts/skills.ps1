@@ -63,7 +63,7 @@ $operation = Enter-SBOperation $config $SessionId -LockOnly
 try {
     $written = @(); $skipped = @()
     foreach ($item in $plan) {
-        if ($item.state -eq 'unchanged') { continue }
+        if ($item.state -in @('unchanged', 'shared')) { continue }
         if ($item.state -eq 'conflict' -and !$Overwrite) { $skipped += $item.file; continue }
         Write-SBFile $item.file $item.bytes $item.expected $config.localStateBackupRoot -BackupDirty | Out-Null
         $written += $item.file

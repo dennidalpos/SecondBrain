@@ -100,6 +100,8 @@ function New-SBSkillInstallPlan($Proposals,[string[]]$Select,[string[]]$Clients,
             $bytes=[Text.Encoding]::UTF8.GetBytes($skill.content)
             $current=Get-SBFileHash $file
             $state=if($current -eq 'absent'){'new'}elseif($current -ceq (Get-SBHash $bytes)){'unchanged'}else{'conflict'}
+            # Clients that share a folder (codex and antigravity: .agents/skills) write that file once.
+            if(@($items|Where-Object {$_.file -ceq $file}).Count){$state='shared'}
             $items+=[ordered]@{client=$client;scope=$Scope;skill=$skill.name;file=$file;state=$state;expected=$current;bytes=$bytes}
         }
     }
