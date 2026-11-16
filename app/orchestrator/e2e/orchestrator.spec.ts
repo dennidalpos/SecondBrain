@@ -261,7 +261,7 @@ test("queue lists only the installed agents and the models their CLI exposes", a
   await expect(page.locator("#q-agents label.agent")).toHaveCount(3, { timeout: 60_000 });
   const claude = page.locator("#q-agents label.agent").filter({ hasText: "Claude Code" });
   await expect(claude).toContainText("ready");
-  await expect(claude).toContainText("9.9.9");
+  await expect(claude).toContainText("2.1.0");
   await expect(claude.locator("input")).toBeChecked();
   for (const name of ["Codex", "Gemini CLI"]) {
     const off = page.locator("#q-agents label.agent").filter({ hasText: name });

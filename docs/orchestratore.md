@@ -79,7 +79,7 @@ The header always shows the loaded repository, its tracker and the run badge. St
 ![Registry step: five synthetic tasks with status, tool, last activity and run count](assets/orchestrator-registry.png)
 ![Tracker step: the bound project, its Git and GitHub update preference and the new agent definition form](assets/orchestrator-tracker.png)
 
-Screenshots: real release binary (app v0.1.0, SecondBrain 2.17.0, captured 2026-11-16) driven by `app/orchestrator/e2e/ui-audit.audit.ts` on the synthetic fixture of `scripts/test-orchestrator-fixture.ps1`; the agent is the fixture's fake Claude Code (reported as 9.9.9) and the task titles are fixture text.
+Screenshots: real release binary (app v0.1.0, SecondBrain 2.17.0, captured 2026-11-16) driven by `app/orchestrator/e2e/ui-audit.audit.ts` on the synthetic fixture of `scripts/test-orchestrator-fixture.ps1`; the agent is the fixture's fake Claude Code (reported as 2.1.0) and the task titles are fixture text.
 
 **Closing the window during a run** asks what to do: leave it running and close, stop after the task and close, abort now and close, or cancel. A run left running keeps working; when the app is opened again on that repository it finds the run through `status.json`, reattaches, replays the agent's steps and follows it to the end. The runner refuses a second run on the same repository while the first is alive, from the app or from the command line.
 

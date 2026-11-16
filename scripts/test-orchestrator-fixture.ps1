@@ -66,7 +66,7 @@ $bin=Join-Path $Root 'bin'
 $fake=Join-Path $bin 'fake-claude.ps1'
 Put $fake @'
 [Console]::InputEncoding=[Text.UTF8Encoding]::new($false);[Console]::OutputEncoding=[Text.UTF8Encoding]::new($false)
-if($args -contains '--version'){'9.9.9 (Claude Code)';exit 0}
+if($args -contains '--version'){'2.1.0 (Claude Code)';exit 0}
 if($args -contains '--help'){
 @"
 Usage: claude [options]

@@ -67,6 +67,14 @@ export function fmtDuration(seconds: number): string {
   const s = Math.floor(seconds % 60), m = Math.floor(seconds / 60) % 60, h = Math.floor(seconds / 3600);
   return h ? `${h} h ${m} min` : m ? `${m} min ${s} s` : `${s} s`;
 }
+/** Fixed, unambiguous local timestamp (YYYY-MM-DD HH:MM), independent of the system locale. */
+export function fmtStamp(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
 export function fmtDate(iso: string | null | undefined): string { return iso ? new Date(iso).toLocaleString() : "—"; }
 export function since(iso: string | null | undefined): number { return iso ? (Date.now() - Date.parse(iso)) / 1000 : NaN; }
 export function baseName(p: string) { return p.split(/[\\/]/).filter(Boolean).pop() ?? p; }

@@ -1,6 +1,6 @@
 // Tracker: read-only view of the trackers of every project bound on this workstation. The project list comes from projects.ps1 -List;
 // the tasks of the selected project come from the same registry read as the Registry tab (knowledge.ps1 -Registry on its checkout).
-import { $, call, el, fmtDate, input, option, select, setError, toolBadge } from "./common";
+import { $, call, el, fmtStamp, input, option, select, setError, toolBadge } from "./common";
 import { initWizard, syncWizard } from "./wizard";
 
 interface Project {
@@ -18,7 +18,7 @@ interface TrackerTask { id: string; seq: number | null; title: string; status: s
 interface TrackerPage { total: number; offset: number; nextOffset: number | null; tasks: TrackerTask[] }
 
 const STATUS_LABEL: Record<string, string> = { todo: "to do", in_progress: "in progress", blocked: "blocked", done: "done", cancelled: "cancelled", unknown: "unknown" };
-const GIT_LABEL: Record<string, string> = { "commit-push-main": "commit and push on the main branch", "branch-pr": "branch and pull request", none: "no Git update" };
+const GIT_LABEL: Record<string, string> = { "commit-push-main": "commit and push", "branch-pr": "branch and pull request", none: "no Git update" };
 const PAGE_SIZE = 50;
 let projects: Project[] = [];
 let page = 0;
@@ -73,7 +73,7 @@ function renderProject() {
       ["Access", p.access ?? "read-only"], ["Output scope", p.outputScope?.length ? p.outputScope.join(", ") : "none"]]
     : [
       ["Identity", p.identity], ["Checkout", p.path + (p.checkoutExists ? "" : " (not found)")], ["Dossier", p.dossier || "—"],
-      ["Tracker updated", fmtDate(p.trackerUpdatedAt)],
+      ["Tracker updated", fmtStamp(p.trackerUpdatedAt)],
       ["Git and GitHub update", g ? (GIT_LABEL[g.mode] ?? g.mode) + (g.mode === "none" ? "" : ` on ${g.branch}`) + (g.confirmed ? "" : " (proposed default, not confirmed)") : "—"],
     ];
   facts.replaceChildren(...rows.flatMap(([k, v]) => [el("dt", {}, k), el("dd", {}, v)]));
@@ -108,7 +108,7 @@ async function refreshTasks() {
   $<HTMLButtonElement>("trk-next").disabled = r.nextOffset === null;
   rows.replaceChildren(...r.tasks.map((t) => {
     const tr = el("tr", { className: t.archived ? "archived" : "" });
-    [t.seq != null ? String(t.seq) : "—", t.id, t.title + (t.archived ? " (archived)" : ""), el("span", { className: "state-" + t.status }, STATUS_LABEL[t.status] ?? t.status), t.priority, fmtDate(t.lastActivity ?? t.closedAt)]
+    [t.seq != null ? String(t.seq) : "—", t.id, t.title + (t.archived ? " (archived)" : ""), el("span", { className: "state-" + t.status }, STATUS_LABEL[t.status] ?? t.status), t.priority, fmtStamp(t.lastActivity ?? t.closedAt)]
       .forEach((c) => tr.append(el("td", {}, c)));
     return tr;
   }));
