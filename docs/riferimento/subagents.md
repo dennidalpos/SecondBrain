@@ -31,6 +31,8 @@ Schema 2 implements section 4 of the [asset contracts](asset-contracts.md#4-agen
 | `output` | `{kind: text\|report\|object, schema?}`; `schema` is a `config/<path>.json` and is required for `object` |
 | `bounds` | `{depth: 1, budget: {turns?, minutes?}}`; `depth` must be 1 (a delegate cannot delegate); `budget` needs at least one of `turns` (1–1000) or `minutes` (1–1440) |
 
+| `model` | Optional `{provider: any\|claude\|codex\|gemini, name?}`; `name` needs a provider other than `any`. A preference for the parent, never a permission |
+
 Example:
 
     {
@@ -73,6 +75,8 @@ Schema 2 definitions are authored and retired with the same script. Every operat
 - **Edit** changes only `description` and `context`; the revision stays. A change to `role`, `permissions`, `cards`, `output` or `bounds` is refused: use Revise.
 - **Revise** takes the full definition of the same `id` and `name`, bumps the revision by one (a kept or missing number is replaced by the next one) and refuses a breaking change: a widened permission (write, an added tool) or a changed output contract needs a new definition and `Retire` of the old one with `replacedBy`.
 - **Retire** moves the status forward only (active to deprecated to retired, `-Status`), optionally records `-ReplacedBy` (an existing active or draft definition). The file and its ID stay on disk.
+
+**Creation wizard (#623).** The Tracker tab of the [desktop app](../orchestratore.md) has a seven-step wizard for a new definition: purpose and template, target dossier, provider and model, tools and permissions, prompts (role, context, cards), budget and output, preview and save. Each step is checked before the next opens (the script remains the final judge). The last step runs `Create` without `-Apply` and shows the definition from the script's answer (`definition`, with the assigned `id`); Save sends that same previewed definition with `-Apply`, so the file equals the preview. Changing any value discards the preview. The end-to-end scenario is in `app/orchestrator/e2e/orchestrator.spec.ts`.
 
 ## Register
 

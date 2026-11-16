@@ -559,6 +559,83 @@ test("tracker: the Git and GitHub preference is saved only after a preview and a
   await closeApp(app);
 });
 
+test("tracker: the agent wizard validates each step, previews the definition and saves exactly that file (#623)", async () => {
+  const app = await launch({ repo: fixture.checkout });
+  const { page } = app;
+  const file = path.join(fixture.dossier, "subagents", "e2e-reviewer.json");
+  expect(fs.existsSync(file)).toBe(false);
+  await page.locator('.steps button[data-tab="tracker"]').click();
+  await expect(page.locator("#agw-box")).toBeVisible({ timeout: 60_000 });
+  const next = page.locator("#agw-next");
+  const error = page.locator("#agw-error");
+  const stepVisible = (n: number) => expect(page.locator(`.agw-step[data-step="${n}"]`)).toBeVisible();
+  // Step 1: an invalid name and an empty purpose keep the wizard on the step.
+  await page.locator("#agw-template").selectOption("reviewer");
+  await page.locator("#agw-name").fill("Bad Name");
+  await next.click();
+  await expect(error).toContainText("lowercase");
+  await stepVisible(1);
+  await page.locator("#agw-name").fill("e2e-reviewer");
+  await next.click();
+  await stepVisible(2);
+  await next.click();
+  // Step 3: a model needs a provider.
+  await stepVisible(3);
+  await page.locator("#agw-model").fill("opus");
+  await next.click();
+  await expect(error).toContainText("provider");
+  await page.locator("#agw-provider").selectOption("claude");
+  await next.click();
+  // Step 4: a write tool without the write permission is refused.
+  await stepVisible(4);
+  await page.locator('#agw-tools input[value="submit_dossier_write"]').check();
+  await next.click();
+  await expect(error).toContainText("write permission");
+  await page.locator('#agw-tools input[value="submit_dossier_write"]').uncheck();
+  await next.click();
+  await stepVisible(5);
+  await page.locator("#agw-cards").fill("Not A Card");
+  await next.click();
+  await expect(error).toContainText("Cards");
+  await page.locator("#agw-cards").fill("");
+  await next.click();
+  // Step 6: an object output needs a schema; the budget is required.
+  await stepVisible(6);
+  await page.locator("#agw-output").selectOption("object");
+  await next.click();
+  await expect(error).toContainText("schema");
+  await page.locator("#agw-output").selectOption("report");
+  await page.locator("#agw-turns").fill("0");
+  await next.click();
+  await expect(error).toContainText("Turns");
+  await page.locator("#agw-turns").fill("12");
+  await next.click();
+  await stepVisible(7);
+  await expect(page.locator("#agw-save")).toBeDisabled();
+  await page.locator("#agw-preview").click();
+  await expect(page.locator("#agw-plan")).toContainText("e2e-reviewer", { timeout: 60_000 });
+  expect(fs.existsSync(file)).toBe(false);
+  await expect(page.locator("#agw-save")).toBeEnabled();
+  const shown = JSON.parse((await page.locator("#agw-plan").textContent())!.split("\n").slice(1).join("\n"));
+  expect(shown.id).toMatch(/^agt-[0-9a-f]{8}$/);
+  // Going back and changing a value invalidates the preview.
+  await page.locator("#agw-back").click();
+  await page.locator("#agw-turns").fill("13");
+  await expect(page.locator("#agw-save")).toBeHidden();
+  await next.click();
+  await expect(page.locator("#agw-save")).toBeDisabled();
+  await page.locator("#agw-preview").click();
+  await expect(page.locator("#agw-save")).toBeEnabled({ timeout: 60_000 });
+  const reviewed = JSON.parse((await page.locator("#agw-plan").textContent())!.split("\n").slice(1).join("\n"));
+  expect(reviewed.bounds.budget.turns).toBe(13);
+  await page.locator("#agw-save").click();
+  await expect(page.locator("#agw-plan")).toContainText("Saved exactly as previewed", { timeout: 60_000 });
+  // The saved file is the previewed definition.
+  expect(JSON.parse(fs.readFileSync(file, "utf8"))).toEqual(reviewed);
+  expect(reviewed.model).toEqual({ provider: "claude", name: "opus" });
+  await closeApp(app);
+});
+
 // #598: one screenshot of every tab on the synthetic fixture, taken only when SB_E2E_SHOTS names an output folder. Everything that can show a
 // local path (inputs, monospace values, definition lists, the recent list) is masked, so the images hold synthetic task data only.
 test("screenshots of every tab with synthetic data (only with SB_E2E_SHOTS)", async () => {

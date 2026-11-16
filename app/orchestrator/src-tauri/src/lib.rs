@@ -510,6 +510,37 @@ async fn set_git_update(app: AppHandle, identity: String, mode: String, branch: 
     script(app, "para.ps1", git_update_args(&identity, &mode, branch.as_deref(), apply)?).await
 }
 
+/// Arguments of subagents.ps1 -Operation Create for the agent wizard (#623): the definition travels in a file, never on the command line.
+fn agent_wizard_args(identity: &str, file: &str, apply: bool) -> Result<Vec<String>, String> {
+    if identity.is_empty() || identity.len() > 200 || !identity.chars().all(|c| c.is_ascii_alphanumeric() || "._:/-".contains(c)) {
+        return Err("Invalid project identity.".into());
+    }
+    let mut args: Vec<String> = vec!["-Operation".into(), "Create".into(), "-Repository".into(), identity.into(), "-DefinitionPath".into(), file.into()];
+    if apply {
+        args.push("-Apply".into());
+    }
+    Ok(args)
+}
+
+#[tauri::command]
+async fn agent_wizard(app: AppHandle, identity: String, definition: Value, apply: bool) -> Result<Value, String> {
+    // Preview or save of one new schema 2 definition. The script validates the same definition both times; its answer carries the
+    // definition as it is (or would be) written, so the window shows exactly what is saved.
+    let text = serde_json::to_string(&definition).map_err(|e| e.to_string())?;
+    if !definition.is_object() || text.len() > 100_000 {
+        return Err("Invalid definition.".into());
+    }
+    let nanos = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or(0);
+    let file = std::env::temp_dir().join(format!("sb-agent-wizard-{}-{nanos}.json", std::process::id()));
+    std::fs::write(&file, text).map_err(|e| e.to_string())?;
+    let result = match agent_wizard_args(&identity, &file.to_string_lossy(), apply) {
+        Ok(a) => script(app, "subagents.ps1", a).await,
+        Err(e) => Err(e),
+    };
+    let _ = std::fs::remove_file(&file);
+    result
+}
+
 #[tauri::command]
 async fn next_steps(app: AppHandle, repo: String) -> Result<Value, String> {
     // Read-only: reasoned next steps for the project (next-steps.ps1); an action is only named here, the owner chooses it.
@@ -757,6 +788,7 @@ pub fn run() {
             list_projects,
             next_steps,
             set_git_update,
+            agent_wizard,
             list_runs,
             add_run_note
         ])
@@ -766,7 +798,7 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-    use super::{analysis_args, browser_args, enrichment_decision_args, git_update_args, queue_args, registry_args, repo_argument, valid_token, QueueRequest, RegistryQuery};
+    use super::{analysis_args, browser_args, enrichment_decision_args, git_update_args, agent_wizard_args, queue_args, registry_args, repo_argument, valid_token, QueueRequest, RegistryQuery};
 
     fn queue(task_ids: &[&str], resume: Option<&str>) -> QueueRequest {
         QueueRequest {
@@ -863,6 +895,14 @@ mod tests {
         assert!(reject.contains(&"-RejectEnrichment".to_string()) && !reject.contains(&"-EnrichmentAuthorization".to_string()));
         assert!(enrichment_decision_args(&dir, "T-1", true, "  ").is_err());
         assert!(enrichment_decision_args(&dir, "T 1;x", false, "").is_err());
+    }
+
+    #[test]
+    fn agent_wizard_arguments() {
+        let preview = agent_wizard_args("github.com/test/a", "d.json", false).unwrap();
+        assert!(preview.windows(2).any(|w| w == ["-Operation", "Create"]) && preview.windows(2).any(|w| w == ["-DefinitionPath", "d.json"]) && !preview.contains(&"-Apply".to_string()));
+        assert!(agent_wizard_args("github.com/test/a", "d.json", true).unwrap().contains(&"-Apply".to_string()));
+        assert!(agent_wizard_args("bad id;x", "d.json", false).is_err());
     }
 
     #[test]

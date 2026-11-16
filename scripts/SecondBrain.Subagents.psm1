@@ -18,8 +18,9 @@ $script:SBSubagentWriteTools=@('preview_dossier_write','submit_dossier_write')
 $script:SBSubagentSpecialTools=@('check_publication')
 $script:SBSubagentFields=@('schemaVersion','name','description','role','context','permissions')
 # Schema 2 (docs/riferimento/asset-contracts.md section 4): identity, revisioning, composable cards, output contract and delegation bounds.
-$script:SBSubagentFields2=@('schemaVersion','id','name','revision','status','description','role','context','permissions','cards','output','bounds','replacedBy')
-$script:SBSubagentOptional2=@('cards','replacedBy')
+$script:SBSubagentFields2=@('schemaVersion','id','name','revision','status','description','role','context','permissions','cards','output','bounds','replacedBy','model')
+$script:SBSubagentOptional2=@('cards','replacedBy','model')
+$script:SBSubagentProviders=@('any','claude','codex','gemini')
 $script:SBSubagentPermissionFields=@('tools','write')
 $script:SBSubagentStatuses=@('draft','active','deprecated','retired')
 $script:SBSubagentOutputKinds=@('text','report','object')
@@ -77,6 +78,13 @@ function Test-SBSubagentDefinition($Definition) {
                 if($refs.ContainsKey($ref)){& $fail 'cards duplicate'}
                 $refs[$ref]=$true
             }
+        }
+        if($Definition.Contains('model')){
+            $model=$Definition.model
+            if($model -isnot [Collections.IDictionary]){& $fail 'model'}
+            foreach($key in $model.Keys){if($key -cnotin @('provider','name')){& $fail ('model.'+$key)}}
+            if($model.provider -isnot [string] -or $model.provider -cnotin $script:SBSubagentProviders){& $fail 'model.provider'}
+            if($model.Contains('name') -and ($model.name -isnot [string] -or $model.name -cnotmatch '^[A-Za-z0-9._:/@\[\]-]{1,120}$' -or $model.provider -ceq 'any')){& $fail 'model.name'}
         }
         $out=$Definition.output
         if($out -isnot [Collections.IDictionary]){& $fail 'output'}
@@ -337,7 +345,7 @@ function Save-SBSubagentManagePlan($Plan,[string]$BackupRoot) {
     @{state='applied';action=$Plan.action;name=$Plan.name;id=$Plan.id;revision=$Plan.revision;status=$Plan.status}
 }
 function Get-SBSubagentManageView($Plan,[bool]$Applied) {
-    @{state=$(if($Applied){'applied'}else{'preview'});action=$Plan.action;name=$Plan.name;id=$Plan.id;revision=$Plan.revision;status=$Plan.status;previousRevision=$(if($Plan.before){$Plan.before.revision}else{$null});previousStatus=$(if($Plan.before){$Plan.before.status}else{$null})}
+    @{state=$(if($Applied){'applied'}else{'preview'});action=$Plan.action;name=$Plan.name;id=$Plan.id;revision=$Plan.revision;status=$Plan.status;previousRevision=$(if($Plan.before){$Plan.before.revision}else{$null});previousStatus=$(if($Plan.before){$Plan.before.status}else{$null});definition=$Plan.after}
 }
 
 Export-ModuleMember -Function @('ConvertTo-SBSubagentPlain','Get-SBSubagentManagePlan','Save-SBSubagentManagePlan','Get-SBSubagentManageView','Get-SBSubagentTools','Get-SBSubagentDirectory','Test-SBSubagentDefinition','Resolve-SBSubagentCards','Read-SBSubagentCatalog','Get-SBSubagentSummary','Get-SBSubagentValidateReport','Get-SBSubagentResolveReport','Read-SBSubagentDefinitions','Resolve-SBSubagentPermissions','ConvertTo-SBSubagentExport','Export-SBSubagents','New-SBSubagentActivityRecord')

@@ -164,6 +164,13 @@ button.accent { border-color: var(--accent); color: var(--accent); }
 /* Directives: light-model proposal and the startup budget. */
 .analysis-card { background: var(--surface); border: 1px solid var(--accent); border-radius: 10px; padding: 12px 16px; margin: 12px 0; }
 .analysis-card h3 { margin-top: 0; }
+.agw-step { display: grid; gap: 8px; margin: 8px 0; }
+.agw-step[hidden] { display: none; }
+.agw-step textarea { width: 100%; }
+#agw-steps { display: flex; flex-wrap: wrap; gap: 4px 18px; padding-left: 20px; }
+#agw-steps li { margin: 0; opacity: 0.65; }
+#agw-steps li.current { font-weight: 600; opacity: 1; }
+#agw-steps li.done { opacity: 1; }
 .sections { padding-left: 20px; margin: 6px 0; }
 .sections li { margin: 8px 0; }
 .sections pre { margin: 4px 0; }

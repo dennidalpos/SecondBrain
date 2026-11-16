@@ -1,6 +1,7 @@
 // Tracker: read-only view of the trackers of every project bound on this workstation. The project list comes from projects.ps1 -List;
 // the tasks of the selected project come from the same registry read as the Registry tab (knowledge.ps1 -Registry on its checkout).
 import { $, call, el, fmtDate, input, option, select, setError, toolBadge } from "./common";
+import { initWizard, syncWizard } from "./wizard";
 
 interface Project {
   identity: string; name: string; path: string; dossier: string; checkoutExists: boolean; trackerUpdatedAt: string | null;
@@ -32,6 +33,7 @@ export function initTracker() {
   $("trk-refresh").addEventListener("click", () => showTracker());
   $("trk-next-load").addEventListener("click", () => loadNextSteps());
   initGitUpdate();
+  initWizard(() => {});
 }
 
 function isWorkspace(p: Project): boolean { return p.kind === "workspace"; }
@@ -60,7 +62,7 @@ function renderProject() {
   const p = selected();
   const facts = $("trk-facts");
   facts.hidden = !p;
-  if (!p) { $("trk-counts").replaceChildren(); $("trk-git-box").hidden = true; return; }
+  if (!p) { $("trk-counts").replaceChildren(); $("trk-git-box").hidden = true; syncWizard(null); return; }
   const g = p.gitUpdate;
   const rows: [string, string][] = isWorkspace(p)
     ? [["Identity", p.identity], ["Workspace folder", p.path + (p.checkoutExists ? "" : " (not found)")], ["Dossier", p.dossier || "—"],
@@ -73,6 +75,7 @@ function renderProject() {
   facts.replaceChildren(...rows.flatMap(([k, v]) => [el("dt", {}, k), el("dd", {}, v)]));
   $("trk-counts").replaceChildren(...(["todo", "in_progress", "blocked", "done", "cancelled"] as const).filter((s) => p.tasks[s] > 0).map((s) => toolBadge(STATUS_LABEL[s], String(p.tasks[s]))));
   syncGitBox();
+  syncWizard(isWorkspace(p) ? null : p);
 }
 
 async function refreshTasks() {

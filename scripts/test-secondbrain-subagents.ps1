@@ -199,6 +199,18 @@ $bad=New-Def2 'badone' @('pmt-0000a003')
 Reject-Sub { Get-SBSubagentManagePlan -Dossier $dossier3 -Catalog $catalog -Action Create -Definition $bad } 'a card above the agent permissions is refused on create'
 $withRev=New-Def2 'rev2';$withRev.revision=2
 Reject-Sub { Get-SBSubagentManagePlan -Dossier $dossier3 -Catalog $catalog -Action Create -Definition $withRev } 'a new definition starts at revision 1'
+# Wizard (#623): optional model, and the preview carries the definition that Save writes.
+$wm=New-Def2 'wizard-agent';$wm.Remove('id');$wm.model=[ordered]@{provider='claude';name='opus'}
+$plan=Get-SBSubagentManagePlan -Dossier $dossier3 -Catalog $catalog -Action Create -Definition $wm
+$view=Get-SBSubagentManageView $plan $false
+Assert-Sub ($view.definition.model.provider -ceq 'claude' -and $view.definition.id -ceq $plan.id) 'the manage view carries the definition with its assigned ID'
+[void](Save-SBSubagentManagePlan $plan $backups)
+$saved=(Read-SBText (Join-Path $dossier3 'subagents/wizard-agent.json'))|ConvertFrom-Json -AsHashtable
+Assert-Sub ((ConvertTo-SBJson $saved) -ceq (ConvertTo-SBJson $view.definition)) 'the saved file equals the previewed definition'
+foreach($badModel in @(@{provider='any';name='x'},@{provider='other'},@{provider='claude';name='bad name!'},@{provider='claude';extra=1},'claude')){
+    $wb=New-Def2 'wizard-bad';$wb.Remove('id');$wb.model=$badModel
+    Reject-Sub { Get-SBSubagentManagePlan -Dossier $dossier3 -Catalog $catalog -Action Create -Definition $wb } 'an invalid model is refused'
+}
 # Edit: wording only, no revision bump.
 $edit=@{description='A clearer description.'}
 $plan=Get-SBSubagentManagePlan -Dossier $dossier3 -Catalog $catalog -Action Edit -Name planner -Definition $edit

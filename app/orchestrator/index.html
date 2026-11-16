@@ -245,6 +245,51 @@
           <pre id="trk-git-plan" class="box small" hidden></pre>
           <p id="trk-git-error" class="error" hidden></p>
         </section>
+        <section class="analysis-card" id="agw-box" hidden>
+          <h3>New agent definition</h3>
+          <p class="muted small">Seven steps; each one is checked before the next opens. The last step shows the definition exactly as it is saved in the dossier of the selected project. A definition grants no permission: the runner and the agents never commit or push.</p>
+          <ol id="agw-steps" class="sections"></ol>
+          <div class="agw-step" data-step="1">
+            <label>Template <select id="agw-template"></select></label>
+            <label>Name <input id="agw-name" type="text" placeholder="reviewer" aria-label="Agent name" /></label>
+            <label>Purpose <input id="agw-description" type="text" placeholder="Reviews one task read-only." aria-label="Purpose" /></label>
+          </div>
+          <div class="agw-step" data-step="2" hidden>
+            <p>Dossier of <strong id="agw-target"></strong>: the definition is written to <code>subagents/&lt;name&gt;.json</code> there, never in the checkout.</p>
+            <label>Status <select id="agw-status"><option value="draft">Draft (not exported)</option><option value="active">Active</option></select></label>
+          </div>
+          <div class="agw-step" data-step="3" hidden>
+            <label>Provider <select id="agw-provider"><option value="any">Any (the parent decides)</option><option value="claude">Claude</option><option value="codex">Codex</option><option value="gemini">Gemini</option></select></label>
+            <label>Model <input id="agw-model" type="text" placeholder="Leave empty for the provider default" aria-label="Model" /></label>
+          </div>
+          <div class="agw-step" data-step="4" hidden>
+            <div id="agw-tools" class="tool-list"></div>
+            <label class="inline"><input id="agw-write" type="checkbox" /> Write tools (still behind the reviewed write path; carries no authorization)</label>
+          </div>
+          <div class="agw-step" data-step="5" hidden>
+            <label>Role <textarea id="agw-role" rows="3" aria-label="Role"></textarea></label>
+            <label>Initial context <textarea id="agw-context" rows="3" aria-label="Initial context"></textarea></label>
+            <label>Prompt cards (IDs or roles, comma separated) <input id="agw-cards" type="text" placeholder="analysis.task" aria-label="Prompt cards" /></label>
+          </div>
+          <div class="agw-step" data-step="6" hidden>
+            <label class="inline">Output <select id="agw-output"><option value="text">Text</option><option value="report">Report</option><option value="object">Object</option></select></label>
+            <label>Output schema (config/&lt;path&gt;.json, required for an object) <input id="agw-schema" type="text" aria-label="Output schema" /></label>
+            <div class="row">
+              <label class="inline">Turns <input id="agw-turns" type="number" min="1" max="1000" aria-label="Turns" /></label>
+              <label class="inline">Minutes <input id="agw-minutes" type="number" min="1" max="1440" aria-label="Minutes" /></label>
+            </div>
+          </div>
+          <div class="agw-step" data-step="7" hidden>
+            <div class="row"><button id="agw-preview">Preview</button></div>
+            <pre id="agw-plan" class="box small" hidden></pre>
+          </div>
+          <div class="row">
+            <button id="agw-back" disabled>← Back</button>
+            <button id="agw-next" class="primary">Next →</button>
+            <button id="agw-save" class="primary" hidden disabled>Save definition</button>
+          </div>
+          <p id="agw-error" class="error" hidden></p>
+        </section>
         <section class="analysis-card" id="trk-next-box">
           <h3>Next steps</h3>
           <p class="muted small">Reasoned proposals from the tracker, the last run, the Git and GitHub preference and the installed skills. Nothing starts from here: copy the action you choose and run it yourself.</p>
