@@ -4,6 +4,7 @@ $ErrorActionPreference='Stop'
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Host.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Trace.psm1')
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.ClientHooks.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Para.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Add-SBMessages @{
@@ -13,7 +14,8 @@ Add-SBMessages @{
     'setupstatus.env.reason'        = @{ en = 'The task launcher and the publication hook require SECONDBRAIN_HOME.' }
     'setupstatus.mcp.reason'        = @{ en = 'IDE detected without the SecondBrain MCP server: the agent cannot reach dossiers and prompts.' }
     'setupstatus.trace.reason'      = @{ en = 'Claude Code detected: the Stop hook signals compaction; it grants no write permission.' }
-    'setupstatus.resources.reason'  = @{ en = 'Refreshes the authoritative sources at session start when the last check is older than 14 days.' }
+    'setupstatus.clienttrace.reason' = @{ en = 'Client detected: the end-of-turn hook signals compaction; it grants no write permission.' }
+    'setupstatus.resources.reason' = @{ en = 'Refreshes the authoritative sources at session start when the last check is older than 14 days.' }
     'setupstatus.publication.reason' = @{ en = 'The repository has a remote: the pre-push hook runs the publication scan before every push.' }
     'setupstatus.launcher.reason'   = @{ en = 'Lets the runner execute ready tasks; requires SECONDBRAIN_HOME.' }
     'setupstatus.activity.reason'   = @{ en = 'Optional team activity register: requires a declared privacy notice and retention.' }
@@ -33,7 +35,7 @@ function Get-SBTraceUsage([string]$BrainRoot) {
 }
 function Get-SBSetupFeatureStatus {
     [CmdletBinding()]
-    param([Parameter(Mandatory)][string]$BrainRoot,[string]$HomeValue=$env:SECONDBRAIN_HOME,[string]$SettingsPath,[object[]]$Ides,[object[]]$Bindings,[hashtable]$Config,[string]$StateRoot)
+    param([Parameter(Mandatory)][string]$BrainRoot,[string]$HomeValue=$env:SECONDBRAIN_HOME,[string]$SettingsPath,[object[]]$Ides,[object[]]$Bindings,[hashtable]$Config,[string]$StateRoot,[hashtable]$ClientSettingsPaths)
     $brain=[IO.Path]::GetFullPath($BrainRoot)
     if(!$SettingsPath){$SettingsPath=Get-SBTraceSettingsPath}
     $features=@()
@@ -57,6 +59,16 @@ function Get-SBSetupFeatureStatus {
             $resourcesInstalled=$null -ne (ConvertTo-Json $state.settings.hooks.SessionStart -Depth 8 | Select-String -SimpleMatch 'resources-hook.ps1')
         }
         $features+=New-SBFeature 'resources-hook' $(if($resourcesInstalled){'enabled'}else{'available'}) 'SessionStart entry in Claude Code settings' 'pwsh -NoProfile -File scripts/resources-hook.ps1 -ShowConfiguration' @('resources-registry') 'low' (!$resourcesInstalled -and (Test-Path -LiteralPath (Join-Path $brain '03-resources/authoritative-sources/entries'))) 'setupstatus.resources.reason' 'claude-code'
+    }
+    foreach($client in @('codex','antigravity')){
+        if(@($Ides|Where-Object {[string]$_.adapter -match $client}).Count -eq 0){continue}
+        $clientPath=if($ClientSettingsPaths -and $ClientSettingsPaths.ContainsKey($client)){[string]$ClientSettingsPaths[$client]}else{$null}
+        $clientState=try{Get-SBClientHookStatus $brain $client $clientPath}catch{$null}
+        foreach($name in 'trace-hook','resources-hook'){
+            $entry=if($clientState){@($clientState.hooks|Where-Object {$_.hook -eq $name})[0]}else{$null}
+            $on=[bool]($entry -and $entry.installed)
+            $features+=New-SBFeature $name $(if(!$clientState){'blocked'}elseif($on){'enabled'}else{'available'}) $(if($clientState){'settings '+$clientState.settingsPath}else{'settings file unreadable'}) ('pwsh -NoProfile -File scripts/client-hooks.ps1 -Install -Client '+$client+' -Hook '+$name) @() 'low' ($clientState -and !$on -and ($name -eq 'trace-hook' -or (Test-Path -LiteralPath (Join-Path $brain '03-resources/authoritative-sources/entries')))) $(if($name -eq 'trace-hook'){'setupstatus.clienttrace.reason'}else{'setupstatus.resources.reason'}) $client
+        }
     }
     foreach($ide in @($Ides|Where-Object {[string]$_.adapter -eq 'manual' -and [string]$_.name -match 'account instructions'})){
         # No file to deploy: verified only when the map holds a selected entry whose observed hash equals the approved text.

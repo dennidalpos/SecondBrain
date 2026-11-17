@@ -29,7 +29,7 @@ Attachments need retained-event references and separately authorized exact Attac
 
 memory-cycle-hook requires PermitPath and PermitSha256 binding exact repository, client/version, session/turn, transcript path, lastUserSha256, persistence, policyEvidence and initialized workspace. Native cwd/workspacePaths must match bindings before opening a writer session.
 
-Codex uses turn_id, Claude Code the last human UUID and Antigravity executionNum. Changed request/session/turn/path invalidates a permit. Optional candidate/attachment paths authorize exact workspace files. The bridge neither installs hooks nor grants permission; errors do not prevent ending a client turn.
+Codex uses turn_id, Claude Code the last human UUID and Antigravity executionNum. Changed request/session/turn/path invalidates a permit. Optional candidate/attachment paths authorize exact workspace files. The bridge neither installs hooks nor grants permission (`scripts/client-hooks.ps1` installs only resources-hook and trace-hook for Claude Code, Codex and Antigravity: `-Install`/`-Uninstall` preview by default, `-Apply` saves with a backup, `-Status` reports per client; memory-cycle-hook has no installer because each turn needs its own permit); errors do not prevent ending a client turn.
 
 For an isolated probe, pass `-Diagnostics` and capture the bridge's stderr. It emits a JSON record with `schemaVersion`, `phase` and `outcome`. The record contains only fixed status values and can distinguish suppression during permit validation, native event handling, or repository binding from a capture attempt. The switch requires no diagnostic file and grants no persistence permission.
 

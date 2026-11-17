@@ -51,4 +51,41 @@ Assert-Setup ($ok.state -eq 'enabled' -and !$ok.recommended) 'istruzioni account
 & $writeMap ('0'*64)
 $stale=@(Get-SBSetupFeatureStatus -BrainRoot $root -HomeValue 'x' -SettingsPath $settings -Ides $accountIde -Bindings @() -Config @{} -StateRoot $state|Where-Object id -eq 'manual-directives')[0]
 Assert-Setup ($stale.state -eq 'blocked' -and $stale.recommended) 'istruzioni account con hash obsoleto: blocked e consigliato'
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.ClientHooks.psm1') -Force
+$backups=Join-Path $root 'backups'
+$alt=@(@{name='Codex';adapter='codex';mcpConfigured=$true},@{name='Antigravity';adapter='antigravity';mcpConfigured=$true})
+foreach($client in 'claude-code','codex','antigravity'){
+    $path=Join-Path $root ('hooks-'+$client+'.json')
+    Set-Fixture $path ('{"model":"x","hooks":{"Notification":[{"hooks":[{"type":"command","command":"other"}]}]}}')
+    $original=Get-SBFileHash $path
+    $preview=Set-SBClientHooks $root $backups $client $path
+    Assert-Setup ($preview.preview -and !$preview.applied -and $preview.changed -and $preview.hooks.Count -eq 2 -and !$preview.grantsWritePermission -and (Get-SBFileHash $path) -eq $original) "$client`: anteprima senza -Apply non modifica il file"
+    $applied=Set-SBClientHooks $root $backups $client $path -Apply
+    $status=Get-SBClientHookStatus $root $client $path
+    Assert-Setup ($applied.applied -and @($status.hooks|Where-Object installed).Count -eq 2) "$client`: -Apply installa resources-hook e trace-hook"
+    Assert-Setup (@(Get-ChildItem -LiteralPath $backups -Recurse -File).Count -ge 1) "$client`: backup creato"
+    $text=Get-Content -LiteralPath $path -Raw
+    Assert-Setup ($text -match '"command": ?"other"' -and $text -match '"model"') "$client`: voci altrui conservate"
+    $again=Set-SBClientHooks $root $backups $client $path -Apply
+    Assert-Setup (!$again.changed -and !$again.applied) "$client`: idempotente"
+    $removed=Set-SBClientHooks $root $backups $client $path -Remove -Apply
+    $after=Get-SBClientHookStatus $root $client $path
+    $kept=Get-Content -LiteralPath $path -Raw
+    Assert-Setup ($removed.applied -and @($after.hooks|Where-Object installed).Count -eq 0 -and $kept -match '"other"' -and $kept -notmatch 'resources-hook|trace\.ps1') "$client`: rimozione toglie solo le voci SecondBrain"
+}
+$bad=Join-Path $root 'bad.json';Set-Fixture $bad '{not json'
+$badError=$null;try{[void](Set-SBClientHooks $root $backups 'codex' $bad -Apply)}catch{$badError=$_}
+Assert-Setup ($null -ne $badError -and (Get-Content -LiteralPath $bad -Raw) -eq '{not json') 'JSON non valido: errore, nessuna sovrascrittura'
+$cfg=@{codex=(Join-Path $root 'status-codex.json');antigravity=(Join-Path $root 'status-ag.json')}
+$statusFeatures=@(Get-SBSetupFeatureStatus -BrainRoot $root -HomeValue 'x' -SettingsPath $settings -Ides $alt -Bindings @() -Config @{} -ClientSettingsPaths $cfg)
+foreach($client in 'codex','antigravity'){
+    foreach($name in 'trace-hook','resources-hook'){
+        $f=@($statusFeatures|Where-Object {$_.id -eq $name -and $_.scope -eq $client})
+        Assert-Setup ($f.Count -eq 1 -and $f[0].state -eq 'available' -and $f[0].enableCommand -match 'client-hooks\.ps1') "$client`: setup-status riporta $name disponibile"
+    }
+}
+[void](Set-SBClientHooks $root $backups 'codex' $cfg.codex -Apply)
+$statusAfter=@(Get-SBSetupFeatureStatus -BrainRoot $root -HomeValue 'x' -SettingsPath $settings -Ides $alt -Bindings @() -Config @{} -ClientSettingsPaths $cfg)
+$hookFeatures=@($statusAfter|Where-Object {$_.id -match '-hook$'})
+Assert-Setup (@($hookFeatures|Where-Object {$_.scope -eq 'codex' -and $_.state -eq 'enabled'}).Count -eq 2 -and @($hookFeatures|Where-Object {$_.scope -eq 'antigravity' -and $_.state -eq 'available'}).Count -eq 2) 'setup-status riporta lo stato per client'
 'SUCCESS SETUP-STATUS: '+$passed+' verifiche'
