@@ -62,7 +62,7 @@ function Get-SBPromptReferences([string]$BrainRoot,$RawPrompts,$Card,$Workflows)
 
 # Applies the planned files to a temporary copy and validates the copy with the real loaders. Returns $null or the failure message.
 function Test-SBPromptLifecycleStage([string]$BrainRoot,$Writes,$Removals) {
-    $stage=Join-Path ([IO.Path]::GetTempPath()) ('sb-lifecycle-'+[guid]::NewGuid().ToString('N').Substring(0,12))
+    $stage=Join-Path ([IO.Path]::GetTempPath()) ('sb-lifecycle-'+(New-SBId).Substring(0,12))
     try{
         [IO.Directory]::CreateDirectory((Join-Path $stage 'config'))|Out-Null
         Copy-Item -LiteralPath (Join-Path $BrainRoot 'direttive') -Destination (Join-Path $stage 'direttive') -Recurse
