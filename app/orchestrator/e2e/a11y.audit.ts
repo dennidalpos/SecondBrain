@@ -12,7 +12,7 @@ const fixture: Fixture = JSON.parse(fs.readFileSync(process.env.SB_E2E_FIXTURE ?
 const out = path.join(process.env.SB_AUDIT_OUT ?? "audit-out", "a11y");
 fs.mkdirSync(out, { recursive: true });
 const facts: Record<string, unknown> = {};
-const SECTIONS = ["home", "repo", "directives", "queue", "run", "registry", "tracker", "settings"];
+const SECTIONS = ["home", "repo", "workstation", "directives", "queue", "run", "registry", "tracker", "settings"];
 
 async function freePort(): Promise<number> {
   return new Promise((resolve, reject) => {
