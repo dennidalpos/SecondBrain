@@ -391,6 +391,13 @@
       "sha256": "1BDD13AD659B57589608603F500E011F21CA48A0ACFCE4C9EB8BE33821BB4DE4"
     },
     {
+      "gitBlob": "51964a46185f46ca74409e62fe4bd9e847df9f40",
+      "path": "docs/assets/orchestrator-queue.png",
+      "reason": "Reviewed 2026-11-17: screenshot of the real orchestrator binary (app 0.1.0, SecondBrain 2.17.0) on the synthetic fixture; viewed in full, only neutral D:\\sb-shots paths and a test identity, the fake Claude Code shown as version 2.1.0; no host ID, user name, email or token.",
+      "reviewed": true,
+      "sha256": "19DE88A83C826356C42F09E1449BB9C84806D81DBFEDED79F2298298E4E98484"
+    },
+    {
       "gitBlob": "c34c57cb76dfcb327de327115ecfb2f280fd26d8",
       "path": "docs/assets/orchestrator-registry.png",
       "reason": "Reviewed 2026-11-16: screenshot of the real orchestrator binary (app 0.1.0, SecondBrain 2.17.0) on the synthetic fixture; only neutral D:\\sb-shots paths and a test identity, no host ID, user name, email or token; PNG chunks IHDR, iCCP (standard profile), IDAT, IEND.",
@@ -424,6 +431,13 @@
       "reason": "Reviewed 2026-11-16: screenshot of the real orchestrator binary (app 0.1.0, SecondBrain 2.17.0) on the synthetic fixture; only neutral D:\\sb-shots paths and a test identity, no host ID, user name, email or token; PNG chunks IHDR, iCCP (standard profile), IDAT, IEND.",
       "reviewed": true,
       "sha256": "D29EDD8EBE2DE652B2FA0051EE18F1C1AD0704A4A72A692D121F0F974691B55B"
+    },
+    {
+      "gitBlob": "4f1a51f719354f4a8a8f99bcc4b6fbe4996b7f0a",
+      "path": "docs/assets/orchestrator-tracker.png",
+      "reason": "Reviewed 2026-11-17: screenshot of the real orchestrator binary (app 0.1.0, SecondBrain 2.17.0) on the synthetic fixture; viewed in full, only neutral D:\\sb-shots paths and a test identity, the Tracker updated date as 2026-11-17 19:04 and the preference line without a repeated 'on main'; no host ID, user name, email or token.",
+      "reviewed": true,
+      "sha256": "553EAF9EC513C77B9BFC9984E6D92FBC03183ABABF52155B620C11E8C8B25F00"
     },
     {
       "gitBlob": "6d641cabf24cbd80f78b8149a9ce7ad72af3ff9d",

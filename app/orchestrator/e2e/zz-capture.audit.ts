@@ -64,6 +64,7 @@ test("capture queue and tracker", async () => {
   console.log("TAB", await page.locator('.steps button[aria-selected="true"]').textContent());
   await page.locator('.steps button[data-tab="repo"]').click();
   console.log("BODY", (await page.locator("#tab-repo").innerText()).slice(0, 1500));
+  await tab(page, "queue");
   await page.locator("#q-tasks tr").first().waitFor({ timeout: 120_000 });
   await page.locator("#q-agents label.agent").nth(2).waitFor({ timeout: 120_000 });
   await page.waitForTimeout(500);
