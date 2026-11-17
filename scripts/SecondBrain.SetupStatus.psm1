@@ -101,6 +101,25 @@ function Get-SBSetupFeatureStatus {
     $features+=New-SBFeature 'activity-register' $(if($activity){'enabled'}else{'available'}) 'activityLogEnabled in the host configuration' 'edit the host configuration (explicit, with privacy notice)' @('privacy-notice','retention') 'high' $false 'setupstatus.activity.reason'
     @($features)
 }
+function Get-SBSetupVerification([string]$StateRoot) {
+    # Receipts of loading and live tool operation, kept apart from the written configuration: {entries:[{id,scope,loaded,verified,at}]}.
+    $path=if($StateRoot){Join-Path $StateRoot 'setup-verification.json'}else{$null}
+    $entries=@()
+    if($path -and (Test-Path -LiteralPath $path -PathType Leaf)){try{$data=Read-SBJson $path $null;if($data -and $data.ContainsKey('entries')){$entries=@($data.entries)}}catch{$entries=@()}}
+    $entries
+}
+function Add-SBFeatureStates {
+    # Three separate states per feature: written (configuration present), loaded (a client session read it), verified (a live tool call worked).
+    param([object[]]$Features,[object[]]$Receipts=@())
+    foreach($feature in @($Features)){
+        $receipt=@($Receipts|Where-Object {[string]$_.id -eq [string]$feature.id -and [string]$_.scope -eq [string]$feature.scope}|Select-Object -First 1)
+        $written=[string]$feature.state -eq 'enabled'
+        $loaded=if(!$written){'not-applicable'}elseif($receipt -and [bool]$receipt.loaded){'confirmed'}else{'unverified'}
+        $verified=if(!$written){'not-applicable'}elseif($receipt -and [bool]$receipt.verified){'confirmed'}else{'unverified'}
+        $feature['states']=[ordered]@{written=$written;loaded=$loaded;verified=$verified}
+        $feature
+    }
+}
 function Get-SBSetupWizardStatus {
     [CmdletBinding()]
     param([Parameter(Mandatory)][string]$BrainRoot,[string]$WorkspacePath,[string]$SettingsPath)
@@ -112,7 +131,13 @@ function Get-SBSetupWizardStatus {
     $detected=@(Get-SBIDEDetection $WorkspacePath)
     $features=if($activated){@(Get-SBSetupFeatureStatus -BrainRoot $brain -SettingsPath $SettingsPath -Ides $detected -Bindings $bindings -Config $config -StateRoot (Split-Path $configPath))}else{@()}
     # Recommended features first (stable order otherwise), a per-id summary and the meaning of the exit code.
+    $features=@(Add-SBFeatureStates $features @(Get-SBSetupVerification (Split-Path $configPath)))
     $features=@($features|Sort-Object @{Expression={if($_.recommended){0}else{1}}} -Stable)
+    $progressPath=Join-Path (Split-Path $configPath) 'setup-progress.json'
+    $progress=if($activated -and (Test-Path -LiteralPath $progressPath -PathType Leaf)){try{Read-SBJson $progressPath $null}catch{$null}}else{$null}
+    $doneSteps=@(if($progress){$progress.steps|ForEach-Object {[string]$_.step}})
+    $interrupted=[bool]($progress -and $progress.status -eq 'in-progress')
+    $resume=[ordered]@{interrupted=$interrupted;completed=@($doneSteps);next=$(if($interrupted){@('discovery','selection','activation','mcp','sync','report')|Where-Object {$_ -notin $doneSteps}|Select-Object -First 1}else{$null})}
     $recommended=@($features|Where-Object {$_.recommended}|ForEach-Object {$_.id+$(if($_.scope){':'+$_.scope}else{''})})
     $byId=[ordered]@{}
     foreach($group in @($features|Group-Object {$_['id']})){$byId[$group.Name]=[ordered]@{total=$group.Count;recommended=@($group.Group|Where-Object {$_.recommended}).Count;enabled=@($group.Group|Where-Object {$_.state -eq 'enabled'}).Count}}
@@ -122,10 +147,11 @@ function Get-SBSetupWizardStatus {
         blocked=$(if($activated){$null}else{Get-SBMessage 'setupstatus.blocked.inactive'})
         ides=@($detected|ForEach-Object {[ordered]@{name=$_.name;adapter=$_.adapter;confidence=$_.confidence;mcpConfigured=$_.mcpConfigured;scopes=@($_.scopes)}})
         usage=(Get-SBTraceUsage $brain)
-        summary=[ordered]@{features=$features.Count;recommended=$recommended.Count;byId=$byId}
+        resume=$resume
+        summary=[ordered]@{features=$features.Count;written=@($features|Where-Object {$_.states.written}).Count;loaded=@($features|Where-Object {$_.states.loaded -eq 'confirmed'}).Count;verified=@($features|Where-Object {$_.states.verified -eq 'confirmed'}).Count;recommended=$recommended.Count;byId=$byId}
         exit=$exit
         features=$features
         recommended=$recommended
     }
 }
-Export-ModuleMember -Function @('Get-SBTraceUsage','Get-SBSetupFeatureStatus','Get-SBSetupWizardStatus')
+Export-ModuleMember -Function @('Get-SBSetupVerification','Add-SBFeatureStates','Get-SBTraceUsage','Get-SBSetupFeatureStatus','Get-SBSetupWizardStatus')

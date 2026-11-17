@@ -354,7 +354,29 @@ function Invoke-SBHostActivation {
 }
 function Get-SBSetupPaths([string]$BrainRoot) {
     $root=Get-SBWorkstationStateRoot $BrainRoot (Get-SBHostId)
-    @{hostRoot=$root;backupRoot=(Join-Path $root 'backups');report=(Join-Path $root 'discovery.json');selection=(Join-Path $root 'selection.json');setupResult=(Join-Path $root 'setup-result.json')}
+    @{hostRoot=$root;backupRoot=(Join-Path $root 'backups');report=(Join-Path $root 'discovery.json');selection=(Join-Path $root 'selection.json');setupResult=(Join-Path $root 'setup-result.json');progress=(Join-Path $root 'setup-progress.json');verification=(Join-Path $root 'setup-verification.json')}
+}
+# Resumable setup: ordered steps and a progress file keyed by the discovery report hash. A rerun with the same report resumes at the first step not completed.
+$script:SBSetupSteps=@('discovery','selection','activation','mcp','sync','report')
+function Get-SBSetupProgress($Paths) {
+    if(!(Test-Path -LiteralPath $Paths.progress -PathType Leaf)){return $null}
+    try{$progress=Read-SBJson $Paths.progress $null}catch{return $null}
+    if($progress -is [System.Collections.IDictionary] -and $progress.ContainsKey('steps')){$progress}else{$null}
+}
+function Set-SBSetupProgress($Paths,[string]$ReportSha,[string]$Step,[switch]$Complete) {
+    $prior=Get-SBSetupProgress $Paths
+    $done=@(if($prior -and [string]$prior.reportSha256 -ceq $ReportSha){$prior.steps})
+    if($Step -notin @($done|ForEach-Object {[string]$_.step})){$done=@($done)+@(,@{step=$Step;at=(Get-SBNow).ToString('o')})}
+    $record=[ordered]@{schemaVersion=1;reportSha256=$ReportSha;status=$(if($Complete){'complete'}else{'in-progress'});steps=@($done)}
+    Write-SBFile $Paths.progress ([Text.Encoding]::UTF8.GetBytes((ConvertTo-SBJson $record))) (Get-SBFileHash $Paths.progress) $Paths.backupRoot|Out-Null
+}
+function Get-SBSetupResumePoint($Progress,[string]$ReportSha) {
+    # Resumable only for an unfinished run with the same discovery report; otherwise a fresh run.
+    $completed=@()
+    $resumable=[bool]($Progress -and $Progress.status -eq 'in-progress' -and [string]$Progress.reportSha256 -ceq $ReportSha)
+    if($resumable){$completed=@($Progress.steps|ForEach-Object {[string]$_.step})}
+    $from=$script:SBSetupSteps|Where-Object {$_ -notin $completed}|Select-Object -First 1
+    [ordered]@{resumed=($resumable -and $completed.Count -gt 0);from=$from;completed=@($completed)}
 }
 function Test-SBGitRequirement([string]$VersionText,[int]$ExitCode=0) {
     $match=[regex]::Match($VersionText,'^git version (\d+)\.(\d+)\.(\d+)(?:[.\s-].*)?$')
@@ -669,13 +691,19 @@ function Invoke-SBSetup {
     if($confirmed){$selection.confirmation=[Environment]::UserName+'@'+[Environment]::MachineName+' '+(Get-SBNow).ToString('o')+' ('+$how+')'}
     $selection.reportSha256=Get-SBHash $reportBytes
     $selectionPath=$paths.selection
+    $resume=Get-SBSetupResumePoint (Get-SBSetupProgress $paths) $selection.reportSha256
     Write-SBFile $selectionPath ([Text.Encoding]::UTF8.GetBytes((ConvertTo-SBJson $selection))) (Get-SBFileHash $selectionPath) $paths.backupRoot|Out-Null
+    if($confirmed -and $doApply){Set-SBSetupProgress $paths $selection.reportSha256 'discovery';Set-SBSetupProgress $paths $selection.reportSha256 'selection'}
+    $result.resume=$resume
     $result.selection=$selectionPath;$result.confirmed=$confirmed
     if(!$confirmed){$result.stage='proposal';$result.note='Conferma mancante: selezione registrata come proposta (confirmed=false). Rilanciare con -Yes oppure -Interactive.';return $result}
     if(!$doApply){$result.activation=$preview;return $result}
     $doRegister=!$NoRegisterEnvironment
-    $applied=Invoke-SBHostActivation -BrainRoot $brain -SelectionPath $selectionPath -SessionId $SessionId -Apply -RegisterEnvironment:$doRegister -TeamPersonalRoot $PersonalRoot
-    if($McpTargets.Count){
+    $reportSha=$selection.reportSha256
+    $applied=if($resume.resumed -and 'activation' -in $resume.completed){[ordered]@{skipped=$true;reason='resumed: activation was already applied'}}
+        else{Invoke-SBHostActivation -BrainRoot $brain -SelectionPath $selectionPath -SessionId $SessionId -Apply -RegisterEnvironment:$doRegister -TeamPersonalRoot $PersonalRoot}
+    Set-SBSetupProgress $paths $reportSha 'activation'
+    if($McpTargets.Count -and !($resume.resumed -and 'mcp' -in $resume.completed)){
         $mcpLock=Enter-SBOperation (Read-SBConfiguration $configPath -BrainRoot $brain) $SessionId
         try{
             $mcpItems=@(foreach($job in $mcpJobs){
@@ -686,7 +714,9 @@ function Invoke-SBSetup {
         }finally{Exit-SBOperation $mcpLock}
         $result.mcp=[ordered]@{preview=$false;items=$mcpItems;complete=(@($mcpItems|Where-Object {$_.Action -notin @('created','updated','applied','unchanged')}).Count -eq 0);
             permissionConfigurationComplete=(@($mcpItems|Where-Object {$_.PermissionAction -notin @('applied','unchanged')}).Count -eq 0);clientSessionVerified=$false}
+        if($result.mcp.complete){Set-SBSetupProgress $paths $reportSha 'mcp'}
     }
+    elseif(!$McpTargets.Count){Set-SBSetupProgress $paths $reportSha 'mcp'}
     $env:SECONDBRAIN_HOME=$brain
     $result.environment=if($doRegister){'registered (user variable SECONDBRAIN_HOME)'}else{'not registered: the path is valid only for this process'}
     $result.stage='applied';$result.applied=$true;$result.activation=$applied
@@ -694,12 +724,16 @@ function Invoke-SBSetup {
         $config=Read-SBConfiguration $configPath -BrainRoot $brain
         $sync=Invoke-SBPortableSync -Config $config -Check:(!$AndSync) -SessionId $SessionId
         $result.check=[ordered]@{mode=$(if($AndSync){'sync'}else{'check'});aligned=[bool]$sync.aligned;filesAligned=[bool]$sync.filesAligned;repositories=$sync.repositories;issues=@($sync.issues|ForEach-Object {$_.kind}|Sort-Object -Unique)}
+        Set-SBSetupProgress $paths $reportSha 'sync'
     }catch{if(Test-SBWriteDeniedError $_){throw};$result.check=[ordered]@{mode='check';error=$_.Exception.Message}}
     $result.next=if($AndSync){'Verify IDE and account loading (manual).'}else{'Distribute the directives with secondbrain.ps1 -Sync after rereading -Check.'}
     $result.setupReport=$paths.setupResult
     $reportLock=Enter-SBOperation (Read-SBConfiguration $configPath -BrainRoot $brain) $SessionId
     try{
         [void](Write-SBFile $paths.setupResult ([Text.Encoding]::UTF8.GetBytes((ConvertTo-SBJson $result))) (Get-SBFileHash $paths.setupResult) $paths.backupRoot)
+        $doneSteps=@((Get-SBSetupProgress $paths).steps|ForEach-Object {[string]$_.step})
+        $remaining=@($script:SBSetupSteps|Where-Object {$_ -notin $doneSteps -and $_ -ne 'report'})
+        Set-SBSetupProgress $paths $reportSha 'report' -Complete:(!$remaining.Count)
     }finally{Exit-SBOperation $reportLock}
     $result
 }
@@ -741,7 +775,7 @@ function Get-SBSetupStatus([string]$BrainRoot) {
         workspaces=@($(if($config.ContainsKey('workspaces')){@($config.workspaces)}else{@()})|Where-Object {$null -ne $_}|ForEach-Object {[ordered]@{identity=(& $value $_ 'identity');name=(& $value $_ 'name');path=(& $value $_ 'path');dossier=(& $value $_ 'dossier');outputScope=@((& $value $_ 'outputScope')|Where-Object {$_});access=$(if(@((& $value $_ 'outputScope')|Where-Object {$_}).Count){'scoped-write'}else{'read-only'})}})
         ides=@($ides|ForEach-Object {[ordered]@{id=(& $value $_ 'id');name=(& $value $_ 'name');mode=(& $value $_ 'mode');selected=(& $value $_ 'selected');profile=(& $value $_ 'profile');accountAlias=(& $value $_ 'accountAlias')
             sha256=(& $value $_ 'sha256');installationEvidence=@((& $value $_ 'installationEvidence')|Where-Object {$_});environmentFingerprint=(& $value $_ 'environmentFingerprint');contextStatus=(Get-SBIDEContextState $_ $state).status}})
-        selectionReceipt=$(if($config.ContainsKey('selectionReceipt')){$config.selectionReceipt}else{$null});latestSetup=(Read-SBJson (Get-SBSetupPaths $brain).setupResult $null)}
+        selectionReceipt=$(if($config.ContainsKey('selectionReceipt')){$config.selectionReceipt}else{$null});latestSetup=(Read-SBJson (Get-SBSetupPaths $brain).setupResult $null);progress=(Get-SBSetupProgress (Get-SBSetupPaths $brain))}
 }
 function Invoke-SBSetupUnbind {
     param([string]$BrainRoot,[string[]]$Targets=@(),[switch]$Interactive,[switch]$Yes,[switch]$Apply,[string]$SessionId)
@@ -1089,6 +1123,10 @@ Export-ModuleMember -Function @(
     'New-SBPortableConfiguration',
     'Get-SBPortableGlobal',
     'Read-SBAccountObservationReceipt',
+    'Get-SBSetupPaths',
+    'Get-SBSetupProgress',
+    'Set-SBSetupProgress',
+    'Get-SBSetupResumePoint',
     'Set-SBRepositoryPointers',
     'Invoke-SBHostActivation',
     'Get-SBSetupPaths',

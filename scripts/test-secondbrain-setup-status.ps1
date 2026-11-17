@@ -88,4 +88,33 @@ foreach($client in 'codex','antigravity'){
 $statusAfter=@(Get-SBSetupFeatureStatus -BrainRoot $root -HomeValue 'x' -SettingsPath $settings -Ides $alt -Bindings @() -Config @{} -ClientSettingsPaths $cfg)
 $hookFeatures=@($statusAfter|Where-Object {$_.id -match '-hook$'})
 Assert-Setup (@($hookFeatures|Where-Object {$_.scope -eq 'codex' -and $_.state -eq 'enabled'}).Count -eq 2 -and @($hookFeatures|Where-Object {$_.scope -eq 'antigravity' -and $_.state -eq 'available'}).Count -eq 2) 'setup-status riporta lo stato per client'
+# Written, loaded and verified are three separate states; only receipts raise loaded and verified.
+$withStates=@(Add-SBFeatureStates $statusAfter @())
+$codexOn=@($withStates|Where-Object {$_.id -eq 'trace-hook' -and $_.scope -eq 'codex'})[0]
+Assert-Setup ($codexOn.states.written -and $codexOn.states.loaded -eq 'unverified' -and $codexOn.states.verified -eq 'unverified') 'written without receipts: loaded and verified stay unverified'
+$agOff=@($withStates|Where-Object {$_.id -eq 'trace-hook' -and $_.scope -eq 'antigravity'})[0]
+Assert-Setup (!$agOff.states.written -and $agOff.states.loaded -eq 'not-applicable' -and $agOff.states.verified -eq 'not-applicable') 'not written: loaded and verified not applicable'
+$loadedOnly=@(Add-SBFeatureStates $statusAfter @(@{id='trace-hook';scope='codex';loaded=$true;verified=$false}))
+$loadedEntry=@($loadedOnly|Where-Object {$_.id -eq 'trace-hook' -and $_.scope -eq 'codex'})[0]
+Assert-Setup ($loadedEntry.states.loaded -eq 'confirmed' -and $loadedEntry.states.verified -eq 'unverified') 'loaded receipt does not imply live verification'
+$verifiedEntry=@(Add-SBFeatureStates $statusAfter @(@{id='trace-hook';scope='codex';loaded=$true;verified=$true})|Where-Object {$_.id -eq 'trace-hook' -and $_.scope -eq 'codex'})[0]
+Assert-Setup ($verifiedEntry.states.loaded -eq 'confirmed' -and $verifiedEntry.states.verified -eq 'confirmed') 'verified receipt recorded separately'
+$stateRoot=Join-Path $root 'state';[IO.Directory]::CreateDirectory($stateRoot)|Out-Null
+Set-Fixture (Join-Path $stateRoot 'setup-verification.json') '{"entries":[{"id":"mcp","scope":"x","loaded":true,"verified":false}]}'
+Assert-Setup (@(Get-SBSetupVerification $stateRoot).Count -eq 1 -and @(Get-SBSetupVerification (Join-Path $root 'none')).Count -eq 0) 'verification receipts read; missing file means none'
+# Interrupted setup: progress is kept per discovery report and resumes at the first incomplete step.
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Portable.psm1') -Force
+$paths=@{progress=(Join-Path $stateRoot 'setup-progress.json');backupRoot=(Join-Path $stateRoot 'backups')}
+$sha='A'*64
+Assert-Setup ((Get-SBSetupResumePoint $null $sha).from -eq 'discovery' -and !(Get-SBSetupResumePoint $null $sha).resumed) 'no progress: fresh run from the first step'
+Set-SBSetupProgress $paths $sha 'discovery';Set-SBSetupProgress $paths $sha 'selection';Set-SBSetupProgress $paths $sha 'activation'
+$interrupted=Get-SBSetupResumePoint (Get-SBSetupProgress $paths) $sha
+Assert-Setup ($interrupted.resumed -and $interrupted.from -eq 'mcp' -and (@($interrupted.completed) -join ',') -eq 'discovery,selection,activation') 'interrupted after activation: resumes at mcp'
+Set-SBSetupProgress $paths $sha 'activation'
+Assert-Setup (@((Get-SBSetupProgress $paths).steps).Count -eq 3) 'repeating a step does not duplicate it'
+$other=Get-SBSetupResumePoint (Get-SBSetupProgress $paths) ('B'*64)
+Assert-Setup (!$other.resumed -and $other.from -eq 'discovery') 'different discovery report: no resume, fresh run'
+Set-SBSetupProgress $paths $sha 'mcp';Set-SBSetupProgress $paths $sha 'sync';Set-SBSetupProgress $paths $sha 'report' -Complete
+$finished=Get-SBSetupResumePoint (Get-SBSetupProgress $paths) $sha
+Assert-Setup (!$finished.resumed -and (Get-SBSetupProgress $paths).status -eq 'complete') 'complete run is not resumed'
 'SUCCESS SETUP-STATUS: '+$passed+' verifiche'
