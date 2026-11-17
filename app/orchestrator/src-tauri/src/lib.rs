@@ -533,6 +533,85 @@ async fn set_git_update(app: AppHandle, identity: String, mode: String, branch: 
     script(app, "para.ps1", git_update_args(&identity, &mode, branch.as_deref(), apply)?).await
 }
 
+/// Workstation view (#577): a closed set of upkeep actions. Each one is one SecondBrain script; without `apply` the script only previews
+/// (or only reads), with it the script writes under its own rules (its own write session and backups), so the window adds no authority.
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct WorkstationRequest {
+    /// hook-install | hook-remove | launcher | check | sync
+    action: String,
+    client: Option<String>,
+    hook: Option<String>,
+    identity: Option<String>,
+    #[serde(default)]
+    apply: bool,
+}
+
+fn workstation_args(r: &WorkstationRequest) -> Result<(&'static str, Vec<String>), String> {
+    let mut args: Vec<String> = Vec::new();
+    let script = match r.action.as_str() {
+        "hook-install" | "hook-remove" => {
+            let client = r.client.as_deref().unwrap_or_default();
+            if !["claude-code", "codex", "antigravity"].contains(&client) {
+                return Err(format!("Invalid client: {client}"));
+            }
+            let hook = r.hook.as_deref().unwrap_or_default();
+            if !["resources-hook", "trace-hook"].contains(&hook) {
+                return Err(format!("Invalid hook: {hook}"));
+            }
+            args.push(if r.action == "hook-install" { "-Install" } else { "-Uninstall" }.into());
+            args.extend(["-Client".into(), client.into(), "-Hook".into(), hook.into()]);
+            if r.apply {
+                args.push("-Apply".into());
+            }
+            "client-hooks.ps1"
+        }
+        "launcher" => {
+            if let Some(id) = r.identity.as_deref().filter(|i| !i.is_empty()) {
+                if id.len() > 200 || !id.chars().all(|c| c.is_ascii_alphanumeric() || "._:/-".contains(c)) {
+                    return Err("Invalid project identity.".into());
+                }
+                args.extend(["-Repository".into(), id.into()]);
+            }
+            if r.apply {
+                args.push("-Apply".into());
+            }
+            "install-task-launcher.ps1"
+        }
+        // -Check is the read-only preview of -Sync: only a real sync writes.
+        "check" | "sync" => {
+            if r.action == "sync" && r.apply {
+                args.push("-Sync".into());
+            } else {
+                args.push("-Check".into());
+            }
+            "secondbrain.ps1"
+        }
+        other => return Err(format!("Unknown workstation action: {other}")),
+    };
+    Ok((script, args))
+}
+
+/// The exact command line of the action, as the person would type it from the SecondBrain checkout.
+fn workstation_command_line(script: &str, args: &[String]) -> String {
+    let quoted: Vec<String> = args.iter().map(|a| if a.contains(' ') { format!("\"{a}\"") } else { a.clone() }).collect();
+    format!("pwsh -NoProfile -File scripts/{script} {}", quoted.join(" ")).trim_end().to_string()
+}
+
+#[tauri::command]
+fn workstation_command(request: WorkstationRequest) -> Result<String, String> {
+    let (script, args) = workstation_args(&request)?;
+    Ok(workstation_command_line(script, &args))
+}
+
+#[tauri::command]
+async fn workstation_run(app: AppHandle, request: WorkstationRequest) -> Result<Value, String> {
+    let (script_name, args) = workstation_args(&request)?;
+    let command = workstation_command_line(script_name, &args);
+    let result = script(app, script_name, args).await?;
+    Ok(serde_json::json!({ "command": command, "apply": request.apply, "result": result }))
+}
+
 /// Arguments of subagents.ps1 -Operation Create for the agent wizard (#623): the definition travels in a file, never on the command line.
 fn agent_wizard_args(identity: &str, file: &str, apply: bool) -> Result<Vec<String>, String> {
     if identity.is_empty() || identity.len() > 200 || !identity.chars().all(|c| c.is_ascii_alphanumeric() || "._:/-".contains(c)) {
@@ -879,6 +958,8 @@ pub fn run() {
             open_card,
             set_git_update,
             agent_wizard,
+            workstation_command,
+            workstation_run,
             list_runs,
             add_run_note
         ])
@@ -888,7 +969,7 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-    use super::{followup_args, analysis_args, browser_args, enrichment_decision_args, git_update_args, agent_wizard_args, queue_args, registry_args, repo_argument, valid_token, QueueRequest, RegistryQuery};
+    use super::{workstation_args, workstation_command_line, WorkstationRequest, followup_args, analysis_args, browser_args, enrichment_decision_args, git_update_args, agent_wizard_args, queue_args, registry_args, repo_argument, valid_token, QueueRequest, RegistryQuery};
 
     fn queue(task_ids: &[&str], resume: Option<&str>) -> QueueRequest {
         QueueRequest {
@@ -1020,6 +1101,29 @@ mod tests {
         assert!(git_update_args("github.com/test/a", "branch-pr", Some("a..b"), false).is_err());
         assert!(git_update_args("github.com/test/a", "branch-pr", Some("--x"), false).is_err());
         assert!(git_update_args("bad id;x", "none", None, false).is_err());
+    }
+
+    #[test]
+    fn workstation_arguments() {
+        let req = |action: &str, client: Option<&str>, hook: Option<&str>, identity: Option<&str>, apply: bool| WorkstationRequest {
+            action: action.into(), client: client.map(Into::into), hook: hook.map(Into::into), identity: identity.map(Into::into), apply,
+        };
+        let (s, a) = workstation_args(&req("hook-install", Some("codex"), Some("trace-hook"), None, false)).unwrap();
+        assert_eq!(s, "client-hooks.ps1");
+        assert!(!a.contains(&"-Apply".to_string()));
+        assert_eq!(workstation_command_line(s, &a), "pwsh -NoProfile -File scripts/client-hooks.ps1 -Install -Client codex -Hook trace-hook");
+        let (_, a) = workstation_args(&req("hook-remove", Some("antigravity"), Some("resources-hook"), None, true)).unwrap();
+        assert!(a.contains(&"-Uninstall".to_string()) && a.contains(&"-Apply".to_string()));
+        assert!(workstation_args(&req("hook-install", Some("codex;x"), Some("trace-hook"), None, false)).is_err());
+        assert!(workstation_args(&req("hook-install", Some("codex"), Some("other-hook"), None, false)).is_err());
+        let (s, a) = workstation_args(&req("launcher", None, None, Some("github.com/test/a"), true)).unwrap();
+        assert_eq!(workstation_command_line(s, &a), "pwsh -NoProfile -File scripts/install-task-launcher.ps1 -Repository github.com/test/a -Apply");
+        assert!(workstation_args(&req("launcher", None, None, Some("bad id;x"), false)).is_err());
+        // Sync previews as -Check; only an apply is a real -Sync.
+        assert_eq!(workstation_args(&req("sync", None, None, None, false)).unwrap().1, vec!["-Check".to_string()]);
+        assert_eq!(workstation_args(&req("sync", None, None, None, true)).unwrap().1, vec!["-Sync".to_string()]);
+        assert_eq!(workstation_args(&req("check", None, None, None, true)).unwrap().1, vec!["-Check".to_string()]);
+        assert!(workstation_args(&req("cleanup", None, None, None, true)).is_err());
     }
 
     #[test]

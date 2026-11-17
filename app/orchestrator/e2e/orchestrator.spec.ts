@@ -158,7 +158,7 @@ test("home: three actions, concise status, and opening starts no execution (#630
   await expect(page.locator("#run-badge")).toHaveText("Idle");
   // The actions only navigate.
   await page.locator("#home-setup").click();
-  await expect(page.locator("#tab-repo")).toBeVisible();
+  await expect(page.locator("#tab-workstation")).toBeVisible();
   await page.locator('.steps button[data-tab="home"]').click();
   await page.locator("#home-runner").click();
   await expect(page.locator("#tab-queue")).toBeVisible();
@@ -176,7 +176,7 @@ test("sections: reachable directly, no sequential Next buttons, selected target 
   fs.writeFileSync(settingsFile, JSON.stringify({ secondbrainHome: "", pwshPath: "", recentRepos: [] }));
   const app = await launch();
   const { page } = app;
-  const tabs = ["repo", "directives", "queue", "run", "registry", "tracker", "settings"];
+  const tabs = ["repo", "workstation", "directives", "queue", "run", "registry", "tracker", "settings"];
   // No repository yet: every section is enabled and opens; the ones that need a repository say so.
   for (const tab of tabs) {
     const b = page.locator(`.steps button[data-tab="${tab}"]`);
@@ -660,6 +660,44 @@ test("tracker: the Git and GitHub preference is saved only after a preview and a
   expect(record.gitUpdate).toEqual({ mode: "branch-pr", branch: "feature/e2e" });
   await expect(page.locator("#trk-facts")).not.toContainText("not confirmed", { timeout: 60_000 });
   expect(readTracker().tasks.length).toBeGreaterThan(0);
+  await closeApp(app);
+});
+
+test("workstation: status, IDEs and features load; every action shows its command, previews first and applies only after authorization (#577)", async () => {
+  const app = await launch({ repo: fixture.checkout });
+  const { page } = app;
+  const launcher = path.join(fixture.checkout, ".secondbrain", "run-tasks.ps1");
+  const hadLauncher = fs.existsSync(launcher);
+  await page.locator('.steps button[data-tab="workstation"]').click();
+  await expect(page.locator("#ws-summary")).toContainText(/Workstation (not )?activated/, { timeout: 60_000 });
+  // Check: the exact command is shown first; it is read-only, so there is no Apply or authorization.
+  await page.locator('#ws-upkeep button[data-upkeep="check"]').click();
+  await expect(page.locator("#ws-command")).toHaveText("pwsh -NoProfile -File scripts/secondbrain.ps1 -Check");
+  await expect(page.locator("#ws-apply")).toBeHidden();
+  // Launcher: command first, Apply disabled until a preview ran and the exact command is authorized.
+  await page.locator('#ws-upkeep button[data-upkeep="launcher"]').click();
+  await expect(page.locator("#ws-command")).toContainText("scripts/install-task-launcher.ps1");
+  await expect(page.locator("#ws-command")).not.toContainText("-Apply");
+  await expect(page.locator("#ws-apply-command")).toContainText("-Apply");
+  await expect(page.locator("#ws-apply")).toBeDisabled();
+  await page.locator("#ws-authorize").check();
+  await expect(page.locator("#ws-apply")).toBeDisabled();
+  await page.locator("#ws-preview").click();
+  await expect(page.locator("#ws-result")).toContainText("Preview, nothing written yet", { timeout: 60_000 });
+  expect(fs.existsSync(launcher)).toBe(hadLauncher);
+  await expect(page.locator("#ws-apply")).toBeEnabled();
+  // Choosing another action drops the preview and the authorization.
+  await page.locator('#ws-upkeep button[data-upkeep="sync"]').click();
+  await expect(page.locator("#ws-apply")).toBeDisabled();
+  await expect(page.locator("#ws-authorize")).not.toBeChecked();
+  await expect(page.locator("#ws-command")).toHaveText("pwsh -NoProfile -File scripts/secondbrain.ps1 -Check");
+  await expect(page.locator("#ws-apply-command")).toContainText("-Sync");
+  // Apply is never clicked here: the scripts resolve the workstation's real configuration, so an apply would write outside the fixture.
+  // The apply arguments are covered by the Rust test workstation_arguments.
+  await page.locator('#ws-upkeep button[data-upkeep="launcher"]').click();
+  await expect(page.locator("#ws-apply")).toBeDisabled();
+  await expect(page.locator("#ws-result")).toBeHidden();
+  expect(fs.existsSync(launcher)).toBe(hadLauncher);
   await closeApp(app);
 });
 

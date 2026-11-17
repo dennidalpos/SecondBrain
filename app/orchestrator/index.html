@@ -22,6 +22,7 @@
     <nav class="steps" role="tablist" aria-label="Sections">
       <button role="tab" id="tabbtn-home" aria-controls="tab-home" data-tab="home" aria-selected="true">Home</button>
       <button role="tab" id="tabbtn-repo" aria-controls="tab-repo" data-tab="repo" aria-selected="false">Repository</button>
+      <button role="tab" id="tabbtn-workstation" aria-controls="tab-workstation" data-tab="workstation" aria-selected="false">Workstation</button>
       <button role="tab" id="tabbtn-directives" aria-controls="tab-directives" data-tab="directives">Directives</button>
       <button role="tab" id="tabbtn-queue" aria-controls="tab-queue" data-tab="queue">Queue</button>
       <button role="tab" id="tabbtn-run" aria-controls="tab-run" data-tab="run">Run</button>
@@ -77,6 +78,39 @@
         <h3>Recently used</h3>
         <ul id="recent" class="recent"></ul>
         <p id="recent-empty" class="muted small">No recent repository.</p>
+      </section>
+
+      <section id="tab-workstation" class="panel" role="tabpanel" aria-labelledby="tabbtn-workstation" hidden>
+        <h2>Workstation</h2>
+        <p class="muted">Setup status, IDEs and MCP, optional features and upkeep. Every action shows its exact command first; Preview changes nothing, and Apply needs the same authorization as running that command yourself.</p>
+        <div class="row"><span id="ws-summary" class="muted">Loading…</span><span class="spacer"></span><button id="ws-refresh">Refresh</button></div>
+        <p id="ws-error" class="error" role="alert" hidden></p>
+        <h3>IDEs and MCP</h3>
+        <table class="tasks">
+          <thead><tr><th>IDE</th><th>MCP</th><th>Scopes available</th><th>Confidence</th></tr></thead>
+          <tbody id="ws-ides"></tbody>
+        </table>
+        <p id="ws-ides-empty" class="muted small" hidden>No IDE detected.</p>
+        <h3>Optional features</h3>
+        <table class="tasks">
+          <thead><tr><th>Feature</th><th>Scope</th><th>State</th><th>Why</th><th>Action</th></tr></thead>
+          <tbody id="ws-features"></tbody>
+        </table>
+        <h3>Directive revisions</h3>
+        <p class="muted small">Revisions are approved only through a proposal and its preview; the repository block is edited in <button id="ws-open-directives" class="ghost">Directives</button>.</p>
+        <h3>Upkeep</h3>
+        <ul id="ws-upkeep" class="clients"></ul>
+        <section class="analysis-card" id="ws-action-box" hidden>
+          <h3 id="ws-action-label"></h3>
+          <p class="small">Command: <code id="ws-command"></code></p>
+          <p class="small"><code id="ws-apply-command"></code></p>
+          <div class="row">
+            <button id="ws-preview">Preview</button>
+            <label class="inline"><input id="ws-authorize" type="checkbox" /> I authorize running this exact command with Apply</label>
+            <button id="ws-apply" class="primary" disabled>Apply</button>
+          </div>
+          <pre id="ws-result" class="box small" hidden></pre>
+        </section>
       </section>
 
       <section id="tab-directives" class="panel" role="tabpanel" aria-labelledby="tabbtn-directives" hidden>

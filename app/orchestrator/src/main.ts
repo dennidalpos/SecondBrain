@@ -7,6 +7,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { $, busy, call, el, fmtDuration, onBusyClick, input, option, select, setError, since, baseName, type AgentCaps, type AgentStatus, type LightChoice, type Source } from "./common";
 import { initRegistry, showRegistry } from "./registry";
 import { refreshHomeStatus } from "./home";
+import { initWorkstation, refreshWorkstation } from "./workstation";
 import { initTracker, showRunEndNextSteps, showTracker } from "./tracker";
 import { analyzeMany, analyzeTask, initAnalysis, openAnalysis, openEnrichment, storedAnalysis, verdictOf, VERDICT_LABEL } from "./analysis";
 
@@ -111,6 +112,7 @@ function selectTab(name: string) {
   renderNoRepoNote();
   if (name === "registry") showRegistry();
   if (name === "tracker") showTracker();
+  if (name === "workstation") void refreshWorkstation();
 }
 // G04 (#631): sections are reachable directly; step-by-step navigation exists only inside the wizards. The selected repository
 // (state.repo) is kept across sections; sections that need one say so instead of being disabled.
@@ -154,7 +156,8 @@ document.querySelector<HTMLElement>(".steps")!.addEventListener("keydown", (e) =
 });
 selectTab(state.tab);
 $("home-runner").addEventListener("click", () => { navigated = true; selectTab(state.run.active ? "run" : "queue"); });
-$("home-setup").addEventListener("click", () => { navigated = true; selectTab("repo"); });
+$("home-setup").addEventListener("click", () => { navigated = true; selectTab("workstation"); });
+$("ws-open-directives").addEventListener("click", () => { navigated = true; selectTab("directives"); });
 $("home-library").addEventListener("click", () => { navigated = true; selectTab(state.repo ? "registry" : "tracker"); });
 $("run-registry").addEventListener("click", () => selectTab("registry"));
 
@@ -893,6 +896,7 @@ async function start() {
   }
   initRegistry(() => state.repo);
   initTracker();
+  initWorkstation(() => state.identity ?? "");
   initAnalysis({ repo: () => state.repo, identity: () => state.identity, light: currentLight, onChange: () => { renderSkipped(); } });
   await loadSettings();
   await renderRecent();
