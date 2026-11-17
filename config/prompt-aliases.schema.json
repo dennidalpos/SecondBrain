@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "aliases"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "aliases": {"type": "array", "items": {
+      "type": "object", "additionalProperties": false, "required": ["code", "status"],
+      "properties": {
+        "code": {"type": "string", "pattern": "^[A-Z]{2,4}[0-9]{2}$"},
+        "status": {"enum": ["renamed", "split", "merged", "workflow", "retired"]},
+        "ids": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "pattern": "^pmt-[0-9a-f]{8}$"}},
+        "workflow": {"type": "string", "pattern": "^wfl-[0-9a-f]{8}$"}
+      }
+    }}
+  }
+}

@@ -8,6 +8,11 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Add-SBMessages @{
     'prompts.encoding.invalid' = @{ en = 'Prompt text contains corrupted characters: {0}; save the card as UTF-8 without BOM and rebuild with build-prompts.ps1' }
     'prompts.catalog.invalid' = @{ en = 'Invalid prompt catalog: fix direttive/prompts/catalog.json and rerun build-prompts.ps1 -Check' }
+    'prompts.role.conflict' = @{ en = 'Role declared by more than one card: {0}; a role belongs to exactly one card' }
+    'prompts.alias.invalid' = @{ en = 'Invalid alias table entry: {0}; fix direttive/prompts/aliases.json (an alias never reuses an active code and targets existing cards or workflows)' }
+    'prompts.workflow.invalid' = @{ en = 'Invalid workflow definition: {0}; fix it following config/prompt-workflow.schema.json' }
+    'prompts.workflow.step' = @{ en = 'Workflow {0} cites a card that does not exist: {1}' }
+    'prompts.workflow.pack' = @{ en = 'Workflow {0} uses card {1} from a pack the workflow does not belong to' }
     'prompts.language.invalid' = @{ en = 'Unsupported language: {0} (use en or it)' }
     'prompts.i18n.invalid' = @{ en = 'Invalid translation or missing card: {0} ({1}); create or fix the translation in direttive/prompts/it/ and rerun build-prompts.ps1 -Check' }
     'prompts.category.invalid' = @{ en = 'Duplicate or invalid category: use a unique category id in catalog.json' }
@@ -54,14 +59,34 @@ function Assert-SBWorkflowEncoding([string]$Text,[string]$Path) {
     if([regex]::IsMatch($Text,$pattern)){throw (New-SBError 'prompts.encoding.invalid' @($Path))}
 }
 
+# Schema violations surface as false, never as a raw Test-Json exception.
+function Test-SBPromptJson([string]$Json,[string]$SchemaFile) { try{[bool](Test-Json -Json $Json -SchemaFile $SchemaFile -ErrorAction Stop)}catch{$false} }
+
 function Read-SBWorkflowCatalog([string]$BrainRoot, [switch]$ValidateBodies, [switch]$ValidateReferences) {
     $root=Resolve-SBParaPath $BrainRoot 'direttive/prompts'
     $path=Join-Path $root 'catalog.json'; Assert-SBPlainPath $path
     $json=Read-SBText $path
     Assert-SBWorkflowEncoding $json $path
-    $schema=Resolve-SBParaPath $BrainRoot 'config/prompt-catalog.schema.json'
-    if(!(Test-Json -Json $json -SchemaFile $schema -ErrorAction Stop)){throw (New-SBError 'prompts.catalog.invalid')}
+    # The loader reads schema 1 (current catalog) and schema 2 (pack, surface, roles, required destructive); each has its own schema file.
+    $probe=try{ConvertFrom-Json -InputObject $json -AsHashtable -ErrorAction Stop}catch{$null}
+    $version=if($probe -is [Collections.IDictionary] -and $probe.ContainsKey('schemaVersion')){$probe['schemaVersion']}else{$null}
+    $schemaFile=switch($version){1{'config/prompt-catalog.schema.json'}2{'config/prompt-catalog.schema2.json'}default{$null}}
+    if(!$schemaFile){throw (New-SBError 'prompts.catalog.invalid')}
+    $schema=Resolve-SBParaPath $BrainRoot $schemaFile
+    if(!(Test-SBPromptJson $json $schema)){throw (New-SBError 'prompts.catalog.invalid')}
     $catalog=ConvertFrom-Json -InputObject $json -AsHashtable
+    # Normalize to one in-memory shape: schema 1 cards are core, chat and not destructive unless marked; no roles.
+    $roles=@{}
+    foreach($prompt in $catalog.prompts){
+        if(!$prompt.ContainsKey('pack')){$prompt.pack='core'}
+        if(!$prompt.ContainsKey('surface')){$prompt.surface='chat'}
+        if(!$prompt.ContainsKey('destructive')){$prompt.destructive=$false}
+        if(!$prompt.ContainsKey('related')){$prompt.related=@()}
+        if($prompt.ContainsKey('role')){
+            if($roles.ContainsKey($prompt.role)){throw (New-SBError 'prompts.role.conflict' @($prompt.role))}
+            $roles[$prompt.role]=$prompt.id
+        }
+    }
     $categories=@{}; $names=@{}
     foreach($category in $catalog.categories){
         if($categories.ContainsKey($category.id) -or $category.title -match '[\p{Cc}\p{Cf}]'){throw (New-SBError 'prompts.category.invalid')}
@@ -105,7 +130,71 @@ function Read-SBWorkflowCatalog([string]$BrainRoot, [switch]$ValidateBodies, [sw
 function Resolve-SBWorkflowPrompt($Catalog, [string]$Key) {
     $found=@($Catalog.prompts|Where-Object {$_.id -ceq $Key -or $_.code -ceq $Key})
     if($found.Count -eq 1){return @{prompt=$found[0];via=$(if($found[0].id -ceq $Key){'id'}else{'code'});warning=$null}}
+    $byRole=@($Catalog.prompts|Where-Object {$_.ContainsKey('role') -and $_.role -ceq $Key})
+    if($byRole.Count -eq 1){return @{prompt=$byRole[0];via='role';warning=$null}}
     throw (New-SBError 'prompts.code.unavailable' @($Key))
+}
+
+# Alias table (direttive/prompts/aliases.json, optional): an old code resolves to successor IDs or to a workflow. It never shadows an active code.
+function Read-SBPromptAliases([string]$BrainRoot,$Catalog,$Workflows=@()) {
+    $path=Resolve-SBParaPath $BrainRoot 'direttive/prompts/aliases.json'
+    if(!(Test-Path -LiteralPath $path -PathType Leaf)){return @{schemaVersion=1;aliases=@()}}
+    Assert-SBPlainPath $path
+    $json=Read-SBText $path
+    if(!(Test-SBPromptJson $json (Resolve-SBParaPath $BrainRoot 'config/prompt-aliases.schema.json'))){throw (New-SBError 'prompts.alias.invalid' @('schema'))}
+    $table=ConvertFrom-Json -InputObject $json -AsHashtable
+    $ids=@{}; foreach($p in $Catalog.prompts){$ids[$p.id]=$p.code}
+    $codes=@{}; foreach($p in $Catalog.prompts){$codes[$p.code]=$true}
+    $flowIds=@{}; foreach($w in $Workflows){$flowIds[$w.id]=$true}
+    $seen=@{}
+    foreach($alias in $table.aliases){
+        if($seen.ContainsKey($alias.code) -or $codes.ContainsKey($alias.code)){throw (New-SBError 'prompts.alias.invalid' @($alias.code))}
+        $seen[$alias.code]=$true
+        $hasIds=$alias.ContainsKey('ids'); $hasFlow=$alias.ContainsKey('workflow')
+        $shapeOk=switch($alias.status){
+            'renamed'{$hasIds -and !$hasFlow -and $alias.ids.Count -eq 1}
+            'split'{$hasIds -and !$hasFlow -and $alias.ids.Count -ge 2}
+            'merged'{$hasIds -and !$hasFlow -and $alias.ids.Count -eq 1}
+            'workflow'{$hasFlow -and !$hasIds}
+            'retired'{!$hasIds -and !$hasFlow}
+        }
+        if(!$shapeOk){throw (New-SBError 'prompts.alias.invalid' @($alias.code))}
+        if($hasIds){foreach($id in $alias.ids){if(!$ids.ContainsKey($id)){throw (New-SBError 'prompts.alias.invalid' @($alias.code))}}}
+        if($hasFlow -and !$flowIds.ContainsKey($alias.workflow)){throw (New-SBError 'prompts.alias.invalid' @($alias.code))}
+    }
+    $table
+}
+
+# Workflow definitions (direttive/prompts/workflows/*.json, optional): ordered steps over card IDs, no cycles, a non-core step needs the same pack.
+function Read-SBPromptWorkflows([string]$BrainRoot,$Catalog) {
+    $dir=Resolve-SBParaPath $BrainRoot 'direttive/prompts/workflows'
+    if(!(Test-Path -LiteralPath $dir -PathType Container)){return @()}
+    $schema=Resolve-SBParaPath $BrainRoot 'config/prompt-workflow.schema.json'
+    $byId=@{}; foreach($p in $Catalog.prompts){$byId[$p.id]=$p}
+    $flows=@(); $ids=@{}; $keys=@{}
+    foreach($file in @(Get-ChildItem -LiteralPath $dir -Filter '*.json' -File|Sort-Object Name)){
+        $json=Read-SBText $file.FullName
+        if(!(Test-SBPromptJson $json $schema)){throw (New-SBError 'prompts.workflow.invalid' @($file.Name))}
+        $flow=ConvertFrom-Json -InputObject $json -AsHashtable
+        if($ids.ContainsKey($flow.id) -or $keys.ContainsKey($flow.key)){throw (New-SBError 'prompts.workflow.invalid' @($flow.key))}
+        $ids[$flow.id]=$true; $keys[$flow.key]=$true
+        $pack=if($flow.ContainsKey('pack')){$flow.pack}else{'core'}
+        $stepNames=@{}
+        foreach($step in $flow.steps){
+            if($stepNames.ContainsKey($step.step)){throw (New-SBError 'prompts.workflow.invalid' @($flow.key))}
+            $stepNames[$step.step]=$true
+            $refs=@($step.ref)
+            if($step.kind -eq 'choice'){if(!$step.ContainsKey('choices')){throw (New-SBError 'prompts.workflow.invalid' @($flow.key))};$refs+=@($step.choices)}
+            elseif($step.ContainsKey('choices')){throw (New-SBError 'prompts.workflow.invalid' @($flow.key))}
+            foreach($ref in $refs){
+                if(!$byId.ContainsKey($ref)){throw (New-SBError 'prompts.workflow.step' @($flow.key,$ref))}
+                $cardPack=$byId[$ref].pack
+                if($cardPack -ne 'core' -and $cardPack -ne $pack){throw (New-SBError 'prompts.workflow.pack' @($flow.key,$ref))}
+            }
+        }
+        $flows+=,$flow
+    }
+    $flows
 }
 
 function New-SBWorkflowPromptId($Catalog) {
@@ -762,6 +851,8 @@ function New-SBWorkflowComposition([string]$BrainRoot,$Catalog,$Prompt,$Context,
 Export-ModuleMember -Function @(
     'Read-SBWorkflowCatalog',
     'Resolve-SBWorkflowPrompt',
+    'Read-SBPromptAliases',
+    'Read-SBPromptWorkflows',
     'New-SBWorkflowPromptId',
     'Read-SBWorkflowPrompt',
     'Format-SBWorkflowCard',

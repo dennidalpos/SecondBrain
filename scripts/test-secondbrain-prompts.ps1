@@ -265,4 +265,69 @@ try{
 }finally{
     if($env:SECONDBRAIN_TEST_KEEP -ne '1' -and (Test-Path -LiteralPath $privateRoot)){Remove-Item -LiteralPath $privateRoot -Recurse -Force}
 }
+# #566: catalog schema 2 (pack, surface, roles, required destructive), alias table and workflow schema; the loader still reads schema 1.
+$s2Root=Join-Path (Get-SBTestRoot) ('schema2-'+[guid]::NewGuid().ToString('N').Substring(0,12))
+function Write-S2([string]$Relative,[string]$Text){$p=Join-Path $s2Root $Relative;[IO.Directory]::CreateDirectory((Split-Path $p))|Out-Null;[IO.File]::WriteAllText($p,$Text,[Text.UTF8Encoding]::new($false))}
+function New-S2Card([string]$Id,[string]$Code,$Extra=@{}){
+    $card=[ordered]@{id=$Id;code=$Code;category='understand';summary='Summary of the card.';target='repository';mode='read';destructive=$false;surface='chat';pack='core';requires='Nothing.';example=($Code+': check');file=($Code+'.md');i18n=@{it=@{summary='Sintesi della scheda.';requires='Niente.';example=($Code+': verifica')}}}
+    foreach($k in $Extra.Keys){if($null -eq $Extra[$k]){$card.Remove($k)}else{$card[$k]=$Extra[$k]}}
+    $card
+}
+function Write-S2Catalog($Cards,[int]$Version=2){
+    $cat=[ordered]@{schemaVersion=$Version;catalogVersion=$Version;categories=@(@{id='understand';group='repository';title='Understanding';i18n=@{it=@{title='Comprensione'}}});prompts=@($Cards)}
+    Write-S2 'direttive/prompts/catalog.json' (ConvertTo-SBJson $cat)
+    foreach($c in $Cards){Write-S2 ('direttive/prompts/it/'+$c.file) 'stub'}
+}
+function Assert-S2Refused([scriptblock]$Action,[string]$Code,[string]$Message){$refused=$false;try{& $Action|Out-Null}catch{$refused=(Test-SBError $_ $Code)};Assert-Prompts $refused $Message}
+$flowHead='{"schemaVersion":1,"id":"wfl-c0000001","key":"wf-core","title":"Core flow","revision":1,"status":"active","steps":['
+try{
+    foreach($f in 'prompt-catalog.schema.json','prompt-catalog.schema2.json','prompt-workflow.schema.json','prompt-aliases.schema.json'){Write-S2 ('config/'+$f) (Get-Content -Raw -LiteralPath (Join-Path $brain ('config/'+$f)))}
+    $a=New-S2Card 'pmt-b0000001' 'AAA01' @{role='stop'}
+    $b=New-S2Card 'pmt-b0000002' 'AAA02' @{pack='site';surface='app';destructive=$true;related=@('pmt-b0000001')}
+    Write-S2Catalog @($a,$b)
+    $c2=Read-SBWorkflowCatalog $s2Root
+    Assert-Prompts ($c2.schemaVersion -eq 2 -and $c2.prompts.Count -eq 2) '#566: a schema 2 catalog loads'
+    Assert-Prompts ($c2.prompts[1].pack -eq 'site' -and $c2.prompts[1].surface -eq 'app' -and $c2.prompts[1].destructive) '#566: pack, surface and destructive are read'
+    Assert-Prompts ((Resolve-SBWorkflowPrompt $c2 'stop').via -eq 'role' -and (Resolve-SBWorkflowPrompt $c2 'stop').prompt.code -eq 'AAA01') '#566: a role resolves to its card'
+    Assert-Prompts ((Resolve-SBWorkflowPrompt $c2 'pmt-b0000002').via -eq 'id' -and (Resolve-SBWorkflowPrompt $c2 'AAA02').via -eq 'code') '#566: ID and code still resolve'
+    Assert-Prompts (@($c2.prompts[0].related).Count -eq 0) '#566: related is optional in schema 2'
+    Assert-Prompts ($catalog.prompts[0].pack -eq 'core' -and $catalog.prompts[0].surface -eq 'chat' -and $catalog.prompts[0].destructive -is [bool]) '#566: schema 1 cards load with core, chat and destructive defaults'
+    Write-S2Catalog @($a,(New-S2Card 'pmt-b0000002' 'AAA02' @{destructive=$null}))
+    Assert-S2Refused {Read-SBWorkflowCatalog $s2Root} 'prompts.catalog.invalid' '#566: destructive is required in schema 2'
+    Write-S2Catalog @($a,(New-S2Card 'pmt-b0000002' 'AAA02' @{pack='misc'}))
+    Assert-S2Refused {Read-SBWorkflowCatalog $s2Root} 'prompts.catalog.invalid' '#566: an unknown pack is refused'
+    Write-S2Catalog @($a,(New-S2Card 'pmt-b0000002' 'AAA02' @{scope='repo'}))
+    Assert-S2Refused {Read-SBWorkflowCatalog $s2Root} 'prompts.catalog.invalid' '#566: scope is dropped in schema 2'
+    Write-S2Catalog @($a,(New-S2Card 'pmt-b0000002' 'AAA02' @{role='stop'}))
+    Assert-S2Refused {Read-SBWorkflowCatalog $s2Root} 'prompts.role.conflict' '#566: a role on two cards is refused'
+    Write-S2Catalog @($a,(New-S2Card 'pmt-b0000002' 'AAA02' @{role='Bad Role'}))
+    Assert-S2Refused {Read-SBWorkflowCatalog $s2Root} 'prompts.catalog.invalid' '#566: a malformed role is refused'
+    Write-S2Catalog @($a,$b) 3
+    Assert-S2Refused {Read-SBWorkflowCatalog $s2Root} 'prompts.catalog.invalid' '#566: an unknown schema version is refused'
+    Write-S2Catalog @($a,$b)
+    $c2=Read-SBWorkflowCatalog $s2Root
+    Assert-Prompts (@((Read-SBPromptAliases $s2Root $c2).aliases).Count -eq 0) '#566: a missing alias table is empty'
+    Write-S2 'direttive/prompts/aliases.json' '{"schemaVersion":1,"aliases":[{"code":"OLD01","status":"renamed","ids":["pmt-b0000001"]},{"code":"OLD02","status":"split","ids":["pmt-b0000001","pmt-b0000002"]},{"code":"OLD03","status":"retired"}]}'
+    Assert-Prompts (@((Read-SBPromptAliases $s2Root $c2).aliases).Count -eq 3) '#566: a valid alias table loads'
+    Write-S2 'direttive/prompts/aliases.json' '{"schemaVersion":1,"aliases":[{"code":"AAA01","status":"renamed","ids":["pmt-b0000002"]}]}'
+    Assert-S2Refused {Read-SBPromptAliases $s2Root $c2} 'prompts.alias.invalid' '#566: an alias never reuses an active code'
+    Write-S2 'direttive/prompts/aliases.json' '{"schemaVersion":1,"aliases":[{"code":"OLD01","status":"renamed","ids":["pmt-ffffffff"]}]}'
+    Assert-S2Refused {Read-SBPromptAliases $s2Root $c2} 'prompts.alias.invalid' '#566: an alias target must exist'
+    Write-S2 'direttive/prompts/aliases.json' '{"schemaVersion":1,"aliases":[{"code":"OLD01","status":"split","ids":["pmt-b0000001"]}]}'
+    Assert-S2Refused {Read-SBPromptAliases $s2Root $c2} 'prompts.alias.invalid' '#566: a split needs at least two successors'
+    Write-S2 'direttive/prompts/workflows/core.json' (($flowHead -replace '"status":"active",','"status":"active","pack":"site",')+'{"step":"first","ref":"pmt-b0000001","kind":"required","gate":"auto"},{"step":"pick","ref":"pmt-b0000001","kind":"choice","gate":"confirm","choices":["pmt-b0000001","pmt-b0000002"]}]}')
+    Assert-Prompts (@(Read-SBPromptWorkflows $s2Root $c2).Count -eq 1) '#566: a valid workflow loads'
+    Write-S2 'direttive/prompts/aliases.json' '{"schemaVersion":1,"aliases":[{"code":"OLD01","status":"workflow","workflow":"wfl-c0000001"}]}'
+    Assert-Prompts (@((Read-SBPromptAliases $s2Root $c2 @(Read-SBPromptWorkflows $s2Root $c2)).aliases).Count -eq 1) '#566: an alias can point to a workflow'
+    Write-S2 'direttive/prompts/workflows/core.json' ($flowHead+'{"step":"first","ref":"pmt-b0000009","kind":"required","gate":"auto"}]}')
+    Assert-S2Refused {Read-SBPromptWorkflows $s2Root $c2} 'prompts.workflow.step' '#566: a workflow step must cite an existing card'
+    Write-S2 'direttive/prompts/workflows/core.json' ($flowHead+'{"step":"first","ref":"pmt-b0000002","kind":"required","gate":"auto"}]}')
+    Assert-S2Refused {Read-SBPromptWorkflows $s2Root $c2} 'prompts.workflow.pack' '#566: a core workflow cannot use a site card'
+    Write-S2 'direttive/prompts/workflows/core.json' ($flowHead+'{"step":"first","ref":"pmt-b0000001","kind":"required","gate":"auto"},{"step":"first","ref":"pmt-b0000001","kind":"optional","gate":"auto"}]}')
+    Assert-S2Refused {Read-SBPromptWorkflows $s2Root $c2} 'prompts.workflow.invalid' '#566: duplicate step names are refused'
+    Write-S2 'direttive/prompts/workflows/core.json' (($flowHead+'{"step":"first","ref":"pmt-b0000001","kind":"required","gate":"auto"}]}') -replace '"wf-core"','"core"')
+    Assert-S2Refused {Read-SBPromptWorkflows $s2Root $c2} 'prompts.workflow.invalid' '#566: a workflow key must start with wf-'
+}finally{
+    if($env:SECONDBRAIN_TEST_KEEP -ne '1' -and (Test-Path -LiteralPath $s2Root)){Remove-Item -LiteralPath $s2Root -Recurse -Force}
+}
 'SUCCESS PROMPTS: '+$script:promptChecks+' verifiche'
