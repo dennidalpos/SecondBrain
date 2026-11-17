@@ -7,9 +7,10 @@ Prints JSON: whether the workstation is activated, the detected IDEs, usage coun
 (counts only, never contents) and one entry per feature with its state (enabled, available, unsupported, blocked),
 evidence, the preview command that would enable it, prerequisites, risk and a recommendation with its reason.
 Nothing is written, locked or enabled. Exit: 0 nothing recommended, 1 recommendations or not activated, 2 error.
+-ExitZero reports state in the JSON only and exits 0 on success (used by the app).
 #>
 [CmdletBinding()]
-param([string]$WorkspacePath,[string]$SettingsPath)
+param([string]$WorkspacePath,[string]$SettingsPath,[switch]$ExitZero)
 $ErrorActionPreference='Stop'
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.SetupStatus.psm1') -Force
@@ -17,7 +18,7 @@ try{
     $brain=(Get-SBBrainRootPath)
     $status=Get-SBSetupWizardStatus -BrainRoot $brain -WorkspacePath $WorkspacePath -SettingsPath $SettingsPath
     ConvertTo-SBJson $status
-    if(!$status.activated -or $status.recommended.Count){exit 1};exit 0
+    if(!$ExitZero -and (!$status.activated -or $status.recommended.Count)){exit 1};exit 0
 }catch{
     Write-Error $_ -ErrorAction Continue
     exit 2

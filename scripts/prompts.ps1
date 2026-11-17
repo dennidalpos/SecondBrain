@@ -9,6 +9,10 @@ pwsh -NoProfile -File scripts/prompts.ps1 -List -Compact
 .EXAMPLE
 pwsh -NoProfile -File scripts/prompts.ps1 -List -Category TST
 .EXAMPLE
+pwsh -NoProfile -File scripts/prompts.ps1 -List -Json
+.EXAMPLE
+pwsh -NoProfile -File scripts/prompts.ps1 -Json
+.EXAMPLE
 pwsh -NoProfile -File scripts/prompts.ps1 -Show -Prompt TST04
 .EXAMPLE
 pwsh -NoProfile -File scripts/prompts.ps1 -Compose -Prompt TST04 -Objective 'Diagnostica il job Windows'
@@ -18,6 +22,7 @@ param(
     [Parameter(ParameterSetName='Home')][switch]$Start,
     [Parameter(ParameterSetName='List')][switch]$List,
     [Parameter(ParameterSetName='List')][switch]$Compact,
+    [Parameter(ParameterSetName='Home')][Parameter(ParameterSetName='List')][switch]$Json,
     [Parameter(Mandatory,ParameterSetName='Show')][switch]$Show,
     [Parameter(Mandatory,ParameterSetName='Compose')][switch]$Compose,
     [Parameter(Mandatory,ParameterSetName='Context')][switch]$Context,
@@ -62,7 +67,10 @@ try {
     if($ConfigPath){$config=Read-SBConfiguration $ConfigPath -ReadOnly;$lock=Enter-SBOperation $config $SessionId -ReadOnly;Write-SBReadWarnings $lock $config}
     if($PSCmdlet.ParameterSetName -eq 'Home'){
         $homeState=Get-SBWorkflowState $brain $(if($RepositoryPath){$RepositoryPath}else{(Get-Location).Path})
-        Format-SBWorkflowHome $brain $catalog $homeState
+        if($Json){ConvertTo-SBJson (ConvertTo-SBWorkflowHomeData $homeState)}else{Format-SBWorkflowHome $brain $catalog $homeState}
+    } elseif($PSCmdlet.ParameterSetName -eq 'List' -and $Json){
+        # Documented in docs/orchestratore.md: public catalog only, English text.
+        ConvertTo-SBJson (ConvertTo-SBWorkflowCatalogData $catalog $Category)
     } elseif($PSCmdlet.ParameterSetName -eq 'List'){
         $listing=Format-SBWorkflowList $catalog $Category -Compact:$Compact
         # #589: with -RepositoryPath, the private cards of that repository's dossier follow the public list; never without it.

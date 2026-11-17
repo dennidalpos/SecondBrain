@@ -883,7 +883,41 @@ function New-SBWorkflowComposition([string]$BrainRoot,$Catalog,$Prompt,$Context,
     ($lines -join "`n").TrimEnd()+"`n"
 }
 
+# Machine-readable catalog (schema "secondbrain.prompts.catalog" v1) for the app: categories with their prompts, English text, no icons.
+function ConvertTo-SBWorkflowCatalogData($Catalog, [string]$Category) {
+    $byCategory=$Category -and @($Catalog.categories|Where-Object id -ieq $Category).Count -gt 0
+    $byPrefix=$Category -and !$byCategory -and @($Catalog.prompts|Where-Object {(Get-SBWorkflowPrefix $_) -ieq $Category}).Count -gt 0
+    if($Category -and !$byCategory -and !$byPrefix){throw (New-SBError 'prompts.scope.unknown' @((@($Catalog.categories|ForEach-Object id)) -join ', '))}
+    $categories=@()
+    foreach($item in $Catalog.categories){
+        if($byCategory -and $item.id -ine $Category){continue}
+        $members=@($Catalog.prompts|Where-Object {$_.category -eq $item.id -and (!$byPrefix -or (Get-SBWorkflowPrefix $_) -ieq $Category)}|Sort-Object code)
+        if(!$members.Count){continue}
+        $categories+=[ordered]@{
+            id=$item.id;group=$item.group;title=(Get-SBWorkflowCategoryTitle $item 'en')
+            prompts=@($members|ForEach-Object {
+                [ordered]@{
+                    id=$_.id;code=$_.code;summary=(Get-SBWorkflowField $_ 'summary' 'en');scope=$_.scope;mode=$_.mode
+                    destructive=[bool]$_.destructive;pack=$_.pack;surface=$_.surface
+                    role=$(if($_.ContainsKey('role')){$_.role}else{$null})
+                    requires=(Get-SBWorkflowField $_ 'requires' 'en');example=(Get-SBWorkflowField $_ 'example' 'en')
+                }
+            })
+        }
+    }
+    [ordered]@{schema='secondbrain.prompts.catalog';schemaVersion=1;categories=$categories}
+}
+
+# Machine-readable workflow home (schema "secondbrain.prompts.home" v1): workstation and repository state, next step and start chain.
+function ConvertTo-SBWorkflowHomeData($State) {
+    [ordered]@{
+        schema='secondbrain.prompts.home';schemaVersion=1
+        state=$State;nextStep=(Get-SBWorkflowNextStep $State);chain=@(Get-SBWorkflowStartChain $State)
+    }
+}
+
 Export-ModuleMember -Function @(
+    'ConvertTo-SBWorkflowCatalogData','ConvertTo-SBWorkflowHomeData',
     'Read-SBWorkflowCatalog',
     'Resolve-SBWorkflowPrompt',
     'Read-SBPromptAliases',

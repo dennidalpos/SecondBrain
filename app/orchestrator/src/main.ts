@@ -6,6 +6,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { open } from "@tauri-apps/plugin-dialog";
 import { $, busy, call, el, fmtDuration, onBusyClick, input, option, select, setError, since, baseName, type AgentCaps, type AgentStatus, type LightChoice, type Source } from "./common";
 import { initRegistry, showRegistry } from "./registry";
+import { refreshHomeStatus } from "./home";
 import { initTracker, showRunEndNextSteps, showTracker } from "./tracker";
 import { analyzeMany, analyzeTask, initAnalysis, openAnalysis, openEnrichment, storedAnalysis, verdictOf, VERDICT_LABEL } from "./analysis";
 
@@ -906,5 +907,6 @@ async function start() {
     // Opened by sb runner: straight to the queue; agents keep loading in place.
     if (ok && state.launch?.repo && !state.run.active && !navigated) selectTab("queue");
   }
+  void refreshHomeStatus(state.repo ?? "");
 }
 start();

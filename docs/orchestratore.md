@@ -87,6 +87,16 @@ Settings and recent repositories are saved in the app's own configuration folder
 
 The ledger records who changed a task. Every change of status, execution or evidence adds a record in the same transaction as the tracker write, with the executor resolved in this order: explicit, `SECONDBRAIN_EXECUTOR` (set by the runner and by the analyses), the agent CLI environment, the MCP session client, else `unknown`. `knowledge.ps1 -BackfillTaskRuns` copies older runner reports into the ledger (preview unless `-Apply`, once per report).
 
+## JSON the app reads
+
+The Home tab reads three documents; nothing is written. Each Tauri command runs one script and parses its JSON.
+
+| Command | Script | Schema |
+|---|---|---|
+| `read_catalog` | `prompts.ps1 -List -Json` (`-Category` narrows it) | `secondbrain.prompts.catalog` v1: `categories[]` with `id`, `group`, `title`, `prompts[]` (`id`, `code`, `summary`, `scope`, `mode`, `destructive`, `pack`, `surface`, `role`, `requires`, `example`); public cards, English text |
+| `read_workflows` | `prompts.ps1 -Json [-RepositoryPath <path>]` | `secondbrain.prompts.home` v1: `state` (`activated`, `hostId`, `repositories`, `ides`, `repository`), `nextStep`, `chain[]` |
+| `read_setup_status` | `setup-status.ps1 -ExitZero` | setup status: `activated`, `recommended[]`, feature entries; `-ExitZero` keeps "recommendations pending" from being an error exit |
+
 ## Verification
 
 `pwsh -NoProfile -File scripts/test-secondbrain.ps1 -Only orchestrator-e2e` (also part of `-Full`) starts the release binary on Windows with the WebView2 DevTools port open and drives it with Playwright (`app/orchestrator/e2e/`). It uses a synthetic SecondBrain from `scripts/test-orchestrator-fixture.ps1` with isolated app settings and a fake Claude Code. Eight scenarios: preload from `--repo` and removal of recent entries, both persistent across restarts; the light-model proposal and every Directives button, with the managed block checked on disk and the text present again after a restart; agents and models limited to what is installed; a queue run followed live, closed with "leave running" and found again on reopening until it finishes; the registry with tool badges, an archived task and the runner history; a task that cannot run alone analyzed, answered and made autonomous; the busy buttons (Carica, Rileva di nuovo, Analizza, Avvia la coda) showing the spinner and starting nothing on a second click, then a run whose fake agent hits a plan limit that resets in seconds (`SB_E2E_AGENT_LIMIT_SECONDS`): the Run tab shows "In attesa del ripristino" with the resume time and a decreasing countdown under the "Ripresa" label, the progress line does not count the interrupted attempt as failed, and the run resumes and finishes by itself; a run stopped by the same limit without waiting, whose resume point the Run tab shows and **Resume the stopped run** continues with `-Resume` until the interrupted task finishes. With `SB_E2E_SCREENSHOTS` set to a folder, that scenario saves a screenshot of the waiting state. The app passes `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS` to its windows after wry's defaults, because the WebView2 runtime ignores the variable once the app sets its own arguments. The suite is skipped with a reason off Windows or when the binary or Playwright is missing, and fails when the binary is older than the sources.

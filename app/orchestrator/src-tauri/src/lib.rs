@@ -167,6 +167,29 @@ async fn resolve_repository(app: AppHandle, path: String) -> Result<Value, Strin
     script(app, "prompts.ps1", vec!["-Context".into(), "-RepositoryPath".into(), checkout(&path)?]).await
 }
 
+#[tauri::command]
+async fn read_catalog(app: AppHandle) -> Result<Value, String> {
+    // Public prompt catalog as JSON (prompts.ps1 -List -Json, schema secondbrain.prompts.catalog v1).
+    script(app, "prompts.ps1", vec!["-List".into(), "-Json".into()]).await
+}
+
+#[tauri::command]
+async fn read_workflows(app: AppHandle, path: Option<String>) -> Result<Value, String> {
+    // Workstation state, next step and start chain as JSON (prompts.ps1 -Json, schema secondbrain.prompts.home v1).
+    let mut args: Vec<String> = vec!["-Json".into()];
+    if let Some(p) = path.filter(|p| !p.trim().is_empty()) {
+        args.push("-RepositoryPath".into());
+        args.push(checkout(&p)?);
+    }
+    script(app, "prompts.ps1", args).await
+}
+
+#[tauri::command]
+async fn read_setup_status(app: AppHandle) -> Result<Value, String> {
+    // Setup status as JSON (setup-status.ps1); -ExitZero keeps "recommendations pending" (exit 1) from being read as a failure.
+    script(app, "setup-status.ps1", vec!["-ExitZero".into()]).await
+}
+
 fn valid_provider(p: &str) -> bool {
     ["claude", "codex", "gemini"].contains(&p)
 }
@@ -828,6 +851,9 @@ pub fn run() {
             remove_recent_repo,
             probe_agents,
             resolve_repository,
+            read_catalog,
+            read_workflows,
+            read_setup_status,
             list_tasks,
             read_directives,
             read_text_file,
