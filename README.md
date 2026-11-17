@@ -1,6 +1,6 @@
 # SecondBrain for Coding Agents
 
-![Version 2.17.0](https://img.shields.io/badge/version-2.17.0-blue) ![Windows](https://img.shields.io/badge/Windows-0078D6) ![PowerShell 7.5+](https://img.shields.io/badge/PowerShell-7.5%2B-5391FE)
+![Version 2.18.0](https://img.shields.io/badge/version-2.18.0-blue) ![Windows](https://img.shields.io/badge/Windows-0078D6) ![PowerShell 7.5+](https://img.shields.io/badge/PowerShell-7.5%2B-5391FE)
 English · [Italiano](#italiano)
 
 **Project context, decisions, tasks and shared rules for coding agents on Windows.**

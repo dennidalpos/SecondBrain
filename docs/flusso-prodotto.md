@@ -30,6 +30,6 @@ The MCP equivalent is `get_prompt_home` with `repositoryPath`. Without a checkou
 
 `sb` commands are conventions written in managed instructions, not shell executables. The CLI and MCP expose the same knowledge operations, but permissions and client approvals are separate. Installing an instruction file, registering an account/profile, successful stdio communication and proving live loading are separate checks.
 
-The product agent runs builds and tests and captures screenshots. Build output, caches, temporary files, fixtures and evidence stay in Git-ignored folders of the product checkout. The SecondBrain dossier retains summaries and references to those results.
+The product agent runs builds and tests and captures screenshots. Build output, caches, temporary files, fixtures and evidence stay in Git-ignored folders of the product checkout. A dedicated work folder created for a capture or test run (fixtures, fixture files, raw screenshots) is removed when the work ends, once the reviewed results are stored where they belong; nothing is left behind for later runs. The SecondBrain dossier retains summaries and references to those results.
 
 See [daily use](uso-quotidiano.md), [agents and MCP](ide-e-mcp.md), [trackers](riferimento/trackers.md) and [runtime maintenance](riferimento/runtime-maintenance.md).

@@ -2,7 +2,18 @@
 
 Formato [Keep a Changelog](https://keepachangelog.com/it-IT/1.1.0/). La numerazione segue il file `VERSION`. Questo registro cambia solo quando accetti un cambio di versione: vedi [Cambiare versione](docs/uso-quotidiano.md).
 
-> Versione corrente: **2.17.0**, numerazione reimpostata il 2026-11-04 con le funzionalità attuali conservate. Le sezioni seguenti mantengono la cronologia dei rilasci precedenti.
+> Versione corrente: **2.18.0**, numerazione reimpostata il 2026-11-04 con le funzionalità attuali conservate. Le sezioni seguenti mantengono la cronologia dei rilasci precedenti.
+
+## [2.18.0] - 2026-11-17
+
+A manual account surface is never registered anonymously: Setup asks for, or reuses, the account id or pseudonym it belongs to.
+
+### Added
+- `-Check` reports `account-alias-missing` for a manual IDE entry registered without an account alias.
+- Account alias validation: the Claude account id or a pseudonym of 2-64 characters (letters, digits, `.`, `_`, `-`); an email address is rejected. It applies to `-IdeAccount` and to the interactive prompt.
+
+### Changed
+- `-Setup` with a manual surface selected by name (`-Ides`, `-AllIdes`) no longer creates an integration with an empty alias: it reuses the single alias already registered for that surface and stops with an error when there is none or when several exist. `-Interactive` asks for the alias, offering the registered one as default.
 
 ## [2.17.0] - 2026-11-16
 
