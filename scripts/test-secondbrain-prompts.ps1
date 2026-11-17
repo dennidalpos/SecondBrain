@@ -330,4 +330,46 @@ try{
 }finally{
     if($env:SECONDBRAIN_TEST_KEEP -ne '1' -and (Test-Path -LiteralPath $s2Root)){Remove-Item -LiteralPath $s2Root -Recurse -Force}
 }
+# #568: migration tool on a copy of the real catalog and cards; the real repository is never written.
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.PromptMigration.psm1') -Force
+$migRoot=Join-Path (Get-SBTestRoot) ('migration-'+[guid]::NewGuid().ToString('N').Substring(0,12))
+try{
+    [IO.Directory]::CreateDirectory((Join-Path $migRoot 'config'))|Out-Null
+    Copy-Item -LiteralPath (Join-Path $brain 'direttive') -Destination (Join-Path $migRoot 'direttive') -Recurse
+    Copy-Item -Path (Join-Path $brain 'config/prompt-*.json') -Destination (Join-Path $migRoot 'config')
+    $migCatalogPath=Join-Path $migRoot 'direttive/prompts/catalog.json'
+    $migRaw=Read-SBText $migCatalogPath
+    Assert-Prompts ((ConvertTo-SBPromptJson (ConvertFrom-Json -InputObject $migRaw -AsHashtable))+"`n" -ceq $migRaw.Replace("`r`n","`n")) '#568: the catalog serializer round-trips the catalog byte for byte'
+    $plan=Get-SBPromptMigrationPlan $migRoot
+    $map=Read-SBPromptMigrationMap $migRoot
+    Assert-Prompts (@($plan.rows).Count -eq 121 -and @($plan.rows|Where-Object {$_.outcome -in 'keep','split','workflow' -and $_.action -in 'rename','retire'}).Count -eq 121) '#568: the dry run lists 121 old codes, each with one outcome'
+    Assert-Prompts (@($plan.rows.oldCode|Select-Object -Unique).Count -eq 121 -and !(@($plan.rows|Where-Object {$_.oldCode -notin $map.cards.oldCode}).Count)) '#568: every old code of the map appears once'
+    Assert-Prompts (@($plan.rows|Where-Object {$_.idFate -eq 'retired'}).Count -eq 4 -and @($plan.rows|Where-Object {$_.idFate -eq 'kept'}).Count -eq 117 -and !(@($plan.rows|Where-Object {!$_.oldId}).Count)) '#568: every old card ID is kept (117) or listed as retired (4)'
+    Assert-Prompts ($plan.unmapped -contains 'SYS18') '#568: a catalog card outside the map is reported, not touched'
+    Assert-Prompts ((Read-SBText $migCatalogPath) -ceq $migRaw) '#568: the dry run writes nothing'
+    $before=@{}; foreach($row in $plan.rows){if($row.pending){$before[$row.oldCode]=(Read-SBWorkflowCatalog $migRoot).prompts|Where-Object code -eq $row.oldCode|ForEach-Object id}}
+    $writer={param($path,$text) [IO.File]::WriteAllText($path,$text,[Text.UTF8Encoding]::new($false))}
+    $mover={param($from,$to) Move-Item -LiteralPath $from -Destination $to}
+    $remover={param($path) Remove-Item -LiteralPath $path}
+    Invoke-SBPromptMigration $plan $writer $mover $remover
+    $after=Read-SBWorkflowCatalog $migRoot -ValidateBodies
+    $afterIds=@($after.prompts.id)
+    $lost=@($plan.rows|Where-Object {$_.idFate -eq 'kept' -and $_.oldId -notin $afterIds})
+    Assert-Prompts (!$lost.Count) '#568: every kept card ID is still in the catalog under its new code'
+    Assert-Prompts (@($after.prompts|Where-Object {$_.code -in $plan.rows.oldCode}).Count -eq 0) '#568: no old code remains in the catalog'
+    $aliases=Read-SBPromptAliases $migRoot $after
+    Assert-Prompts (@($aliases.aliases).Count -eq 121 -and @($aliases.aliases|Where-Object {$_.status -eq 'retired' -and $_.retiredId}).Count -eq 4) '#568: aliases.json has 121 entries and lists the 4 retired IDs'
+    Assert-Prompts ($aliases.aliases|Where-Object {$_.code -eq 'AIS01'}|ForEach-Object {$_.status -eq 'renamed' -and $_.ids[0] -eq $before['AIS01']}) '#568: an old code resolves to the same card ID'
+    foreach($row in $plan.rows|Where-Object action -eq 'rename'){
+        if(!(Test-Path -LiteralPath (Join-Path $migRoot ('direttive/prompts/'+$row.newCode+'.md'))) -or !(Test-Path -LiteralPath (Join-Path $migRoot ('direttive/prompts/it/'+$row.newCode+'.md'))) -or (Test-Path -LiteralPath (Join-Path $migRoot ('direttive/prompts/'+$row.oldCode+'.md')))){Assert-Prompts $false ('#568: card files moved for '+$row.oldCode)}
+    }
+    Assert-Prompts $true '#568: every renamed card has its new EN and IT files and no old file'
+    $again=Get-SBPromptMigrationPlan $migRoot
+    Assert-Prompts ($again.changeCount -eq 0 -and @($again.rows|Where-Object pending).Count -eq 0) '#568: a second run changes nothing'
+    $afterRaw=Read-SBText $migCatalogPath
+    Invoke-SBPromptMigration $again $writer $mover $remover
+    Assert-Prompts ((Read-SBText $migCatalogPath) -ceq $afterRaw) '#568: the second run leaves the catalog identical'
+}finally{
+    if($env:SECONDBRAIN_TEST_KEEP -ne '1' -and (Test-Path -LiteralPath $migRoot)){Remove-Item -LiteralPath $migRoot -Recurse -Force}
+}
 'SUCCESS PROMPTS: '+$script:promptChecks+' verifiche'
