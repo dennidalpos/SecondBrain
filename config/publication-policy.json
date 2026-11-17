@@ -279,6 +279,90 @@
       "sha256": "DFC2D4F203233B218C5F68D18AA52EE6564AA376EB508D933E7F18A2D88DCE23"
     },
     {
+      "gitBlob": "a9324f05ac30b82640448ae14534cd4dc3fb6637",
+      "path": "docs/assets/orchestrator-directives.png",
+      "reason": "Reviewed 2026-11-17: earlier history version of the screenshot of the real orchestrator binary (app 0.1.0) on the synthetic fixture; viewed in full, only neutral D:\\sb-shots paths and a test identity, no host ID, user name, email or token.",
+      "reviewed": true,
+      "sha256": "2772D8394824C5ECD2D1213E761E517EB16FE7803AA76A814D9F1C1B7903E959"
+    },
+    {
+      "gitBlob": "5f33b18f79f981236447c128564264e7856f0457",
+      "path": "docs/assets/orchestrator-tracker.png",
+      "reason": "Reviewed 2026-11-17: earlier history version of the screenshot of the real orchestrator binary (app 0.1.0) on the synthetic fixture; viewed in full, only neutral D:\\sb-shots paths and a test identity, no host ID, user name, email or token.",
+      "reviewed": true,
+      "sha256": "9859FA997F09E15F8B19256A6512A0BA5C1343B6F69ADC6B46A161BDAE6AD2B6"
+    },
+    {
+      "gitBlob": "3523f1171c85a332c60dc3b767cf0096c333a4a7",
+      "path": "docs/assets/orchestrator-queue.png",
+      "reason": "Reviewed 2026-11-17: earlier history version of the screenshot of the real orchestrator binary (app 0.1.0) on the synthetic fixture; viewed in full, only neutral D:\\sb-shots paths and a test identity, no host ID, user name, email or token.",
+      "reviewed": true,
+      "sha256": "DDC3B3400E5BC1DC90C6D8C45F1055F42036495B3B09ED7C0B4875F4831FCE70"
+    },
+    {
+      "gitBlob": "850fe3f5466bfa45be4905da0cb529d554339d6e",
+      "path": "docs/assets/orchestrator-registry.png",
+      "reason": "Reviewed 2026-11-17: earlier history version of the screenshot of the real orchestrator binary (app 0.1.0) on the synthetic fixture; viewed in full, only neutral D:\\sb-shots paths and a test identity, no host ID, user name, email or token.",
+      "reviewed": true,
+      "sha256": "F37024CAA0FAEB012382D7BCB60E6630E3CBB55AD899E94B1F68AB9B1115D0C8"
+    },
+    {
+      "gitBlob": "5673ea7f703a9ae006ce76618bebb29d5724675c",
+      "path": "docs/assets/orchestrator-repository.png",
+      "reason": "Reviewed 2026-11-17: earlier history version of the screenshot of the real orchestrator binary (app 0.1.0) on the synthetic fixture; viewed in full, only neutral D:\\sb-shots paths and a test identity, no host ID, user name, email or token.",
+      "reviewed": true,
+      "sha256": "CF85ED3109FF0C8DE37DD0D7928AE4EA6EEA441F7A3A221A760BA4DD7DF0353C"
+    },
+    {
+      "gitBlob": "503019609ce7652cf58b63a5713b0da58a372be0",
+      "path": "app/orchestrator/icon-source/icon-source.png",
+      "reason": "Reviewed 2026-11-17: app icon drawn in this repository (app/orchestrator/icon-source/make-icon.py draws a rounded square with three bullet lines; the other sizes come from tauri icon); viewed in full, no text, photo or personal data.",
+      "reviewed": true,
+      "sha256": "D7591029FEEAEB7C7F02F01F1E25797D8B654A901EBD46A456BFE5CA54B964EA"
+    },
+    {
+      "gitBlob": "885a3025aac7325c64c7711426275b7dff6f8c74",
+      "path": "app/orchestrator/src-tauri/icons/128x128.png",
+      "reason": "Reviewed 2026-11-17: app icon drawn in this repository (app/orchestrator/icon-source/make-icon.py draws a rounded square with three bullet lines; the other sizes come from tauri icon); viewed in full, no text, photo or personal data.",
+      "reviewed": true,
+      "sha256": "9FD5AE0F663A8169A0A3FCF84FF93D77A7CC3B6B43047BEB8841AC5E74C76C70"
+    },
+    {
+      "gitBlob": "88ffea86a08ee21ab387620414b5668b639a58b7",
+      "path": "app/orchestrator/src-tauri/icons/256x256.png",
+      "reason": "Reviewed 2026-11-17: app icon drawn in this repository (app/orchestrator/icon-source/make-icon.py draws a rounded square with three bullet lines; the other sizes come from tauri icon); viewed in full, no text, photo or personal data.",
+      "reviewed": true,
+      "sha256": "D16F4C5E7C3971BEA8B240255D0A66690AA042B5AD8974F5A9A402FB17FC6F4E"
+    },
+    {
+      "gitBlob": "2f2cce327cdeba1d6669b58c97e62fb56f4d97fe",
+      "path": "app/orchestrator/src-tauri/icons/32x32.png",
+      "reason": "Reviewed 2026-11-17: app icon drawn in this repository (app/orchestrator/icon-source/make-icon.py draws a rounded square with three bullet lines; the other sizes come from tauri icon); viewed in full, no text, photo or personal data.",
+      "reviewed": true,
+      "sha256": "393BF61BAB2AE7FF4E8BFD4C250637817D5C49F1054F6519B9164D26970BE80E"
+    },
+    {
+      "gitBlob": "5a003e35e31d89618b0fd88a5c8141a04836ca37",
+      "path": "app/orchestrator/src-tauri/icons/icon.icns",
+      "reason": "Reviewed 2026-11-17: app icon drawn in this repository (app/orchestrator/icon-source/make-icon.py draws a rounded square with three bullet lines; the other sizes come from tauri icon); viewed in full, no text, photo or personal data; the icns container was not rendered, its content is the same generated drawing.",
+      "reviewed": true,
+      "sha256": "57AD955B84724954B08E70DEFD5C4DF42C49311CC7C851EF4C92965A080BEB82"
+    },
+    {
+      "gitBlob": "ae306f6f0abfe119723980ad441cc97fd8b7c4d9",
+      "path": "app/orchestrator/src-tauri/icons/icon.ico",
+      "reason": "Reviewed 2026-11-17: app icon drawn in this repository (app/orchestrator/icon-source/make-icon.py draws a rounded square with three bullet lines; the other sizes come from tauri icon); viewed in full, no text, photo or personal data.",
+      "reviewed": true,
+      "sha256": "C815D48284330A51B545BD565233772D1297AFBCDD68E7624EE483D87BA7B80D"
+    },
+    {
+      "gitBlob": "f8e121c9955382dd0c61c73f1e629e114e84112a",
+      "path": "app/orchestrator/src-tauri/icons/icon.png",
+      "reason": "Reviewed 2026-11-17: app icon drawn in this repository (app/orchestrator/icon-source/make-icon.py draws a rounded square with three bullet lines; the other sizes come from tauri icon); viewed in full, no text, photo or personal data.",
+      "reviewed": true,
+      "sha256": "C91D12970E7B29CE8DC790D02FF8E74BC1D7ECBB72A593EE97510487EF60DB10"
+    },
+    {
       "gitBlob": "91f18cf5d7bdc99abab97c11930c80078049f349",
       "path": "docs/assets/orchestrator-directives.png",
       "reason": "Reviewed 2026-11-16: screenshot of the real orchestrator binary (app 0.1.0, SecondBrain 2.17.0) on the synthetic fixture; only neutral D:\\sb-shots paths and a test identity, no host ID, user name, email or token; PNG chunks IHDR, iCCP (standard profile), IDAT, IEND.",
@@ -341,6 +425,27 @@
       "reviewed": true,
       "sha256": "D29EDD8EBE2DE652B2FA0051EE18F1C1AD0704A4A72A692D121F0F974691B55B"
     },
+    {
+      "gitBlob": "6d641cabf24cbd80f78b8149a9ce7ad72af3ff9d",
+      "path": "docs/assets/orchestrator-decision.png",
+      "reason": "Reviewed 2026-11-17: screenshot of the real orchestrator binary (app 0.1.0, SecondBrain 2.17.0) on the synthetic fixture, waiting-decision dialog of the analysis of a task that cannot run alone; synthetic task and fixture question; only neutral D:\\sb-shots paths and a test identity, no real host ID, user name, email or token; viewed in full.",
+      "reviewed": true,
+      "sha256": "7EC35502BBA410201EA34004BF5A499903F3FF0B87EC3012E32E7F9EE2CCA89D"
+    },
+    {
+      "gitBlob": "065548b37a50b7129cf93f9ec38add638d2e5e62",
+      "path": "docs/assets/orchestrator-run.png",
+      "reason": "Reviewed 2026-11-17: screenshot of the real orchestrator binary (app 0.1.0, SecondBrain 2.17.0) on the synthetic fixture, Run step after a fixture run; the workstation ID in the run folder is replaced by the fixture host ID ws-0123456789abcdef in the page before the capture, so no real host ID appears; only neutral D:\\sb-shots paths and a test identity, no real host ID, user name, email or token; viewed in full.",
+      "reviewed": true,
+      "sha256": "D223D610528F15060CB8EE1C70A016B94CE7438CFAEF296020C1662013B6A5EE"
+    },
+    {
+      "gitBlob": "6cea8f82e677845798d9d193ebbdb402ad46e9c6",
+      "path": "docs/assets/orchestrator-settings.png",
+      "reason": "Reviewed 2026-11-17: screenshot of the real orchestrator binary (app 0.1.0, SecondBrain 2.17.0) on the synthetic fixture, Settings step with generic placeholder values (C:\\SecondBrain, the default PowerShell 7 path) typed in for the capture instead of the workstation values; only neutral D:\\sb-shots paths and a test identity, no real host ID, user name, email or token; viewed in full.",
+      "reviewed": true,
+      "sha256": "46E490399A366775588F8233B10870336850590F04E928C208120F5D9CDEFF3A"
+    }
   ],
   "ignoredReviews": [
     {
