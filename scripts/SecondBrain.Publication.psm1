@@ -142,6 +142,45 @@ function Set-SBPublicationHistoryPaths([string]$Root,[string[]]$Roots,$ObjectInf
     }
     !@($Entries.Values | Where-Object { !$_.Direct -and !$_.Paths.Count }).Count
 }
+function Get-SBPublicationLinkFindings {
+    param([string]$FullPath,[string]$Relative)
+    $findings=@()
+    $markdown=Read-SBText $FullPath
+    $markdown=[regex]::Replace($markdown,'(?ms)^```.*?^```[^\r\n]*$','')
+    $markdown=[regex]::Replace($markdown,'`[^`\r\n]*`','')
+    # #478: stored source versions are verbatim third-party documents; their relative links point into the original publication, not into this repository.
+    $verbatimSource=($Relative -match '^03-resources/authoritative-sources/entries/[^/]+/(versions|evidence)/')
+    foreach($match in $(if($verbatimSource){@()}else{[regex]::Matches($markdown,'!?\[[^\]]*\]\(([^)\s]+)\)')})){
+        $target=$match.Groups[1].Value
+        if($target -match '^(?:[a-z][a-z0-9+.-]*:|#)' ){continue}
+        $target=($target -split '[?#]',2)[0]
+        if($target -and !(Test-Path -LiteralPath (Join-Path (Split-Path $FullPath) ([Uri]::UnescapeDataString($target))))){$findings+=@{rule='broken-local-link';severity='error';path=$Relative;surface='working';reviewed=$false}}
+    }
+    $findings
+}
+function Get-SBPublicationStatusScan {
+    param([string]$Root,$IgnoredReviews)
+    $findings=@();$incomplete=@()
+    $status=Invoke-SBGit $Root @('status','--porcelain=v1','-z','--ignored=matching') 30000 -PreserveOutput
+    if($status.code -ne 0){$incomplete+=@{surface='ignored';reason='status-unavailable'}}
+    $dirty=$false;$renameSource=$false
+    foreach($line in $status.output -split "`0"){
+        if($renameSource){$renameSource=$false;continue}
+        if($line.StartsWith('!! ')){
+            $ignored=$line.Substring(3)
+            if($ignored -match '(^|/)(?:node_modules|bin|obj|build|dist|\.gradle|\.venv|__pycache__|test-results|backups?)(/|$)|(^|/)\.env(?:\.|$)|\.(?:bak|tmp)$'){
+                # Git-ignored build output never reaches a push; a policy ignoredReviews entry (exact path, reviewed, reason) records the review.
+                $ignoredPath=$ignored
+                $ignoredReviewed=[bool]@($IgnoredReviews|Where-Object {$_.path -ceq $ignoredPath -and $_.reviewed -and $_.reason}).Count
+                $findings+=@{rule='ignored-operational-residue';severity='review';path=$ignored;surface='ignored';reviewed=$ignoredReviewed}
+            }
+        }elseif($line){
+            $dirty=$true
+            $renameSource=$line.Substring(0,2) -match '[RC]'
+        }
+    }
+    @{findings=$findings;incomplete=$incomplete;dirty=$dirty}
+}
 function Test-SBPublication {
     param([string]$RepositoryPath,[string]$BrainRoot,[string]$PolicyPath,[ValidateRange(0,[int]::MaxValue)][int]$MaxHistoryBlobs=10000,[ValidateRange(0,[int]::MaxValue)][int]$MaxTextBytes=2097152,[switch]$Initial,
         [ValidatePattern('^(?:[0-9a-f]{40}|[0-9a-f]{64})$')][string[]]$PushObjectIds=@())
@@ -219,17 +258,7 @@ function Test-SBPublication {
                 else{if(!@($binaryReviews|Where-Object {$_.path -ceq $relative -and $_.gitBlob -eq $indexOid -and $_.reviewed -and $_.reason}).Count){$incomplete+=@{path=$relative;surface='index';reason='binary-or-size-limit'}}}
             }
             if($relative -match '\.md$' -and (Test-Path -LiteralPath $full -PathType Leaf)){
-                $markdown=Read-SBText $full
-                $markdown=[regex]::Replace($markdown,'(?ms)^```.*?^```[^\r\n]*$','')
-                $markdown=[regex]::Replace($markdown,'`[^`\r\n]*`','')
-                # #478: stored source versions are verbatim third-party documents; their relative links point into the original publication, not into this repository.
-                $verbatimSource=($relative -match '^03-resources/authoritative-sources/entries/[^/]+/(versions|evidence)/')
-                foreach($match in $(if($verbatimSource){@()}else{[regex]::Matches($markdown,'!?\[[^\]]*\]\(([^)\s]+)\)')})){
-                    $target=$match.Groups[1].Value
-                    if($target -match '^(?:[a-z][a-z0-9+.-]*:|#)' ){continue}
-                    $target=($target -split '[?#]',2)[0]
-                    if($target -and !(Test-Path -LiteralPath (Join-Path (Split-Path $full) ([Uri]::UnescapeDataString($target))))){$findings+=@{rule='broken-local-link';severity='error';path=$relative;surface='working';reviewed=$false}}
-                }
+                $findings+=@(Get-SBPublicationLinkFindings $full $relative)
             }
         }catch{$incomplete+=@{path=$relative;surface='working-or-index';reason=$_.Exception.GetType().Name}}
     }
@@ -320,24 +349,8 @@ function Test-SBPublication {
             }
         }
     }
-    $status=Invoke-SBGit $root @('status','--porcelain=v1','-z','--ignored=matching') 30000 -PreserveOutput
-    if($status.code -ne 0){$incomplete+=@{surface='ignored';reason='status-unavailable'}}
-    $dirty=$false;$renameSource=$false
-    foreach($line in $status.output -split "`0"){
-        if($renameSource){$renameSource=$false;continue}
-        if($line.StartsWith('!! ')){
-            $ignored=$line.Substring(3)
-            if($ignored -match '(^|/)(?:node_modules|bin|obj|build|dist|\.gradle|\.venv|__pycache__|test-results|backups?)(/|$)|(^|/)\.env(?:\.|$)|\.(?:bak|tmp)$'){
-                # Git-ignored build output never reaches a push; a policy ignoredReviews entry (exact path, reviewed, reason) records the review.
-                $ignoredPath=$ignored
-                $ignoredReviewed=[bool]@($ignoredReviews|Where-Object {$_.path -ceq $ignoredPath -and $_.reviewed -and $_.reason}).Count
-                $findings+=@{rule='ignored-operational-residue';severity='review';path=$ignored;surface='ignored';reviewed=$ignoredReviewed}
-            }
-        }elseif($line){
-            $dirty=$true
-            $renameSource=$line.Substring(0,2) -match '[RC]'
-        }
-    }
+    $statusScan=Get-SBPublicationStatusScan $root $ignoredReviews
+    $incomplete+=@($statusScan.incomplete);$findings+=@($statusScan.findings);$dirty=$statusScan.dirty
     $unresolved=@($findings|Where-Object {!$_.reviewed})
     
     if ($Initial -and $baselineFile -and $roots.Count -and !$unresolved.Count -and !$incomplete.Count) {

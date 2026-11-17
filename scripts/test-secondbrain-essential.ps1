@@ -1107,6 +1107,13 @@ if('audit2' -in $Groups){
     Put $policy (ConvertTo-SBJson @{schemaVersion=1;allowances=$reviews;binaryReviews=$sizeReviews;ignoredReviews=@(@{path='node_modules/';reviewed=$true;reason='synthetic build folder review'},@{path='dist/';reviewed=$true;reason='synthetic build folder review'})})
     $scan=Test-SBPublication -BrainRoot $brain -RepositoryPath $repo -PolicyPath $policy
     Check ($scan.ready -and @($scan.findings|Where-Object {$_.rule -eq 'ignored-operational-residue' -and $_.reviewed}).Count -eq 2) 'reviewed ignored build folders no longer block readiness'
+    # Characterization (#466): markdown link step. Missing relative targets are errors; URLs, anchors, code spans and fenced code are skipped.
+    $linkDoc=Join-Path $repo 'linkdoc.md'
+    Put $linkDoc ("[ok](README.md)`n[url](https://example.invalid/x)`n[anchor](#top)`n[gone](missing-target.md#part)`n![img](missing.png)`n``[code](nope.md)```n`n``````text`n[fenced](nope2.md)`n```````n")
+    $scan=Test-SBPublication -BrainRoot $brain -RepositoryPath $repo -PolicyPath $policy
+    $linkFindings=@($scan.findings|Where-Object {$_.rule -eq 'broken-local-link' -and $_.path -ceq 'linkdoc.md'})
+    Check ($linkFindings.Count -eq 2 -and !@($linkFindings|Where-Object {$_.severity -ne 'error' -or $_.surface -ne 'working' -or $_.reviewed}).Count) 'markdown link step reports only missing local targets'
+    Remove-Item -LiteralPath $linkDoc -Force
     [IO.File]::WriteAllText($excludeFile,$excludeBefore)
 }
 if('git-environment' -in $Groups){
