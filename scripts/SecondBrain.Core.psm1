@@ -42,6 +42,26 @@ function Get-SBScopeKey([string]$Repository) {
     if(!$Repository){return 'unscoped'}
     'r'+(Get-SBTextHash $Repository.ToLowerInvariant()).Substring(0,16).ToLowerInvariant()
 }
+function Get-SBDossierScope([string]$BrainRoot,[string[]]$Paths) {
+    # Scope key of the single repository dossier that holds every path (01-projects|02-areas/<dossier>/repository.json identity); '' when a path is
+    # outside a repository dossier or the paths belong to different ones, so brain-wide changes keep the global marker and lock.
+    $brainFull=[IO.Path]::GetFullPath($BrainRoot).TrimEnd('\','/')+[IO.Path]::DirectorySeparatorChar
+    $scopes=@{}
+    foreach($path in @($Paths|Where-Object {$_})){
+        $full=[IO.Path]::GetFullPath($path)
+        if(!$full.StartsWith($brainFull,[StringComparison]::OrdinalIgnoreCase)){return ''}
+        $parts=@($full.Substring($brainFull.Length) -split '[\\/]')
+        if($parts.Count -lt 3 -or $parts[0] -cnotin @('01-projects','02-areas')){return ''}
+        $dossier=Join-Path $brainFull ($parts[0]+[IO.Path]::DirectorySeparatorChar+$parts[1])
+        $meta=Join-Path $dossier 'repository.json'
+        if(![IO.File]::Exists($meta)){return ''}
+        $identity=try{[string](Read-SBJson $meta @{}).identity}catch{''}
+        if(!$identity){return ''}
+        $scopes[(Get-SBScopeKey $identity)]=$true
+    }
+    if($scopes.Count -ne 1){return ''}
+    @($scopes.Keys)[0]
+}
 function Get-SBScopeRoot([string]$BrainRoot,[string]$Scope) {
     if($Scope -cnotmatch '^(unscoped|r[a-f0-9]{16})$'){throw (New-SBError 'core.scope.invalid')}
     Join-Path $BrainRoot ('.runtime/access/scopes/'+$Scope)
@@ -1406,6 +1426,7 @@ Export-ModuleMember -Function @(
     'Get-SBTransactionMarkerPaths',
     'Get-SBTransactionMarkerPath',
     'Get-SBScopeKey',
+    'Get-SBDossierScope',
     'Get-SBScopeRoot',
     'Get-SBScopedMarkerPaths',
     'Read-SBText',

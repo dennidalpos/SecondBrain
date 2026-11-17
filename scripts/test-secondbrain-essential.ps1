@@ -856,7 +856,7 @@ if('pending' -in $Groups){
     $receipt=@(Get-SBPendingWrites $brain|Where-Object id -eq $first.id)[0].receipt
     Check ($receipt.state -eq 'applied' -and $receipt.result.taskId -eq 'T-1') 'receipt identifies atomically applied task'
     # #473: recovery scoped to a dossier leaves another dossier's request untouched; without a scope the whole queue is still examined.
-    $otherQueue=(& (Get-Module SecondBrain.Pending) {param($root) Get-SBPendingPaths $root} $brain)
+    $otherQueue=(& (Get-Module SecondBrain.Pending) {param($root) Get-SBPendingPaths $root 'github.com/test/other'} $brain)
     $otherId=[guid]::NewGuid().ToString('N');$otherRequest=Join-Path $otherQueue.queue ($otherId+'.json')
     Put $otherRequest ('{"schemaVersion":1,"id":"'+$otherId+'","repository":"github.com/test/other","operation":"file.append","arguments":{},"expected":{},"createdAt":"2026-11-11T00:00:00.0000000Z","origin":{},"sha256":"x"}')
     $otherHash=Get-SBFileHash $otherRequest
@@ -868,7 +868,7 @@ if('pending' -in $Groups){
     Check ((Complete-SBPendingSubmission $legacy $cfg).applied) 'existing task.status request remains supported'
     $compatible=New-SBPendingWrite -BrainRoot $brain -Repository $identity -Operation task.update -Arguments @{TaskId='T-1';Status='todo'} -Config $cfg
     $legacyQueue=Split-Path $compatible.path
-    Check ($compatible.request.operation -ceq 'task.status' -and (Split-Path $legacyQueue -Leaf) -ceq 'pending-writes') 'status-only producer preserves the legacy wire format and queue'
+    Check ($compatible.request.operation -ceq 'task.status' -and (Split-Path (Split-Path $legacyQueue) -Leaf) -ceq 'pending-writes' -and (Split-Path $legacyQueue -Leaf) -ceq (Get-SBScopeKey $identity)) 'status-only producer preserves the legacy wire format and writes into its repository queue'
     Check ((Complete-SBPendingSubmission $compatible $cfg).applied) 'compatible status request applies'
 
     $graphPath=if(@((Read-SBJson $trackerPath $null).tasks|Where-Object id -eq 'T-2').Count){$trackerPath}else{Join-Path $dossier 'history/tracker-archive.json'}

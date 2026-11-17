@@ -2,7 +2,23 @@
 
 Formato [Keep a Changelog](https://keepachangelog.com/it-IT/1.1.0/). La numerazione segue il file `VERSION`. Questo registro cambia solo quando accetti un cambio di versione: vedi [Cambiare versione](docs/uso-quotidiano.md).
 
-> Versione corrente: **2.18.0**, numerazione reimpostata il 2026-11-04 con le funzionalità attuali conservate. Le sezioni seguenti mantengono la cronologia dei rilasci precedenti.
+> Versione corrente: **2.19.0**, numerazione reimpostata il 2026-11-04 con le funzionalità attuali conservate. Le sezioni seguenti mantengono la cronologia dei rilasci precedenti.
+
+## [2.19.0] - 2026-11-18
+
+Writes are separated per repository: locks, transactions, recovery, the write queue and exclusive sessions no longer couple one repository to another.
+
+### Added
+- `scripts/migrate-pending-queue.ps1`: moves the write queue to one folder per repository (preview, `-Apply` under the global lock with SHA-256 verification and a manifest, `-Rollback <manifest>`).
+- `Get-SBDossierScope`: the scope of the repository dossier that holds a set of paths.
+- `access.ps1 -Status` lists active owners with their scope and `-Queue` lists the global queue and every repository queue.
+
+### Changed
+- Write queue layout: requests, receipts and retired requests live in `pending-writes/<scope>/`, `pending-receipts/<scope>/` and `pending-discarded/<scope>/`. A request left in the old flat folders stops the scan with `pending.layout.legacy`; a list, flush or discard of one repository never reads another's folder. Agents running older code do not see the new layout, so update every agent and workstation before relying on it.
+- PARA transactions take the marker of the repository dossier that holds all their paths; `recover.ps1` recovers such a transaction under that dossier's lock; `Read-SBConfiguration -Scope` ignores another dossier's interrupted transaction.
+- `knowledge.ps1 -Apply|-SetLifecycle|-DiscardPending` take the lock of the repository they act on; `-DiscardPending` acts on the repository that owns the request.
+- `access.ps1 -Start -Mode Write -Exclusive -Repository <managed identity>` holds only that repository's lock.
+- A queued `task.status`/`task.update` whose task already shows the requested status, reason, priority or execution is an applied no-op instead of a conflict.
 
 ## [2.18.0] - 2026-11-17
 

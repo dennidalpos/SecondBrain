@@ -53,7 +53,8 @@ function Get-SBLockWaitMs($Config,[int]$WaitMs=-1) {
     if($Config -is [Collections.IDictionary] -and $Config.ContainsKey('lockWaitMs')){return [int]$Config.lockWaitMs}
     60000
 }
-function Read-SBConfiguration([string]$ConfigPath,[switch]$AllowPendingTransaction,[int]$MigrationDepth=0,[switch]$ReadOnly,[string]$BrainRoot) {
+function Read-SBConfiguration([string]$ConfigPath,[switch]$AllowPendingTransaction,[int]$MigrationDepth=0,[switch]$ReadOnly,[string]$BrainRoot,[string]$Scope) {
+    # -Scope: the caller writes one repository dossier only; an interrupted transaction of another dossier no longer blocks it (a global marker still does).
     $brain = if($BrainRoot){[IO.Path]::GetFullPath($BrainRoot)}else{(Get-SBBrainRootPath)}
     if($brain.StartsWith('\\') -and ![IO.Directory]::Exists($brain)){throw (New-SBError 'access.brain.unreachable' @($brain))}
     Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Host.psm1')
@@ -69,7 +70,7 @@ function Read-SBConfiguration([string]$ConfigPath,[switch]$AllowPendingTransacti
     if($MigrationDepth -gt 3){throw (New-SBError 'access.config.chain')}
     if($local -and $local.ContainsKey('migratedTo')){
         $target=Assert-SBCentralDataPath $brain $local.migratedTo
-        return Read-SBConfiguration $target -AllowPendingTransaction:$AllowPendingTransaction -MigrationDepth ($MigrationDepth+1) -ReadOnly:$ReadOnly -BrainRoot $brain
+        return Read-SBConfiguration $target -AllowPendingTransaction:$AllowPendingTransaction -MigrationDepth ($MigrationDepth+1) -ReadOnly:$ReadOnly -BrainRoot $brain -Scope $Scope
     }
     $shared = Read-SBJson (Join-Path $brain 'config/shared.json') $null
     if($local -and $local.schemaVersion -eq 1 -and $local.mode -eq 'portable'){
@@ -104,7 +105,7 @@ function Read-SBConfiguration([string]$ConfigPath,[switch]$AllowPendingTransacti
             if(($wait -isnot [int] -and $wait -isnot [long]) -or $wait -lt 0 -or $wait -gt 600){throw (New-SBError 'access.shared.lockwait')}
             $local.lockWaitMs=[int]$wait*1000
         }
-        $pending=Get-SBPendingTransaction $brain
+        $pending=Get-SBPendingTransaction $brain $Scope
         if($pending -and !$AllowPendingTransaction){
             # Readers continue with a warning: data may remain in an intermediate state until the manifest is recovered.
             if(!$ReadOnly){throw (Format-SBPendingTransaction $pending)}
@@ -247,16 +248,24 @@ function Close-SBWriterLock($Writer) {
     if ($gate) { $gate.Dispose() }
 }
 function Get-SBQueueStatus($Config, [switch]$Purge) {
-    # Read-only (-Purge removes orphan tickets): position 1 = next writer.
-    $root = Join-Path $Config.coordinationRoot 'queue'
-    $position = 0
-    foreach ($name in @(Get-SBQueueTicketNames $root)) {
-        $meta = Read-SBJson (Join-Path $root ($name+'.json')) @{}
-        $alive = Test-SBQueueTicketAlive (Join-Path $root ($name+'.lease'))
-        $entry = @{} + $meta
-        $entry.ticket = $name
-        if ($alive) { $position++; $entry.state = 'waiting'; $entry.position = $position } else { $entry.state = 'orphan'; if ($Purge) { Remove-SBQueueTicketFiles $root $name } }
-        $entry
+    # Read-only (-Purge removes orphan tickets): position 1 = next writer, counted inside each queue (the global one and one per dossier scope).
+    $roots = @(@{scope='';root=(Join-Path $Config.coordinationRoot 'queue')})
+    $scopesRoot = Join-Path $Config.coordinationRoot 'scopes'
+    if (Test-Path -LiteralPath $scopesRoot) {
+        foreach ($dir in @(Get-ChildItem -LiteralPath $scopesRoot -Directory | Where-Object { $_.Name -cmatch '^(unscoped|r[a-f0-9]{16})$' })) { $roots += @{scope=$dir.Name;root=(Join-Path $dir.FullName 'queue')} }
+    }
+    foreach ($item in $roots) {
+        $root = $item.root
+        $position = 0
+        foreach ($name in @(Get-SBQueueTicketNames $root)) {
+            $meta = Read-SBJson (Join-Path $root ($name+'.json')) @{}
+            $alive = Test-SBQueueTicketAlive (Join-Path $root ($name+'.lease'))
+            $entry = @{} + $meta
+            $entry.ticket = $name
+            $entry.scope = $item.scope
+            if ($alive) { $position++; $entry.state = 'waiting'; $entry.position = $position } else { $entry.state = 'orphan'; if ($Purge) { Remove-SBQueueTicketFiles $root $name } }
+            $entry
+        }
     }
 }
 function Write-SBReadWarnings($Operation, $Config) {
@@ -298,12 +307,20 @@ function Get-SBAccessStatus($Config, [switch]$Repair) {
         }
         $entry
     }
-    $owner=Read-SBJson (Join-Path $Config.coordinationRoot 'operation-owner.json') $null
-    if($owner){
-        $probe=$null
-        try{$probe=[IO.File]::Open((Join-Path $Config.coordinationRoot 'writer.lock'),[IO.FileMode]::Open,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None)}
-        catch [IO.IOException]{if(($_.Exception.GetBaseException().HResult -band 0xffff) -in @(32,33)){$owner.status='active';$owner}}
-        finally{if($probe){$probe.Dispose()}}
+    # Active writers of the global lock and of every dossier scope; a scoped owner carries its scope key.
+    $ownerRoots=@(@{scope='';root=$Config.coordinationRoot})
+    $scopesRoot=Join-Path $Config.coordinationRoot 'scopes'
+    if(Test-Path -LiteralPath $scopesRoot){
+        foreach($dir in @(Get-ChildItem -LiteralPath $scopesRoot -Directory|Where-Object {$_.Name -cmatch '^(unscoped|r[a-f0-9]{16})$'})){$ownerRoots+=@{scope=$dir.Name;root=$dir.FullName}}
+    }
+    foreach($item in $ownerRoots){
+        $owner=Read-SBJson (Join-Path $item.root 'operation-owner.json') $null
+        if($owner){
+            $probe=$null
+            try{$probe=[IO.File]::Open((Join-Path $item.root 'writer.lock'),[IO.FileMode]::Open,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None)}
+            catch [IO.IOException]{if(($_.Exception.GetBaseException().HResult -band 0xffff) -in @(32,33)){$owner.status='active';$owner.scope=$item.scope;$owner}}
+            finally{if($probe){$probe.Dispose()}}
+        }
     }
 }
 
@@ -369,7 +386,7 @@ function Enter-SBOperation($Config, [string]$SessionId, [switch]$ReadOnly, [int]
         $writerPath = Join-Path $Config.coordinationRoot 'writer.lock'
         if ($ReadOnly) {
             # Reads take no blocking locks (avoiding writer starvation): report an active writer or pending transaction as a warning.
-            if ($Config -is [Collections.IDictionary] -and $Config.ContainsKey('brainRoot')) { $result.pendingTransaction = Get-SBPendingTransaction $Config.brainRoot }
+            if ($Config -is [Collections.IDictionary] -and $Config.ContainsKey('brainRoot')) { $result.pendingTransaction = Get-SBPendingTransaction $Config.brainRoot $Scope }
             if ($SessionId) {
                 $session = Assert-SBSession $Config $SessionId -AllowRead
                 if (($session.mode -eq 'Read' -or ($session.ContainsKey('exclusive') -and !$session.exclusive)) -and (Test-Path -LiteralPath $writerPath)) {
@@ -386,6 +403,8 @@ function Enter-SBOperation($Config, [string]$SessionId, [switch]$ReadOnly, [int]
                 $session=Assert-SBSession $Config $SessionId
                 # Old running sessions held writer.lock; preserve their contract until End.
                 $exclusiveSession=(!$session.ContainsKey('exclusive') -or [bool]$session.exclusive)
+                # A session that holds one repository's lock covers only that repository: any other scope, and the global one, locks normally.
+                if($exclusiveSession -and $session.ContainsKey('scope') -and $session.scope -and $session.scope -cne $Scope){$exclusiveSession=$false}
             }
             $scopeRoot = Get-SBCoordinationScopeRoot $Config $Scope
             if ($Scope) {
@@ -475,6 +494,7 @@ Export-ModuleMember -Function @(
     'Open-SBWriterLock',
     'Close-SBWriterLock',
     'Get-SBQueueStatus',
+    'Get-SBCoordinationScopeRoot',
     'Write-SBReadWarnings',
     'Get-SBOperationOwnerText',
     'Get-SBAccessStatus',

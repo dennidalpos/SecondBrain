@@ -73,7 +73,20 @@ $brain=(Get-SBBrainRootPath);$lock=$null
 try{
     $bufferedWrite=($UpdateTaskId -or $NewTask -or $SaveFile -or $AppendFile)
     $readOnly=($bufferedWrite -or $UpdateTasksFile -or (!$Apply -and !$SetLifecycle -and !$DiscardPending))
-    $config=Read-SBConfiguration $ConfigPath -ReadOnly:$readOnly;$lock=Enter-SBOperation $config $SessionId -ReadOnly:$readOnly
+    # Strict per-repository separation: a write on one repository takes that dossier's own lock and ignores another dossier's interrupted transaction.
+    # Brain-wide writes (-All, -AllDossiers, -Customer) and writes whose repository cannot be resolved keep the global lock.
+    $writeScope='';$scopeRepository=$null
+    if(!$readOnly -and !$All -and !$AllDossiers -and !$Customer){
+        $probe=Read-SBConfiguration $ConfigPath -ReadOnly
+        # A discard acts on the repository that owns the request, wherever the command runs; every other write acts on the working repository.
+        $scopeRepository=if($DiscardPending){[string](@(Get-SBPendingWrites $brain|Where-Object id -ceq $DiscardPending|ForEach-Object repository)|Select-Object -First 1)}
+            elseif($Repository){$Repository}else{try{Resolve-SBWorkingRepository $CheckoutPath @($probe.bindings)}catch{$null}}
+        if($Dossier){
+            $scopeDossier=if([IO.Path]::IsPathRooted($Dossier)){$Dossier}else{Join-Path $brain $Dossier}
+            $writeScope=Get-SBDossierScope $brain @((Join-Path $scopeDossier 'repository.json'))
+        }elseif($scopeRepository){$writeScope=Get-SBScopeKey $scopeRepository}
+    }
+    $config=Read-SBConfiguration $ConfigPath -ReadOnly:$readOnly -Scope $writeScope;$lock=Enter-SBOperation $config $SessionId -ReadOnly:$readOnly -Scope $writeScope
     if($readOnly){Write-SBReadWarnings $lock $config}
     $pendingResult=$null
     if($NoRecovery -and ($bufferedWrite -or $UpdateTasksFile -or $Apply -or $SetLifecycle -or $FlushPending -or $DiscardPending)){throw (New-SBError 'knowledgecli.params.incompatible')}
@@ -164,7 +177,7 @@ try{
             $result=[ordered]@{total=$result.Count;states=$counts;next=(Get-SBMessage 'knowledgecli.pending.summary.next')}
         }
     }
-    elseif($DiscardPending){$result=Move-SBPendingConflict -BrainRoot $brain -Id $DiscardPending}
+    elseif($DiscardPending){$result=Move-SBPendingConflict -BrainRoot $brain -Id $DiscardPending -Repository $scopeRepository}
     elseif($SaveFile -or $AppendFile){
         $working=Resolve-SBWorkingRepository $CheckoutPath @($config.bindings)
         if(!$working){throw (New-SBError 'knowledgecli.repository.checkout')}

@@ -199,6 +199,24 @@ try {
         $markerA=Get-SBTransactionMarkerPath $brain $a
         [IO.File]::WriteAllText($markerA,(ConvertTo-SBJson @{manifest=(Join-Path $backups 'x/manifest.json');brainRoot=$brain;scope=$a}))
         Assert-Conc ($null -ne (Get-SBPendingTransaction $brain $a) -and $null -eq (Get-SBPendingTransaction $brain $b) -and $null -ne (Get-SBPendingTransaction $brain)) 'scoped locks: an interrupted marker blocks its own dossier and shows to global callers, not to other dossiers'
+        [IO.File]::Delete($markerA)
+
+        # The scope follows the dossier of the paths: no caller has to pass -Scope for a single-repository change.
+        $dossiers=@{};$dossierFiles=@{}
+        foreach($pair in @(@('RepoA','github.com/acme/repo-a',$a),@('RepoB','github.com/acme/repo-b',$b))){
+            $d=Join-Path $brain ('01-projects/'+$pair[0]);[IO.Directory]::CreateDirectory($d)|Out-Null
+            [IO.File]::WriteAllText((Join-Path $d 'repository.json'),(ConvertTo-SBJson @{schemaVersion=1;identity=$pair[1]}))
+            $f=Join-Path $d 'tracker.json';[IO.File]::WriteAllText($f,"base`n");$dossiers[$pair[2]]=$d;$dossierFiles[$pair[2]]=$f
+        }
+        Assert-Conc ((Get-SBDossierScope $brain @($dossierFiles[$a],(Join-Path $dossiers[$a] 'history/x.md'))) -ceq $a) 'dossier scope: every path of one repository dossier maps to its scope key'
+        Assert-Conc ((Get-SBDossierScope $brain @($dossierFiles[$a],$dossierFiles[$b])) -ceq '') 'dossier scope: paths of two repositories keep the global marker'
+        Assert-Conc ((Get-SBDossierScope $brain @((Join-Path $brain '03-resources/x.md'))) -ceq '' -and (Get-SBDossierScope $brain @((Join-Path $dir 'outside.md'))) -ceq '') 'dossier scope: paths outside a repository dossier keep the global marker'
+        $inferred=Invoke-Race 2 {param($i,$x)
+            $key=$x[$i-1];$op=Enter-SBOperation $x[2] $null -WaitMs 5000 -LockOnly -Scope $key
+            try{Start-Sleep -Milliseconds 300;Invoke-SBParaTransaction -Operations @(@{path=$x[3][$key];expected=(Get-SBFileHash $x[3][$key]);bytes=[Text.Encoding]::UTF8.GetBytes("inferred-$i`n")}) -BackupRoot $x[4] -BrainRoot $x[5]|Out-Null}
+            finally{Exit-SBOperation $op}
+        } @($a,$b,$config,$dossierFiles,$backups,$brain)
+        Assert-Conc (@($inferred|Where-Object {!$_.ok}).Count -eq 0 -and !(Test-Path -LiteralPath (Join-Path $coordination 'para-transaction.json'))) 'dossier scope: two repositories integrate in parallel without -Scope and never touch the global marker' (@($inferred|Where-Object {!$_.ok}|ForEach-Object message) -join '; ')
     }
 
     Invoke-Case 'para-transaction' (Join-Path $root 'para') {

@@ -46,7 +46,9 @@ if($ConfigPath){
     $config.brainRoot=$brain;$config.coordinationRoot=Join-Path $brain '.runtime/access';$config.sessionTimeoutMinutes=30
     $backupRoot=Split-Path $manifestPath
 }
-$lock=Enter-SBOperation $config $SessionId -ReadOnly:(!$Apply)
+# A transaction confined to one repository dossier is recovered under that dossier's own lock, so the other repositories keep writing.
+$recoverScope=Get-SBDossierScope $brain @($journal.records|ForEach-Object {Convert-SBBrainAlias $_.path $journal.brainRoot $brain})
+$lock=Enter-SBOperation $config $SessionId -ReadOnly:(!$Apply) -Scope $recoverScope
 try{
     $changes=@()
     $boundary=$brain.TrimEnd('\','/')+[IO.Path]::DirectorySeparatorChar

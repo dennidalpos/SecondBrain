@@ -208,7 +208,8 @@ function Submit-SBMcpWrite {
     $ctx=Get-SBMcpWriteContext $BrainRoot $ConfigPath $Repository $CheckoutPath $RequestId
     $receipt=Read-SBMcpWriteApproval $ctx $PlanHash;$plan=$receipt.plan
     if($plan.repository -cne $Repository -or $plan.requestId -cne $RequestId){throw (New-SBError 'mcpwrite.approval')}
-    $queueDir=if($plan.pending.operation -eq 'task.update'){'.runtime/access/pending-writes/task-update/'}else{'.runtime/access/pending-writes/'}
+    $queueScope=Get-SBScopeKey $Repository
+    $queueDir=if($plan.pending.operation -eq 'task.update'){".runtime/access/pending-writes/$queueScope/task-update/"}else{".runtime/access/pending-writes/$queueScope/"}
     $queuedPath=Join-Path $BrainRoot ($queueDir+$RequestId+'.json')
     Assert-SBPlainPath $queuedPath
     $queued=[IO.File]::Exists($queuedPath)

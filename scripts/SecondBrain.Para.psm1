@@ -179,6 +179,9 @@ function Invoke-SBParaTransaction([object[]]$Operations,[string]$BackupRoot,[str
     try {
     $backupFull=[IO.Path]::GetFullPath($BackupRoot)
     $brainFull=[IO.Path]::GetFullPath($BrainRoot).TrimEnd('\','/')+[IO.Path]::DirectorySeparatorChar
+    # Strict per-repository separation: operations that all live in one repository dossier keep that dossier's own marker, so a transaction
+    # (or an interrupted one) on this repository never blocks another. A recovery replays under the marker that names its manifest.
+    if(!$Scope -and !$RecoveryManifest){$Scope=Get-SBDossierScope $BrainRoot @($Operations|ForEach-Object {$_.path})}
     if($backupFull.StartsWith($brainFull,[StringComparison]::OrdinalIgnoreCase)){
         [void](Assert-SBCentralDataPath $BrainRoot $backupFull)
     }

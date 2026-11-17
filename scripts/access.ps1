@@ -105,10 +105,16 @@ $path=Join-Path $sessions ($SessionId+'.json')
 $metadata=@{sessionId=$SessionId;user=[Security.Principal.WindowsIdentity]::GetCurrent().Name;computer=[Environment]::MachineName;processId=$PID;client=$Client;repository=$Repository;path=[IO.Path]::GetFullPath($TargetPath);mode=$Mode;exclusive=[bool]$Exclusive;workstationId=$config.workstationId;startedAt=(Get-SBNow).ToString('o');heartbeat=(Get-SBNow).ToString('o');status='active'}
 try {
     if($Mode -eq 'Write' -and $Exclusive) {
-        $writerPath=Join-Path $config.coordinationRoot 'writer.lock';Assert-SBPlainPath $writerPath
+        # An exclusive session that names a managed repository (-Repository <identity>) holds only that repository's lock; any other name,
+        # or none, keeps the brain-wide lock, as before.
+        $holdScope=''
+        if(@($config.bindings|Where-Object {$_.identity -ceq $Repository}).Count){$holdScope=Get-SBScopeKey $Repository;$metadata.scope=$holdScope}
+        $writerPath=Join-Path (Get-SBCoordinationScopeRoot $config $holdScope) 'writer.lock'
+        if($holdScope){[IO.Directory]::CreateDirectory((Split-Path $writerPath))|Out-Null}
+        Assert-SBPlainPath $writerPath
         $waitMs=Get-SBLockWaitMs $config
-        $onWait={ [Console]::Error.WriteLine('SecondBrain: scrittura occupata, attesa fino a '+[int]($waitMs/1000)+' s. Titolare: '+(Get-SBOperationOwnerText $config)) }.GetNewClosure()
-        $writer=Open-SBWriterLock $config $writerPath $waitMs $onWait
+        $onWait={ [Console]::Error.WriteLine('SecondBrain: scrittura occupata, attesa fino a '+[int]($waitMs/1000)+' s. Titolare: '+(Get-SBOperationOwnerText $config $holdScope)) }.GetNewClosure()
+        $writer=Open-SBWriterLock $config $writerPath $waitMs $onWait $holdScope
     }
     $lease=[IO.File]::Open((Join-Path $sessions ($SessionId+'.lease')),[IO.FileMode]::CreateNew,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None)
     $expires=(Get-SBNow).AddMinutes($config.sessionTimeoutMinutes)

@@ -177,6 +177,14 @@ try {
     Assert-Pending ($conflicted.state -eq 'conflict' -and !$conflicted.applied -and (Read-SBJson $trackerPath $null).tasks[0].status -eq 'blocked' -and (Test-Path -LiteralPath $conflict.path)) 'same-task conflict preserves the central value and request'
     $conflictReceipt=(Get-SBPendingWrites $brain|Where-Object id -eq $conflict.id).receipt
     Assert-Pending ($conflictReceipt.state -eq 'conflict' -and $conflictReceipt.error -eq 'pending.conflict' -and $conflictReceipt.result.Count -eq 0 -and $conflictReceipt.repository -eq $identity) '#466: conflict receipt carries pending.conflict and an empty result'
+    # Duplicate from another writer: the task already shows the requested status, so the stale hash is an idempotent no-op, not a conflict.
+    $duplicate=New-SBPendingWrite -BrainRoot $brain -Repository $identity -Operation task.status -Arguments @{TaskId='T-2';Status='in_progress'} -Config $cfg
+    [void](Set-SBTrackerTaskStatus -BrainRoot $brain -Identity $identity -WorkingRepository $identity -TaskId T-2 -Status in_progress -BackupRoot $cfg.backupRoot)
+    $trackerBeforeDuplicate=Get-SBFileHash $trackerPath
+    $duplicated=Complete-SBPendingSubmission $duplicate $cfg
+    $duplicateReceipt=(Get-SBPendingWrites $brain|Where-Object id -eq $duplicate.id).receipt
+    Assert-Pending ($duplicated.applied -and $duplicateReceipt.state -eq 'applied' -and $duplicateReceipt.result.noop -and (Get-SBFileHash $trackerPath) -eq $trackerBeforeDuplicate) 'a request whose change another writer already applied is a terminal no-op and leaves the tracker untouched'
+    [void](Set-SBTrackerTaskStatus -BrainRoot $brain -Identity $identity -WorkingRepository $identity -TaskId T-2 -Status blocked -BackupRoot $cfg.backupRoot)
     # #563: a task.new whose dependency can never resolve is terminal (invalid), not retried forever, and -DiscardPending retires it.
     $orphanNew=New-SBPendingWrite -BrainRoot $brain -Repository $identity -Operation task.new -Arguments @{Title='Orphan dependency';Id='';Description='';Priority='P3';Execution='autonomous';DependsOn=@('#9999');Acceptance=@('never applied');ProvenanceReference='context.md';ProvenancePointer='test'} -Config $cfg
     $trackerBeforeOrphan=Get-SBFileHash $trackerPath
@@ -462,13 +470,13 @@ try {
     Assert-Pending ($discarded.state -eq 'discarded' -and $discarded.previousState -eq 'conflict' -and (Get-SBFileHash (Join-Path $discarded.archive ($discardId+'.json'))) -eq $discardBefore -and (Test-Path -LiteralPath (Join-Path $discarded.archive 'discarded.json'))) 'discard archives a conflict with its original bytes and a note'
     Assert-Pending (@(Get-SBPendingWrites $brain|Where-Object id -eq $discardId).Count -eq 0) 'a discarded conflict leaves the queue'
     $scanProbe=Join-Path $fixture 'scan-probe'
-    foreach($suffix in @('0','1')){Put-Pending (Join-Path $scanProbe ('.runtime/access/pending-writes/'+('f'*31)+$suffix+'.json')) '{}'}
+    foreach($suffix in @('0','1')){Put-Pending (Join-Path $scanProbe ('.runtime/access/pending-writes/unscoped/'+('f'*31)+$suffix+'.json')) '{}'}
     $junctionTarget=Join-Path $fixture 'receipt-junction-target';[IO.Directory]::CreateDirectory($junctionTarget)|Out-Null
     $seen=0;$rejected=$false
     try{
         Get-SBPendingWrites $scanProbe | ForEach-Object {
             $seen++
-            if($seen -eq 1){New-Item -ItemType Junction -Path (Join-Path $scanProbe '.runtime/access/pending-receipts') -Target $junctionTarget|Out-Null}
+            if($seen -eq 1){[IO.Directory]::CreateDirectory((Join-Path $scanProbe '.runtime/access/pending-receipts'))|Out-Null;New-Item -ItemType Junction -Path (Join-Path $scanProbe '.runtime/access/pending-receipts/unscoped') -Target $junctionTarget|Out-Null}
         }
     }catch{$rejected=(Test-SBError $_.Exception 'core.reparse.unwritable')}
     Assert-Pending ($rejected -and $seen -eq 1) 'scan-local ancestor reuse still rejects a receipt directory replaced by a junction between items'
@@ -515,6 +523,41 @@ try {
     $purged=Invoke-PendingCli 'access.ps1' @('-Status','-Purge')
     Assert-Pending ($purged.code -eq 0 -and (Read-SBJson (Join-Path $sessionRoot ($interruptedId+'.json')) $null).status -eq 'abandoned') '-Purge persists abandonment of the interrupted session'
     Put-Pending $sharedPath (ConvertTo-SBJson $sharedBase)
+    # Queue migration: the old flat layout stops the scan loudly, then moves per repository with a manifest and an undo.
+    $mAccess=Join-Path $brain '.runtime/access';$mScope=Get-SBScopeKey $identity
+    $mId=[guid]::NewGuid().ToString('N');$mBad=[guid]::NewGuid().ToString('N');$mGone=[guid]::NewGuid().ToString('N')
+    $mRequest=Join-Path $mAccess ('pending-writes/'+$mId+'.json')
+    Put-Pending $mRequest ('{"schemaVersion":1,"id":"'+$mId+'","repository":"'+$identity+'","operation":"file.append","arguments":{},"expected":{},"createdAt":"2026-11-11T00:00:00.0000000Z","origin":{},"sha256":"x"}')
+    Put-Pending (Join-Path $mAccess ('pending-writes/'+$mBad+'.json')) 'not json'
+    Put-Pending (Join-Path $mAccess ('pending-receipts/'+$mId+'.json')) ('{"id":"'+$mId+'","repository":"'+$identity+'"}')
+    Put-Pending (Join-Path $mAccess ('pending-discarded/'+$mGone+'/discarded.json')) ('{"repository":"'+$identity+'"}')
+    $legacyRefused=$false;try{[void]@(Get-SBPendingWrites $brain)}catch{$legacyRefused=(Test-SBError $_.Exception 'pending.layout.legacy')}
+    Assert-Pending $legacyRefused 'a request left in the old flat queue stops the scan with pending.layout.legacy'
+    $mHash=Get-SBFileHash $mRequest
+    $mPreview=Invoke-PendingCli 'migrate-pending-queue.ps1' @()
+    Assert-Pending ($mPreview.code -eq 0 -and $mPreview.data.moves -eq 4 -and !$mPreview.data.applied -and (Test-Path -LiteralPath $mRequest)) 'queue migration previews every move and changes nothing'
+    $mApply=Invoke-PendingCli 'migrate-pending-queue.ps1' @('-Apply')
+    $mMoved=Join-Path $mAccess ('pending-writes/'+$mScope+'/'+$mId+'.json')
+    Assert-Pending ($mApply.code -eq 0 -and $mApply.data.manifest -and !(Test-Path -LiteralPath $mRequest) -and (Get-SBFileHash $mMoved) -eq $mHash -and (Test-Path -LiteralPath (Join-Path $mAccess ('pending-writes/unscoped/'+$mBad+'.json'))) -and (Test-Path -LiteralPath (Join-Path $mAccess ('pending-receipts/'+$mScope+'/'+$mId+'.json'))) -and (Test-Path -LiteralPath (Join-Path $mAccess ('pending-discarded/'+$mScope+'/'+$mGone+'/discarded.json')))) 'queue migration moves requests, receipts and retired requests into their repository folders with the same bytes'
+    $mScanned=$true;try{[void]@(Get-SBPendingWrites $brain)}catch{$mScanned=$false}
+    Assert-Pending $mScanned 'after the migration the scan no longer reports the legacy layout'
+    $mUndo=Invoke-PendingCli 'migrate-pending-queue.ps1' @('-Rollback',[string]$mApply.data.manifest,'-Apply')
+    Assert-Pending ($mUndo.code -eq 0 -and (Get-SBFileHash $mRequest) -eq $mHash -and !(Test-Path -LiteralPath $mMoved)) 'queue migration can be undone from its manifest'
+    $mAgain=Invoke-PendingCli 'migrate-pending-queue.ps1' @('-Apply')
+    Assert-Pending ($mAgain.code -eq 0 -and (Get-SBFileHash $mMoved) -eq $mHash) 'queue migration can be applied again after the undo'
+    # An exclusive session that names a managed repository holds only that repository's lock.
+    $heldScope=Invoke-PendingCli 'access.ps1' @('-Start','-Mode','Write','-Exclusive','-Repository',$identity,'-Client','scoped-hold','-WaitSeconds','0')
+    $heldId=$heldScope.data.sessionId;if($heldId){$sessions+=$heldId}
+    Assert-Pending ($heldScope.code -eq 0 -and $heldScope.data.scope -ceq $mScope) 'an exclusive session naming a managed repository records that repository scope'
+    $otherScope=Get-SBScopeKey 'github.com/test/other'
+    $otherWriter=$null;try{$otherWriter=Enter-SBOperation $cfg -WaitMs 300 -LockOnly -Scope $otherScope}catch{Write-Verbose $_.Exception.Message}
+    $ownBusy=$false;try{$own=Enter-SBOperation $cfg -WaitMs 300 -LockOnly -Scope $mScope;Exit-SBOperation $own}catch{$ownBusy=(Test-SBBusyError $_)}
+    $globalBusy=$false;try{$global=Enter-SBOperation $cfg -WaitMs 300 -LockOnly;Exit-SBOperation $global}catch{$globalBusy=(Test-SBBusyError $_)}
+    if($otherWriter){Exit-SBOperation $otherWriter}
+    Assert-Pending ([bool]$otherWriter -and $ownBusy -and $globalBusy) 'a repository exclusive session lets another repository write while its own repository and the brain-wide lock wait'
+    $queueStatus=Invoke-PendingCli 'access.ps1' @('-Queue')
+    Assert-Pending ($queueStatus.code -eq 0) 'the queue view reads the global and every repository queue without failing'
+    if($heldId){[void](Invoke-PendingCli 'access.ps1' @('-End','-SessionId',$heldId))}
     'SUCCESS PENDING: '+$checks+' verifiche; fixture conservata: '+$fixture
 } finally {
     Exit-SBOperation $holder

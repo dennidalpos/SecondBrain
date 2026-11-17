@@ -20,11 +20,28 @@ Add-SBMessages @{
     'pending.batch.size' = @{ en = 'The batch exceeds {0} updates: split it into several files' }
     'pending.batch.recovery' = @{ en = 'An incomplete transaction awaits recovery: no update of the batch was applied' }
     'pending.notice' = @{ en = 'Deferred writes: {0} applied, {1} conflicts, {2} pending; state {3}.' }
+    'pending.layout.legacy' = @{ en = 'The write queue still has {0} request file(s) in the old flat layout: run scripts/migrate-pending-queue.ps1 (preview first) while no other agent writes' }
 }
 
-function Get-SBPendingPaths([string]$BrainRoot) {
-    $queue=Join-Path $BrainRoot '.runtime/access/pending-writes'
-    @{queue=$queue;taskUpdates=(Join-Path $queue 'task-update');receipts=(Join-Path $BrainRoot '.runtime/access/pending-receipts')}
+function Get-SBPendingPaths([string]$BrainRoot,[string]$Repository,[string]$Scope) {
+    # Strict per-repository separation: each repository has its own queue, receipt and discard folders under its scope key
+    # (the same key as its lock), so one repository's requests are never listed, drained or discarded with another's.
+    $root=Join-Path $BrainRoot '.runtime/access'
+    if(!$Scope){$Scope=Get-SBScopeKey $Repository}
+    if($Scope -cnotmatch '^(unscoped|r[a-f0-9]{16})$'){throw (New-SBError 'core.scope.invalid')}
+    $queue=Join-Path $root ('pending-writes/'+$Scope)
+    @{scope=$Scope;queue=$queue;taskUpdates=(Join-Path $queue 'task-update');receipts=(Join-Path $root ('pending-receipts/'+$Scope));discarded=(Join-Path $root ('pending-discarded/'+$Scope))}
+}
+function Get-SBPendingScopes([string]$BrainRoot) {
+    # Scope keys that have a queue folder; a request or receipt left directly in the old flat folders is an unmigrated layout and stops the scan loudly.
+    $root=Join-Path $BrainRoot '.runtime/access'
+    $queue=Join-Path $root 'pending-writes'
+    if(![IO.Directory]::Exists($queue)){return @()}
+    $flat=@(Get-ChildItem -LiteralPath $queue -File -Filter '*.json' -ErrorAction SilentlyContinue)
+    $flatUpdates=Join-Path $queue 'task-update'
+    if([IO.Directory]::Exists($flatUpdates)){$flat+=@(Get-ChildItem -LiteralPath $flatUpdates -File -Filter '*.json' -ErrorAction SilentlyContinue)}
+    if($flat.Count){throw (New-SBError 'pending.layout.legacy' @($flat.Count))}
+    @(Get-ChildItem -LiteralPath $queue -Directory|Where-Object {$_.Name -cmatch '^(unscoped|r[a-f0-9]{16})$'}|ForEach-Object Name)
 }
 function Get-SBPendingHash($Request) {
     $copy=@{}+$Request
@@ -140,7 +157,7 @@ function New-SBPendingWrite {
     $dir=Resolve-SBPendingDossier $BrainRoot $Repository
     if(!$RequestId){$RequestId=(New-SBId)}
     if($RequestId -cnotmatch '^[a-f0-9]{32}$'){throw (New-SBError 'pending.invalid' @('request ID'))}
-    $pendingPaths=Get-SBPendingPaths $BrainRoot
+    $pendingPaths=Get-SBPendingPaths $BrainRoot $Repository
     $idempotentPath=Join-Path $(if($Operation -eq 'task.update'){$pendingPaths.taskUpdates}else{$pendingPaths.queue}) ($RequestId+'.json')
     if(!$PrepareOnly -and $PreparedHash){
         $prior=Read-SBPendingIdempotent $idempotentPath $Repository $RequestId $PreparedHash
@@ -202,7 +219,7 @@ function New-SBPendingWrite {
     $contentHash=Get-SBPendingContentHash $request
     if($PreparedHash -and $contentHash -cne $PreparedHash){throw (New-SBError 'pending.invalid' @('stale prepared request'))}
     if($PrepareOnly){return @{id=$request.id;request=$request;contentHash=$contentHash;applied=$false;state='preview'}}
-    $paths=Get-SBPendingPaths $BrainRoot
+    $paths=Get-SBPendingPaths $BrainRoot $Repository
     $queue=if($Operation -eq 'task.update'){$paths.taskUpdates}else{$paths.queue}
     Assert-SBPlainPath $queue
     [IO.Directory]::CreateDirectory($queue)|Out-Null
@@ -235,8 +252,14 @@ function Read-SBPendingReceipt([string]$Path,[string]$RequestPath,[string]$Id,[h
         $receipt
     }catch{@{state='invalid-receipt';result=@{};error='pending.receipt.unreadable'}}
 }
-function Get-SBPendingWrites([string]$BrainRoot) {
-    $paths=Get-SBPendingPaths $BrainRoot
+function Get-SBPendingWrites([string]$BrainRoot,[string]$Repository) {
+    # -Repository: only that repository's queue folder is scanned; without it every scope folder is (workstation maintenance).
+    $scopes=if($Repository){@(Get-SBScopeKey $Repository)}else{@(Get-SBPendingScopes $BrainRoot)}
+    if($Repository){[void](Get-SBPendingScopes $BrainRoot)}
+    foreach($scopeKey in $scopes){Get-SBPendingScopeWrites $BrainRoot $scopeKey}
+}
+function Get-SBPendingScopeWrites([string]$BrainRoot,[string]$ScopeKey) {
+    $paths=Get-SBPendingPaths $BrainRoot -Scope $ScopeKey
     # Ancestor validation is shared only within this scan, using the Core batch API.
     # The queue, receipt directory and individual files are still checked on every item.
     $verified=@{}
@@ -261,7 +284,7 @@ function Get-SBPendingWrites([string]$BrainRoot) {
         $headerRepository=$null
         if(!$receipt -and $file.Length -le 2MB){try{$header=Read-SBJson $file.FullName $null;if($header -and $header.ContainsKey('createdAt')){$createdAt=[DateTimeOffset]::Parse($header.createdAt).UtcDateTime.ToString('o')};if($header -and $header.ContainsKey('repository')){$headerRepository=[string]$header.repository}}catch { Write-Verbose $_.Exception.Message }}
         $repository=if($receipt -and $receipt.ContainsKey('repository')){$receipt.repository}else{$headerRepository}
-        @{id=$id;repository=$repository;path=$file.FullName;state=$(if($receipt){$receipt.state}else{'deferred'});receipt=$receipt;receiptPath=$receiptPath;createdAt=$createdAt}
+        @{id=$id;repository=$repository;scope=$ScopeKey;path=$file.FullName;state=$(if($receipt){$receipt.state}else{'deferred'});receipt=$receipt;receiptPath=$receiptPath;createdAt=$createdAt}
     }
 }
 
@@ -299,15 +322,32 @@ function Test-SBPendingRecoveryGate($Summary,[string]$BrainRoot,$Config,[string]
     $true
 }
 
+function Test-SBPendingAlreadyApplied($Request,$Task) {
+    # A stale taskHash is not a conflict when the task already shows every requested value: another writer applied the same change first
+    # (duplicate submissions from several agents or workstations). Only plain scalar fields are compared; anything else stays a conflict.
+    $fields=@{Status='status';StateReason='stateReason';Priority='priority';Execution='execution'}
+    $requested=@($Request.arguments.Keys|Where-Object {$_ -notin @('TaskId','Executor')})
+    if(!$requested.Count){return $false}
+    foreach($name in $requested){
+        if(!$fields.ContainsKey($name)){return $false}
+        $key=$fields[$name]
+        if(!$Task.ContainsKey($key) -or [string]$Task[$key] -cne [string]$Request.arguments[$name]){return $false}
+    }
+    $true
+}
 function Get-SBPendingTaskPlan([string]$BrainRoot,$Request,[string]$Dossier) {
     # Plans a task.* request: state applied|conflict|invalid, operations for the journal and result keys for the receipt.
-    $state='applied';$errorCode=$null;$result=@{};$ops=@()
+    $state='applied';$errorCode=$null;$result=@{};$ops=@();$noop=$false
     $target=Read-SBPendingTracker $BrainRoot $Request.repository $Dossier
     $before=$target.hash
     if($Request.operation -in @('task.status','task.update')){
         $task=@($target.data.tasks|Where-Object id -eq $Request.arguments.TaskId)
         if(!$task.Count){$task=@((Read-SBTrackerArchive $target.path $Request.repository).data.tasks|Where-Object id -eq $Request.arguments.TaskId)}
-        if($task.Count -ne 1 -or (Get-SBTextHash (ConvertTo-SBJson $task[0])) -ine $Request.expected.taskHash){$state='conflict'}
+        if($task.Count -eq 1 -and (Get-SBTextHash (ConvertTo-SBJson $task[0])) -ine $Request.expected.taskHash -and (Test-SBPendingAlreadyApplied $Request $task[0])){
+            # Idempotent duplicate: the receipt is terminal and nothing is written to the tracker.
+            $noop=$true;$result=@{taskId=[string]$task[0].id;status=[string]$task[0].status;noop=$true}
+        }
+        elseif($task.Count -ne 1 -or (Get-SBTextHash (ConvertTo-SBJson $task[0])) -ine $Request.expected.taskHash){$state='conflict'}
         else{
             $arguments=@{}+$Request.arguments
             $updater=if($Request.operation -eq 'task.status'){'Set-SBTrackerTaskStatus'}else{'Update-SBTrackerTask'}
@@ -337,7 +377,7 @@ function Get-SBPendingTaskPlan([string]$BrainRoot,$Request,[string]$Dossier) {
             }
         }
     }
-    if($state -eq 'applied'){
+    if($state -eq 'applied' -and !$noop){
         $ops+=@{path=$target.path;expected=$before;bytes=[Text.Encoding]::UTF8.GetBytes((ConvertTo-SBJson $candidate.data))}
         $ops+=@($candidate.extraOperations)
         foreach($key in @('taskId','status','seq','title','closureAdvice')){if($candidate.ContainsKey($key)){$result[$key]=$candidate[$key]}}
@@ -395,7 +435,7 @@ function Invoke-SBPendingWrites {
     try {
     if($RequestId -and $RequestId -cnotmatch '^[a-f0-9]{32}$'){throw (New-SBError 'pending.invalid' @('request ID'))}
     $summary=@{state='idle';applied=@();conflicts=@();errors=@();pending=0}
-    try{$entries=@(Get-SBPendingWrites $BrainRoot)}catch{$summary.state='unavailable';$summary.errors+=@{code='pending.scan.failed';message=$_.Exception.Message};return $summary}
+    try{$entries=@(Get-SBPendingWrites $BrainRoot $Repository)}catch{$summary.state='unavailable';$summary.errors+=@{code='pending.scan.failed';message=$_.Exception.Message};return $summary}
     finally{if($clock){$Diagnostics.scanMs=$clock.Elapsed.TotalMilliseconds}}
     if($RequestId){$entries=@($entries|Where-Object id -ceq $RequestId)}
     if($Repository){$entries=@($entries|Where-Object {$_.repository -ceq $Repository})}
@@ -471,9 +511,9 @@ function Complete-SBPendingSubmission($Submission,$Config,[string]$SessionId,[ha
     try {
     $drainOptions=@{BrainRoot=$Config.brainRoot;Config=$Config;SessionId=$SessionId;Diagnostics=$Diagnostics;WaitMs=(Get-SBPendingSubmitWaitMs)}
     if($OnlySubmission){$drainOptions.RequestId=$Submission.id}
-    elseif($Submission.request -and $Submission.request.repository){$drainOptions.Repository=[string]$Submission.request.repository}
+    if($Submission.request -and $Submission.request.repository){$drainOptions.Repository=[string]$Submission.request.repository}
     $drain=Invoke-SBPendingWrites @drainOptions
-    $paths=Get-SBPendingPaths $Config.brainRoot
+    $paths=Get-SBPendingPaths $Config.brainRoot $(if($Submission.request){[string]$Submission.request.repository}else{''})
     $receipt=Read-SBPendingReceipt (Join-Path $paths.receipts ($Submission.id+'.json')) $Submission.path $Submission.id
     $result=@{requestId=$Submission.id;requestPath=$Submission.path;state='deferred';applied=$false;pendingWrites=$drain}
     if($receipt){
@@ -556,7 +596,7 @@ function Invoke-SBPendingTaskBatch {
         $dossier=Resolve-SBPendingDossier $BrainRoot $Repository
         $tracker=Read-SBPendingTracker $BrainRoot $Repository $dossier
         $archiveTasks=@((Read-SBTrackerArchive $tracker.path $Repository).data.tasks)
-        $paths=Get-SBPendingPaths $BrainRoot
+        $paths=Get-SBPendingPaths $BrainRoot $Repository
         $requestOps=@();$entries=@()
         for($i=0;$i -lt $prepared.Count;$i++){
             $request=$prepared[$i].request
@@ -599,15 +639,16 @@ function Invoke-SBPendingTaskBatch {
 function Move-SBPendingConflict {
     # Retires a conflicting or invalid request: request and receipt move to access/pending-discarded/<id>/ with a note;
     # evidence is preserved, never deleted, and deferred or applied requests are refused.
-    param([string]$BrainRoot,[string]$Id)
+    param([string]$BrainRoot,[string]$Id,[string]$Repository)
+    # -Repository: only that repository's queue is searched, so one repository can never retire another's request.
     if($Id -cnotmatch '^[a-f0-9]{32}$'){throw (New-SBError 'pending.invalid' @('request ID'))}
-    $entry=@(Get-SBPendingWrites $BrainRoot|Where-Object id -ceq $Id)
+    $entry=@(Get-SBPendingWrites $BrainRoot $Repository|Where-Object id -ceq $Id)
     if($entry.Count -ne 1){throw (New-SBError 'pending.discard.notfound')}
     $entry=$entry[0]
     if($entry.state -notin @('conflict','invalid','invalid-receipt')){throw (New-SBError 'pending.discard.state' @($entry.state))}
     Assert-SBWriteGuard
-    $paths=Get-SBPendingPaths $BrainRoot
-    $target=Join-Path (Split-Path $paths.queue) ('pending-discarded/'+$Id)
+    $paths=Get-SBPendingPaths $BrainRoot -Scope $entry.scope
+    $target=Join-Path $paths.discarded $Id
     Assert-SBPlainPath $target
     [IO.Directory]::CreateDirectory($target)|Out-Null
     $requestHash=Get-SBFileHash $entry.path
@@ -621,4 +662,4 @@ function Move-SBPendingConflict {
 function Format-SBPendingNotice($Summary) {
     Get-SBMessage 'pending.notice' @($Summary.applied.Count,$Summary.conflicts.Count,$Summary.pending,$Summary.state)
 }
-Export-ModuleMember -Function @('New-SBPendingWrite','Get-SBPendingWrites','Invoke-SBPendingWrites','Complete-SBPendingSubmission','Format-SBPendingNotice','Get-SBPendingContentHash','Move-SBPendingConflict','Read-SBTaskBatchFile','New-SBPendingTaskBatch','Invoke-SBPendingTaskBatch')
+Export-ModuleMember -Function @('Get-SBPendingPaths','Get-SBPendingScopes','New-SBPendingWrite','Get-SBPendingWrites','Invoke-SBPendingWrites','Complete-SBPendingSubmission','Format-SBPendingNotice','Get-SBPendingContentHash','Move-SBPendingConflict','Read-SBTaskBatchFile','New-SBPendingTaskBatch','Invoke-SBPendingTaskBatch')

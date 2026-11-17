@@ -52,7 +52,7 @@ try {
     Check $f5Again.approved 'same local approval is idempotent without extension'
     $f5Result=F5-Submit $f5Plan
     Check ($f5Result.applied -and $f5Result.requestId -eq $f5Plan.requestId) 'approved MCP task status applies through pending queue'
-    $f5Queue=Join-Path $f5Brain ('.runtime/access/pending-writes/'+$f5Plan.requestId+'.json')
+    $f5Queue=Join-Path $f5Brain ('.runtime/access/pending-writes/'+(Get-SBScopeKey $f5Id)+'/'+$f5Plan.requestId+'.json')
     $f5QueueHash=Get-SBFileHash $f5Queue
     $f5Replay=F5-Submit $f5Plan
     Check ($f5Replay.applied -and (Get-SBFileHash $f5Queue) -ceq $f5QueueHash) 'same approved request replays its receipt without another request'
@@ -66,7 +66,7 @@ try {
     Check ($f5Fields.pending.operation -eq 'task.update' -and $f5Fields.pending.arguments.Awaiting -eq 'structural-completion') 'MCP task update previews a task.update pending request'
     [void](F5-Approve $f5Fields)
     Check (F5-Submit $f5Fields).applied 'approved MCP task update applies awaiting'
-    Check (Test-Path (Join-Path $f5Brain ('.runtime/access/pending-writes/task-update/'+$f5Fields.requestId+'.json'))) 'MCP task update uses the task-update queue'
+    Check (Test-Path (Join-Path $f5Brain ('.runtime/access/pending-writes/'+(Get-SBScopeKey $f5Id)+'/task-update/'+$f5Fields.requestId+'.json'))) 'MCP task update uses the task-update queue'
     Check (F5-Submit $f5Fields).applied 'MCP task update replays its receipt'
     $f5Ext=@((Read-SBJson (Join-Path $f5Dossier tracker.json) $null).tasks|Where-Object id -eq 'F5-1')[0].extensions
     Check ($f5Ext.awaiting -eq 'structural-completion' -and !$f5Ext.ContainsKey('readRepositories')) 'MCP task update stores awaiting'
@@ -167,7 +167,7 @@ try {
     Put (Join-Path $f5Dossier brief.md) '# Synthetic F5'
 Put (Join-Path $f5Dossier memory.md) ((Read-SBText (Join-Path $f5Dossier memory.md))+"`nconcurrent fixture`n")
     Reject {F5-Submit $f5Stale} 'changed file invalidates approval before enqueue'
-    Check (!(Test-Path (Join-Path $f5Brain ('.runtime/access/pending-writes/'+$f5Stale.requestId+'.json')))) 'stale approval creates no queue record'
+    Check (!(Test-Path (Join-Path $f5Brain ('.runtime/access/pending-writes/'+(Get-SBScopeKey $f5Id)+'/'+$f5Stale.requestId+'.json')))) 'stale approval creates no queue record'
     $f5Expired=F5-Plan 'memory.append' @{content='expired fixture'}
     $f5Approved=F5-Approve $f5Expired
     $f5Receipt=Read-SBJson $f5Approved.receiptPath $null
