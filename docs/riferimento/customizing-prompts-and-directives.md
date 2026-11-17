@@ -61,3 +61,13 @@ Product builds/tests and real screenshots belong to product agents. Central main
 Keep public docs/examples free of private paths, account data, secrets and raw operational evidence. Sources support a specific claim/version/jurisdiction; an archived normative text does not certify compliance.
 
 Validate changed catalog/schema, English/Italian counterparts, generated drift, distribution boundary and relevant tests. Report unverified client/platform behavior explicitly. Original approved proposals and historical receipts remain preserved, even when a current guide corrects earlier prose.
+
+## Card lifecycle (`scripts/prompt-cards.ps1`)
+
+Add, edit, duplicate, deprecate and retire cards through one validated tool. Every run is a preview: it lists the planned file changes and validates them on a temporary copy of the catalog with the real loaders. `-Apply` writes the cards and the catalog, and regenerates the indexes.
+
+- `add`: new code (never reused, including retired codes), a new immutable `pmt-` ID, the English and Italian bodies, at least one related card.
+- `edit`: changes catalog fields and bodies; the code and ID stay (renames go through the migration tool).
+- `duplicate`: copies both bodies under a new code and ID; the role is not copied.
+- `deprecate`: adds `deprecated` (reason, optional successor) to the card; it keeps working and warns when selected. Workflows that use it are listed as notes.
+- `retire`: refused while anything references the card (related lists, citations in other cards, workflow steps, its role, deprecation successors); the refusal names each reference. An unreferenced card is removed and recorded in `aliases.json` as `retired` with its ID.

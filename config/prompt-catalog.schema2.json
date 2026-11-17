@@ -29,6 +29,7 @@
       "target": {"enum": ["repository", "central"]},
       "mode": {"enum": ["read", "write", "verify"]},
       "destructive": {"type": "boolean"},
+      "deprecated": {"type": "object", "additionalProperties": false, "required": ["reason"], "properties": {"reason": {"$ref": "#/$defs/line"}, "successor": {"$ref": "#/$defs/id"}}},
       "surface": {"enum": ["chat", "app"]},
       "pack": {"$ref": "#/$defs/pack"},
       "requires": {"type": "string", "minLength": 1, "maxLength": 160, "pattern": "^[^\\r\\n\\t]+$"},

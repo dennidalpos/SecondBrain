@@ -372,4 +372,92 @@ try{
 }finally{
     if($env:SECONDBRAIN_TEST_KEEP -ne '1' -and (Test-Path -LiteralPath $migRoot)){Remove-Item -LiteralPath $migRoot -Recurse -Force}
 }
+# #615: validated card lifecycle on a copy of the real catalog; the real repository is never written.
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.PromptLifecycle.psm1') -Force
+$lcRoot=Join-Path (Get-SBTestRoot) ('lifecycle-'+[guid]::NewGuid().ToString('N').Substring(0,12))
+try{
+    [IO.Directory]::CreateDirectory((Join-Path $lcRoot 'config'))|Out-Null
+    Copy-Item -LiteralPath (Join-Path $brain 'direttive') -Destination (Join-Path $lcRoot 'direttive') -Recurse
+    Copy-Item -Path (Join-Path $brain 'config/prompt-*.json') -Destination (Join-Path $lcRoot 'config')
+    $lcCatalogPath=Join-Path $lcRoot 'direttive/prompts/catalog.json'
+    $lcRaw=Read-SBText $lcCatalogPath
+    $lcWrite={param($path,$text) [IO.Directory]::CreateDirectory((Split-Path $path -Parent))|Out-Null;[IO.File]::WriteAllText($path,$text,[Text.UTF8Encoding]::new($false))}
+    $lcRemove={param($path) Remove-Item -LiteralPath $path}
+    $lcCatalog=Read-SBWorkflowCatalog $lcRoot
+    $first=$lcCatalog.prompts|Where-Object {$_.related.Count -and -not $_.ContainsKey('role')}|Select-Object -First 1
+    # Retire: refused while referenced, names the references, writes nothing.
+    $refused=Get-SBPromptLifecyclePlan $lcRoot 'retire' @{Code=$first.code}
+    Assert-Prompts (!$refused.valid -and ($refused.errors -join ' ') -match [regex]::Escape($first.code) -and ($refused.errors -join ' ') -match 'referenced by card ') '#615: retiring a referenced card is refused and names the referencing cards'
+    Assert-Prompts (!$refused.changeCount -and (Read-SBText $lcCatalogPath) -ceq $lcRaw) '#615: a refused retire plans and writes nothing'
+    $withRole=$lcCatalog.prompts|Where-Object {$_.ContainsKey('role')}|Select-Object -First 1
+    Assert-Prompts (!(Get-SBPromptLifecyclePlan $lcRoot 'retire' @{Code=$withRole.code}).valid) '#615: retiring a card that holds a role is refused'
+    # Add: preview validates, then applies; the code is never reused afterwards.
+    $addBody=Join-Path $lcRoot 'new-en.md'; $addIt=Join-Path $lcRoot 'new-it.md'
+    $template=(Read-SBText (Join-Path $lcRoot ('direttive/prompts/'+$first.file))).Replace("`r`n","`n")
+    # Bodies cite no other cards, so the new card needs no related entries beyond the required one.
+    $uncited={param($text) [regex]::Replace($text.Replace("`r`n","`n"),'\b[A-Z]{3}\d{2}\b','the card')}
+    [IO.File]::WriteAllText($addBody,(& $uncited $template),[Text.UTF8Encoding]::new($false))
+    [IO.File]::WriteAllText($addIt,(& $uncited (Read-SBText (Join-Path $lcRoot ('direttive/prompts/it/'+$first.file)))),[Text.UTF8Encoding]::new($false))
+    $addOptions=@{Code='ZZZ91';Category=$first.category;Summary='Lifecycle test card.';Target=$first.target;Mode=$first.mode;Scope=$first.scope;Requires='nothing';Example='lifecycle test'
+        ItSummary='Scheda di prova del ciclo di vita.';ItRequires='niente';ItExample='prova';Related=@($first.code);BodyPath=$addBody;ItBodyPath=$addIt}
+    $dupCodeOptions=$addOptions.Clone(); $dupCodeOptions.Code=$first.code
+    $badAdd=Get-SBPromptLifecyclePlan $lcRoot 'add' $dupCodeOptions
+    Assert-Prompts (!$badAdd.valid -and ($badAdd.errors -join ' ') -match 'already in the catalog') '#615: add refuses an existing code'
+    $badRelatedOptions=$addOptions.Clone(); $badRelatedOptions.Related=@('NOPE99')
+    $badRelated=Get-SBPromptLifecyclePlan $lcRoot 'add' $badRelatedOptions
+    Assert-Prompts (!$badRelated.valid) '#615: add refuses a related card that does not exist'
+    $missing=Get-SBPromptLifecyclePlan $lcRoot 'add' @{Code='ZZZ91'}
+    Assert-Prompts (!$missing.valid -and $missing.errors.Count -ge 3) '#615: add refuses missing fields and bodies'
+    $addPlan=Get-SBPromptLifecyclePlan $lcRoot 'add' $addOptions
+    Assert-Prompts ($addPlan.valid -and $addPlan.changeCount -eq 3 -and (Read-SBText $lcCatalogPath) -ceq $lcRaw) '#615: add previews three file changes and writes nothing'
+    Invoke-SBPromptLifecycle $lcRoot $addPlan $lcWrite $lcRemove
+    $afterAdd=Read-SBWorkflowCatalog $lcRoot -ValidateBodies -ValidateReferences
+    $added=@($afterAdd.prompts|Where-Object code -ceq 'ZZZ91')[0]
+    Assert-Prompts ($added -and $added.id -match '^pmt-[0-9a-f]{8}$' -and $first.id -in $added.related) '#615: an applied add gives the card a new immutable ID and valid related'
+    # Edit: summary changes follow into both card headers; the code and ID stay.
+    $editPlan=Get-SBPromptLifecyclePlan $lcRoot 'edit' @{Code='ZZZ91';Fields=@{summary='Edited lifecycle card.';itSummary='Scheda modificata.'}}
+    Assert-Prompts ($editPlan.valid -and $editPlan.changeCount -eq 3) '#615: edit previews the catalog and both card headers'
+    Invoke-SBPromptLifecycle $lcRoot $editPlan $lcWrite $lcRemove
+    $afterEdit=Read-SBWorkflowCatalog $lcRoot -ValidateBodies
+    $edited=@($afterEdit.prompts|Where-Object code -ceq 'ZZZ91')[0]
+    Assert-Prompts ($edited.id -ceq $added.id -and $edited.summary -ceq 'Edited lifecycle card.') '#615: an applied edit keeps the ID and updates the summary'
+    Assert-Prompts (!(Get-SBPromptLifecyclePlan $lcRoot 'edit' @{Code='ZZZ91';Fields=@{summary=('x'*90)}}).valid) '#615: edit refuses an invalid value'
+    # Duplicate: new ID, role not copied, bodies copied with the new header.
+    $dupPlan=Get-SBPromptLifecyclePlan $lcRoot 'duplicate' @{Code='ZZZ91';NewCode='ZZZ92';Summary='Duplicated lifecycle card.'}
+    Assert-Prompts ($dupPlan.valid -and $dupPlan.changeCount -eq 3) '#615: duplicate previews three file changes'
+    Assert-Prompts (!(Get-SBPromptLifecyclePlan $lcRoot 'duplicate' @{Code='ZZZ91';NewCode='ZZZ91'}).valid) '#615: duplicate refuses an existing code'
+    Invoke-SBPromptLifecycle $lcRoot $dupPlan $lcWrite $lcRemove
+    $afterDup=Read-SBWorkflowCatalog $lcRoot -ValidateBodies
+    $dup=@($afterDup.prompts|Where-Object code -ceq 'ZZZ92')[0]
+    Assert-Prompts ($dup -and $dup.id -cne $added.id -and $added.id -in $dup.related) '#615: an applied duplicate has its own ID and relates to the source'
+    # Deprecate: warns on resolve, requires a reason and a valid successor.
+    Assert-Prompts (!(Get-SBPromptLifecyclePlan $lcRoot 'deprecate' @{Code='ZZZ92'}).valid) '#615: deprecate needs a reason'
+    Assert-Prompts (!(Get-SBPromptLifecyclePlan $lcRoot 'deprecate' @{Code='ZZZ92';Reason='r';Successor='ZZZ92'}).valid) '#615: a card cannot succeed itself'
+    $depPlan=Get-SBPromptLifecyclePlan $lcRoot 'deprecate' @{Code='ZZZ92';Reason='Superseded by the source card.';Successor='ZZZ91'}
+    Assert-Prompts ($depPlan.valid -and $depPlan.changeCount -eq 1) '#615: deprecate previews one catalog change'
+    Invoke-SBPromptLifecycle $lcRoot $depPlan $lcWrite $lcRemove
+    $afterDep=Read-SBWorkflowCatalog $lcRoot -ValidateBodies
+    $resolved=Resolve-SBWorkflowPrompt $afterDep 'ZZZ92'
+    Assert-Prompts ($resolved.warning -match 'deprecated' -and !(Get-SBPromptLifecyclePlan $lcRoot 'deprecate' @{Code='ZZZ92';Reason='again'}).valid) '#615: a deprecated card warns when selected and cannot be deprecated twice'
+    # Retire: the duplicate has no inbound references (it only points out), so it retires with an alias and its ID is never reused.
+    $retire=Get-SBPromptLifecyclePlan $lcRoot 'retire' @{Code='ZZZ92'}
+    Assert-Prompts ($retire.valid -and $retire.removals.Count -eq 2) '#615: retiring an unreferenced card previews both file removals and the alias'
+    Invoke-SBPromptLifecycle $lcRoot $retire $lcWrite $lcRemove
+    $afterRetire=Read-SBWorkflowCatalog $lcRoot -ValidateBodies
+    $aliasTable=Read-SBPromptAliases $lcRoot $afterRetire
+    Assert-Prompts (!@($afterRetire.prompts|Where-Object code -ceq 'ZZZ92').Count -and @($aliasTable.aliases|Where-Object {$_.code -ceq 'ZZZ92' -and $_.status -eq 'retired' -and $_.retiredId -ceq $dup.id}).Count -eq 1) '#615: a retired card leaves the catalog and its ID is recorded in aliases.json'
+    $reuse=Get-SBPromptLifecyclePlan $lcRoot 'duplicate' @{Code='ZZZ91';NewCode='ZZZ92'}
+    Assert-Prompts (!$reuse.valid -and ($reuse.errors -join ' ') -match 'never reused') '#615: a retired code is never reused'
+    # A workflow step blocks retirement and is named.
+    $flowDir=Join-Path $lcRoot 'direttive/prompts/workflows'; [IO.Directory]::CreateDirectory($flowDir)|Out-Null
+    [IO.File]::WriteAllText((Join-Path $flowDir 'lifecycle.json'),('{"schemaVersion":1,"id":"wfl-00000615","key":"wf-lifecycle","title":"Lifecycle","revision":1,"status":"active","steps":[{"step":"only","ref":"'+$edited.id+'","kind":"required","gate":"auto"}]}'),[Text.UTF8Encoding]::new($false))
+    # The workflow cites the card; related lists still name it too, so remove those with a related edit first.
+    $flowRefusal=Get-SBPromptLifecyclePlan $lcRoot 'retire' @{Code='ZZZ91'}
+    Assert-Prompts (!$flowRefusal.valid -and ($flowRefusal.errors -join ' ') -match 'workflow wf-lifecycle \(step only\)') '#615: retiring a card used by a workflow is refused and names the workflow step'
+    $deprecatedBefore=Get-SBPromptLifecyclePlan $lcRoot 'deprecate' @{Code='ZZZ91';Reason='Planned removal.'}
+    Assert-Prompts ($deprecatedBefore.valid -and ($deprecatedBefore.notes -join ' ') -match 'wf-lifecycle') '#615: deprecating a card used by a workflow succeeds and lists the workflow as a note'
+    Assert-Prompts ((Read-SBText $lcCatalogPath) -cne $lcRaw -and (Read-SBText (Join-Path $brain 'direttive/prompts/catalog.json')) -ceq $lcRaw) '#615: only the copy changed, never the real catalog'
+}finally{
+    if($env:SECONDBRAIN_TEST_KEEP -ne '1' -and (Test-Path -LiteralPath $lcRoot)){Remove-Item -LiteralPath $lcRoot -Recurse -Force}
+}
 'SUCCESS PROMPTS: '+$script:promptChecks+' verifiche'

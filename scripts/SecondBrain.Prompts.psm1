@@ -46,6 +46,8 @@ Add-SBMessages @{
     'prompts.checkout.identity' = @{ en = 'Checkout and dossier identity diverge: use the checkout of the dossier repository or fix repository.json' }
     'prompts.reference.missing' = @{ en = 'Local reference missing: {0}; restore the file or remove the reference' }
     'prompts.tracker.diverged' = @{ en = 'Project tracker missing or diverging: check the tracker with knowledge.ps1 -Tasks' }
+    'prompts.deprecated.invalid' = @{ en = 'Invalid deprecation on card {0}: the successor must be another existing card' }
+    'prompts.deprecated.warning' = @{ en = 'Card {0} is deprecated: {1}' }
     'prompts.central.noswitch' = @{ en = 'Central prompt: open SecondBrain; no implicit repository switch. Alternatively, from SecondBrain: secondbrain.ps1 -Sync -Repository {0}' }
 }
 
@@ -106,6 +108,7 @@ function Read-SBWorkflowCatalog([string]$BrainRoot, [switch]$ValidateBodies, [sw
     }
     foreach($prompt in $catalog.prompts){
         foreach($related in $prompt.related){if(!$ids.ContainsKey($related) -or $related -eq $prompt.id){throw (New-SBError 'prompts.related.invalid' @($related))}}
+        if($prompt.ContainsKey('deprecated') -and $prompt.deprecated.ContainsKey('successor') -and (!$ids.ContainsKey($prompt.deprecated.successor) -or $prompt.deprecated.successor -eq $prompt.id)){throw (New-SBError 'prompts.deprecated.invalid' @($prompt.code))}
         if($ValidateBodies){foreach($lang in @('en','it')){[void](Read-SBWorkflowPrompt $BrainRoot $prompt $catalog $lang)}}
     }
     foreach($category in $catalog.categories){if(!@($catalog.prompts|Where-Object category -eq $category.id).Count){throw (New-SBError 'prompts.category.empty' @($category.id))}}
@@ -161,9 +164,9 @@ function Test-SBPromptCodeLiterals([string]$BrainRoot,$Catalog,$Names) {
 }
 function Resolve-SBWorkflowPrompt($Catalog, [string]$Key) {
     $found=@($Catalog.prompts|Where-Object {$_.id -ceq $Key -or $_.code -ceq $Key})
-    if($found.Count -eq 1){return @{prompt=$found[0];via=$(if($found[0].id -ceq $Key){'id'}else{'code'});warning=$null}}
+    if($found.Count -eq 1){return @{prompt=$found[0];via=$(if($found[0].id -ceq $Key){'id'}else{'code'});warning=$(if($found[0].ContainsKey('deprecated')){Get-SBMessage 'prompts.deprecated.warning' @($found[0].code,$found[0].deprecated.reason)}else{$null})}}
     $byRole=@($Catalog.prompts|Where-Object {$_.ContainsKey('role') -and $_.role -ceq $Key})
-    if($byRole.Count -eq 1){return @{prompt=$byRole[0];via='role';warning=$null}}
+    if($byRole.Count -eq 1){return @{prompt=$byRole[0];via='role';warning=$(if($byRole[0].ContainsKey('deprecated')){Get-SBMessage 'prompts.deprecated.warning' @($byRole[0].code,$byRole[0].deprecated.reason)}else{$null})}}
     throw (New-SBError 'prompts.code.unavailable' @($Key))
 }
 
