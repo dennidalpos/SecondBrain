@@ -97,6 +97,7 @@ test("1 first run: no repository, no recent entries", async () => {
 test("2 normal operation: queue, directives, registry, tracker", async () => {
   const app = await launch({ repo: fixture.checkout });
   const { page } = app;
+  await page.waitForTimeout(20_000); console.log("DBG", await page.locator("#repo-label").textContent(), await page.locator("#repo-info").textContent(), await page.locator("#status-line, #repo-error, .error").allTextContents());
   await page.locator("#q-tasks tr").first().waitFor({ timeout: 240_000 });
   await page.locator("#q-agents label.agent").nth(2).waitFor({ timeout: 240_000 });
   await shot(page, "02-normal-queue");
