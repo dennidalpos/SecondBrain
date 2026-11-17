@@ -13,7 +13,25 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Tracker.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.McpConfig.psm1')
 $script:SBPortableMcpTargets=@{'Codex'='codex';'Claude Code'='claude-code';'Claude Desktop'='claude';'Cursor'='cursor';'VS Code'='vscode';'Antigravity'='antigravity';'Windsurf'='windsurf'}
+# GUI processes per IDE (case-insensitive process names). CLI-only clients (Claude Code, Codex) are not listed: they cannot be mistaken for the IDE window and would match the agent running the setup.
+$script:SBPortableIdeProcesses=@{'Claude Desktop'=@('Claude');'Cursor'=@('Cursor');'VS Code'=@('Code');'Antigravity'=@('Antigravity');'Windsurf'=@('Windsurf')}
+function Get-SBRunningIdes {
+    # Read-only detection: returns the selected IDEs that have a running process. Never stops or touches a process.
+    param($Ides,[string[]]$ProcessNames)
+    if($null -eq $ProcessNames){$ProcessNames=@(Get-Process -ErrorAction SilentlyContinue|ForEach-Object {$_.ProcessName})}
+    $running=@($ProcessNames|ForEach-Object {([string]$_).ToLowerInvariant()})
+    @(foreach($ide in @($Ides)){
+        $wanted=$script:SBPortableIdeProcesses[[string]$ide.name]
+        if($wanted -and @($wanted|Where-Object {$_.ToLowerInvariant() -in $running}).Count){[string]$ide.name}
+    })
+}
+function Assert-SBIdesClosed {
+    param($Ides,[string[]]$ProcessNames)
+    $open=@(Get-SBRunningIdes $Ides -ProcessNames $ProcessNames)
+    if($open.Count){throw (New-SBError 'portable.ide.running' @(($open -join ', ')))}
+}
 Add-SBMessages @{
+    'portable.ide.running' = @{ en = 'Close these IDEs before applying setup (the app never terminates them): {0}' }
     'portable.git.required' = @{ en = 'Git 2.42 or later is required, executable and with a recognizable version: install or update it and check with git --version' }
     'portable.mcp.targets' = @{ en = 'Select valid MCP targets to approve knowledge tools: choose at least one IDE with an MCP configuration' }
     'portable.mcp.preview' = @{ en = 'User-level MCP pairing preview' }
@@ -613,7 +631,10 @@ function Invoke-SBSetup {
             Get-SBMcpPairing -BrainRoot $brain -Target $job.target -ConfigFile $job.configFile -Scope user -ApproveAllTools:(!$ApproveMcpReadTools)
         })}
     }
+    $result.runningIdes=@(Get-SBRunningIdes $chosenIdes)
     if($PreviewOnly){$result.activation=$preview;return $result}
+    # Applying is blocked while a selected IDE runs; detection only, no process is stopped.
+    if($result.runningIdes.Count -and ($prompting -or ($Yes -and $Apply))){Assert-SBIdesClosed $chosenIdes}
     $confirmed=[bool]$Yes
     $doApply=[bool]$Apply
     $how='-Yes'
@@ -1073,6 +1094,8 @@ Export-ModuleMember -Function @(
     'Get-SBSetupPaths',
     'Assert-SBIDEInstructionsPath',
     'Invoke-SBSetup',
+    'Get-SBRunningIdes',
+    'Assert-SBIdesClosed',
     'Get-SBIDEContextState',
     'Get-SBSetupStatus',
     'Invoke-SBSetupUnbind',

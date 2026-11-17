@@ -265,6 +265,11 @@ if('portable' -in $Groups){
             Check ($LASTEXITCODE -eq 2 -and $studioLocal.Contains('reachable UNC root')) 'Studio profile rejects a local path as shared root'
             $allError=(& pwsh -NoProfile -File $setupScript -Setup -PreviewOnly -All -Roots $repo 2>&1) -join "`n"
             Check ($LASTEXITCODE -eq 2 -and $allError.Contains('use -AllIdes')) 'Setup rejects the removed -All (no silent binding to -AllIdes) with the next step'
+            $ideFixture=@(@{name='Cursor'},@{name='VS Code'},@{name='Codex'})
+            $runningFixture=@(Get-SBRunningIdes $ideFixture -ProcessNames @('code','explorer'))
+            $blockedMessage=try{Assert-SBIdesClosed $ideFixture -ProcessNames @('Cursor','code');''}catch{$_.Exception.Message}
+            $idleOk=try{Assert-SBIdesClosed $ideFixture -ProcessNames @('explorer');$true}catch{$false}
+            Check ($runningFixture.Count -eq 1 -and $runningFixture[0] -eq 'VS Code' -and $blockedMessage.Contains('Cursor') -and $blockedMessage.Contains('VS Code') -and $idleOk -and @(Get-SBRunningIdes @(@{name='Codex'}) -ProcessNames @('codex')).Count -eq 0) 'setup detects running selected IDEs from process names, blocks apply and never stops a process'
             $personalRoot=Join-Path $fixture 'personal'
             $personalDossier=Join-Path $personalRoot '02-areas/Personal'
             foreach($file in 'para.json','repository.json','brief.md','context.md','memory.md','tracker.json','history/seed/report.md'){
