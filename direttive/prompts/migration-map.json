@@ -1,0 +1,1176 @@
+{
+  "schemaVersion": 1,
+  "status": "draft",
+  "targetVersion": "3.0.0",
+  "approvedOn": "2026-11-16",
+  "approval": "Owner default (recommended map) recorded in task #565 state reason; version decided 2026-11-14",
+  "sources": [
+    "history/2026-11-13-prompt-library-audit/report.md section 3.2",
+    "history/2026-11-15-prompt-library-body-audit/report.md section 3"
+  ],
+  "counts": {
+    "cards": 121,
+    "additionsListed": 7,
+    "splitSuccessorAdditions": 1
+  },
+  "cards": [
+    {
+      "oldCode": "AIS01",
+      "outcome": "keep",
+      "successors": [
+        "LLM01"
+      ],
+      "partiallyRead": true,
+      "rationale": "one outcome (ranked use cases), read-only"
+    },
+    {
+      "oldCode": "AIS02",
+      "outcome": "keep",
+      "successors": [
+        "LLM02"
+      ],
+      "partiallyRead": true,
+      "rationale": "design of local serving, no install"
+    },
+    {
+      "oldCode": "AIS03",
+      "outcome": "keep",
+      "successors": [
+        "LLM03"
+      ],
+      "partiallyRead": true,
+      "rationale": "contracts and permissions for integration"
+    },
+    {
+      "oldCode": "AIS04",
+      "outcome": "keep",
+      "successors": [
+        "LLM04"
+      ],
+      "partiallyRead": true,
+      "rationale": "embeddable chatbot with backend"
+    },
+    {
+      "oldCode": "AIS05",
+      "outcome": "keep",
+      "successors": [
+        "LLM05"
+      ],
+      "partiallyRead": true,
+      "rationale": "retrieval design with access control"
+    },
+    {
+      "oldCode": "AIS06",
+      "outcome": "keep",
+      "successors": [
+        "LLM06"
+      ],
+      "partiallyRead": true,
+      "rationale": "evaluation and operation in production"
+    },
+    {
+      "oldCode": "AIS07",
+      "outcome": "keep",
+      "successors": [
+        "LLM07"
+      ],
+      "partiallyRead": true,
+      "rationale": "privacy and compliance assessment; overlaps SEC02/SEC05 but adds AI Act and prompt injection"
+    },
+    {
+      "oldCode": "AIS08",
+      "outcome": "keep",
+      "successors": [
+        "LLM08"
+      ],
+      "partiallyRead": true,
+      "rationale": "cost, ROI and adoption plan"
+    },
+    {
+      "oldCode": "AIS09",
+      "outcome": "keep",
+      "successors": [
+        "LLM09"
+      ],
+      "partiallyRead": true,
+      "rationale": "agent automation with human review"
+    },
+    {
+      "oldCode": "AUD01",
+      "outcome": "split",
+      "successors": [
+        "wf-repo-audit",
+        "REV06",
+        "REV07"
+      ],
+      "partiallyRead": false,
+      "rationale": "steps only chain AUD02-04, AUD07, SEC01/04/05, GOV02, TST05, TST06; merge and export are the real card content"
+    },
+    {
+      "oldCode": "AUD02",
+      "outcome": "keep",
+      "successors": [
+        "REV03"
+      ],
+      "partiallyRead": false,
+      "rationale": "metrics with recorded method"
+    },
+    {
+      "oldCode": "AUD03",
+      "outcome": "keep",
+      "successors": [
+        "REV04"
+      ],
+      "partiallyRead": false,
+      "rationale": "architecture and untracked debt"
+    },
+    {
+      "oldCode": "AUD04",
+      "outcome": "keep",
+      "successors": [
+        "REV05"
+      ],
+      "partiallyRead": false,
+      "rationale": "dependency health; points to DEV04 and GOV02"
+    },
+    {
+      "oldCode": "AUD07",
+      "outcome": "keep",
+      "successors": [
+        "RSK07"
+      ],
+      "partiallyRead": false,
+      "rationale": "CI/CD and supply chain; audit side of SEC06"
+    },
+    {
+      "oldCode": "COM01",
+      "outcome": "keep",
+      "successors": [
+        "UND01"
+      ],
+      "partiallyRead": false,
+      "rationale": "repository map"
+    },
+    {
+      "oldCode": "COM02",
+      "outcome": "keep",
+      "successors": [
+        "UND02"
+      ],
+      "partiallyRead": false,
+      "rationale": "flow trace"
+    },
+    {
+      "oldCode": "COM03",
+      "outcome": "keep",
+      "successors": [
+        "UND06"
+      ],
+      "partiallyRead": false,
+      "rationale": "primary sources for one question; distinct from SYS02 (registry)"
+    },
+    {
+      "oldCode": "COM04",
+      "outcome": "keep",
+      "successors": [
+        "UND03"
+      ],
+      "partiallyRead": false,
+      "rationale": "change impact"
+    },
+    {
+      "oldCode": "COM05",
+      "outcome": "keep",
+      "successors": [
+        "UND04"
+      ],
+      "partiallyRead": false,
+      "rationale": "root cause from logs, no code change"
+    },
+    {
+      "oldCode": "COM06",
+      "outcome": "keep",
+      "successors": [
+        "UND05"
+      ],
+      "partiallyRead": false,
+      "rationale": "explain code"
+    },
+    {
+      "oldCode": "COM07",
+      "outcome": "keep",
+      "successors": [
+        "KNW09"
+      ],
+      "partiallyRead": false,
+      "rationale": "proposes skills; step 5 target retargeted to KNW08"
+    },
+    {
+      "oldCode": "COM08",
+      "outcome": "keep",
+      "successors": [
+        "UND07"
+      ],
+      "partiallyRead": false,
+      "rationale": "intent, limits, alternatives; evidence-based"
+    },
+    {
+      "oldCode": "DAT01",
+      "outcome": "keep",
+      "successors": [
+        "DTA01"
+      ],
+      "partiallyRead": false,
+      "rationale": "migration with comparison and rollback"
+    },
+    {
+      "oldCode": "DAT02",
+      "outcome": "keep",
+      "successors": [
+        "DTA02"
+      ],
+      "partiallyRead": false,
+      "rationale": "imports that preserve originals"
+    },
+    {
+      "oldCode": "DAT03",
+      "outcome": "keep",
+      "successors": [
+        "DTA03"
+      ],
+      "partiallyRead": false,
+      "rationale": "API integration with retries"
+    },
+    {
+      "oldCode": "DAT04",
+      "outcome": "keep",
+      "successors": [
+        "DTA04"
+      ],
+      "partiallyRead": false,
+      "rationale": "query and index optimization; follows TST06"
+    },
+    {
+      "oldCode": "DEV01",
+      "outcome": "keep",
+      "successors": [
+        "BLD01"
+      ],
+      "partiallyRead": false,
+      "rationale": "feature implementation"
+    },
+    {
+      "oldCode": "DEV02",
+      "outcome": "split",
+      "successors": [
+        "UND08",
+        "BLD02"
+      ],
+      "partiallyRead": false,
+      "rationale": "triage-only stops at step 3 (read); reproduce and fix writes; keep ID on BLD02"
+    },
+    {
+      "oldCode": "DEV03",
+      "outcome": "split",
+      "successors": [
+        "BLD03",
+        "BLD04"
+      ],
+      "partiallyRead": false,
+      "rationale": "targeted refactor vs periodic dead-code and duplicate removal; \"phased\" uses PLN05"
+    },
+    {
+      "oldCode": "DEV04",
+      "outcome": "keep",
+      "successors": [
+        "BLD05"
+      ],
+      "partiallyRead": false,
+      "rationale": "dependency update, grouped by risk"
+    },
+    {
+      "oldCode": "DEV05",
+      "outcome": "keep",
+      "successors": [
+        "BLD06"
+      ],
+      "partiallyRead": false,
+      "rationale": "migration to a target version"
+    },
+    {
+      "oldCode": "DEV06",
+      "outcome": "keep",
+      "successors": [
+        "BLD07"
+      ],
+      "partiallyRead": false,
+      "rationale": "lint, format, static analysis setup"
+    },
+    {
+      "oldCode": "DEV12",
+      "outcome": "keep",
+      "successors": [
+        "LLM10"
+      ],
+      "partiallyRead": false,
+      "rationale": "LLM feature with evaluation; \"or review\" dropped; only AI card outside AIS"
+    },
+    {
+      "oldCode": "DOC01",
+      "outcome": "keep",
+      "successors": [
+        "DCM01"
+      ],
+      "partiallyRead": true,
+      "rationale": "README and guides verified by running"
+    },
+    {
+      "oldCode": "DOC02",
+      "outcome": "keep",
+      "successors": [
+        "DCM02"
+      ],
+      "partiallyRead": true,
+      "rationale": "API docs from implementation"
+    },
+    {
+      "oldCode": "DOC03",
+      "outcome": "keep",
+      "successors": [
+        "DCM03"
+      ],
+      "partiallyRead": true,
+      "rationale": "screenshots with synthetic data; drop \"diagrams\""
+    },
+    {
+      "oldCode": "DOC04",
+      "outcome": "keep",
+      "successors": [
+        "DCM04"
+      ],
+      "partiallyRead": true,
+      "rationale": "operational runbook"
+    },
+    {
+      "oldCode": "DOC05",
+      "outcome": "split",
+      "successors": [
+        "DCM05",
+        "DCM06"
+      ],
+      "partiallyRead": true,
+      "rationale": "diagrams from code vs posters, social and site sections (marketing outcome)"
+    },
+    {
+      "oldCode": "DOC06",
+      "outcome": "keep",
+      "successors": [
+        "DIR01"
+      ],
+      "partiallyRead": true,
+      "rationale": "repository directives proposal, `surface: app`"
+    },
+    {
+      "oldCode": "GOV02",
+      "outcome": "split",
+      "successors": [
+        "RSK10",
+        "RSK11"
+      ],
+      "partiallyRead": false,
+      "rationale": "check-only vs update CREDITS/NOTICE (write)"
+    },
+    {
+      "oldCode": "INT01",
+      "outcome": "keep",
+      "successors": [
+        "UIX01"
+      ],
+      "partiallyRead": true,
+      "rationale": "usability and states"
+    },
+    {
+      "oldCode": "INT02",
+      "outcome": "keep",
+      "successors": [
+        "UIX02"
+      ],
+      "partiallyRead": true,
+      "rationale": "implement an interface"
+    },
+    {
+      "oldCode": "INT03",
+      "outcome": "keep",
+      "successors": [
+        "UIX03"
+      ],
+      "partiallyRead": true,
+      "rationale": "accessibility verification"
+    },
+    {
+      "oldCode": "INT04",
+      "outcome": "keep",
+      "successors": [
+        "UIX04"
+      ],
+      "partiallyRead": true,
+      "rationale": "internationalization check"
+    },
+    {
+      "oldCode": "INT05",
+      "outcome": "keep",
+      "successors": [
+        "UIX05"
+      ],
+      "partiallyRead": true,
+      "rationale": "interface copy"
+    },
+    {
+      "oldCode": "MEM01",
+      "outcome": "keep",
+      "successors": [
+        "SES05"
+      ],
+      "partiallyRead": false,
+      "rationale": "align dossier with repository; fix N3 token"
+    },
+    {
+      "oldCode": "MEM02",
+      "outcome": "keep",
+      "successors": [
+        "KNW03"
+      ],
+      "partiallyRead": false,
+      "rationale": "migrate design and tracker; replace reconnaissance paragraph (N4)"
+    },
+    {
+      "oldCode": "MEM03",
+      "outcome": "keep",
+      "successors": [
+        "SES02"
+      ],
+      "partiallyRead": false,
+      "rationale": "close session; move commit/push to wf-session-close, memory-cycle rules out (1.5)"
+    },
+    {
+      "oldCode": "MEM05",
+      "outcome": "split",
+      "successors": [
+        "KNW01",
+        "KNW02"
+      ],
+      "partiallyRead": false,
+      "rationale": "create vs change status, archive, restore; layout step 1 moves to reference"
+    },
+    {
+      "oldCode": "MEM06",
+      "outcome": "split",
+      "successors": [
+        "TRK01",
+        "KNW07"
+      ],
+      "partiallyRead": false,
+      "rationale": "read tasks vs measure startup package"
+    },
+    {
+      "oldCode": "MEM07",
+      "outcome": "keep",
+      "successors": [
+        "SES04"
+      ],
+      "partiallyRead": false,
+      "rationale": "resume; shorten (4053 characters)"
+    },
+    {
+      "oldCode": "MEM08",
+      "outcome": "split",
+      "successors": [
+        "SES01",
+        "wf-session-start"
+      ],
+      "partiallyRead": false,
+      "rationale": "location, Git state and alignment stay (SES01); the proposal chain is the workflow"
+    },
+    {
+      "oldCode": "MEM09",
+      "outcome": "keep",
+      "successors": [
+        "SES03"
+      ],
+      "partiallyRead": false,
+      "rationale": "stop and hand over; fix N3 and size"
+    },
+    {
+      "oldCode": "MNT01",
+      "outcome": "workflow",
+      "successors": [
+        "wf-maintenance-round"
+      ],
+      "partiallyRead": false,
+      "rationale": "cadence and ordering text becomes workflow notes (N9)"
+    },
+    {
+      "oldCode": "MNT02",
+      "outcome": "keep",
+      "successors": [
+        "UPK01"
+      ],
+      "partiallyRead": false,
+      "rationale": "health check; fix routing after splits"
+    },
+    {
+      "oldCode": "MNT03",
+      "outcome": "workflow",
+      "successors": [
+        "wf-dossier-tidy"
+      ],
+      "partiallyRead": false,
+      "rationale": "steps duplicate TRK07, SES05, KNW04 (N9)"
+    },
+    {
+      "oldCode": "MNT04",
+      "outcome": "keep",
+      "successors": [
+        "UPK03"
+      ],
+      "partiallyRead": false,
+      "rationale": "restore test"
+    },
+    {
+      "oldCode": "MNT05",
+      "outcome": "keep",
+      "successors": [
+        "UPK04"
+      ],
+      "partiallyRead": false,
+      "rationale": "runtime review, preview first, destructive on apply"
+    },
+    {
+      "oldCode": "MNT06",
+      "outcome": "split",
+      "successors": [
+        "UPK05",
+        "wf-refresh-sources"
+      ],
+      "partiallyRead": false,
+      "rationale": "tool-version check stays; sources and skills steps chain KNW05, KNW06, KNW08"
+    },
+    {
+      "oldCode": "MNT07",
+      "outcome": "keep",
+      "successors": [
+        "DIR02"
+      ],
+      "partiallyRead": false,
+      "rationale": "directive revision"
+    },
+    {
+      "oldCode": "OPS01",
+      "outcome": "keep",
+      "successors": [
+        "REL01"
+      ],
+      "partiallyRead": false,
+      "rationale": "packages and artifacts"
+    },
+    {
+      "oldCode": "OPS02",
+      "outcome": "keep",
+      "successors": [
+        "REL02"
+      ],
+      "partiallyRead": false,
+      "rationale": "pipelines, containers, IaC"
+    },
+    {
+      "oldCode": "OPS03",
+      "outcome": "keep",
+      "successors": [
+        "REL07"
+      ],
+      "partiallyRead": false,
+      "rationale": "logs, metrics, diagnostics"
+    },
+    {
+      "oldCode": "OPS04",
+      "outcome": "keep",
+      "successors": [
+        "REL03"
+      ],
+      "partiallyRead": false,
+      "rationale": "release notes and delivery checks"
+    },
+    {
+      "oldCode": "OPS05",
+      "outcome": "keep",
+      "successors": [
+        "GIT01"
+      ],
+      "partiallyRead": false,
+      "rationale": "commits and pull requests"
+    },
+    {
+      "oldCode": "OPS06",
+      "outcome": "split",
+      "successors": [
+        "REL04",
+        "REL05"
+      ],
+      "partiallyRead": false,
+      "rationale": "hotfix and rollback are two procedures with a decision between them; repoint DEV02 reference"
+    },
+    {
+      "oldCode": "OPS07",
+      "outcome": "keep",
+      "successors": [
+        "REL06"
+      ],
+      "partiallyRead": false,
+      "rationale": "blameless postmortem"
+    },
+    {
+      "oldCode": "PRG01",
+      "outcome": "keep",
+      "successors": [
+        "PLN01"
+      ],
+      "partiallyRead": false,
+      "rationale": "requirements and acceptance criteria"
+    },
+    {
+      "oldCode": "PRG02",
+      "outcome": "keep",
+      "successors": [
+        "PLN02"
+      ],
+      "partiallyRead": false,
+      "rationale": "compare options"
+    },
+    {
+      "oldCode": "PRG03",
+      "outcome": "keep",
+      "successors": [
+        "PLN03"
+      ],
+      "partiallyRead": false,
+      "rationale": "contracts and data models"
+    },
+    {
+      "oldCode": "PRG04",
+      "outcome": "split",
+      "successors": [
+        "PLN04",
+        "PLN05"
+      ],
+      "partiallyRead": false,
+      "rationale": "general plan vs architectural refactoring with seams"
+    },
+    {
+      "oldCode": "PRG05",
+      "outcome": "keep",
+      "successors": [
+        "BLD08"
+      ],
+      "partiallyRead": false,
+      "rationale": "module scaffold"
+    },
+    {
+      "oldCode": "PRG07",
+      "outcome": "keep",
+      "successors": [
+        "PLN06"
+      ],
+      "partiallyRead": false,
+      "rationale": "ADR"
+    },
+    {
+      "oldCode": "REP01",
+      "outcome": "keep",
+      "successors": [
+        "TRK02"
+      ],
+      "partiallyRead": false,
+      "rationale": "next ready task; verification duplicates TST05 (reference instead)"
+    },
+    {
+      "oldCode": "REP04",
+      "outcome": "split",
+      "successors": [
+        "GIT06",
+        "BLD04"
+      ],
+      "partiallyRead": false,
+      "rationale": "leftovers and `.gitignore` vs code removal (merged into BLD04); mark destructive"
+    },
+    {
+      "oldCode": "REP08",
+      "outcome": "keep",
+      "successors": [
+        "TRK03"
+      ],
+      "partiallyRead": false,
+      "rationale": "leftover tasks against code, read-only"
+    },
+    {
+      "oldCode": "REP11",
+      "outcome": "keep",
+      "successors": [
+        "GIT03"
+      ],
+      "partiallyRead": false,
+      "rationale": "issues from forms"
+    },
+    {
+      "oldCode": "REP12",
+      "outcome": "keep",
+      "successors": [
+        "GIT02"
+      ],
+      "partiallyRead": false,
+      "rationale": "consolidate branches; set `destructive`"
+    },
+    {
+      "oldCode": "REP13",
+      "outcome": "split",
+      "successors": [
+        "GIT05",
+        "RSK06"
+      ],
+      "partiallyRead": false,
+      "rationale": "page and community files vs security and settings (groups C-D into RSK06)"
+    },
+    {
+      "oldCode": "REP14",
+      "outcome": "keep",
+      "successors": [
+        "GIT04"
+      ],
+      "partiallyRead": false,
+      "rationale": "triage issues and pull requests"
+    },
+    {
+      "oldCode": "REP15",
+      "outcome": "keep",
+      "successors": [
+        "TRK04"
+      ],
+      "partiallyRead": false,
+      "rationale": "runner run; shorten, fix N5, drop script help"
+    },
+    {
+      "oldCode": "REP16",
+      "outcome": "keep",
+      "successors": [
+        "TRK05"
+      ],
+      "partiallyRead": false,
+      "rationale": "unblock tasks; absorbs inherited-block rule from REP17; shorten (N6)"
+    },
+    {
+      "oldCode": "REP17",
+      "outcome": "keep",
+      "successors": [
+        "TRK07"
+      ],
+      "partiallyRead": false,
+      "rationale": "archive and reorder; its inherited-block step moves to TRK05"
+    },
+    {
+      "oldCode": "REP18",
+      "outcome": "keep",
+      "successors": [
+        "TRK06"
+      ],
+      "partiallyRead": false,
+      "rationale": "non-runnable task analysis, `surface: app`"
+    },
+    {
+      "oldCode": "SEC01",
+      "outcome": "split",
+      "successors": [
+        "REV01",
+        "REV02"
+      ],
+      "partiallyRead": false,
+      "rationale": "change review vs maintainability review of existing code"
+    },
+    {
+      "oldCode": "SEC02",
+      "outcome": "keep",
+      "successors": [
+        "RSK01"
+      ],
+      "partiallyRead": false,
+      "rationale": "threat model"
+    },
+    {
+      "oldCode": "SEC03",
+      "outcome": "keep",
+      "successors": [
+        "RSK02"
+      ],
+      "partiallyRead": false,
+      "rationale": "fix a vulnerability"
+    },
+    {
+      "oldCode": "SEC04",
+      "outcome": "split",
+      "successors": [
+        "RSK03",
+        "RSK04"
+      ],
+      "partiallyRead": false,
+      "rationale": "credentials search stays; input validation is new content (N1)"
+    },
+    {
+      "oldCode": "SEC05",
+      "outcome": "keep",
+      "successors": [
+        "RSK05"
+      ],
+      "partiallyRead": false,
+      "rationale": "personal data check"
+    },
+    {
+      "oldCode": "SEC06",
+      "outcome": "keep",
+      "successors": [
+        "RSK06"
+      ],
+      "partiallyRead": false,
+      "rationale": "hardening; absorbs REP13 C-D"
+    },
+    {
+      "oldCode": "SEC07",
+      "outcome": "keep",
+      "successors": [
+        "RSK08"
+      ],
+      "partiallyRead": false,
+      "rationale": "pre-publication scan; destination of the wf-publish chain"
+    },
+    {
+      "oldCode": "SEC09",
+      "outcome": "keep",
+      "successors": [
+        "RSK09"
+      ],
+      "partiallyRead": false,
+      "rationale": "remote history wipe, destructive"
+    },
+    {
+      "oldCode": "SYS01",
+      "outcome": "split",
+      "successors": [
+        "WKS05",
+        "WKS06"
+      ],
+      "partiallyRead": false,
+      "rationale": "check/map vs register account; \"realign\" merges into WKS04; fix N5"
+    },
+    {
+      "oldCode": "SYS02",
+      "outcome": "split",
+      "successors": [
+        "KNW05",
+        "KNW06"
+      ],
+      "partiallyRead": false,
+      "rationale": "check (read) vs acquire or update (write)"
+    },
+    {
+      "oldCode": "SYS03",
+      "outcome": "keep",
+      "successors": [
+        "WKS02"
+      ],
+      "partiallyRead": false,
+      "rationale": "activate; shorten; remove Italian token (N3)"
+    },
+    {
+      "oldCode": "SYS04",
+      "outcome": "split",
+      "successors": [
+        "WKS03",
+        "WKS04"
+      ],
+      "partiallyRead": false,
+      "rationale": "check (verify) vs align (write)"
+    },
+    {
+      "oldCode": "SYS05",
+      "outcome": "keep",
+      "successors": [
+        "KNW04"
+      ],
+      "partiallyRead": false,
+      "rationale": "compact; move Italian section names to script contract (N3)"
+    },
+    {
+      "oldCode": "SYS09",
+      "outcome": "keep",
+      "successors": [
+        "UPK02"
+      ],
+      "partiallyRead": false,
+      "rationale": "backup and digest verification"
+    },
+    {
+      "oldCode": "SYS10",
+      "outcome": "keep",
+      "successors": [
+        "WKS08"
+      ],
+      "partiallyRead": false,
+      "rationale": "decommission, destructive"
+    },
+    {
+      "oldCode": "SYS11",
+      "outcome": "split",
+      "successors": [
+        "DIR03",
+        "DIR04",
+        "DIR05"
+      ],
+      "partiallyRead": false,
+      "rationale": "add, change, retire; rules rewritten first (N2)"
+    },
+    {
+      "oldCode": "SYS13",
+      "outcome": "keep",
+      "successors": [
+        "DIR07"
+      ],
+      "partiallyRead": false,
+      "rationale": "greenfield lock"
+    },
+    {
+      "oldCode": "SYS15",
+      "outcome": "keep",
+      "successors": [
+        "WKS07"
+      ],
+      "partiallyRead": false,
+      "rationale": "install MCP server; remove Italian status strings (N3)"
+    },
+    {
+      "oldCode": "SYS16",
+      "outcome": "keep",
+      "successors": [
+        "KNW08"
+      ],
+      "partiallyRead": false,
+      "rationale": "update a skill from sources"
+    },
+    {
+      "oldCode": "SYS17",
+      "outcome": "split",
+      "successors": [
+        "WKS01",
+        "wf-first-setup"
+      ],
+      "partiallyRead": false,
+      "rationale": "optional-features review stays; the chain SYS03, SYS15, SYS01 is the workflow"
+    },
+    {
+      "oldCode": "TST01",
+      "outcome": "keep",
+      "successors": [
+        "QUA01"
+      ],
+      "partiallyRead": false,
+      "rationale": "unit and integration tests"
+    },
+    {
+      "oldCode": "TST02",
+      "outcome": "keep",
+      "successors": [
+        "QUA02"
+      ],
+      "partiallyRead": false,
+      "rationale": "end-to-end tests"
+    },
+    {
+      "oldCode": "TST03",
+      "outcome": "keep",
+      "successors": [
+        "QUA03"
+      ],
+      "partiallyRead": false,
+      "rationale": "flaky tests"
+    },
+    {
+      "oldCode": "TST04",
+      "outcome": "keep",
+      "successors": [
+        "QUA04"
+      ],
+      "partiallyRead": false,
+      "rationale": "CI failures"
+    },
+    {
+      "oldCode": "TST05",
+      "outcome": "keep",
+      "successors": [
+        "QUA05"
+      ],
+      "partiallyRead": false,
+      "rationale": "verify behavior against requirements"
+    },
+    {
+      "oldCode": "TST06",
+      "outcome": "split",
+      "successors": [
+        "QUA08",
+        "QUA09"
+      ],
+      "partiallyRead": false,
+      "rationale": "audit (read) vs optimize (write)"
+    },
+    {
+      "oldCode": "TST07",
+      "outcome": "keep",
+      "successors": [
+        "QUA06"
+      ],
+      "partiallyRead": false,
+      "rationale": "test harness"
+    },
+    {
+      "oldCode": "TST08",
+      "outcome": "keep",
+      "successors": [
+        "QUA07"
+      ],
+      "partiallyRead": false,
+      "rationale": "test quality review"
+    },
+    {
+      "oldCode": "WEB01",
+      "outcome": "keep",
+      "successors": [
+        "SIT01"
+      ],
+      "partiallyRead": false,
+      "rationale": "site requirements (pack `site`)"
+    },
+    {
+      "oldCode": "WEB02",
+      "outcome": "keep",
+      "successors": [
+        "SIT02"
+      ],
+      "partiallyRead": false,
+      "rationale": "stack and hosting decision"
+    },
+    {
+      "oldCode": "WEB03",
+      "outcome": "keep",
+      "successors": [
+        "SIT03"
+      ],
+      "partiallyRead": false,
+      "rationale": "information architecture and design system"
+    },
+    {
+      "oldCode": "WEB04",
+      "outcome": "workflow",
+      "successors": [
+        "wf-site-build"
+      ],
+      "partiallyRead": false,
+      "rationale": "steps are BLD08 + BLD01 on a site"
+    },
+    {
+      "oldCode": "WEB05",
+      "outcome": "workflow",
+      "successors": [
+        "wf-site-build"
+      ],
+      "partiallyRead": false,
+      "rationale": "steps are BLD01 + UIX03 + QUA02; performance/security note kept (corrected rationale)"
+    },
+    {
+      "oldCode": "WEB06",
+      "outcome": "keep",
+      "successors": [
+        "SIT04"
+      ],
+      "partiallyRead": false,
+      "rationale": "release, hosting, handover"
+    },
+    {
+      "oldCode": "WEB07",
+      "outcome": "keep",
+      "successors": [
+        "SIT05"
+      ],
+      "partiallyRead": false,
+      "rationale": "website hardening; overlaps SEC06, kept for delivered-site scope"
+    },
+    {
+      "oldCode": "WEB08",
+      "outcome": "keep",
+      "successors": [
+        "SIT06"
+      ],
+      "partiallyRead": false,
+      "rationale": "indexing and webmaster tools"
+    },
+    {
+      "oldCode": "WEB09",
+      "outcome": "keep",
+      "successors": [
+        "SIT07"
+      ],
+      "partiallyRead": false,
+      "rationale": "AI crawler control"
+    }
+  ],
+  "additions": [
+    {
+      "newCode": "TRK08",
+      "note": "Create a task with acceptance criteria and provenance"
+    },
+    {
+      "newCode": "TRK09",
+      "note": "Verify one task against its criteria and close it"
+    },
+    {
+      "newCode": "WKS09",
+      "note": "Add a repository to an activated workstation"
+    },
+    {
+      "newCode": "WKS10",
+      "note": "Probe agent CLIs and set runner models"
+    },
+    {
+      "newCode": "WKS11",
+      "note": "Define, validate and export subagents"
+    },
+    {
+      "newCode": "DIR06",
+      "note": "Add or change a workflow"
+    },
+    {
+      "newCode": "UPK06",
+      "note": "Recover an interrupted transaction or deferred writes"
+    }
+  ],
+  "additionsPending": [
+    {
+      "topic": "work folders (work.ps1)",
+      "note": "named in audit 1.4 but no code in map 3.2; assign in #569"
+    },
+    {
+      "topic": "unattended computer use (computer-use.ps1)",
+      "note": "named in audit 1.4 but no code in map 3.2; assign in #569"
+    }
+  ],
+  "splitAdditions": [
+    {
+      "newCode": "RSK04",
+      "note": "SEC04 split: verify input validation is new content (body audit N1)"
+    }
+  ]
+}
