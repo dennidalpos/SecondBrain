@@ -26,7 +26,7 @@ State: status.json, events.jsonl, NOTICE.txt (on stop or failure) and stop.flag 
 With -Run the script copies itself into the work folder and runs the copy (-Pinned). SecondBrain's own scripts cannot be pinned (the brain root is the
 parent of the scripts folder and the dossier write guard refuses junctions): their SHA-256 manifest is taken at start and a change is reported after each task.
 Works in any repository managed by SecondBrain: the checkout defaults to the Git root of the current directory, SecondBrain to $env:SECONDBRAIN_HOME
-(or the folder above this script), the dossier is found by the Git identity (origin) in 01-projects\*\repository.json.
+(or the folder above this script), the dossier is found by the Git identity (origin), matched against the identity and the aliases in 01-projects\*\repository.json.
 #>
 [CmdletBinding()]
 param(
@@ -128,7 +128,7 @@ function Test-ProtectedBranch([string]$Name) { $Name -in 'master', 'main', 'HEAD
 # --- dossier ---
 if (-not $TrackerPath) {
     $match = @('01-projects', '02-areas', '03-resources') | ForEach-Object { Join-Path $SecondBrain $_ } | Where-Object { Test-Path -LiteralPath $_ } | ForEach-Object { Get-ChildItem -Path $_ -Filter repository.json -Recurse -Depth 2 -ErrorAction SilentlyContinue } |
-        Where-Object { (Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json).identity -eq $identity } | Select-Object -First 1
+        Where-Object { $record = Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json; $identity -and (($record.identity -eq $identity) -or ($identity -in @(Get-Property $record 'aliases' @()))) } | Select-Object -First 1
     if (-not $match) { throw (New-SBError 'orchestrate.dossier.missing' @($identity, (Join-Path $SecondBrain '01-projects, 02-areas, 03-resources'))) }
     $TrackerPath = Join-Path $match.DirectoryName 'tracker.json'
 }
