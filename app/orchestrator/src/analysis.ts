@@ -92,8 +92,8 @@ function render() {
   const v = current!;
   const r = v.result;
   setError("an-error", null);
-  $("an-title").textContent = `#${v.task.seq} ${v.task.title}`;
-  $("an-meta").textContent = `Analysis with ${v.provider}${v.model ? " · " + v.model : ""}${v.effort ? " · " + v.effort : ""} · round ${v.round} of ${v.maxRounds} ·${VERDICT_LABEL[r.verdict] ?? r.verdict}`;
+  $("an-title").textContent = `#${v.task.seq} ${String(v.task.title).replace(/^#\d+\s*[-–—:]?\s*/, "")}`;
+  $("an-meta").textContent = `Analysis with ${v.provider}${v.model ? " · " + v.model : ""}${v.effort ? " · " + v.effort : ""} · round ${v.round} of ${v.maxRounds} · ${VERDICT_LABEL[r.verdict] ?? r.verdict}`;
   $("an-reason").textContent = v.reason ? "Reason for exclusion: " + v.reason : "";
   $("an-summary").textContent = r.summary;
   const body = $("an-body");
@@ -133,7 +133,7 @@ function renderQuestions(body: HTMLElement, primary: HTMLButtonElement) {
       const box = el("input", { type, name, value: o.label });
       set.append(el("label", { className: "choice" }, box, el("span", {}, el("strong", {}, o.label + (o.id === a.recommended ? " (recommended)" : "")), el("span", { className: "muted small" }, " — " + o.description))));
     }
-    const otherBox = el("input", { type, name, value: "__other" });
+    const otherBox = el("input", { type, name, value: "__other", ariaLabel: "Other answer" });
     const otherText = el("input", { type: "text", placeholder: "Other: write your own answer", className: "other" });
     otherText.addEventListener("input", () => { if (otherText.value.trim()) otherBox.checked = true; update(); });
     set.append(el("label", { className: "choice" }, otherBox, otherText));

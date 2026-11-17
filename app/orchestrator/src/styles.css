@@ -231,7 +231,14 @@ input[type="checkbox"], input[type="radio"] { min-width: 24px; min-height: 24px;
   .recent li { grid-template-columns: 1fr auto; }
   .recent-path { grid-column: 1 / -1; }
 }
+/* #694 F8: a run opened in Runner runs gets a visible selected state. */
+table.tasks tr.run-selected td { background: var(--accent-soft); }
+table.tasks tr.run-selected td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
 @media (max-width: 700px) {
+  /* #694 F2: nothing in the queue may be wider than the viewport at 200% zoom. */
+  .grid > label, .row > *, .agents > * { min-width: 0; }
+  select, input:not([type="checkbox"]):not([type="radio"]), textarea { max-width: 100%; box-sizing: border-box; }
+  .row input[type="text"] { flex-basis: 160px; }
   .facts { grid-template-columns: 1fr; }
   table.tasks { display: block; overflow-x: auto; }
   .budget-bar { flex-basis: 100px; }

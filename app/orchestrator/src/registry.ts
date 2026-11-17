@@ -131,8 +131,17 @@ export async function refreshRuns() {
     const tr = el("tr");
     const counts = x.counts ? `${x.counts.done}/${x.counts.total} (${x.counts.succeeded} ok, ${x.counts.failed} ko)` + (x.counts.accepted !== undefined ? ` · ${x.counts.accepted} accepted` : "") : "—";
     const tasks = x.results.map((t) => `#${t.seq} ${t.state}`).join(", ") || "—";
+    const folder = el("details", {}, el("summary", {}, "Run folder"), el("span", { className: "mono small" }, x.folder));
+    // #694 F8: opening a run marks its row as selected (one at a time); clicking elsewhere in the row toggles the same details.
+    const select = () => {
+      $("reg-run-rows").querySelectorAll("tr.run-selected").forEach((r) => { if (r !== tr) { r.classList.remove("run-selected"); r.removeAttribute("aria-current"); } });
+      tr.classList.toggle("run-selected", folder.open);
+      if (folder.open) tr.setAttribute("aria-current", "true"); else tr.removeAttribute("aria-current");
+    };
+    folder.addEventListener("toggle", select);
+    tr.addEventListener("click", (e) => { if (!(e.target as HTMLElement).closest("details")) folder.open = !folder.open; });
     [fmtDate(x.startedAt), finishCell(x), toolBadge(x.provider || "unknown"), [x.model, x.effort].filter(Boolean).join(" · ") || "CLI defaults",
-      counts, x.stopReason ?? "—", tasks, el("details", {}, el("summary", {}, "Run folder"), el("span", { className: "mono small" }, x.folder))].forEach((c) => tr.append(el("td", {}, c)));
+      counts, x.stopReason ?? "—", tasks, folder].forEach((c) => tr.append(el("td", {}, c)));
     return tr;
   }));
 }
