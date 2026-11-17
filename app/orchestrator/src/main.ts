@@ -305,7 +305,7 @@ onBusyClick($("dir-import"), async () => {
   area.value = text;
   setProposal(null, `Text imported from ${file}: create the preview to propose it.`);
 });
-// Proposal of the light model (agents.ps1 -Analyze -Kind directives, DOC06): it surveys the checkout read-only and proposes only what the
+// Proposal of the light model (agents.ps1 -Analyze -Kind directives, analysis.directives): it surveys the checkout read-only and proposes only what the
 // global block, the common block and AGENTS.md do not already say. The text reaches the editor only when the person chooses so.
 onBusyClick($("dir-propose"), async () => {
   const l = currentLight();

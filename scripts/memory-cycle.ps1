@@ -30,9 +30,9 @@ if(!$Repository){throw (New-SBError 'cycle.invalid' @('Repository'))}
 $null = Resolve-SBCycleDossier $brain $Repository
 if($Operation -eq 'Context'){ConvertTo-SBJson (Get-SBCycleContext $brain $Repository $TaskIds $PreviousRevision $Budget);exit 0}
 if($Operation -eq 'Maintenance'){
-    if($Apply){throw (New-SBError 'cycle.invalid' @('Maintenance is inventory only; apply reviewed SYS05 candidates separately'))}
+    if($Apply){throw (New-SBError 'cycle.invalid' @('Maintenance is inventory only; apply reviewed dossier.compact candidates separately'))}
     $index=Get-SBCycleKnowledgeIndex $brain $Repository
-    ConvertTo-SBJson @{repository=$Repository;revision=$index.revision;batches=@($index.entries|Group-Object topic|ForEach-Object {@{topic=$_.Name;sources=@($_.Group);requires='SYS05 preview and explicit batch confirmation'}})}
+    ConvertTo-SBJson @{repository=$Repository;revision=$index.revision;batches=@($index.entries|Group-Object topic|ForEach-Object {@{topic=$_.Name;sources=@($_.Group);requires='dossier.compact preview and explicit batch confirmation'}})}
     exit 0
 }
 if($Operation -eq 'Permit'){

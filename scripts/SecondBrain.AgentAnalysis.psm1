@@ -1,6 +1,6 @@
 #requires -Version 7.5
-# One-shot read-only analyses with an agent CLI (desktop orchestrator): repository directive proposals (DOC06) and task autonomy
-# analysis (REP18). The agent reads the checkout with read-only tools and answers one JSON object validated against a schema in
+# One-shot read-only analyses with an agent CLI (desktop orchestrator): repository directive proposals (analysis.directives) and task autonomy
+# analysis (analysis.task). The agent reads the checkout with read-only tools and answers one JSON object validated against a schema in
 # config/analysis/; for tasks the object carries tool calls (ask_user, propose_task_update, mark_not_automatable) that the orchestrator
 # dispatches as multiple-choice questions and a reviewed tracker update. Nothing here writes to the dossier or the checkout: the output
 # goes to the work folder the caller names, and tracker writes go through knowledge.ps1 in scripts/agents.ps1.
@@ -11,6 +11,7 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Host.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.AgentAdapters.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.RunnerStatus.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Tracker.psm1')
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Prompts.psm1')
 Add-SBMessages @{
     'analysis.agent.notready' = @{ en = '{0} is not ready ({1}): install or update the CLI, then probe the agents again' }
     'analysis.quota.exhausted' = @{ en = '{0} quota exhausted until {1}: analysis not started. Pick another agent or retry after the reset' }
@@ -19,7 +20,7 @@ Add-SBMessages @{
     'analysis.output.invalid' = @{ en = '{0} answer does not match the schema after {1} attempts: {2}. Retry or pick a more capable model' }
     'analysis.card.missing' = @{ en = 'Prompt card {0} not found in direttive/prompts' }
 }
-$script:SBAnalysisKinds=@{directives=@{card='DOC06';schema='directives.schema.json'};task=@{card='REP18';schema='task.schema.json'}}
+$script:SBAnalysisKinds=@{directives=@{card='analysis.directives';schema='directives.schema.json'};task=@{card='analysis.task';schema='task.schema.json'}}
 function Get-SBAnalysisSchemaPath([string]$BrainRoot,[ValidateSet('directives','task')][string]$Kind) {
     Join-Path $BrainRoot ('config/analysis/'+$script:SBAnalysisKinds[$Kind].schema)
 }
@@ -35,7 +36,10 @@ function Get-SBLightModel([string]$BrainRoot,[string]$Provider) {
     }
     $role
 }
-function Get-SBPromptCardText([string]$BrainRoot,[string]$Code) {
+# The card is named by role or ID and resolved through the catalog; its file name is never written in code.
+function Get-SBPromptCardText([string]$BrainRoot,[string]$Key) {
+    $Code=$Key
+    try{$Code=(Resolve-SBWorkflowPrompt (Read-SBWorkflowCatalog $BrainRoot) $Key).prompt.code}catch{throw (New-SBError 'analysis.card.missing' @($Key))}
     $path=Join-Path $BrainRoot ('direttive/prompts/'+$Code+'.md')
     if(!(Test-Path -LiteralPath $path -PathType Leaf)){throw (New-SBError 'analysis.card.missing' @($Code))}
     (Read-SBText $path).Trim()
@@ -47,12 +51,12 @@ function Limit-SBAnalysisText([string]$Text,[int]$Max) {
     $Text.Substring(0,$Max)+"`n[... truncated: $($Text.Length-$Max) more characters]"
 }
 function New-SBDirectivesAnalysisPrompt {
-    # Prompt of the directive proposal: the DOC06 card, the blocks already loaded in every session (global, common, current dossier text,
+    # Prompt of the directive proposal: the analysis.directives card, the blocks already loaded in every session (global, common, current dossier text,
     # AGENTS.md outside the managed blocks) and the character budget. The agent reads the checkout itself with read-only tools.
     param([string]$BrainRoot,[string]$Identity,[string]$GlobalText,[string]$CommonText,[string]$DossierText,[string]$AgentsOutside,[int]$Budget=25000,[int]$UsedCharacters=0,[string]$Language='it')
     $lang=Get-SBAnalysisLanguageName $Language
     @(
-        (Get-SBPromptCardText $BrainRoot 'DOC06'),
+        (Get-SBPromptCardText $BrainRoot 'analysis.directives'),
         '',
         '# Task for this session',
         "Repository: $Identity. The current directory is its checkout: survey it with your read-only tools (manifests, build and test scripts, CI workflows, folder structure, existing guides), then propose the repository-specific directives.",
@@ -73,14 +77,14 @@ function New-SBDirectivesAnalysisPrompt {
     ) -join "`n"
 }
 function New-SBTaskAnalysisPrompt {
-    # Prompt of the task autonomy analysis: the REP18 card, the task as the tracker holds it, why the runner does not take it now,
+    # Prompt of the task autonomy analysis: the analysis.task card, the task as the tracker holds it, why the runner does not take it now,
     # the state of its dependencies and the answers already given in earlier rounds.
     param([string]$BrainRoot,$Task,[string]$Reason,$Dependencies=@(),$Rounds=@(),[string]$Language='it',[int]$Round=1,[int]$MaxRounds=3)
     $lang=Get-SBAnalysisLanguageName $Language
     $answered=@()
     foreach($r in @($Rounds)){foreach($a in @($r['answers'])){if($a){$answered+=,$a}}}
     @(
-        (Get-SBPromptCardText $BrainRoot 'REP18'),
+        (Get-SBPromptCardText $BrainRoot 'analysis.task'),
         '',
         '# Task for this session',
         "Analyze only task $($Task['id']) of this repository. The current directory is its checkout: read code and files with your read-only tools when the decision depends on them.",

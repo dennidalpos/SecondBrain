@@ -91,7 +91,7 @@ Add-SBMessages @{
     'mcp.description.list_prompts.compact' = @{ en = 'One line per prompt' }
     'mcp.description.get_prompt_home' = @{ en = 'sb prompt screen: sb commands and scripts; with repositoryPath, state and next step.' }
     'mcp.description.get_prompt_home.repositoryPath' = @{ en = 'Working checkout' }
-    'mcp.description.get_prompt' = @{ en = 'Composed prompt by code or ID (e.g. SYS03); objective sets the goal.' }
+    'mcp.description.get_prompt' = @{ en = 'Composed prompt by code or ID (e.g. workstation.activate); objective sets the goal.' }
     'mcp.description.get_prompt.prompt' = @{ en = 'Code, pmt-... ID or alias' }
     'mcp.description.check_publication' = @{ en = 'Publication check (working tree, index, history): summary; detail=true full report.' }
     'mcp.description.check_publication.repositoryPath' = @{ en = 'Git root or checkout' }

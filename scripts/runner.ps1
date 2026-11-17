@@ -10,7 +10,7 @@ runner and reports its failure; -Mode cli prints only the command-line preview.
 The repository is the Git root of -RepositoryPath (default: the current directory), so a prompt started inside a product checkout
 opens that product's dossier, tracker and ready tasks. The JSON on standard output names the mode used, the reason of a fallback and,
 for the command line, the preview, the choices read now (models, efforts and quota of each ready agent) and the next command with
--Provider/-Model/-Effort placeholders: the run starts only after the person picks model and effort in chat (see REP15).
+-Provider/-Model/-Effort placeholders: the run starts only after the person picks model and effort in chat (see runner.choice).
 Exit codes: 0 runner opened or preview shown, 2 gui mode failed or the preview failed.
 #>
 [CmdletBinding()]
@@ -57,7 +57,7 @@ if($Mode -ne 'cli'){
 $preview=Invoke-RunnerScript 'run-ready-tasks.ps1' (@('-CheckoutPath',$repository,'-MaxTasks','0')+$configArgs)
 $result.mode='cli';$result.preview=$preview.data
 # Choices read now, never cached: models and efforts from the installed CLIs and the quota of each ready agent. The agent asks the person
-# which model and effort to use (multiple-choice question, REP15) and only then fills the placeholders of the next command.
+# which model and effort to use (multiple-choice question, runner.choice) and only then fills the placeholders of the next command.
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.AgentAdapters.psm1')
 $result.choices=@(Get-SBAgentCapabilitiesAll|Where-Object {$_.status -eq 'ready'}|ForEach-Object {
     $a=$_

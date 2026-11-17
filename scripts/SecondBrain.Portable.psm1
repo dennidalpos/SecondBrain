@@ -24,9 +24,9 @@ Add-SBMessages @{
     'portable.issue.mcpconsent' = @{ en = 'A valid observation of the consent prompt for an MCP tool in this session is missing: record it with ide-observation.ps1' }
     'portable.unbind.summary' = @{ en = 'Unbinding {0} repositories and {1} IDE integrations: dossiers and IDE files are kept' }
     'portable.issue.forbidden' = @{ en = 'Forbidden repository present in the active bindings' }
-    'portable.issue.compaction' = @{ en = 'Propose SYS05 (sb compact): nothing is compacted without confirmation' }
-    'portable.issue.decisions' = @{ en = 'Superseded or expired decisions remain in history and are excluded from the agent view. Review their references during SYS05.' }
-    'portable.issue.closure' = @{ en = 'A task was closed after the last memory.md update: update memory and context with MEM03' }
+    'portable.issue.compaction' = @{ en = 'Propose dossier.compact (sb compact): nothing is compacted without confirmation' }
+    'portable.issue.decisions' = @{ en = 'Superseded or expired decisions remain in history and are excluded from the agent view. Review their references during dossier.compact.' }
+    'portable.issue.closure' = @{ en = 'A task was closed after the last memory.md update: update memory and context with session.close' }
     'portable.issue.idecontext' = @{ en = 'IDE context differs from the recorded one: re-verify login and loading, then re-activate with Setup and withdraw the old access with Unbind' }
     'portable.issue.writer' = @{ en = 'A writer is active: the result may reflect an intermediate state, repeat the check' }
     'portable.prompt.repos' = @{ en = 'Repositories found:' }

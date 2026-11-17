@@ -276,7 +276,7 @@ fn analysis_args(args: &mut Vec<String>, provider: &str, model: Option<String>, 
 
 #[tauri::command]
 async fn analyze_directives(app: AppHandle, repo: String, provider: String, model: Option<String>, effort: Option<String>) -> Result<Value, String> {
-    // One read-only run of the light model in the checkout (DOC06): proposed sections, what is covered elsewhere, warnings, counts.
+    // One read-only run of the light model in the checkout (analysis.directives): proposed sections, what is covered elsewhere, warnings, counts.
     let mut args = vec!["-Analyze".into(), "-Kind".into(), "directives".into(), "-RepositoryPath".into(), checkout(&repo)?];
     analysis_args(&mut args, &provider, model, effort)?;
     script(app, "agents.ps1", args).await
@@ -284,7 +284,7 @@ async fn analyze_directives(app: AppHandle, repo: String, provider: String, mode
 
 #[tauri::command]
 async fn analyze_task(app: AppHandle, repo: String, task_id: String, provider: String, model: Option<String>, effort: Option<String>) -> Result<Value, String> {
-    // First round of the autonomy analysis of one task (REP18): verdict and tool calls (questions or the proposed update).
+    // First round of the autonomy analysis of one task (analysis.task): verdict and tool calls (questions or the proposed update).
     if !valid_token(&task_id) {
         return Err("Invalid task ID.".into());
     }

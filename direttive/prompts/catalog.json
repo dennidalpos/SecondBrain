@@ -304,6 +304,7 @@
     {
       "id": "pmt-a709a792",
       "code": "COM01",
+      "role": "repo.explore",
       "category": "understand",
       "summary": "Explore the repository and identify main components and commands.",
       "target": "repository",
@@ -835,6 +836,7 @@
     {
       "id": "pmt-e9de72a0",
       "code": "DOC06",
+      "role": "analysis.directives",
       "category": "docs",
       "summary": "Survey a repository and propose its specific agent directives",
       "target": "repository",
@@ -1049,6 +1051,7 @@
     {
       "id": "pmt-76604e4a",
       "code": "MEM03",
+      "role": "session.close",
       "category": "backlog",
       "summary": "Close the session: memories, tracker, handoff and commit and push request.",
       "target": "repository",
@@ -1100,6 +1103,7 @@
     {
       "id": "pmt-821f7dec",
       "code": "MEM06",
+      "role": "context.startup",
       "category": "backlog",
       "summary": "Read memory, context and tracker of the current repository and list its tasks.",
       "target": "repository",
@@ -1126,6 +1130,7 @@
     {
       "id": "pmt-d0c0d000",
       "code": "MEM07",
+      "role": "session.resume",
       "category": "backlog",
       "summary": "Resume work stopped by a usage limit, importing it from another account",
       "target": "repository",
@@ -1152,6 +1157,7 @@
     {
       "id": "pmt-5916b85a",
       "code": "MEM08",
+      "role": "session.start",
       "category": "backlog",
       "summary": "Start a session: context, repository state, alignment and next tasks",
       "target": "repository",
@@ -1181,6 +1187,7 @@
     {
       "id": "pmt-039a5879",
       "code": "MEM09",
+      "role": "session.stop",
       "category": "backlog",
       "summary": "Stop the agent, save the session and hand it over to another IDE or account",
       "target": "repository",
@@ -1523,6 +1530,7 @@
     {
       "id": "pmt-4cc383ba",
       "code": "REP01",
+      "role": "task.work",
       "category": "backlog",
       "summary": "Complete the next ready task of the open repository.",
       "target": "repository",
@@ -1695,6 +1703,7 @@
     {
       "id": "pmt-802ff569",
       "code": "REP15",
+      "role": "runner.choice",
       "category": "backlog",
       "summary": "Run ready autonomous tasks with the runner, monitor and record the outcome",
       "target": "repository",
@@ -1769,6 +1778,7 @@
     {
       "id": "pmt-cca5cbfd",
       "code": "REP18",
+      "role": "analysis.task",
       "category": "backlog",
       "summary": "Analyze a non-runnable task and ask what makes it autonomous",
       "target": "repository",
@@ -1941,6 +1951,7 @@
     {
       "id": "pmt-058c474f",
       "code": "SEC07",
+      "role": "publication.check",
       "category": "security",
       "summary": "Check for sensitive data before publishing, locally and on the remote",
       "target": "repository",
@@ -1992,6 +2003,7 @@
     {
       "id": "pmt-26817a61",
       "code": "SYS01",
+      "role": "directives.sync",
       "category": "system",
       "summary": "Check the IDEs; map, register accounts or realign on request.",
       "target": "central",
@@ -2042,6 +2054,7 @@
     {
       "id": "pmt-5f9f93e0",
       "code": "SYS03",
+      "role": "workstation.activate",
       "category": "system",
       "summary": "Activate SecondBrain after discovery and asset selection.",
       "target": "central",
@@ -2069,6 +2082,7 @@
     {
       "id": "pmt-677a10ab",
       "code": "SYS04",
+      "role": "workstation.check",
       "category": "system",
       "summary": "Check or align the workstation's already managed assets.",
       "target": "central",
@@ -2095,6 +2109,7 @@
     {
       "id": "pmt-77d7bf7a",
       "code": "SYS05",
+      "role": "dossier.compact",
       "category": "knowledge",
       "summary": "Compact the dossier preserving originals, facts and TOC.",
       "target": "central",
@@ -2167,6 +2182,7 @@
     {
       "id": "pmt-364616bb",
       "code": "SYS11",
+      "role": "library.edit",
       "category": "knowledge",
       "summary": "Add, change or remove a prompt of the centralized catalog.",
       "target": "central",
@@ -2191,6 +2207,7 @@
     {
       "id": "pmt-29b3278f",
       "code": "SYS13",
+      "role": "lifecycle.greenfield.remove",
       "category": "backlog",
       "summary": "Set or remove the greenfield lock (versions, changelog, migrations, aliases).",
       "target": "repository",
@@ -2261,6 +2278,7 @@
     {
       "id": "pmt-a17c3e52",
       "code": "SYS17",
+      "role": "workstation.setup",
       "category": "system",
       "summary": "Guide the first-run setup of SecondBrain, IDE, agent, directives and MCP.",
       "target": "central",
@@ -2286,6 +2304,7 @@
     {
       "id": "pmt-3d7b91c4",
       "code": "SYS18",
+      "role": "project.skills",
       "category": "system",
       "summary": "Analyze a project, propose skills and install the selected ones",
       "target": "central",
@@ -2379,6 +2398,7 @@
     {
       "id": "pmt-bd98736f",
       "code": "TST04",
+      "role": "test.diagnose",
       "category": "test",
       "summary": "Diagnose and fix build and test failures in CI.",
       "target": "repository",

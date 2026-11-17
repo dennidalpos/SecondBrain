@@ -33,7 +33,7 @@ Add-SBMessages @{
     'knowledge.candidate.tasks' = @{ en = 'The candidate omits open tasks: regenerate the projection' }
     'knowledge.budget.exceeded' = @{ en = 'Budget exceeded: refine the summary without truncating information' }
     'knowledge.startup.compacted' = @{ en = 'Package compacted: retrieve sections and tasks with -Section, -Tasks, -Task or -Startup -Profile Full' }
-    'knowledge.budget.alert' = @{ en = 'Startup context at {0}% of the {1}-character cap (total {2}: package {3}, AGENTS.md and global directive {4}): propose SYS05 (sb compact) before adding more context; nothing is compacted without confirmation' }
+    'knowledge.budget.alert' = @{ en = 'Startup context at {0}% of the {1}-character cap (total {2}: package {3}, AGENTS.md and global directive {4}): propose dossier.compact (sb compact) before adding more context; nothing is compacted without confirmation' }
     'knowledge.startup.minimum' =@{ en = 'Budget too small for Slim startup. Minimum characters: {0}' }
 }
 
@@ -449,7 +449,7 @@ function Get-SBContextBudgetAlert($Measured,$Directives,[int]$Budget,[int]$SoftP
     @{level=$level;percent=$percent;budget=$Budget;packageCharacters=[int]$Measured;directiveCharacters=$directive;totalCharacters=[int]$total;message=(Get-SBMessage 'knowledge.budget.alert' @($percent,$Budget,[int]$total,[int]$Measured,$directive))}
 }
 # Read-only compaction advice: hard when the Slim package exceeds the limit, soft when package plus directive text is near it or when
-# many turns have elapsed since the last compaction. Never compacts automatically: application remains on request (SYS05).
+# many turns have elapsed since the last compaction. Never compacts automatically: application remains on request (dossier.compact).
 function Get-SBCompactionAdvice($Startup,[string]$BrainRoot,[string]$Dossier,[int]$SoftPercent=80,[int]$SoftTurns=50,[int]$SoftTurnsPercent=60) {
     $measured=if($Startup.ContainsKey('uncompactedCharacters')){[double]$Startup.uncompactedCharacters}else{[double]$Startup.characters}
     $directiveCharacters=if($Startup.ContainsKey('directives') -and $Startup.directives){[int]$Startup.directives.total}else{0}
@@ -488,7 +488,7 @@ function Format-SBStartupReport($Startup,[hashtable]$Directives=@{}) {
         if($Startup.budget -gt 0){$lines+=('- {0}% of the {1}-character cap' -f [int][Math]::Floor(100.0*$total/$Startup.budget),$Startup.budget)}
         if($Startup.budgetAlert){$lines+=@('',('WARNING: '+$Startup.budgetAlert.message))}
     }
-    $lines+=@('','Not included: system prompt, MCP tools of other servers and IDE skills; see the IDE context summary.','Measured in characters, not tokens (SYS06).')
+    $lines+=@('','Not included: system prompt, MCP tools of other servers and IDE skills; see the IDE context summary.','Measured in characters, not tokens.')
     ($lines -join "`n")+"`n"
 }
 function Get-SBGlobalTasks([string]$BrainRoot,[string]$Repository='',[switch]$All,[switch]$ReadyOnly) {

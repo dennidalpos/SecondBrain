@@ -20,6 +20,7 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Para.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.RunnerStatus.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Skills.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.NextSteps.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Prompts.psm1')
 Add-SBMessages @{
     'nextsteps.repository' = @{ en = 'Repository not resolved from {0}. Give -CheckoutPath of a managed checkout' }
 }
@@ -48,7 +49,10 @@ try{
         if(Test-Path -LiteralPath $recordPath -PathType Leaf){$record=Read-SBJson $recordPath $null}
     }
     $facts=Get-SBProjectFacts $full
-    $steps=@(Get-SBNextSteps -Tasks $tasks -Ready $ready -Runs $runs -GitUpdate (Get-SBGitUpdate $record) -HasSkills:($facts.existingSkills.Count -gt 0) -Limit $Limit)
+    # The skills card is named by role and resolved through the catalog (id, file and title come from there).
+    $skillsCard=$null
+    try{$skillsPrompt=(Resolve-SBWorkflowPrompt (Read-SBWorkflowCatalog $config.brainRoot) 'project.skills').prompt;$skillsCard=[ordered]@{id=$skillsPrompt.id;file=$skillsPrompt.file;title='Skills procedure'}}catch{$skillsCard=$null}
+    $steps=@(Get-SBNextSteps -SkillsCard $skillsCard -Tasks $tasks -Ready $ready -Runs $runs -GitUpdate (Get-SBGitUpdate $record) -HasSkills:($facts.existingSkills.Count -gt 0) -Limit $Limit)
     ConvertTo-SBJson @{repository=$identity;steps=$steps}
     exit 0
 }catch{

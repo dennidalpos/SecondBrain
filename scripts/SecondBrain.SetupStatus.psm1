@@ -19,7 +19,7 @@ Add-SBMessages @{
     'setupstatus.activity.reason'   = @{ en = 'Optional team activity register: requires a declared privacy notice and retention.' }
     'setupstatus.account.reason'    = @{ en = 'Account instructions are not a file: paste them by hand (text in istruzioni-globali.md) and prove them with an observation receipt; otherwise the global directives do not apply in chats.' }
     'setupstatus.gitupdate.reason'  = @{ en = 'Choose how SecondBrain proposes Git and GitHub updates at task closing (default: commit and push on the main branch). It is a preference: nothing is committed or pushed without your explicit confirmation, and the runner never commits.' }
-    'setupstatus.blocked.inactive'  = @{ en = 'Workstation not activated: run SYS03 first.' }
+    'setupstatus.blocked.inactive'  = @{ en = 'Workstation not activated: run workstation.activate first.' }
 }
 function New-SBFeature([string]$Id,[string]$State,[string]$Evidence,[string]$Command,[string[]]$Prerequisites=@(),[string]$Risk='low',[bool]$Recommended=$false,[string]$ReasonKey,[string]$Scope='') {
     [ordered]@{id=$Id;scope=$Scope;state=$State;evidence=$Evidence;enableCommand=$Command;prerequisites=@($Prerequisites);risk=$Risk;recommended=$Recommended;reason=$(if($ReasonKey){Get-SBMessage $ReasonKey}else{''})}

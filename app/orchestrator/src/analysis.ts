@@ -1,4 +1,4 @@
-// Analysis that makes a task autonomous (REP18 through agents.ps1 -Analyze): the light model answers with tool calls that this
+// Analysis that makes a task autonomous (analysis.task through agents.ps1 -Analyze): the light model answers with tool calls that this
 // dialog dispatches. ask_user becomes a multiple-choice question (recommended option first, free text under "Other"); the answers go
 // back for the next round; propose_task_update is shown as a before/after diff and written to the tracker only after confirmation;
 // mark_not_automatable records the reason. The analysis state lives in its work folder, so a closed window loses nothing.

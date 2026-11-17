@@ -6,7 +6,7 @@ function Get-SBNextSteps {
     # Reasoned next steps for a project, from facts only. Pure: every input is passed in, nothing is read or written here.
     # Tasks: tracker entries (id, seq, title, status, priority). Ready: the tasks the runner would accept. Runs: run summaries, newest first.
     # Each step says why it is proposed; the order follows urgency (verify what just ran, finish what is open, then new work and housekeeping).
-    param($Tasks=@(),$Ready=@(),$Runs=@(),$GitUpdate=$null,[bool]$HasSkills=$true,[int]$Limit=6)
+    param($Tasks=@(),$Ready=@(),$Runs=@(),$GitUpdate=$null,[bool]$HasSkills=$true,[int]$Limit=6,$SkillsCard=$null)
     $steps=@()
     $last=@($Runs)|Select-Object -First 1
     $results=@(if($last -and ($last -is [Collections.IDictionary] -or $last.PSObject.Properties['results'])){@($last.results)})
@@ -33,7 +33,7 @@ function Get-SBNextSteps {
     if($next){$steps+=[ordered]@{id='run-next';kind='run';priority=50;title=('Run the next ready task: #'+$next.seq+' '+([string]$next.title -replace '^#\d+\s*[2014-]\s*',''));why=('It is the highest-priority task the runner can execute alone ('+@($Ready).Count+' ready).');action=[ordered]@{type='task';value=[string]$next.id}}}
     elseif(@($Tasks|Where-Object {$_.status -eq 'blocked'}).Count){$steps+=[ordered]@{id='unblock';kind='decide';priority=55;title='Nothing is ready: decide what unblocks the blocked tasks';why=(''+@($Tasks|Where-Object {$_.status -eq 'blocked'}).Count+' task(s) are blocked and none is ready to run; each blocker names what is missing.');action=[ordered]@{type='command';value='scripts/knowledge.ps1 -Tasks'}}}
     if($GitUpdate -and !$GitUpdate.confirmed){$steps+=[ordered]@{id='git-update';kind='setup';priority=60;title='Choose how Git and GitHub are updated for this project';why=('No choice is recorded; the proposed default is '+$GitUpdate.mode+' on '+$GitUpdate.branch+', applied only after you confirm.');action=[ordered]@{type='command';value='scripts/para.ps1 -SetGitUpdate'}}}
-    if(!$HasSkills){$steps+=[ordered]@{id='skills';kind='setup';priority=70;title='Install skills that fit this project';why='No agent skill is installed in the project; the project facts support a few useful ones.';action=[ordered]@{type='command';value='sb skills'};card=[ordered]@{id='pmt-3d7b91c4';file='SYS18.md';title='Skills procedure'}}}
+    if(!$HasSkills){$steps+=[ordered]@{id='skills';kind='setup';priority=70;title='Install skills that fit this project';why='No agent skill is installed in the project; the project facts support a few useful ones.';action=[ordered]@{type='command';value='sb skills'};card=$SkillsCard}}
     @($steps|Sort-Object priority|Select-Object -First $Limit)
 }
 Export-ModuleMember -Function Get-SBNextSteps

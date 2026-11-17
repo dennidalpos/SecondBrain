@@ -6,7 +6,7 @@ Runs ready autonomous tracker tasks one at a time, each in a fresh agent session
 Default is a preview: it lists the tasks that would run and the prompt each session receives, and changes nothing.
 -Run starts one agent process per task (prompt on stdin, so no shell quoting), sequentially, with a timeout. Output and a report go in a
 work folder created with work.ps1 (category report). Only todo tasks with execution=autonomous outside the final-qualification,
-on-request and product-coordination streams are selected. The prompt forbids commit, push, publication, deletion and SYS05.
+on-request and product-coordination streams are selected. The prompt forbids commit, push, publication, deletion and dossier.compact.
 The agent writes to the dossier through its own coordinated session; this script writes the tracker only to park a released task that ends still todo as user_required.
 The script handles one repository only: the checkout given with -CheckoutPath (default: the current directory), whose own dossier and tracker are resolved from its Git identity.
 Each repository carries its own thin launcher (.secondbrain/run-tasks.ps1, installed with scripts/install-task-launcher.ps1) that calls this script for that checkout only.

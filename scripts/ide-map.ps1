@@ -86,7 +86,7 @@ try {
             continue
         }
         $pending++
-        if($null -eq $block){"$($ide.name): testo senza blocco secondbrain:global (revisione $found), da riallineare con SYS01 (secondbrain.ps1 -Sync)"}
+        if($null -eq $block){"$($ide.name): testo senza blocco secondbrain:global (revisione $found), da riallineare con directives.sync (secondbrain.ps1 -Sync)"}
         else{"$($ide.name): blocco da riallineare (revisione $found)"}
     }
     if($pending){exit 1}

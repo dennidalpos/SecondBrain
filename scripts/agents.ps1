@@ -17,7 +17,7 @@ approve-revision.ps1 -Preview; nothing in the dossier or the checkout changes. T
 -Directives -RepositoryPath <checkout> -ProposalPath <folder> -ExpectedProposalHash <hash> -Authorization <reference> -Apply approves the
 reviewed proposal with approve-revision.ps1 and aligns the repository with secondbrain.ps1 -Sync -Repository <identity>.
 -Analyze -Kind directives|task -RepositoryPath <checkout> -Provider <one> [-Model] [-Effort] [-TaskId] runs one read-only analysis with
-the agent CLI (light model by default; DOC06 or REP18) in a work folder and prints its validated JSON. -Kind task-resolve -AnalysisPath
+the agent CLI (light model by default; analysis.directives or analysis.task) in a work folder and prints its validated JSON. -Kind task-resolve -AnalysisPath
 <folder> -AnswersFile <json> gives the owner's answers and runs the next round (at most three). -Kind task-view -AnalysisPath <folder> reopens it read-only. -Kind task-apply -AnalysisPath <folder>
 -Authorization <reference> writes the reviewed result to the tracker through knowledge.ps1 -UpdateTaskId (ledger mode analysis).
 -Kind task-enrich -TaskId <id> calls the light model only when the readiness assessment finds gaps: the schema-validated proposal stays
@@ -192,7 +192,7 @@ try{
                 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.AgentAnalysis.psm1')
                 $blocks=Get-AgentsDirectiveBlocks $repo
                 $slug='analysis-directives-'+(Get-SBNow).LocalDateTime.ToString('HHmmss')
-                $root=Initialize-AgentsWork $repo $slug 'Analisi delle direttive di repository (orchestratore, DOC06)'
+                $root=Initialize-AgentsWork $repo $slug 'Analisi delle direttive di repository (orchestratore, analysis.directives)'
                 try{
                     $counts=Get-AgentsCounts $blocks $blocks.dossier
                     $prompt=New-SBDirectivesAnalysisPrompt -BrainRoot $brain -Identity ([string]$repo.identity) -GlobalText $blocks.global -CommonText $blocks.common -DossierText $blocks.dossier -AgentsOutside $blocks.outside -Budget $counts.budget -UsedCharacters ($counts.loaded-$counts.dossier) -Language $lang
@@ -210,7 +210,7 @@ try{
                 if(!$TaskId){throw (New-SBError 'agents.analysis.task')}
                 $context=Get-AgentsTaskContext $repo $TaskId
                 $slug='analysis-task-'+[string]$context.task['seq']+'-'+(Get-SBNow).LocalDateTime.ToString('HHmmss')
-                $root=Initialize-AgentsWork $repo $slug ("Analisi di autonomia del task $TaskId (orchestratore, REP18)")
+                $root=Initialize-AgentsWork $repo $slug ("Analisi di autonomia del task $TaskId (orchestratore, analysis.task)")
                 $analysis=@{path=$root;file=(Join-Path $root 'analysis.json');state=[ordered]@{schemaVersion=1;taskId=[string]$context.task['id'];seq=$context.task['seq'];repository=[string]$repo.identity;slug=$slug;provider=$Provider[0];model=$Model;effort=$Effort;language=$lang;createdAt=(Get-SBNow).ToString('o');rounds=@();applied=$null}}
                 Save-AgentsAnalysis $analysis
                 [void](Invoke-AgentsTaskRound $repo $analysis $context)

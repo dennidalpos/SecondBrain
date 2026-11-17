@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Task autonomy analysis (one-shot analysis, REP18): verdict plus tool calls for the orchestrator to dispatch",
+  "title": "Task autonomy analysis (one-shot analysis, analysis.task): verdict plus tool calls for the orchestrator to dispatch",
   "type": "object",
   "additionalProperties": false,
   "required": ["taskId", "verdict", "summary", "calls", "blockersRemaining"],

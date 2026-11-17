@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Repository directive proposal (one-shot analysis, DOC06)",
+  "title": "Repository directive proposal (one-shot analysis, analysis.directives)",
   "type": "object",
   "additionalProperties": false,
   "required": ["sections", "coveredElsewhere", "warnings"],

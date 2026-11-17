@@ -3,7 +3,7 @@ Set-StrictMode -Version Latest
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Add-SBMessages @{
-    'access.station.inactive' = @{ en = 'Workstation not activated: run the activation procedure (SYS03, scripts/secondbrain.ps1 -Setup)' }
+    'access.station.inactive' = @{ en = 'Workstation not activated: run the activation procedure (workstation.activate, scripts/secondbrain.ps1 -Setup)' }
     'access.config.missing' = @{ en = 'Configuration not found: {0}. Run Setup (sb activate)' }
     'access.brain.unreachable' = @{ en = 'SecondBrain root is unreachable: {0}. Check SECONDBRAIN_HOME and that the folder exists' }
     'access.config.chain' = @{ en = 'Invalid chain of migrated configurations' }
@@ -13,7 +13,7 @@ Add-SBMessages @{
     'access.shared.owner' = @{ en = 'Invalid GitHub owner in config/shared.json' }
     'access.shared.sessiontimeout' = @{ en = 'sessionTimeoutSeconds in config/shared.json must be an integer between 10 and 86400' }
     'access.shared.lockwait' = @{ en = 'lockWaitSeconds in config/shared.json must be an integer between 0 and 600' }
-    'access.config.required' = @{ en = 'Workstation configuration required: activate the workstation with secondbrain.ps1 -Setup (SYS03)' }
+    'access.config.required' = @{ en = 'Workstation configuration required: activate the workstation with secondbrain.ps1 -Setup (workstation.activate)' }
     'access.session.invalid' = @{ en = 'Invalid SessionId: use the one returned by access.ps1 -Start' }
     'access.queue.timeout' = @{ en = 'SecondBrain write queue not available within the wait time' }
     'access.session.missing' = @{ en = 'Session missing or not verifiable: start one with access.ps1 -Start' }

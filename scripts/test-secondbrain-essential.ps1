@@ -1050,7 +1050,7 @@ if('audit2' -in $Groups){
         Check ($push.code -eq 0) ('clean push through hook: '+$push.error)
         foreach($source in @('refs/audit/private',$historyCommit)){
             $push=Invoke-SBGit $repo @('push',$remote,($source+':refs/heads/blocked')) 30000
-            Check ($push.code -ne 0 -and $push.error -match 'SEC07.*codice 1') ('hook blocks explicit push source '+$source)
+            Check ($push.code -ne 0 -and $push.error -match 'publication.check.*codice 1') ('hook blocks explicit push source '+$source)
         }
         $push=Invoke-SBGit $repo @('push',$remote,':refs/heads/clean') 30000
         Check ($push.code -eq 0) ('hook accepts a deletion record: '+$push.error)

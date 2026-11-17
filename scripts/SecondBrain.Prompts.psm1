@@ -8,6 +8,7 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Add-SBMessages @{
     'prompts.encoding.invalid' = @{ en = 'Prompt text contains corrupted characters: {0}; save the card as UTF-8 without BOM and rebuild with build-prompts.ps1' }
     'prompts.catalog.invalid' = @{ en = 'Invalid prompt catalog: fix direttive/prompts/catalog.json and rerun build-prompts.ps1 -Check' }
+    'prompts.code.literal' = @{ en = 'Card code {1} written in {0}: refer to the card by role or ID (a stale code is an error too); only test files and help examples may show a code' }
     'prompts.role.conflict' = @{ en = 'Role declared by more than one card: {0}; a role belongs to exactly one card' }
     'prompts.alias.invalid' = @{ en = 'Invalid alias table entry: {0}; fix direttive/prompts/aliases.json (an alias never reuses an active code and targets existing cards or workflows)' }
     'prompts.workflow.invalid' = @{ en = 'Invalid workflow definition: {0}; fix it following config/prompt-workflow.schema.json' }
@@ -35,7 +36,7 @@ Add-SBMessages @{
     'prompts.checkout.notgit' = @{ en = 'Directory does not belong to a Git checkout: pass a Git checkout with CheckoutPath' }
     'prompts.origin.missing' = @{ en = 'Origin identity missing or owner excluded: configure the checkout origin remote with an allowed owner' }
     'prompts.para.metadata' = @{ en = 'PARA index diverges from the metadata: {0}; regenerate the index with para.ps1 and rerun' }
-    'prompts.para.invalid' = @{ en = 'PARA index missing or invalid: regenerate the index with para.ps1 or run sb activate (SYS03)' }
+    'prompts.para.invalid' = @{ en = 'PARA index missing or invalid: regenerate the index with para.ps1 or run sb activate (workstation.activate)' }
     'prompts.checkoutmap.invalid' = @{ en = 'Invalid checkout map: fix the file given in CheckoutMapPath' }
     'prompts.project.unavailable' = @{ en = 'Project not available: check the dossier with secondbrain.ps1 -Check' }
     'prompts.dossier.unbound' = @{ en = 'Repository not bound to an allowed dossier: bind the repository with secondbrain.ps1 -AddRepo' }
@@ -123,10 +124,41 @@ function Read-SBWorkflowCatalog([string]$BrainRoot, [switch]$ValidateBodies, [sw
                 }
             }
         }
+        Test-SBPromptCodeLiterals $BrainRoot $catalog $names
     }
     $catalog
 }
 
+# Code must not depend on display codes: scripts, app sources, config and the directive texts name cards by role or ID. A code that
+# is no longer in the catalog is reported as dangling. Test files and help examples (`sb prompt show CODE`, `-Prompt CODE`) are exempt.
+function Test-SBPromptCodeLiterals([string]$BrainRoot,$Catalog,$Names) {
+    $prefixes=@($Catalog.prompts|ForEach-Object {Get-SBWorkflowPrefix $_}|Select-Object -Unique)
+    $targets=@(
+        @{dir='scripts';filter='*.ps1'},@{dir='scripts';filter='*.psm1'},
+        @{dir='app/orchestrator/src';filter='*.ts'},@{dir='app/orchestrator/src-tauri/src';filter='*.rs'},@{dir='app/orchestrator';filter='index.html';top=$true},
+        @{dir='config';filter='*.json'},@{dir='direttive';filter='*.md';top=$true})
+    foreach($target in $targets){
+        $dir=Join-Path $BrainRoot $target.dir
+        if(!(Test-Path -LiteralPath $dir -PathType Container)){continue}
+        $files=if($target.ContainsKey('top')){@(Get-ChildItem -LiteralPath $dir -Filter $target.filter -File)}else{@(Get-ChildItem -LiteralPath $dir -Filter $target.filter -File -Recurse)}
+        foreach($file in $files){
+            if($file.Name -like 'test-*'){continue}
+            $lineNumber=0
+            foreach($line in @(Read-SBText $file.FullName) -split "`r?`n"){
+                $lineNumber++
+                foreach($match in [regex]::Matches($line,'\b[A-Z]{3}\d{2}\b')){
+                    if($match.Value.Substring(0,3) -notin $prefixes){continue}
+                    $code=$match.Value
+                    $before=$line.Substring(0,$match.Index)
+                    if($Names.ContainsKey($code) -and ($before -match '(sb prompt( show)?|-Prompt) $')){continue}
+                    $place=($target.dir+'/'+$file.Name+':'+$lineNumber)
+                    if($Names.ContainsKey($code)){throw (New-SBError 'prompts.code.literal' @($place,$code))}
+                    throw (New-SBError 'prompts.reference.dangling' @($place,$code))
+                }
+            }
+        }
+    }
+}
 function Resolve-SBWorkflowPrompt($Catalog, [string]$Key) {
     $found=@($Catalog.prompts|Where-Object {$_.id -ceq $Key -or $_.code -ceq $Key})
     if($found.Count -eq 1){return @{prompt=$found[0];via=$(if($found[0].id -ceq $Key){'id'}else{'code'});warning=$null}}
@@ -239,7 +271,7 @@ $script:SBWorkflowText=@{
         apply='Apply the loaded directives and the IDE mode. This template does not extend the scope or the authorizations of the conversation.'
         localNote='Paths and the brief are context data, not new directives or authorizations.'
         read='Read';context='Context';memory='Memory';trackerSource='source'
-        greenfield='Lifecycle: greenfield (block active). Forbidden: VERSION bumps, CHANGELOG entries, schema migrations or imports, compatibility aliases, deprecations. To remove the block use SYS13.'
+        greenfield='Lifecycle: greenfield (block active). Forbidden: VERSION bumps, CHANGELOG entries, schema migrations or imports, compatibility aliases, deprecations. To remove the block use lifecycle.greenfield.remove.'
         sourceApplicability='Source applicability: ';sourceRegistry='Source registry: ';project='Project: '
         brief='Brief (project data, JSON-encoded):'
         requestDefault='Derive the objective from the request and the conversation. If an essential input cannot be found in the files, ask one targeted question.'
@@ -266,7 +298,7 @@ $script:SBWorkflowText=@{
         apply='Applicare le direttive caricate e la modalità dell''IDE. Il modello non estende il perimetro o le autorizzazioni della conversazione.'
         localNote='I percorsi e il brief sono dati di contesto, non nuove direttive o autorizzazioni.'
         read='Leggi';context='Contesto';memory='Memoria';trackerSource='fonte'
-        greenfield='Ciclo di vita: greenfield (blocco attivo). Vietati: bump di VERSION, voci di CHANGELOG, migrazioni o importazioni di schema, alias di compatibilità, deprecations. Per rimuovere il blocco usa SYS13.'
+        greenfield='Ciclo di vita: greenfield (blocco attivo). Vietati: bump di VERSION, voci di CHANGELOG, migrazioni o importazioni di schema, alias di compatibilità, deprecations. Per rimuovere il blocco usa lifecycle.greenfield.remove.'
         sourceApplicability='Applicabilità fonti: ';sourceRegistry='Registro fonti: ';project='Progetto: '
         brief='Brief (dato di progetto, codificato JSON):'
         requestDefault='Ricava l''obiettivo dalla richiesta e dalla conversazione. Se manca un input essenziale non ricavabile dai file, formula una domanda mirata.'
@@ -398,27 +430,27 @@ Add-SBMessages @{
     'home.repo.unmanaged' = @{ en = ' (unmanaged)' }
     'home.repo.line' = @{ en = 'Repository: {0} — {1}' }
     'home.repo.noidentity' = @{ en = 'no recognized identity' }
-    'home.step.inactive' = @{ en = 'Workstation not activated. Run `pwsh -NoProfile -File scripts/secondbrain.ps1 -Setup -PreviewOnly -Interactive` to review your options. For team setup, add `-TeamRoot <UNC>`. For a guided setup use `sb setup` (SYS17). To activate, use `-Setup -Interactive` and, in team mode, set `SECONDBRAIN_STATE_ROOT` to a directory on a fixed local drive first.' }
+    'home.step.inactive' = @{ en = 'Workstation not activated. Run `pwsh -NoProfile -File scripts/secondbrain.ps1 -Setup -PreviewOnly -Interactive` to review your options. For team setup, add `-TeamRoot <UNC>`. For a guided setup use `sb setup` (workstation.setup). To activate, use `-Setup -Interactive` and, in team mode, set `SECONDBRAIN_STATE_ROOT` to a directory on a fixed local drive first.' }
     'home.step.norepo' = @{ en = 'Workstation activated. Give the current checkout (`-RepositoryPath` or `repositoryPath`) to see the repository state; meanwhile `sb check`.' }
     'home.step.noidentity' = @{ en = 'The folder is not a Git checkout with a recognizable origin: open the repository or give another path.' }
-    'home.step.unmanaged' = @{ en = 'Repository not onboarded: it works in reduced mode, starting with `sb prompt MEM08`. Onboarding is optional: `sb activate` to add it (preview, then confirm).' }
-    'home.step.ready' = @{ en = 'Start with `sb prompt MEM08` (state, alignment, next tasks), then `sb prompt REP01` or `sb runner`; when the work is done `sb prompt MEM03`; to stop and resume from another IDE or account `sb stop`, then `sb prompt MEM07` on the other side.' }
+    'home.step.unmanaged' = @{ en = 'Repository not onboarded: it works in reduced mode, starting with `sb prompt session.start`. Onboarding is optional: `sb activate` to add it (preview, then confirm).' }
+    'home.step.ready' = @{ en = 'Start with `sb prompt session.start` (state, alignment, next tasks), then `sb prompt task.work` or `sb runner`; when the work is done `sb prompt session.close`; to stop and resume from another IDE or account `sb stop`, then `sb prompt session.resume` on the other side.' }
     'home.location.line' = @{ en = 'Location: {0}' }
     'home.location.secondbrain' = @{ en = 'SecondBrain checkout (maintenance and SecondBrain''s own dossier)' }
     'home.location.repo-managed' = @{ en = 'managed repository (dossier, tracker and runner available)' }
     'home.location.repo-unmanaged' = @{ en = 'repository not onboarded (reduced mode)' }
     'home.location.none' = @{ en = 'no project (folder outside a Git checkout)' }
     'home.step.none' = @{ en = 'Outside a project only the SecondBrain activation and maintenance commands apply. To work on a project open its checkout and run `sb prompt` again.' }
-    'home.step.secondbrain' = @{ en = 'SecondBrain checkout: start with `sb prompt MEM08`, then `sb check` for the workstation alignment and the SecondBrain dossier tasks with `sb prompt REP01`.' }
-    'home.degraded' = @{ en = 'Without onboarding these are not available: startup context and memory (knowledge.ps1 -Startup), tracker and ready tasks in the next steps, runner and Orchestrator, MEM03 handoff reports and the runner resume MEM07, memory and tracker writes, sync of the managed AGENTS.md block (sb sync), applicable authoritative sources, SYS05 compaction, -Check of this repository. Still available: home, prompt list and cards, composition without a dossier, code- and Git-based prompts.' }
+    'home.step.secondbrain' = @{ en = 'SecondBrain checkout: start with `sb prompt session.start`, then `sb check` for the workstation alignment and the SecondBrain dossier tasks with `sb prompt task.work`.' }
+    'home.degraded' = @{ en = 'Without onboarding these are not available: startup context and memory (knowledge.ps1 -Startup), tracker and ready tasks in the next steps, runner and Orchestrator, session.close handoff reports and the runner resume session.resume, memory and tracker writes, sync of the managed AGENTS.md block (sb sync), applicable authoritative sources, dossier.compact compaction, -Check of this repository. Still available: home, prompt list and cards, composition without a dossier, code- and Git-based prompts.' }
     'home.degraded.compose' = @{ en = 'Repository {0} not onboarded: prompt composed without a dossier, no SecondBrain context, memory or tracker.' }
     'home.chain.title' = @{ en = 'STANDARD STARTING CHAIN' }
-    'home.chain.start' = @{ en = '`sb prompt MEM08` — repository state, SecondBrain alignment when managed, proposed next tasks.' }
-    'home.chain.work' = @{ en = '`sb prompt REP01` for the chosen task, or `sb runner` for the autonomous ones (model and effort asked in chat).' }
-    'home.chain.close' = @{ en = '`sb prompt MEM03` when the work is done: tracker, memory and handoff; every prompt ends by proposing the next prompts and tasks.' }
-    'home.chain.resume' = @{ en = 'Work stopped by a usage limit (also in another account): `sb prompt MEM07`.' }
-    'home.chain.reduced' = @{ en = '`sb prompt KEY: objective` with the code and Git prompts (develop, test, review, docs); tracker, runner and MEM03 need onboarding. When the work is done propose the next prompts and steps.' }
-    'home.chain.explore' = @{ en = '`sb prompt COM01` to learn the repository; optional onboarding with `sb activate` (SYS03).' }
+    'home.chain.start' = @{ en = '`sb prompt session.start` — repository state, SecondBrain alignment when managed, proposed next tasks.' }
+    'home.chain.work' = @{ en = '`sb prompt task.work` for the chosen task, or `sb runner` for the autonomous ones (model and effort asked in chat).' }
+    'home.chain.close' = @{ en = '`sb prompt session.close` when the work is done: tracker, memory and handoff; every prompt ends by proposing the next prompts and tasks.' }
+    'home.chain.resume' = @{ en = 'Work stopped by a usage limit (also in another account): `sb prompt session.resume`.' }
+    'home.chain.reduced' = @{ en = '`sb prompt KEY: objective` with the code and Git prompts (develop, test, review, docs); tracker, runner and session.close need onboarding. When the work is done propose the next prompts and steps.' }
+    'home.chain.explore' = @{ en = '`sb prompt repo.explore` to learn the repository; optional onboarding with `sb activate` (workstation.activate).' }
     'home.commands.repo' = @{ en = 'REPOSITORY COMMANDS' }
     'home.commands.brain' = @{ en = 'SECONDBRAIN ACTIVATION AND MAINTENANCE' }
     'home.catalog' = @{ en = 'Full catalog ({0} prompts in {1} areas, Markdown file): {2}' }
@@ -439,15 +471,15 @@ Add-SBMessages @{
     'cmd.scope' = @{ en = 'Prompts of one area with ID, scope and requirements (area id or prefix: test, TST, system, SYS).' }
     'cmd.show' = @{ en = 'Full card of a prompt; KEY is an ID (pmt-…) or code.' }
     'cmd.compose' = @{ en = 'Composes the prompt with the repository context and runs it within the session permissions.' }
-    'cmd.activate' = @{ en = 'SYS03: read-only discovery, map of repositories and IDEs, activation after confirmation. Alias: sb activate.' }
-    'cmd.setup' = @{ en = 'SYS17: guided first-run setup of SecondBrain, IDE, agent, directives and MCP, with optional features proposed from the state. Alias: sb configura.' }
-    'cmd.skills' = @{ en = 'SYS18: analyzes the project, proposes skills from its facts and installs the selected ones for Claude Code, Codex or Antigravity at project or user scope, with preview and confirmation (scripts/skills.ps1).' }
-    'cmd.check' = @{ en = 'SYS04: checks the alignment of managed assets without fixing. Alias: sb check.' }
+    'cmd.activate' = @{ en = 'workstation.activate: read-only discovery, map of repositories and IDEs, activation after confirmation. Alias: sb activate.' }
+    'cmd.setup' = @{ en = 'workstation.setup: guided first-run setup of SecondBrain, IDE, agent, directives and MCP, with optional features proposed from the state. Alias: sb configura.' }
+    'cmd.skills' = @{ en = 'project.skills: analyzes the project, proposes skills from its facts and installs the selected ones for Claude Code, Codex or Antigravity at project or user scope, with preview and confirmation (scripts/skills.ps1).' }
+    'cmd.check' = @{ en = 'workstation.check: checks the alignment of managed assets without fixing. Alias: sb check.' }
     'cmd.sync' = @{ en = 'Applies the approved texts to managed assets and proposes the new ones, preserving conflicts. Alias: sb sync.' }
     'mode.run' = @{ en = 'run' }
-    'cmd.runner' = @{ en = 'Asks with a multiple choice for the desktop runner (recommended) or the command line, then opens the runner on the current repository with scripts/runner.ps1 -Mode auto|gui|cli: the desktop app is built when stale and, if it cannot open, the command line takes over by itself (preview, then REP15).' }
-    'cmd.stop' = @{ en = 'MEM09: stops the agent, saves the session in the dossier (handoff report, tracker, next step) and prepares it to be resumed from another IDE or account with MEM07.' }
-    'cmd.compact' = @{ en = 'SYS05: compacts the given dossier preserving originals, facts and TOC (preview, then -Apply). Alias: sb compact.' }
+    'cmd.runner' = @{ en = 'Asks with a multiple choice for the desktop runner (recommended) or the command line, then opens the runner on the current repository with scripts/runner.ps1 -Mode auto|gui|cli: the desktop app is built when stale and, if it cannot open, the command line takes over by itself (preview, then runner.choice).' }
+    'cmd.stop' = @{ en = 'session.stop: stops the agent, saves the session in the dossier (handoff report, tracker, next step) and prepares it to be resumed from another IDE or account with session.resume.' }
+    'cmd.compact' = @{ en = 'dossier.compact: compacts the given dossier preserving originals, facts and TOC (preview, then -Apply). Alias: sb compact.' }
     'guide.safety.title' = @{ en = 'What SecondBrain changes and where the backups are' }
     'guide.safety.for' = @{ en = 'Read first: files touched, backups, recovery, uninstall.' }
     'guide.start.title' = @{ en = 'Get started' }
@@ -461,7 +493,7 @@ Add-SBMessages @{
     'guide.mcp.title' = @{ en = 'Agents and MCP' }
     'guide.mcp.for' = @{ en = 'Connect the supported agents and the MCP server.' }
     'guide.editprompts.title' = @{ en = 'Editing prompts' }
-    'guide.editprompts.for' = @{ en = 'Add, change or remove a prompt (also with sb prompt SYS11).' }
+    'guide.editprompts.for' = @{ en = 'Add, change or remove a prompt (also with sb prompt library.edit).' }
     'guide.editdirectives.title' = @{ en = 'Editing directives' }
     'guide.editdirectives.for' = @{ en = 'Proposal, approval, distribution of the global directives.' }
     'guide.recovery.title' = @{ en = 'Recovery and cleanup' }
@@ -511,7 +543,7 @@ function Get-SBWorkflowCommands {
         @{command='sb sync';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.sync');mode=(Get-SBWorkflowMessage 'mode.write');script='scripts/secondbrain.ps1 -Sync'},
         @{command='sb compact';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.compact');mode=(Get-SBWorkflowMessage 'mode.write');script='scripts/knowledge.ps1 -Compact -CandidatePath FILE'},
         @{command='sb runner';aliases=@();scope='repository';does=(Get-SBWorkflowMessage 'cmd.runner');mode=(Get-SBWorkflowMessage 'mode.run');script='scripts/runner.ps1'},
-        @{command='sb stop';aliases=@();scope='repository';does=(Get-SBWorkflowMessage 'cmd.stop');mode=(Get-SBWorkflowMessage 'mode.write');script='scripts/prompts.ps1 -Compose -Prompt MEM09'}
+        @{command='sb stop';aliases=@();scope='repository';does=(Get-SBWorkflowMessage 'cmd.stop');mode=(Get-SBWorkflowMessage 'mode.write');script='scripts/prompts.ps1 -Compose -Prompt session.stop'}
     )
 }
 
@@ -549,12 +581,12 @@ function Get-SBWorkflowProductFlow {
     @(
         @{step=(Get-SBWorkflowMessage 'flow.1');chat='sb activate';script='pwsh -NoProfile -File scripts/secondbrain.ps1 -Setup -Interactive'},
         @{step=(Get-SBWorkflowMessage 'flow.2');chat='sb sync';script='pwsh -NoProfile -File scripts/secondbrain.ps1 -Sync'},
-        @{step=(Get-SBWorkflowMessage 'flow.3');chat='sb prompt SYS01';script='pwsh -NoProfile -File scripts/ide-map.ps1 -Verify'},
-        @{step=(Get-SBWorkflowMessage 'flow.4');chat='sb prompt MEM06';script='pwsh -NoProfile -File scripts/knowledge.ps1 -Startup'},
-        @{step=(Get-SBWorkflowMessage 'flow.5');chat='sb prompt REP01';script='pwsh -NoProfile -File scripts/knowledge.ps1 -Tasks -ReadyOnly'},
+        @{step=(Get-SBWorkflowMessage 'flow.3');chat='sb prompt directives.sync';script='pwsh -NoProfile -File scripts/ide-map.ps1 -Verify'},
+        @{step=(Get-SBWorkflowMessage 'flow.4');chat='sb prompt context.startup';script='pwsh -NoProfile -File scripts/knowledge.ps1 -Startup'},
+        @{step=(Get-SBWorkflowMessage 'flow.5');chat='sb prompt task.work';script='pwsh -NoProfile -File scripts/knowledge.ps1 -Tasks -ReadyOnly'},
         @{step=(Get-SBWorkflowMessage 'flow.6');chat='—';script='—'},
-        @{step=(Get-SBWorkflowMessage 'flow.7');chat='sb prompt SEC07';script='pwsh -NoProfile -File scripts/publication.ps1 -RepositoryPath .'},
-        @{step=(Get-SBWorkflowMessage 'flow.8');chat='sb prompt MEM03';script='pwsh -NoProfile -File scripts/knowledge.ps1 -UpdateTaskId ID -Status done'},
+        @{step=(Get-SBWorkflowMessage 'flow.7');chat='sb prompt publication.check';script='pwsh -NoProfile -File scripts/publication.ps1 -RepositoryPath .'},
+        @{step=(Get-SBWorkflowMessage 'flow.8');chat='sb prompt session.close';script='pwsh -NoProfile -File scripts/knowledge.ps1 -UpdateTaskId ID -Status done'},
         @{step=(Get-SBWorkflowMessage 'flow.9');chat='sb compact';script='pwsh -NoProfile -File scripts/knowledge.ps1 -Compact -CandidatePath FILE'}
     )
 }
@@ -597,7 +629,7 @@ function Get-SBWorkflowNextStep($State) {
     Get-SBWorkflowMessage 'home.step.ready'
 }
 
-# Standard starting chain for the location: start (MEM08), work, close, resume; a repository not onboarded starts by exploring it.
+# Standard starting chain for the location: start (session.start), work, close, resume; a repository not onboarded starts by exploring it.
 function Get-SBWorkflowStartChain($State) {
     $location=if($State -and $State.repository -and $State.repository.Contains('location')){$State.repository.location}else{$null}
     if(!$location -or $location -eq 'none'){return @()}

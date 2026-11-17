@@ -186,7 +186,7 @@ foreach($command in $english){Assert-Prompts ($command -in $registry) "command '
 # English-only (3.0): the Italian verbs of revisions up to 1.2 are no longer aliases.
 $aliases=@(Get-SBWorkflowCommands|ForEach-Object {@($_.aliases)})
 Assert-Prompts ($aliases.Count -eq 0) 'the verb registry has no aliases (Italian sb verbs removed)'
-Assert-Prompts ((@(Get-SBWorkflowCommands|Where-Object command -eq 'sb stop')[0].script) -match '-Prompt MEM09$') 'sb stop compone MEM09'
+Assert-Prompts ((@(Get-SBWorkflowCommands|Where-Object command -eq 'sb stop')[0].script) -match '-Prompt session.stop$') 'sb stop compone il ruolo session.stop'
 foreach($word in $english){Assert-Prompts ($station.Contains($word)) "command '$word' described in the workstation text"}
 $referenced=@([regex]::Matches($global+$station+$repoBlock,'(?:COM|PRG|DEV|TST|SEC|AUD|INT|DAT|OPS|DOC|REP|GOV|MEM|SYS)\d{2}')|ForEach-Object {$_.Value}|Select-Object -Unique)
 Assert-Prompts (!(@($referenced|Where-Object {$_ -notin @($prompts.code)}).Count)) 'ogni codice prompt citato nelle direttive esiste nel catalogo'

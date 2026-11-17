@@ -41,7 +41,7 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Prompts.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Pending.psm1')
 Add-SBMessages @{
-    'promptscli.workstation.inactive' = @{ en = 'Workstation not activated: use sb activate (SYS03)' }
+    'promptscli.workstation.inactive' = @{ en = 'Workstation not activated: use sb activate (workstation.activate)' }
     'promptscli.context.incompatible' = @{ en = 'Incompatible context selections: use one context selection at a time' }
     'promptscli.goal.empty' = @{ en = 'Empty goal: give the goal with -Objective' }
     'promptscli.output.txt' = @{ en = 'New TXT output required: give -OutputPath a TXT file that does not exist yet' }
@@ -85,7 +85,7 @@ try {
         Format-SBWorkflowCard $selected[0] $showBody
         $showBody
     } else {
-        if(!$ConfigPath -and $Compose -and (Resolve-SBWorkflowPrompt $catalog $Prompt).prompt.code -ceq 'SYS03'){
+        if(!$ConfigPath -and $Compose -and (Resolve-SBWorkflowPrompt $catalog $Prompt).prompt.role -ceq 'workstation.activate'){
             $selected=@((Resolve-SBWorkflowPrompt $catalog $Prompt).prompt)
             Read-SBWorkflowPrompt $brain $selected[0] $catalog
             Get-SBMessage 'promptscli.bootstrap'

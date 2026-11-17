@@ -10,7 +10,7 @@ $git=@{mode='commit-push-main';branch='main';confirmed=$false}
 $confirmed=@{mode='none';branch='main';confirmed=$true}
 
 # Nothing to report: only housekeeping, each with a reason.
-$steps=@(Get-SBNextSteps -Tasks @() -Ready @() -Runs @() -GitUpdate $git -HasSkills $false)
+$steps=@(Get-SBNextSteps -Tasks @() -Ready @() -Runs @() -GitUpdate $git -HasSkills $false -SkillsCard ([ordered]@{id='pmt-3d7b91c4';file='SYS18.md';title='Skills procedure'}))
 Assert-Ns ((Ids $steps) -ceq 'git-update,skills') ('housekeeping only: '+(Ids $steps))
 Assert-Ns (@($steps|Where-Object {!$_.why -or !$_.title -or !$_.action.value}).Count -eq 0) 'every step has title, reason and action'
 Assert-Ns (@(Get-SBNextSteps -Tasks @() -Ready @() -Runs @() -GitUpdate $confirmed -HasSkills $true).Count -eq 0) 'confirmed preference and skills installed: nothing to propose'
