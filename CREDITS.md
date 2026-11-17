@@ -39,7 +39,7 @@ Il repository contiene il sorgente dell'app e i lock delle dipendenze; nessun bi
 
 Dipendenze transitive: 423 crate Rust nel lock (tutte le piattaforme) con licenze permissive, salvo 7 crate MPL-2.0 (`cssparser`, `cssparser-macros`, `selectors`, `dtoa-short`, `option-ext`; copyleft debole a livello di file) e 18 crate Unicode-3.0 (famiglia ICU4X, licenza permissiva con avviso); `r-efi` offre anche LGPL-2.1-or-later in alternativa a MIT e Apache-2.0. Gli 82 pacchetti npm del lock sono permissivi (MIT, ISC, Apache-2.0, BSD-3-Clause); i 60 binari opzionali per altre piattaforme di esbuild, Rollup e Tauri CLI non sono installati qui e la loro licenza non è stata letta. Se un binario dell'app viene distribuito, vanno allegati gli avvisi di licenza delle dipendenze incluse, l'indicazione del sorgente dei file MPL-2.0 e l'avviso Unicode-3.0.
 
-Le icone in `app/orchestrator/src-tauri/icons/` non corrispondono al logo predefinito di Tauri; la loro provenienza non è registrata nel repository.
+Icone dell'app (`app/orchestrator/src-tauri/icons/`): la provenienza delle icone originarie (commit 2e6d84b) non era documentata né ricostruibile dal repository, quindi non se ne poteva verificare la licenza e sono state sostituite il 2026-11-17. Le icone attuali sono un disegno originale del progetto (tre barre di coda con nodo iniziale), prodotto da `app/orchestrator/icon-source/make-icon.py` (Pillow, nessun elemento di terzi) e convertito nei formati richiesti con `tauri icon` (Tauri CLI, Apache-2.0 OR MIT). Licenza: MIT, come il resto del repository (`LICENSE`). Sorgente riproducibile: `app/orchestrator/icon-source/icon-source.png`.
 
 ---
 
