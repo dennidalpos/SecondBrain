@@ -89,6 +89,17 @@ Reject-Obs {Read-SBAccountObservationReceipt $brain (Put-Receipt 'rev.json' @{sc
 Reject-Obs {Read-SBAccountObservationReceipt $brain (Put-Receipt 'schema.json' @{schemaVersion=2;observedRevision='1.0';observedHash=$goodHash}) 'claude-desktop-a' 'work'} 'wrong schema version rejected'
 Reject-Obs {Read-SBAccountObservationReceipt $brain (Put-Receipt 'extra.json' @{schemaVersion=1;observedRevision='1.0';observedHash=$goodHash;token='x'}) 'claude-desktop-a' 'work'} 'unknown field rejected'
 Reject-Obs {Read-SBAccountObservationReceipt $brain $good 'claude-desktop-b' 'work'} 'receipt of another IDE id rejected'
+# Account alias: a Claude account id or a pseudonym, required for manual surfaces, reused when one is already registered.
+Assert-Obs ((Assert-SBAccountAlias 'primario') -ceq 'primario' -and (Assert-SBAccountAlias 'acct_01.AB-2') -ceq 'acct_01.AB-2') 'pseudonym and account id are accepted as alias'
+Reject-Obs {Assert-SBAccountAlias 'someone@example.com'} 'an email address is rejected as alias'
+Reject-Obs {Assert-SBAccountAlias 'x'} 'a one-character alias is rejected'
+Reject-Obs {Assert-SBAccountAlias ''} 'an empty alias is rejected'
+$manualIde=@{id='manual-fixture';name='Claude account instructions';mode='manual'}
+Reject-Obs {Resolve-SBManualAccountAlias $manualIde @{ides=@()} $false} 'manual surface without alias stops when nothing is registered'
+Reject-Obs {Resolve-SBManualAccountAlias $manualIde $null $false} 'manual surface without alias stops without a configuration'
+Assert-Obs ((Resolve-SBManualAccountAlias $manualIde @{ides=@(@{id='manual-fixture-aaaa';assetId='manual-fixture';accountAlias='primario'})} $false) -ceq 'primario') 'the single registered alias of the same asset is reused'
+Reject-Obs {Resolve-SBManualAccountAlias $manualIde @{ides=@(@{id='m-a';assetId='manual-fixture';accountAlias='work'},@{id='m-b';assetId='manual-fixture';accountAlias='personal'})} $false} 'two registered aliases are ambiguous: the user must choose'
+Reject-Obs {Resolve-SBManualAccountAlias $manualIde @{ides=@(@{id='m-a';assetId='manual-fixture';accountAlias=''})} $false} 'an empty registered alias is not reused'
 Reject-Obs {Read-SBAccountObservationReceipt $brain $good 'claude-desktop-a' 'personal'} 'receipt of another account alias rejected'
 $outsideReceipt2=Join-Path $root 'outside-receipt.json';[IO.File]::WriteAllText($outsideReceipt2,[IO.File]::ReadAllText($good))
 Reject-Obs {Read-SBAccountObservationReceipt $brain $outsideReceipt2 'claude-desktop-a' 'work'} 'path outside .runtime rejected'

@@ -1,8 +1,8 @@
-# Registro comune delle fonti autorevoli
+# Common registry of authoritative sources
 
-Indice generato dalle schede. Le guide sono consultive; le prescrizioni comuni seguono il processo di approvazione delle direttive.
+Index generated from the cards. Guides are advisory; common requirements follow the directive approval process.
 
-| Fonte | Categoria | Tipo | Ambiti | Versione accettata |
+| Source | Category | Type | Scopes | Accepted version |
 |---|---|---|---|---|
 | [Common workflows e prompt library Claude Code](entries/anthropic-code-workflows/metadata.json) | reference | technical-documentation | ai, development | da revisionare / riferimento |
 | [ARERA 135/2022/R/com - riferimento da qualificare](entries/arera-135-2022/metadata.json) | legal | decision | sectoral | da revisionare / riferimento |

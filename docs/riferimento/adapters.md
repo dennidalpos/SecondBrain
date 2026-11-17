@@ -49,6 +49,15 @@ Pair preview inspects target/scope/path; Apply changes selected configuration af
 
 Use [MCP setup](mcp-setup.md) for target/permission/package details. Restart only the intended owned client session when configuration changes require it.
 
+## Account alias for manual surfaces
+
+A manual surface (for example the Claude account instructions) is never registered anonymously: its alias says which account the text belongs to, and it is the key of the integration id. The alias is the Claude account id or a pseudonym (2-64 characters: letters, digits, `.`, `_`, `-`; an email address is rejected). SecondBrain cannot read the active account (it never opens authentication stores), so the alias is declared:
+
+- `-IdeAccount "<ide>|<alias>|..."` declares it explicitly.
+- `-Interactive` asks for it, offering the alias already registered for the same surface as the default.
+- A non-interactive selection by name (`-Ides`, `-AllIdes`) reuses the single alias already registered for that surface and stops with an error when there is none or when several exist.
+- `-Check` reports `account-alias-missing` for a manual entry registered without alias.
+
 ## Account text from a receipt (#188)
 
 Typed `revision=` and `hash=` values can contain typos. `-IdeAccount "<ide>|<alias>|observation=<path>"` reads them instead from a JSON receipt under `.runtime` (manual IDE surfaces only; not combinable with `revision=`/`hash=`):

@@ -86,6 +86,10 @@ Add-SBMessages @{
     'portable.ideaccount.field' = @{ en = 'Invalid IdeAccount field (expected key=value): {0}' }
     'portable.ideaccount.repeated' = @{ en = 'Invalid or repeated IdeAccount field: {0}' }
     'portable.observation.invalid' = @{ en = 'Invalid account receipt ({0})' }
+    'portable.account.alias.invalid' = @{ en = 'Invalid account alias "{0}": use the Claude account id or a pseudonym of 2-64 characters (letters, digits, dot, underscore, hyphen), never an email address' }
+    'portable.account.alias.required' = @{ en = 'Account alias required for {0}: it identifies which account the instructions belong to. Pass -IdeAccount "{0}|<account id or pseudonym>" or use -Interactive' }
+    'portable.prompt.alias' = @{ en = 'Account id or pseudonym for {0} (letters, digits, . _ -; never an email){1}' }
+    'portable.issue.aliasmissing' = @{ en = 'No account alias registered: re-run Setup with -IdeAccount "{0}|<account id or pseudonym>"' }
     'portable.path.filetype.alt' = @{ en = 'Alternative path allowed only for file-type IDEs: {0}' }
     'portable.observed.manual' = @{ en = 'Observed revision and hash are recorded only for manual surfaces: {0}' }
     'portable.observed.pair' = @{ en = 'revision (e.g. 1.0) and SHA-256 hash must be given together: {0}' }
@@ -422,6 +426,26 @@ function Test-SBSetupPreflight([string]$BrainRoot,[switch]$ReadOnly) {
     }
     $checks
 }
+function Assert-SBAccountAlias([string]$Alias) {
+    # The alias names the account in the local map and in receipts: a Claude account id or a pseudonym, never an email (private data).
+    if($Alias -cnotmatch '^[A-Za-z0-9][A-Za-z0-9._-]{1,63}$'){throw (New-SBError 'portable.account.alias.invalid' @($Alias))}
+    $Alias
+}
+function Resolve-SBManualAccountAlias($Ide,$Configuration,[bool]$Prompting) {
+    # A manual surface (account instructions) without a declared alias is not registered anonymously:
+    # reuse the single alias already registered for the same asset, ask the user when interactive, otherwise stop.
+    $previous=@()
+    if($Configuration -and $Configuration.ContainsKey('ides')){$previous=@($Configuration.ides|Where-Object {$_.assetId -ceq $Ide.id -and $_.ContainsKey('accountAlias') -and $_.accountAlias}|ForEach-Object {[string]$_.accountAlias}|Select-Object -Unique)}
+    $default=if($previous.Count -eq 1){$previous[0]}else{''}
+    if($Prompting){
+        $answer=([string](Read-Host (Get-SBMessage 'portable.prompt.alias' @($Ide.name,$(if($default){' ['+$default+']'}else{''}))))).Trim()
+        if(!$answer){$answer=$default}
+        if(!$answer){throw (New-SBError 'portable.account.alias.required' @($Ide.name))}
+        return (Assert-SBAccountAlias $answer)
+    }
+    if($default){return $default}
+    throw (New-SBError 'portable.account.alias.required' @($Ide.name))
+}
 function Read-SBSetupNumbers([string]$Prompt,[int]$Count) {
     if($Count -lt 1){return @()}
     $answer=([string](Read-Host $Prompt)).Trim()
@@ -489,7 +513,7 @@ function Invoke-SBSetup {
         $answer=([string](Read-Host 'Cartelle da analizzare separate da ; (obbligatorio)')).Trim()
         if($answer){$Roots=@($answer -split ';'|ForEach-Object {$_.Trim()}|Where-Object {$_})}
     }
-    $configPath=Get-SBHostConfigPath $brain;$bindings=@()
+    $configPath=Get-SBHostConfigPath $brain;$bindings=@();$existingConfig=$null
     if(Test-Path -LiteralPath $configPath){$existingConfig=Read-SBJson $configPath @{};if($existingConfig.ContainsKey('bindings')){$bindings=@($existingConfig.bindings)}}
     $result.stage='discovery'
     # The full discovery is never persisted: only a pause checkpoint (-MaxDirectories) is written; the final record keeps the selected repositories only.
@@ -546,7 +570,7 @@ function Invoke-SBSetup {
         if($parts.Count -lt 2 -or !$parts[0] -or !$parts[1] -or $parts[1].Contains('=')){throw (New-SBError 'portable.ideaccount.invalid' @($spec))}
         $found=@($ideReport|Where-Object {$_.id -ceq $parts[0] -or $_.name -ieq $parts[0]})
         if($found.Count -ne 1){throw (New-SBError 'portable.ide.ambiguous' @($parts[0], $found.Count))}
-        $entry=@{id=$found[0].id;accountAlias=$parts[1]};$fields=@{}
+        $entry=@{id=$found[0].id;accountAlias=(Assert-SBAccountAlias $parts[1])};$fields=@{}
         foreach($token in @($parts|Select-Object -Skip 2)){
             $eq=$token.IndexOf('=')
             if($eq -lt 1){throw (New-SBError 'portable.ideaccount.field' @($token))}
@@ -588,6 +612,15 @@ function Invoke-SBSetup {
     # An IDE with a declared alias is one integration: do not add the unaliased entry for the same IDE selected by name.
     $accountIdeIds=@($accountEntries|ForEach-Object {$_.id})
     $plainIdes=@($plainIdes|Where-Object {$_.id -notin $accountIdeIds})
+    # Manual surfaces selected without an alias: reuse the registered one, ask, or stop (never an anonymous integration).
+    $needAlias=@($plainIdes|Where-Object {$_.mode -eq 'manual'})
+    if($needAlias.Count){
+        $aliasConfig=if($null -ne $existingConfig){$existingConfig}else{$null}
+        foreach($manual in $needAlias){
+            $accountEntries+=@{id=$manual.id;accountAlias=(Resolve-SBManualAccountAlias $manual $aliasConfig ([bool]$prompting))}
+        }
+        $plainIdes=@($plainIdes|Where-Object {$_.mode -ne 'manual'})
+    }
     # Existing managed blocks require explicit review, except a block identical to what Sync would write using the approved revision (same markers and source hashes).
     $approvals=@{}
     $approvedRevision=Get-SBApprovedDirectiveRevision $brain
@@ -1063,6 +1096,7 @@ function Invoke-SBPortableSync {
                 }
                 if($ide.mode -eq 'manual'){
                     $alias=if($ide.ContainsKey('accountAlias')){[string]$ide.accountAlias}else{''}
+                    if(!$alias){$issues+=@{kind='account-alias-missing';ide=$ide.name;id=$ide.id;reason=(Get-SBMessage 'portable.issue.aliasmissing' @($ide.name))}}
                     if(!$observed){$issues+=@{kind='account-unverified';ide=$ide.name;id=$ide.id;accountAlias=$alias}}
                     # Observed account text differs from approval: realignment needed (new revision or stale account).
                     $stale=Get-SBIDEStaleObservation $ide $global
@@ -1123,6 +1157,8 @@ Export-ModuleMember -Function @(
     'New-SBPortableConfiguration',
     'Get-SBPortableGlobal',
     'Read-SBAccountObservationReceipt',
+    'Assert-SBAccountAlias',
+    'Resolve-SBManualAccountAlias',
     'Get-SBSetupPaths',
     'Get-SBSetupProgress',
     'Set-SBSetupProgress',
