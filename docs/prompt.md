@@ -69,7 +69,7 @@ Prompts are grouped by development area or need, not by code prefix. A repositor
 | `knowledge` | Dossier, sources and directives | MEM05, MNT07, SYS02, SYS05, SYS11, SYS16 |
 | `maintenance` | SecondBrain maintenance | MNT01, MNT02, MNT03, MNT04, MNT05, MNT06, SYS09 |
 
-Security and supply-chain areas follow the practice groups of NIST SP 800-218 SSDF 1.1 (source `nist-ssdf` of the authoritative registry, verified). The remaining areas follow the usual development activities; they are not derived from SWEBOK or ISO/IEC/IEEE 12207, which the registry does not hold.
+Security and supply-chain areas follow the practice groups of NIST SP 800-218 SSDF 1.1 (source `nist-ssdf` of the authoritative registry, verified). The remaining areas follow the usual development activities; they are not derived from SWEBOK or ISO/IEC/IEEE 12207, which the registry does not hold. Decision (2026-11-17, task #410): SWEBOK and ISO/IEC/IEEE 12207 are not acquired into the registry for now, because both are copyrighted standards with licensing terms not yet reviewed; no area is based on them. Reopen only through a new task that records the primary source, version and usage rights.
 
 Codes and immutable IDs are stable and are not reused. Gaps in numbering are intentional.
 
