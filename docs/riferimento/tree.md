@@ -17,7 +17,7 @@ This map describes ownership and recovery boundaries. Regenerable does not mean 
 | README, VERSION, CHANGELOG, CREDITS, LICENSE | Public product information and attribution |
 | AGENTS.md | Repository instructions; managed blocks come from generators |
 
-Git tracks the PARA skeleton using .gitkeep. PARA contents, generated PARA.md/para-index.json, local configuration and .runtime are ignored. Ignore rules do not remove tracked files or erase history.
+Git tracks the PARA skeleton using the folder READMEs and .gitkeep in the 04-archives subfolders. PARA contents, generated PARA.md/para-index.json, local configuration and .runtime are ignored. Ignore rules do not remove tracked files or erase history.
 
 <a id="para-gestione-dei-progetti"></a>
 

@@ -34,7 +34,7 @@ Regola generale: nulla viene cancellato dagli strumenti, salvo la fixture di `te
 
 ## Conoscenza PARA (locale, ignorata da Git)
 
-Solo la struttura con i `.gitkeep` e i README sono versionati; il contenuto resta nel clone privato.
+Solo i README e i `.gitkeep` delle sottocartelle di `04-archives` sono versionati; il contenuto resta nel clone privato.
 
 | Percorso | Contenuto | Cancellabile |
 | --- | --- | --- |

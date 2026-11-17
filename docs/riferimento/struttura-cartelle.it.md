@@ -15,7 +15,7 @@ Guida di riferimento: dove sta cosa, chi può scrivere e dove. Valida dalla revi
 | `docs/`, `scripts/`, `.github/` | Guide, codice, automazione | Revisione manuale | tracciata |
 | `.runtime/` | Stato e lavoro generato dalla postazione, mai conoscenza | Solo gli script | ignorata |
 
-Di `01`–`04` si traccia solo il `README.md` della cartella e i `.gitkeep`. `PARA.md` e `para-index.json` sono viste generate.
+Di `01`–`04` si traccia solo il `README.md` della cartella e i `.gitkeep` delle sottocartelle di `04-archives`. `PARA.md` e `para-index.json` sono viste generate.
 
 Creazione delle entità PARA: `para.ps1 -NewProject`, `-NewArea`, `-NewResource`; cambio di stato `-SetStatus`; chiusura `-Archive`.
 
