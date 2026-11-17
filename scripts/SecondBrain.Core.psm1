@@ -37,7 +37,26 @@ function Get-SBTransactionMarkerPaths([string]$BrainRoot) {
     (Join-Path $BrainRoot '.runtime/access/para-transaction.json')
     (Join-Path $BrainRoot '.runtime/para-transaction.json')
 }
-function Get-SBTransactionMarkerPath([string]$BrainRoot) {
+function Get-SBScopeKey([string]$Repository) {
+    # Per-dossier coordination scope (#476): a stable, path-safe key from the repository identity; no identity means the shared 'unscoped' key.
+    if(!$Repository){return 'unscoped'}
+    'r'+(Get-SBTextHash $Repository.ToLowerInvariant()).Substring(0,16).ToLowerInvariant()
+}
+function Get-SBScopeRoot([string]$BrainRoot,[string]$Scope) {
+    if($Scope -cnotmatch '^(unscoped|r[a-f0-9]{16})$'){throw (New-SBError 'core.scope.invalid')}
+    Join-Path $BrainRoot ('.runtime/access/scopes/'+$Scope)
+}
+function Get-SBScopedMarkerPaths([string]$BrainRoot) {
+    # Markers of interrupted per-dossier transactions, one per scope.
+    $root=Join-Path $BrainRoot '.runtime/access/scopes'
+    if(![IO.Directory]::Exists($root)){return}
+    foreach($dir in @(Get-ChildItem -LiteralPath $root -Directory -ErrorAction SilentlyContinue)){
+        $path=Join-Path $dir.FullName 'para-transaction.json'
+        if([IO.File]::Exists($path)){$path}
+    }
+}
+function Get-SBTransactionMarkerPath([string]$BrainRoot,[string]$Scope) {
+    if($Scope){return (Join-Path (Get-SBScopeRoot $BrainRoot $Scope) 'para-transaction.json')}
     $paths=@(Get-SBTransactionMarkerPaths $BrainRoot)
     $existing=@($paths|Where-Object {[IO.File]::Exists($_)})
     if($existing.Count -gt 1){throw (New-SBError 'core.transaction.multiple')}
@@ -1386,6 +1405,9 @@ Export-ModuleMember -Function @(
     'Get-SBVersion',
     'Get-SBTransactionMarkerPaths',
     'Get-SBTransactionMarkerPath',
+    'Get-SBScopeKey',
+    'Get-SBScopeRoot',
+    'Get-SBScopedMarkerPaths',
     'Read-SBText',
     'Get-SBFileHash',
     'Read-SBJson',

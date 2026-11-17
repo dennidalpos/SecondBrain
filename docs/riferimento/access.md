@@ -33,6 +33,17 @@ Sessions expire by themselves after 30 minutes without renewal (`sessionTimeoutS
 
 writer.lock admits one writer; operation.lock serializes central operations, including operations from the same session. FIFO tickets have exclusive leases. Recovery of a dead process's ticket does not steal a live lock.
 
+### Per-dossier locks (#476)
+
+Integrating a deferred write, or applying a task batch, changes one dossier only, so it takes a lock scoped to that dossier instead of the global one. Two dossiers write in parallel, and no write is left deferred because another dossier is busy.
+
+- Scope key: `Get-SBScopeKey <repository identity>` is `r` plus 16 hex characters of the SHA-256 of the lowercased identity; a request with no identity uses `unscoped`. Callers pass it as `Enter-SBOperation -Scope`.
+- Scoped files live in `.runtime/access/scopes/<key>/`: `writer.lock`, `operation.lock`, `operation-owner.json`, `queue/` (FIFO tickets, same rules as the global queue) and `para-transaction.json` (the marker of that dossier's interrupted transaction).
+- Gate: `.runtime/access/scope.gate` joins the two levels. Scoped writers open it with shared access, so they never block one another. A global writer (PARA changes, setup, reconcile, exclusive sessions, every writer called without `-Scope`) opens it exclusively and so waits for every scoped writer, and holds off new ones until it ends. A writer in a scope waits for the global writer within the usual wait.
+- `workstations.json` is checked and updated under the short `registry.lock`, because scoped writers can start together.
+- Transactions: `Invoke-SBParaTransaction -Scope` writes the marker under the scope. A scoped marker blocks only its own dossier (`Get-SBPendingTransaction <root> <key>`); a global marker blocks everyone, and readers, `Read-SBConfiguration` for writes and maintenance see all markers. Recover any marker with `scripts/recover.ps1 -ManifestPath <manifest>`; the manifest names its marker.
+- Lock order is always gate, then writer.lock, then operation.lock; release is the reverse (`Close-SBWriterLock` releases the gate with the writer). The scoped path never takes the global writer.lock, so it cannot deadlock with a global writer.
+
 The default writer wait is 60 seconds, controlled by WaitSeconds, SECONDBRAIN_LOCK_WAIT_SECONDS or shared lockWaitSeconds. Timeout returns exit 3 and reports the owner. Readers avoid blocking locks and report active writers or incomplete transactions. Knowledge reads never integrate queued writes; only an explicit knowledge.ps1 -FlushPending does, for the own dossier.
 
 Custom central writes require Enter-SBOperation/Exit-SBOperation and expected hashes. A session alone does not protect direct filesystem edits from external editors. Use [deferred writes](pending-writes.md) for supported dossier changes.

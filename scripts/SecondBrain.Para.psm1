@@ -163,7 +163,19 @@ function Update-SBParaIndex($Config,[switch]$Check) {
 
 # File-level journal: every old payload is verified before the first write. Recovery
 # verifies the deployed hashes and never overwrites a subsequent user edit.
-function Invoke-SBParaTransaction([object[]]$Operations,[string]$BackupRoot,[string]$BrainRoot,[string[]]$AllowedPaths=@(),[string]$RecoveryManifest='') {
+function Find-SBTransactionMarker([string]$BrainRoot,[string]$Manifest) {
+    # Marker (global or per-dossier) that names this manifest; $null when none does.
+    $candidates=@((Get-SBTransactionMarkerPaths $BrainRoot)|Where-Object {[IO.File]::Exists($_)})+@(Get-SBScopedMarkerPaths $BrainRoot)
+    foreach($candidate in $candidates){
+        $pending=try{Read-SBJson $candidate @{}}catch{@{}}
+        if(!$pending.ContainsKey('manifest')){continue}
+        $named=if($pending.ContainsKey('brainRoot')){Convert-SBBrainAlias ([string]$pending.manifest) ([string]$pending.brainRoot) $BrainRoot}else{[string]$pending.manifest}
+        if($named -eq [IO.Path]::GetFullPath($Manifest)){return $candidate}
+    }
+    $null
+}
+function Invoke-SBParaTransaction([object[]]$Operations,[string]$BackupRoot,[string]$BrainRoot,[string[]]$AllowedPaths=@(),[string]$RecoveryManifest='',[string]$Scope='') {
+    # -Scope (#476): the transaction keeps its own marker under access/scopes/<scope>, so another dossier is not blocked by it.
     try {
     $backupFull=[IO.Path]::GetFullPath($BackupRoot)
     $brainFull=[IO.Path]::GetFullPath($BrainRoot).TrimEnd('\','/')+[IO.Path]::DirectorySeparatorChar
@@ -198,7 +210,12 @@ function Invoke-SBParaTransaction([object[]]$Operations,[string]$BackupRoot,[str
         }finally{if([IO.File]::Exists($temp)){[IO.File]::Delete($temp)}}
     }
     Save-Journal
-    $marker=Get-SBTransactionMarkerPath $BrainRoot
+    $marker=$null
+    if($RecoveryManifest){$marker=Find-SBTransactionMarker $BrainRoot $RecoveryManifest}
+    if(!$marker){
+        $marker=Get-SBTransactionMarkerPath $BrainRoot $Scope
+        if($Scope){Assert-SBPlainPath $marker;[IO.Directory]::CreateDirectory((Split-Path $marker))|Out-Null}
+    }
     $markerHash=Get-SBFileHash $marker
     if($markerHash -ne 'absent'){
         $pending=Read-SBJson $marker @{}
@@ -206,7 +223,9 @@ function Invoke-SBParaTransaction([object[]]$Operations,[string]$BackupRoot,[str
         $pendingManifest=if($pending.ContainsKey('brainRoot')){Convert-SBBrainAlias ([string]$pending.manifest) ([string]$pending.brainRoot) $BrainRoot}else{[string]$pending.manifest}
         if(!$RecoveryManifest -or $pendingManifest -ne [IO.Path]::GetFullPath($RecoveryManifest)){throw (New-SBError 'para.transaction.incomplete')}
     }
-    $markerText=ConvertTo-SBJson @{manifest=$manifest;brainRoot=[IO.Path]::GetFullPath($BrainRoot);computer=[Environment]::MachineName;user=[Security.Principal.WindowsIdentity]::GetCurrent().Name;processId=$PID;startedAt=(Get-SBNow).ToString('o')}
+    $markerData=@{manifest=$manifest;brainRoot=[IO.Path]::GetFullPath($BrainRoot);computer=[Environment]::MachineName;user=[Security.Principal.WindowsIdentity]::GetCurrent().Name;processId=$PID;startedAt=(Get-SBNow).ToString('o')}
+    if($Scope){$markerData.scope=$Scope}
+    $markerText=ConvertTo-SBJson $markerData
     Write-SBFile $marker ([Text.Encoding]::UTF8.GetBytes($markerText)) $markerHash $journalRoot|Out-Null
     try {
         for($i=0;$i -lt $Operations.Count;$i++){
@@ -261,7 +280,8 @@ function Restore-SBParaTransaction([string]$ManifestPath,[string]$BrainRoot,[str
         foreach($created in $createdPaths){Remove-SBParaEmptyAncestors $created $BrainRoot}
         $result
     }else{
-        $marker=Get-SBTransactionMarkerPath $BrainRoot
+        $marker=Find-SBTransactionMarker $BrainRoot $manifestFull
+        if(!$marker){$marker=Get-SBTransactionMarkerPath $BrainRoot}
         if(Test-Path -LiteralPath $marker){
             $pendingMarker=Read-SBJson $marker @{}
             $pendingManifest=if($pendingMarker.ContainsKey('brainRoot')){Convert-SBBrainAlias ([string]$pendingMarker.manifest) ([string]$pendingMarker.brainRoot) $BrainRoot}else{[string]$pendingMarker.manifest}

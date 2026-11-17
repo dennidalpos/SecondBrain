@@ -159,6 +159,48 @@ try {
         Assert-Conc (!$busy[0].ok -and $busy[0].code -eq 'access.busy') 'coda di accesso: con il lock occupato l attesa scade con il codice access.busy' ([string]$busy[0].code+':'+$busy[0].type)
     }
 
+    Invoke-Case 'scoped-locks' (Join-Path $root 'scoped') {
+        # #476: per-dossier locks. Two dossiers hold their locks at once; a global writer and a dossier writer exclude each other.
+        $dir=Join-Path $root 'scoped';$coordination=Join-Path $dir 'brain/.runtime/access';$backups=Join-Path $dir 'backups'
+        foreach($path in @($coordination,$backups,(Join-Path $dir 'brain/02-areas'))){[IO.Directory]::CreateDirectory($path)|Out-Null}
+        $brain=Join-Path $dir 'brain'
+        $config=@{brainRoot=$brain;coordinationRoot=$coordination;workstationId='fixture';sessionTimeoutMinutes=30;lockWaitMs=60000}
+        $a=Get-SBScopeKey 'github.com/acme/repo-a';$b=Get-SBScopeKey 'github.com/acme/repo-b'
+        Assert-Conc ($a -cmatch '^r[a-f0-9]{16}$' -and $a -ne $b -and $a -ceq (Get-SBScopeKey 'GitHub.com/Acme/Repo-A') -and (Get-SBScopeKey '') -ceq 'unscoped') 'scope key: stable, case-insensitive and distinct per repository'
+        $heldA=Enter-SBOperation $config $null -LockOnly -Scope $a
+        try{
+            $other=$null
+            try{$other=Enter-SBOperation $config $null -WaitMs 300 -LockOnly -Scope $b}
+            finally{Exit-SBOperation $other}
+            Assert-Conc ($null -ne $other) 'scoped locks: a second dossier writes while the first holds its lock'
+            $sameBusy=@(Invoke-Race 1 {param($i,$x) Enter-SBOperation $x[0] $null -WaitMs 300 -LockOnly -Scope $x[1]|Out-Null} @($config,$a))
+            Assert-Conc (!$sameBusy[0].ok -and $sameBusy[0].code -eq 'access.busy') 'scoped locks: the same dossier still waits and times out with access.busy'
+            $globalBusy=@(Invoke-Race 1 {param($i,$x) Enter-SBOperation $x[0] $null -WaitMs 300 -LockOnly|Out-Null} @($config))
+            Assert-Conc (!$globalBusy[0].ok -and $globalBusy[0].code -eq 'access.busy') 'scoped locks: a global writer waits for a dossier writer'
+        }finally{Exit-SBOperation $heldA}
+        $heldGlobal=Enter-SBOperation $config $null -LockOnly
+        try{
+            $scopedBusy=@(Invoke-Race 1 {param($i,$x) Enter-SBOperation $x[0] $null -WaitMs 300 -LockOnly -Scope $x[1]|Out-Null} @($config,$b))
+            Assert-Conc (!$scopedBusy[0].ok -and $scopedBusy[0].code -eq 'access.busy') 'scoped locks: a dossier writer waits for a global writer'
+        }finally{Exit-SBOperation $heldGlobal}
+        $again=Enter-SBOperation $config $null -WaitMs 300 -LockOnly -Scope $a
+        Exit-SBOperation $again
+        Assert-Conc ($null -ne $again) 'scoped locks: released locks can be taken again (gate released with the writer)'
+
+        # Parallel transactions on two dossiers, each with its own marker; an interrupted one blocks only its own dossier.
+        $targets=@{};foreach($key in @($a,$b)){$t=Join-Path $brain "02-areas/$key.md";[IO.File]::WriteAllText($t,"base`n");$targets[$key]=$t}
+        $outcomes=Invoke-Race 2 {param($i,$x)
+            $key=$x[$i-1];$op=Enter-SBOperation $x[2] $null -WaitMs 5000 -LockOnly -Scope $key
+            try{Start-Sleep -Milliseconds 300;Invoke-SBParaTransaction -Operations @(@{path=$x[3][$key];expected=(Get-SBFileHash $x[3][$key]);bytes=[Text.Encoding]::UTF8.GetBytes("done-$i`n")}) -BackupRoot $x[4] -BrainRoot $x[5] -Scope $key|Out-Null}
+            finally{Exit-SBOperation $op}
+        } @($a,$b,$config,$targets,$backups,$brain)
+        Assert-Conc (@($outcomes|Where-Object {!$_.ok}).Count -eq 0) 'scoped locks: two dossiers integrate in parallel without a failed or deferred write' (@($outcomes|Where-Object {!$_.ok}|ForEach-Object message) -join '; ')
+        Assert-Conc ([IO.File]::ReadAllText($targets[$a]) -eq "done-1`n" -and [IO.File]::ReadAllText($targets[$b]) -eq "done-2`n" -and !(Get-SBPendingTransaction $brain)) 'scoped locks: both dossiers hold their own result and leave no marker'
+        $markerA=Get-SBTransactionMarkerPath $brain $a
+        [IO.File]::WriteAllText($markerA,(ConvertTo-SBJson @{manifest=(Join-Path $backups 'x/manifest.json');brainRoot=$brain;scope=$a}))
+        Assert-Conc ($null -ne (Get-SBPendingTransaction $brain $a) -and $null -eq (Get-SBPendingTransaction $brain $b) -and $null -ne (Get-SBPendingTransaction $brain)) 'scoped locks: an interrupted marker blocks its own dossier and shows to global callers, not to other dossiers'
+    }
+
     Invoke-Case 'para-transaction' (Join-Path $root 'para') {
         $brain=Join-Path $root 'para/brain';$backups=Join-Path $root 'para/backups';$target=Join-Path $brain '02-areas/doc.md'
         foreach($dir in @((Join-Path $brain '.runtime'),(Split-Path $target),$backups)){[IO.Directory]::CreateDirectory($dir)|Out-Null}

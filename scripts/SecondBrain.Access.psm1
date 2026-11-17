@@ -27,14 +27,20 @@ Add-SBMessages @{
     'access.pending' = @{ en = 'Incomplete PARA transaction{0} (manifest: {1}). Recover with scripts/recover.ps1 -ManifestPath <manifest> from any workstation that reaches the manifest; do not remove the marker by hand.' }
 }
 
-function Get-SBPendingTransaction([string]$BrainRoot) {
+$script:SBWriterGates = @{}
+function Get-SBPendingTransaction([string]$BrainRoot,[string]$Scope) {
     # Summarize an interrupted transaction marker: owner, time, manifest and reachability from this workstation.
+    # A global marker always counts. Per-dossier markers (#476) count for every caller, except that -Scope limits them to that dossier's own.
     $marker=Get-SBTransactionMarkerPath $BrainRoot
-    if(!(Test-Path -LiteralPath $marker)){return $null}
+    if(!(Test-Path -LiteralPath $marker)){
+        $scoped=@(Get-SBScopedMarkerPaths $BrainRoot|Where-Object {!$Scope -or $_ -ieq (Get-SBTransactionMarkerPath $BrainRoot $Scope)})
+        if(!$scoped.Count){return $null}
+        $marker=$scoped[0]
+    }
     $pending=try{Read-SBJson $marker @{}}catch{@{}}
     $manifest=if($pending.ContainsKey('manifest')){[string]$pending.manifest}else{''}
     if($manifest -and $pending.ContainsKey('brainRoot')){$manifest=Convert-SBBrainAlias $manifest ([string]$pending.brainRoot) $BrainRoot}
-    @{marker=$marker;manifest=$manifest;computer=$(if($pending.ContainsKey('computer')){[string]$pending.computer}else{''});user=$(if($pending.ContainsKey('user')){[string]$pending.user}else{''});startedAt=$(if($pending.ContainsKey('startedAt')){[string]$pending.startedAt}else{''});reachable=($manifest -and (Test-Path -LiteralPath $manifest))}
+    @{marker=$marker;scope=$(if($pending.ContainsKey('scope')){[string]$pending.scope}else{''});manifest=$manifest;computer=$(if($pending.ContainsKey('computer')){[string]$pending.computer}else{''});user=$(if($pending.ContainsKey('user')){[string]$pending.user}else{''});startedAt=$(if($pending.ContainsKey('startedAt')){[string]$pending.startedAt}else{''});reachable=($manifest -and (Test-Path -LiteralPath $manifest))}
 }
 function Format-SBPendingTransaction($Pending) {
     $who=if($Pending.user -or $Pending.computer){Get-SBMessage 'access.pending.who' @($Pending.user,$Pending.computer,$Pending.startedAt)}else{''}
@@ -169,10 +175,15 @@ function Get-SBQueueTicketNames([string]$Root) {
     [Array]::Sort($names, [StringComparer]::Ordinal)
     $names
 }
-function Enter-SBQueue($Config, [int]$WaitMs, [scriptblock]$OnWait) {
+function Get-SBCoordinationScopeRoot($Config, [string]$Scope) {
+    # Folder of one dossier's writer.lock, operation.lock, owner file and queue; the shared coordination root when there is no scope.
+    if (!$Scope) { return $Config.coordinationRoot }
+    Get-SBScopeRoot $Config.brainRoot $Scope
+}
+function Enter-SBQueue($Config, [int]$WaitMs, [scriptblock]$OnWait, [string]$Scope) {
     # FIFO writer queue over writer.lock: the ticket is an exclusive open lease; tickets from exited processes
     # (openable leases) are removed without touching writer.lock or transaction markers.
-    $root = Join-Path $Config.coordinationRoot 'queue'
+    $root = Join-Path (Get-SBCoordinationScopeRoot $Config $Scope) 'queue'
     Assert-SBPlainPath $root
     [IO.Directory]::CreateDirectory($root) | Out-Null
     $name = (Get-SBNow).UtcTicks.ToString('D19') + '-' + (New-SBId)
@@ -203,16 +214,37 @@ function Exit-SBQueue($Ticket) {
     if ($Ticket.lease) { $Ticket.lease.Dispose() }
     Remove-SBQueueTicketFiles $Ticket.root $Ticket.name
 }
-function Open-SBWriterLock($Config, [string]$WriterPath, [int]$WaitMs, [scriptblock]$OnWait) {
+function Open-SBWriterLock($Config, [string]$WriterPath, [int]$WaitMs, [scriptblock]$OnWait, [string]$Scope) {
     # Queue a ticket, then acquire writer.lock within the remaining wait; release the ticket as soon as the lock is acquired.
+    # Per-dossier locks (#476): -Scope names the dossier; its writers share the gate (scope.gate) that a global writer holds exclusively,
+    # so dossiers run in parallel while a global writer (PARA, setup, session) still excludes every one of them.
     $deadline = (Get-SBNow).AddMilliseconds([Math]::Max(0, $WaitMs))
     $state = @{ notified=$false }
     $notify = { if (!$state.notified) { $state.notified = $true; if ($OnWait) { & $OnWait } } }.GetNewClosure()
-    $ticket = Enter-SBQueue $Config $WaitMs $notify
+    $ticket = Enter-SBQueue $Config $WaitMs $notify $Scope
+    $gate = $null
     try {
+        $gatePath = Join-Path $Config.coordinationRoot 'scope.gate'
+        Assert-SBPlainPath $gatePath
+        $share = if ($Scope) { [IO.FileShare]::ReadWrite } else { [IO.FileShare]::None }
         $remaining = [int][Math]::Max(0, ($deadline - (Get-SBNow)).TotalMilliseconds)
-        Open-SBLockFile $WriterPath ([IO.FileMode]::OpenOrCreate) ([IO.FileAccess]::ReadWrite) ([IO.FileShare]::None) $remaining $notify
-    } finally { Exit-SBQueue $ticket }
+        $gate = Open-SBLockFile $gatePath ([IO.FileMode]::OpenOrCreate) ([IO.FileAccess]::ReadWrite) $share $remaining $notify
+        $remaining = [int][Math]::Max(0, ($deadline - (Get-SBNow)).TotalMilliseconds)
+        $writer = Open-SBLockFile $WriterPath ([IO.FileMode]::OpenOrCreate) ([IO.FileAccess]::ReadWrite) ([IO.FileShare]::None) $remaining $notify
+        # The writer handle owns the gate: Close-SBWriterLock releases both.
+        $script:SBWriterGates[[string]$writer.SafeFileHandle.DangerousGetHandle()] = $gate
+        $gate = $null
+        $writer
+    } catch { if ($gate) { $gate.Dispose() }; throw }
+    finally { Exit-SBQueue $ticket }
+}
+function Close-SBWriterLock($Writer) {
+    if (!$Writer) { return }
+    $key = [string]$Writer.SafeFileHandle.DangerousGetHandle()
+    $gate = $script:SBWriterGates[$key]
+    $script:SBWriterGates.Remove($key)
+    $Writer.Dispose()
+    if ($gate) { $gate.Dispose() }
 }
 function Get-SBQueueStatus($Config, [switch]$Purge) {
     # Read-only (-Purge removes orphan tickets): position 1 = next writer.
@@ -233,9 +265,10 @@ function Write-SBReadWarnings($Operation, $Config) {
     $pending = if ($Operation -and $Operation.pendingTransaction) { $Operation.pendingTransaction } elseif ($Config -is [Collections.IDictionary] -and $Config.ContainsKey('pendingTransaction')) { $Config.pendingTransaction } else { $null }
     if ($pending) { [Console]::Error.WriteLine('Avviso: ' + (Format-SBPendingTransaction $pending)) }
 }
-function Get-SBOperationOwnerText($Config) {
+function Get-SBOperationOwnerText($Config, [string]$Scope) {
     $owners = @(Get-SBAccessStatus $Config|Where-Object {$_.status -eq 'active' -and $_.mode -eq 'Write' -and (!$_.ContainsKey('exclusive') -or $_.exclusive)})
-    $owner = Read-SBJson (Join-Path $Config.coordinationRoot 'operation-owner.json') @{}
+    $owner = Read-SBJson (Join-Path (Get-SBCoordinationScopeRoot $Config $Scope) 'operation-owner.json') @{}
+    if (!$owner.Count -and $Scope) { $owner = Read-SBJson (Join-Path $Config.coordinationRoot 'operation-owner.json') @{} }
     if ($owners.Count) { ($owners | ForEach-Object { "$($_.user)@$($_.computer), $($_.client), $($_.path), sessione $($_.sessionId)" }) -join '; ' }
     elseif ($owner.Count) { "$($owner.user)@$($owner.computer), $($owner.client), $($owner.path), dal $($owner.heartbeat)" }
     else { 'titolare non identificato' }
@@ -321,8 +354,10 @@ function Assert-SBSession($Config, [string]$SessionId, [switch]$AllowRead) {
     $entry[0]
 }
 
-function Enter-SBOperation($Config, [string]$SessionId, [switch]$ReadOnly, [int]$WaitMs = -1, [switch]$ReconcileWorkstation, [switch]$LockOnly) {
+function Enter-SBOperation($Config, [string]$SessionId, [switch]$ReadOnly, [int]$WaitMs = -1, [switch]$ReconcileWorkstation, [switch]$LockOnly, [string]$Scope) {
     # -LockOnly: writer queue and lock only (no workstation registry or guard), for writers outside the brain and on inactive workstations.
+    # -Scope (#476): per-dossier writer for the key from Get-SBScopeKey; it takes the dossier's own writer.lock and operation.lock and
+    # shares scope.gate with other dossiers, so two dossiers write in parallel. Without -Scope the writer is global and excludes them all.
     $result = @{ writer=$null; operation=$null; metadata=$null; ownerSessionId=$null; config=$Config; concurrentWriter=$false; pendingTransaction=$null; previousGuard=(Get-SBWriteGuard) }
     $waitTotal = Get-SBLockWaitMs $Config $WaitMs
     try {
@@ -352,20 +387,29 @@ function Enter-SBOperation($Config, [string]$SessionId, [switch]$ReadOnly, [int]
                 # Old running sessions held writer.lock; preserve their contract until End.
                 $exclusiveSession=(!$session.ContainsKey('exclusive') -or [bool]$session.exclusive)
             }
+            $scopeRoot = Get-SBCoordinationScopeRoot $Config $Scope
+            if ($Scope) {
+                Assert-SBPlainPath $scopeRoot
+                [IO.Directory]::CreateDirectory($scopeRoot) | Out-Null
+                $writerPath = Join-Path $scopeRoot 'writer.lock'
+            }
             if (!$exclusiveSession) {
                 Assert-SBPlainPath $writerPath
-                $onWait = { [Console]::Error.WriteLine('SecondBrain: scrittura occupata, attesa fino a ' + [int]($waitTotal / 1000) + ' s. Titolare: ' + (Get-SBOperationOwnerText $Config)) }.GetNewClosure()
-                $result.writer = Open-SBWriterLock $Config $writerPath $waitTotal $onWait
-                $result.metadata = Join-Path $Config.coordinationRoot 'operation-owner.json'
+                $onWait = { [Console]::Error.WriteLine('SecondBrain: scrittura occupata, attesa fino a ' + [int]($waitTotal / 1000) + ' s. Titolare: ' + (Get-SBOperationOwnerText $Config $Scope)) }.GetNewClosure()
+                $result.writer = Open-SBWriterLock $Config $writerPath $waitTotal $onWait $Scope
+                $result.metadata = Join-Path $scopeRoot 'operation-owner.json'
                 $result.ownerSessionId = (New-SBId)
                 Write-SBAccessMetadata $result.metadata @{sessionId=$result.ownerSessionId;user=[Security.Principal.WindowsIdentity]::GetCurrent().Name;computer=[Environment]::MachineName;processId=$PID;client='SecondBrain script';repository=(Get-SBBrainIdentity $Config.brainRoot);workstationId=$Config.workstationId;path=$Config.brainRoot;mode='Write';heartbeat=(Get-SBNow).ToString('o')}
             }
-            $opPath = Join-Path $Config.coordinationRoot 'operation.lock'
+            $opPath = Join-Path $scopeRoot 'operation.lock'
             Assert-SBPlainPath $opPath
             $result.operation = Open-SBLockFile $opPath ([IO.FileMode]::OpenOrCreate) ([IO.FileAccess]::ReadWrite) ([IO.FileShare]::None) $waitTotal
             if ($LockOnly) { return $result }
             # Registration prevents two workstations from accidentally sharing an ID or baseline.
             $registryPath = Join-Path $Config.coordinationRoot 'workstations.json'
+            # Dossier writers run in parallel, so the registry check and its rare write are serialized by a short lock of their own.
+            $registryLock = Open-SBLockFile (Join-Path $Config.coordinationRoot 'registry.lock') ([IO.FileMode]::OpenOrCreate) ([IO.FileAccess]::ReadWrite) ([IO.FileShare]::None) $waitTotal
+            try {
             $registry = Read-SBJson $registryPath @{}
             $identity = [Environment]::MachineName+'|'+[Security.Principal.WindowsIdentity]::GetCurrent().User.Value
             $station = @{identity=$identity;runtimeRoot=$Config.runtimeRoot;backupRoot=$Config.backupRoot;repositoryRoot=$Config.repositoryRoot}
@@ -382,6 +426,7 @@ function Enter-SBOperation($Config, [string]$SessionId, [switch]$ReadOnly, [int]
             $moved = $known -and !((Test-SBSamePath $known.runtimeRoot $station.runtimeRoot) -and (Test-SBSamePath $known.backupRoot $station.backupRoot) -and (Test-SBSamePath $known.repositoryRoot $station.repositoryRoot))
             if ($moved -and !$ReconcileWorkstation) { throw (New-SBError 'access.station.moved' @($Config.workstationId,$known.repositoryRoot,$station.repositoryRoot)) }
             if (!$known -or $moved) { $registry[$Config.workstationId]=$station; Write-SBAccessMetadata $registryPath $registry }
+            } finally { $registryLock.Dispose() }
             # The closure cannot see private module functions: capture the command before GetNewClosure().
             $assertSession=${function:Assert-SBSession}
             $writeGuard={
@@ -397,7 +442,7 @@ function Enter-SBOperation($Config, [string]$SessionId, [switch]$ReadOnly, [int]
         Exit-SBOperation $result
         $base = $_.Exception.GetBaseException()
         if ($base -is [IO.IOException] -and ($base.HResult -band 0xffff) -in @(32, 33)) {
-            $description = Get-SBOperationOwnerText $Config
+            $description = Get-SBOperationOwnerText $Config $Scope
             throw (New-SBError 'access.busy' @([int]($waitTotal / 1000),$description) ([IO.IOException]) 0 $_.Exception)
         }
         throw
@@ -414,7 +459,7 @@ function Exit-SBOperation($Operation) {
         $recorded = try { Read-SBJson $Operation.metadata @{} } catch { @{} }
         if (!$Operation.ownerSessionId -or ($recorded.ContainsKey('sessionId') -and $recorded.sessionId -eq $Operation.ownerSessionId)) { [IO.File]::Delete($Operation.metadata) }
     }
-    if ($Operation.writer) { $Operation.writer.Dispose() }
+    if ($Operation.writer) { Close-SBWriterLock $Operation.writer }
 }
 
 Export-ModuleMember -Function @(
@@ -428,6 +473,7 @@ Export-ModuleMember -Function @(
     'Open-SBLockFile',
     'Test-SBBusyError',
     'Open-SBWriterLock',
+    'Close-SBWriterLock',
     'Get-SBQueueStatus',
     'Write-SBReadWarnings',
     'Get-SBOperationOwnerText',

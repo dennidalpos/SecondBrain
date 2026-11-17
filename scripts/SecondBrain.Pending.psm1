@@ -283,13 +283,15 @@ function Resolve-SBPendingDrainConfig($Summary,[string]$BrainRoot,$Config,[strin
     $Config
 }
 
-function Test-SBPendingRecoveryGate($Summary,[string]$BrainRoot,$Config) {
+function Test-SBPendingRecoveryGate($Summary,[string]$BrainRoot,$Config,[string]$Scope) {
     # True when a transaction marker exists; the summary then says busy, unavailable or recovery-required.
-    if(!(Get-SBPendingTransaction $BrainRoot)){return $false}
+    # -Scope (#476): only a global marker or that dossier's own marker counts.
+    $pendingMarker=Get-SBPendingTransaction $BrainRoot $Scope
+    if(!$pendingMarker){return $false}
     # A marker can belong to a live transaction: report busy, never ask to recover it.
     $probe=$null
     try{
-        $writerPath=Join-Path $Config.coordinationRoot 'writer.lock'
+        $writerPath=if($pendingMarker.scope){Join-Path (Get-SBScopeRoot $BrainRoot $pendingMarker.scope) 'writer.lock'}else{Join-Path $Config.coordinationRoot 'writer.lock'}
         if(Test-Path -LiteralPath $writerPath){$probe=[IO.File]::Open($writerPath,[IO.FileMode]::Open,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None)}
         $Summary.state='recovery-required'
     }catch{if(Test-SBBusyError $_){$Summary.state='busy'}else{$Summary.state='unavailable';$Summary.errors+=@{code='pending.coordination.unavailable';message=$_.Exception.Message}}}
@@ -404,13 +406,16 @@ function Invoke-SBPendingWrites {
     if(!$todo.Count){return $summary}
     $Config=Resolve-SBPendingDrainConfig $summary $BrainRoot $Config $ConfigPath
     if(!$Config){return $summary}
-    if(Test-SBPendingRecoveryGate $summary $BrainRoot $Config){return $summary}
+    $gateScope=if($Repository){Get-SBScopeKey $Repository}else{''}
+    if(Test-SBPendingRecoveryGate $summary $BrainRoot $Config $gateScope){return $summary}
     foreach($entry in @($todo|Select-Object -First $Limit)){
         $scope=$null;$sourceLease=$null
+        # Per-dossier lock (#476): this request holds only its own dossier's writer lock, so requests of other dossiers integrate in parallel.
+        $entryScope=Get-SBScopeKey $entry.repository
         try{
             if($clock){$lockStart=$clock.Elapsed.TotalMilliseconds;$Diagnostics.lockAttempts++}
             # Startup flushes never wait (WaitMs 0); submissions and -FlushPending wait a bounded time so concurrent tasks do not leave requests deferred.
-            try{$scope=Enter-SBOperation $Config -SessionId $SessionId -WaitMs $WaitMs}
+            try{$scope=Enter-SBOperation $Config -SessionId $SessionId -WaitMs $WaitMs -Scope $entryScope}
             finally{if($clock){$Diagnostics.lockAttemptMs+=$clock.Elapsed.TotalMilliseconds-$lockStart}}
             # Another importer may have completed this request while we acquired the lock.
             if(Test-Path -LiteralPath $entry.receiptPath){$summary.pending--;continue}
@@ -440,7 +445,7 @@ function Invoke-SBPendingWrites {
             if($state -eq 'applied'){
                 foreach($op in $ops){[IO.Directory]::CreateDirectory((Split-Path $op.path))|Out-Null}
                 # Data and receipt share the recovery journal: a replay cannot apply twice.
-                [void](Invoke-SBParaTransaction -Operations @($ops+$receiptOp) -BackupRoot $Config.backupRoot -BrainRoot $BrainRoot)
+                [void](Invoke-SBParaTransaction -Operations @($ops+$receiptOp) -BackupRoot $Config.backupRoot -BrainRoot $BrainRoot -Scope $entryScope)
                 $summary.applied+=@{id=$entry.id;repository=$repository;operation=$request.operation}
             }else{
                 Write-SBFile $entry.receiptPath $receiptOp.bytes 'absent' $Config.backupRoot|Out-Null
@@ -454,7 +459,7 @@ function Invoke-SBPendingWrites {
                 $summary.state='busy';break
             }
             $summary.state='unavailable';$summary.errors+=@{id=$entry.id;code='pending.apply.failed';message=$_.Exception.Message}
-            if(Get-SBPendingTransaction $BrainRoot){$summary.state='recovery-required';break}
+            if(Get-SBPendingTransaction $BrainRoot $entryScope){$summary.state='recovery-required';break}
         }finally{if($sourceLease){$sourceLease.Dispose()};Exit-SBOperation $scope}
     }
     $summary
@@ -544,9 +549,10 @@ function Invoke-SBPendingTaskBatch {
     param([string]$BrainRoot,[string]$Repository,[object[]]$Items,[object[]]$Prepared,$Config,[string]$SessionId,[ValidateRange(0,600000)][int]$WaitMs=0)
     $prepared=if($PSBoundParameters.ContainsKey('Prepared')){@($Prepared)}else{@(New-SBPendingTaskBatch -BrainRoot $BrainRoot -Repository $Repository -Items @($Items) -Config $Config -SessionId $SessionId)}
     if(!$prepared.Count){throw (New-SBError 'tracker.batch.empty')}
-    $scope=Enter-SBOperation $Config -SessionId $SessionId -WaitMs $WaitMs
+    $batchScope=Get-SBScopeKey $Repository
+    $scope=Enter-SBOperation $Config -SessionId $SessionId -WaitMs $WaitMs -Scope $batchScope
     try{
-        if(Get-SBPendingTransaction $BrainRoot){throw (New-SBError 'pending.batch.recovery')}
+        if(Get-SBPendingTransaction $BrainRoot $batchScope){throw (New-SBError 'pending.batch.recovery')}
         $dossier=Resolve-SBPendingDossier $BrainRoot $Repository
         $tracker=Read-SBPendingTracker $BrainRoot $Repository $dossier
         $archiveTasks=@((Read-SBTrackerArchive $tracker.path $Repository).data.tasks)
@@ -583,7 +589,7 @@ function Invoke-SBPendingTaskBatch {
         $ops=@($plan.operations)+$requestOps+$receiptOps
         foreach($op in $ops){[IO.Directory]::CreateDirectory((Split-Path $op.path))|Out-Null}
         # Tracker, archive, ledger, requests and receipts share one recovery journal: a replay cannot apply part of the batch.
-        [void](Invoke-SBParaTransaction -Operations $ops -BackupRoot $Config.backupRoot -BrainRoot $BrainRoot)
+        [void](Invoke-SBParaTransaction -Operations $ops -BackupRoot $Config.backupRoot -BrainRoot $BrainRoot -Scope $batchScope)
         $summary=@{repository=$Repository;state='applied';applied=$true;count=$items.Count;trackerHashBefore=$tracker.hash;trackerHash=(Get-SBFileHash $tracker.path);items=$items}
         if(@($items|Where-Object {$_.ContainsKey('closureAdvice')}).Count){$summary.closureAdvice=Get-SBClosureAdvice $dossier}
         $summary

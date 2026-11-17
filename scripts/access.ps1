@@ -132,6 +132,6 @@ try {
 }
 finally {
     try{Write-SBAccessMetadata $path $metadata}catch{Write-Warning (Get-SBMessage 'access.metadata.final')}
-    if($lease){$lease.Dispose()};if($writer){$writer.Dispose()}
+    if($lease){$lease.Dispose()};if($writer){Close-SBWriterLock $writer}
     foreach($suffix in @('.stop','.renew','.lease')){[IO.File]::Delete((Join-Path $sessions ($SessionId+$suffix)))}
 }

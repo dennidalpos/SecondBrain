@@ -83,6 +83,7 @@ Add-SBMessages @{
     'core.runtime.reason.target-changed' = @{ en = 'target changed or no longer eligible after selection: data retained' }
     'core.runtime.regenerable.recovery' = @{ en = 'recreate with the suite or command identified by the manifest task; review references before authorizing' }
     'core.write.contended'      = @{ en = 'Write contended: the file is in use or was replaced by another writer: {0}' }
+    'core.scope.invalid' = @{ en = 'Invalid coordination scope key' }
     'core.transaction.multiple' = @{ en = 'Multiple transaction markers exist: recover separately without overwriting them' }
     'core.write.denied'         = @{ en = 'Access denied while writing: {0}' }
     'core.write.retry'          = @{ en = 'Retry in PowerShell 7.5+ outside the sandbox: {0}' }
