@@ -2,7 +2,7 @@
 
 [Retained Italian source; use this English page for current behavior](prompt.it.md)
 
-The catalog contains 122 prompt cards in 17 categories, in two groups (current repository and central SecondBrain). The reference cards are in English, with Italian counterparts under `direttive/prompts/it/`.
+The catalog contains 122 prompt cards in 17 categories, in two groups (current repository and central SecondBrain). The cards are in English.
 
 ~~~text
 sb prompt list
@@ -11,7 +11,7 @@ sb prompt show DEV01
 sb prompt DEV01: add PDF export
 ~~~
 
-See the generated [English catalog](../direttive/prompts/README.md) or [Italian catalog](../direttive/prompts/README.it.md). Memory and central maintenance prompts belong to the same list.
+See the generated [catalog](../direttive/prompts/README.md). Memory and central maintenance prompts belong to the same list.
 
 ## Where you are
 

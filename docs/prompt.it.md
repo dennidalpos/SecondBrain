@@ -9,7 +9,7 @@ sb prompt mostra DEV01
 sb prompt DEV01: aggiungi l'esportazione in PDF
 ```
 
-Elenco completo: [catalogo](../direttive/prompts/README.it.md) ([English](../direttive/prompts/README.md)). I prompt che gestiscono SecondBrain stesso (aree `system`, `knowledge`, `maintenance`) sono nella stessa lista.
+Elenco completo: [catalogo](../direttive/prompts/README.md). I prompt che gestiscono SecondBrain stesso (aree `system`, `knowledge`, `maintenance`) sono nella stessa lista.
 
 ## Dove sei
 
@@ -21,7 +21,7 @@ Elenco completo: [catalogo](../direttive/prompts/README.it.md) ([English](../dir
 
 ## Come è fatta una scheda
 
-Le schede sono scritte in inglese (lingua di riferimento), con la traduzione italiana in `direttive/prompts/it/` a tuo comodo. Ogni scheda ha le stesse sezioni, delimitate da tag XML, come raccomandato dalle guide di prompt engineering di Anthropic, OpenAI e Google.
+Le schede sono scritte in inglese. Ogni scheda ha le stesse sezioni, delimitate da tag XML, come raccomandato dalle guide di prompt engineering di Anthropic, OpenAI e Google.
 
 | Tag | Cosa contiene |
 |---|---|

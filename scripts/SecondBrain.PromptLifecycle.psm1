@@ -45,9 +45,9 @@ function Get-SBPromptReferences([string]$BrainRoot,$RawPrompts,$Card,$Workflows)
         if($p.id -eq $Card.id){continue}
         if($p.ContainsKey('related') -and $Card.id -in @($p.related)){$refs.Add('card '+$p.code+' (related)')}
         if($p.ContainsKey('deprecated') -and $p.deprecated.ContainsKey('successor') -and $p.deprecated.successor -eq $Card.id){$refs.Add('card '+$p.code+' (deprecation successor)')}
-        foreach($relative in @($p.file,('it/'+$p.file))){
+        foreach($relative in @($p.file)){
             $path=Join-Path $BrainRoot ('direttive/prompts/'+$relative)
-            if((Test-Path -LiteralPath $path -PathType Leaf) -and (Read-SBText $path) -cmatch ('\b'+[regex]::Escape($Card.code)+'\b')){$refs.Add('card '+$p.code+' (text, '+$(if($relative.StartsWith('it/')){'it'}else{'en'})+')')}
+            if((Test-Path -LiteralPath $path -PathType Leaf) -and (Read-SBText $path) -cmatch ('\b'+[regex]::Escape($Card.code)+'\b')){$refs.Add('card '+$p.code+' (text)')}
         }
     }
     foreach($flow in @($Workflows)){
@@ -98,15 +98,14 @@ function Get-SBPromptLifecyclePlan([string]$BrainRoot,[string]$Operation,[hashta
     $findRaw={param($key) $resolved=Resolve-SBWorkflowPrompt $catalog $key; $id=$resolved.prompt.id; @($prompts|Where-Object {$_.id -ceq $id})[0]}
     $resolveRelated={param($keys) @(@($keys)|ForEach-Object {(Resolve-SBWorkflowPrompt $catalog $_).prompt.id}|Select-Object -Unique)}
     $replaceCard={param($old,$new) for($i=0;$i -lt $prompts.Count;$i++){if($prompts[$i].id -ceq $old.id){$prompts[$i]=$new}}}
-    $withDeprecation={param($card,$deprecated) $copy=[ordered]@{}; foreach($key in $card.Keys){if($key -eq 'deprecated'){continue}; if($key -eq 'i18n' -and $deprecated){$copy.deprecated=$deprecated}; $copy[$key]=$card[$key]}; $copy}
+    $withDeprecation={param($card,$deprecated) $copy=[ordered]@{}; foreach($key in $card.Keys){if($key -eq 'deprecated'){continue}; $copy[$key]=$card[$key]}; if($deprecated){$copy.deprecated=$deprecated}; $copy}
     try{
         switch($Operation){
             'add' {
                 $code=$Options['Code']; & $requireCode $code 'Code'
-                foreach($required in 'Category','Summary','Target','Mode','Scope','Requires','Example','ItSummary','ItRequires','ItExample'){if(!$Options[$required]){$errors.Add((Get-SBMessage 'prompts.lifecycle.field' @($Operation,$required)))}}
-                $body=Read-SBLifecycleFile $Options['BodyPath']; $itBody=Read-SBLifecycleFile $Options['ItBodyPath']
+                foreach($required in 'Category','Summary','Target','Mode','Scope','Requires','Example'){if(!$Options[$required]){$errors.Add((Get-SBMessage 'prompts.lifecycle.field' @($Operation,$required)))}}
+                $body=Read-SBLifecycleFile $Options['BodyPath']
                 if($null -eq $body){$errors.Add((Get-SBMessage 'prompts.lifecycle.body' @([string]$Options['BodyPath'])))}
-                if($null -eq $itBody){$errors.Add((Get-SBMessage 'prompts.lifecycle.body' @([string]$Options['ItBodyPath'])))}
                 if(!$Options['Related']){$errors.Add((Get-SBMessage 'prompts.lifecycle.field' @($Operation,'Related (at least one existing card)')))}
                 if($code){
                     if(@($prompts|Where-Object code -ceq $code).Count){$errors.Add((Get-SBMessage 'prompts.lifecycle.code' @($code,'already in the catalog')))}
@@ -121,10 +120,8 @@ function Get-SBPromptLifecyclePlan([string]$BrainRoot,[string]$Operation,[hashta
                     elseif($Options['Destructive']){$card.destructive=$true}
                     $card.file=$code+'.md'
                     $card.related=@(& $resolveRelated $Options['Related'])
-                    $card.i18n=[ordered]@{it=[ordered]@{summary=[string]$Options['ItSummary'];requires=[string]$Options['ItRequires'];example=[string]$Options['ItExample']}}
                     $prompts.Add($card)
                     $writes['direttive/prompts/'+$code+'.md']=Set-SBLifecycleHeader $body $code $card.summary
-                    $writes['direttive/prompts/it/'+$code+'.md']=Set-SBLifecycleHeader $itBody $code $card.i18n.it.summary
                     $changes.Add(@('add card',$code+' ('+$id+')')); $subject=$code; $detail='new card '+$id
                 }
             }
@@ -132,24 +129,18 @@ function Get-SBPromptLifecyclePlan([string]$BrainRoot,[string]$Operation,[hashta
                 $card=& $findRaw $Options['Code']; $code=$card.code; $subject=$code
                 $fields=if($Options['Fields']){$Options['Fields']}else{@{}}
                 $new=[ordered]@{}; foreach($key in $card.Keys){$new[$key]=$card[$key]}
-                $new.i18n=[ordered]@{it=[ordered]@{}}; foreach($key in $card.i18n.it.Keys){$new.i18n.it[$key]=$card.i18n.it[$key]}
                 $map=@{category='category';summary='summary';target='target';mode='mode';scope='scope';requires='requires';example='example'}
                 foreach($name in $map.Keys){if($fields.ContainsKey($name)){$new[$map[$name]]=[string]$fields[$name]}}
                 if($fields.ContainsKey('destructive')){$new.destructive=[bool]$fields.destructive}
-                foreach($pair in @(@('itSummary','summary'),@('itRequires','requires'),@('itExample','example'))){if($fields.ContainsKey($pair[0])){$new.i18n.it[$pair[1]]=[string]$fields[$pair[0]]}}
                 if($fields.ContainsKey('related')){$new.related=@(& $resolveRelated $fields.related)}
-                $body=Read-SBLifecycleFile $Options['BodyPath']; $itBody=Read-SBLifecycleFile $Options['ItBodyPath']
+                $body=Read-SBLifecycleFile $Options['BodyPath']
                 if($Options['BodyPath'] -and $null -eq $body){$errors.Add((Get-SBMessage 'prompts.lifecycle.body' @([string]$Options['BodyPath'])))}
-                if($Options['ItBodyPath'] -and $null -eq $itBody){$errors.Add((Get-SBMessage 'prompts.lifecycle.body' @([string]$Options['ItBodyPath'])))}
-                $changedKeys=@($new.Keys|Where-Object {$_ -ne 'i18n' -and (ConvertTo-SBPromptJson $new[$_]) -cne (ConvertTo-SBPromptJson $card[$_])})
-                $changedKeys+=@($new.i18n.it.Keys|Where-Object {$new.i18n.it[$_] -cne $card.i18n.it[$_]}|ForEach-Object {'it.'+$_})
+                $changedKeys=@($new.Keys|Where-Object {(ConvertTo-SBPromptJson $new[$_]) -cne (ConvertTo-SBPromptJson $card[$_])})
                 if(!$errors.Count){
                     & $replaceCard $card $new
                     $enText=if($null -ne $body){$body}elseif($new.summary -cne $card.summary){Read-SBLifecycleFile (Join-Path $BrainRoot ('direttive/prompts/'+$card.file))}
-                    $itText=if($null -ne $itBody){$itBody}elseif($new.i18n.it.summary -cne $card.i18n.it.summary){Read-SBLifecycleFile (Join-Path $BrainRoot ('direttive/prompts/it/'+$card.file))}
                     if($null -ne $enText){$writes['direttive/prompts/'+$card.file]=Set-SBLifecycleHeader $enText $code $new.summary}
-                    if($null -ne $itText){$writes['direttive/prompts/it/'+$card.file]=Set-SBLifecycleHeader $itText $code $new.i18n.it.summary}
-                    if($null -ne $body){$changedKeys+='body'}; if($null -ne $itBody){$changedKeys+='it.body'}
+                    if($null -ne $body){$changedKeys+='body'}
                     $changes.Add(@('edit card',$code+': '+$(if($changedKeys.Count){$changedKeys -join ', '}else{'no change'})))
                     $detail=if($changedKeys.Count){'fields '+($changedKeys -join ', ')}else{'nothing to change'}
                 }
@@ -169,13 +160,10 @@ function Get-SBPromptLifecyclePlan([string]$BrainRoot,[string]$Operation,[hashta
                     }
                     $copy.id=$id; $copy.code=$code; $copy.file=$code+'.md'
                     if($Options['Summary']){$copy.summary=[string]$Options['Summary']}
-                    $itSummary=if($Options['ItSummary']){[string]$Options['ItSummary']}else{$source.i18n.it.summary}
-                    $copy.i18n=[ordered]@{it=[ordered]@{summary=$itSummary;requires=$source.i18n.it.requires;example=$source.i18n.it.example}}
                     $related=@(@($source.id)+@($source.related)|Select-Object -Unique)
                     $copy.related=@($related|Select-Object -First 10)
                     $prompts.Add($copy)
                     $writes['direttive/prompts/'+$code+'.md']=Set-SBLifecycleHeader (Read-SBLifecycleFile (Join-Path $BrainRoot ('direttive/prompts/'+$source.file))) $code $copy.summary
-                    $writes['direttive/prompts/it/'+$code+'.md']=Set-SBLifecycleHeader (Read-SBLifecycleFile (Join-Path $BrainRoot ('direttive/prompts/it/'+$source.file))) $code $itSummary
                     $changes.Add(@('duplicate card',$source.code+' -> '+$code+' ('+$id+')')); $detail='copy of '+$source.code+', role not copied'
                 }
             }
@@ -200,7 +188,7 @@ function Get-SBPromptLifecyclePlan([string]$BrainRoot,[string]$Operation,[hashta
                 if($refs.Count){$errors.Add((Get-SBMessage 'prompts.lifecycle.referenced' @($code,($refs -join '; '))))}
                 else{
                     for($i=$prompts.Count-1;$i -ge 0;$i--){if($prompts[$i].id -ceq $card.id){$prompts.RemoveAt($i)}}
-                    $removals.Add('direttive/prompts/'+$card.file); $removals.Add('direttive/prompts/it/'+$card.file)
+                    $removals.Add('direttive/prompts/'+$card.file)
                     $entries=[ordered]@{}; foreach($entry in $aliasTable.aliases){$entries[$entry.code]=$entry}
                     $entries[$code]=[ordered]@{code=$code;status='retired';retiredId=$card.id}
                     $aliasNew=[ordered]@{schemaVersion=1;aliases=@($entries.Keys|Sort-Object|ForEach-Object {$entries[$_]})}

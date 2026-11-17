@@ -25,16 +25,12 @@ function Copy-SetupCatalog([string]$Root){
     $catalog.categories=@($catalog.categories|Where-Object id -in @($catalog.prompts.category))
     foreach($prompt in $catalog.prompts){
         $prompt.related=@($catalog.prompts|Where-Object id -ne $prompt.id|ForEach-Object id)
-        foreach($folder in 'direttive/prompts','direttive/prompts/it'){
-            $file=Join-Path $folder $prompt.file
-            Put (Join-Path $Root $file) (Read-SBText (Join-Path $source $file))
-        }
+        $file=Join-Path 'direttive/prompts' $prompt.file
+        Put (Join-Path $Root $file) (Read-SBText (Join-Path $source $file))
     }
     Put (Join-Path $Root 'direttive/prompts/catalog.json') (ConvertTo-SBJson $catalog)
-    foreach($language in 'en','it'){
-        $index=New-SBWorkflowIndex $Root $language
-        Put (Join-Path $Root $index.path) $index.text
-    }
+    $index=New-SBWorkflowIndex $Root
+    Put (Join-Path $Root $index.path) $index.text
 }
 $fixture=Join-Path (Get-SBTestRoot) ('e-'+[guid]::NewGuid().ToString('N').Substring(0,6))
 $brain=Join-Path $fixture 'b';$repo=Join-Path $fixture 'r';$identity='github.com/test/essential'

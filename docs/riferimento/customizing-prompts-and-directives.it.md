@@ -10,8 +10,8 @@ Guida operativa per usare il catalogo dei prompt (chat e CLI), estenderlo con nu
 
 Percorso unico per aggiungere, modificare o ritirare un prompt (da chat: `sb prompt SYS11: …`, che guida le scelte):
 
-1. scheda inglese `direttive/prompts/<CODICE>.md`, controparte italiana `direttive/prompts/it/<CODICE>.md` e voce in `direttive/prompts/catalog.json` (ID `pmt-…` immutabile, codice libero dell'area, `summary` entro 82 caratteri): sezioni 1 e 4 sotto;
-2. `pwsh -NoProfile -File scripts/build-prompts.ps1` rigenera `direttive/prompts/README.md` e `README.it.md` (mai a mano); `-Check` verifica senza scrivere;
+1. scheda inglese `direttive/prompts/<CODICE>.md` e voce in `direttive/prompts/catalog.json` (ID `pmt-…` immutabile, codice libero dell'area, `summary` entro 82 caratteri): sezioni 1 e 4 sotto;
+2. `pwsh -NoProfile -File scripts/build-prompts.ps1` rigenera `direttive/prompts/README.md` (mai a mano); `-Check` verifica senza scrivere;
 3. `pwsh -NoProfile -File scripts/test-secondbrain.ps1 -Only prompts` controlla schede, ID, direttive e conteggi.
 
 Un prompt superato si rimuove con la sua voce, le due schede e i riferimenti nei `related`; il codice non si riusa. Il catalogo è dati del progetto: non tocca i tuoi file fuori dal clone.
@@ -35,7 +35,7 @@ flowchart LR
 
 ## 1. Architettura dei Workflow e Catalogo Prompts
 
-I prompt di SecondBrain sono una lista unica: metadati in `catalog.json`, una scheda Markdown inglese per prompt (`direttive/prompts/<CODICE>.md`), la traduzione italiana in `direttive/prompts/it/<CODICE>.md` e due indici generati (`README.md`, `README.it.md`). Il catalogo conta 122 prompt in 17 aree tematiche; le aree `memory` (MEM) e `system` (SYS) contengono i prompt che gestiscono SecondBrain stesso. Non esistono pacchetti, alias, deprecazioni o stati: i codici sono identificatori stabili, mai riusati, e un prompt superato si rimuove (restano vuoti nella numerazione).
+I prompt di SecondBrain sono una lista unica: metadati in `catalog.json`, una scheda Markdown inglese per prompt (`direttive/prompts/<CODICE>.md`) e un indice generato (`README.md`). Il catalogo conta 122 prompt in 17 aree tematiche; le aree `memory` (MEM) e `system` (SYS) contengono i prompt che gestiscono SecondBrain stesso. Non esistono pacchetti, alias, deprecazioni o stati: i codici sono identificatori stabili, mai riusati, e un prompt superato si rimuove (restano vuoti nella numerazione).
 
 Il caricamento è selettivo: l'elenco legge solo i metadati; `-Show` e `-Compose` caricano la sola scheda richiesta. La build valida tutte le schede prima di generare gli indici. Una riga dell'elenco è lunga al massimo 88 caratteri.
 
@@ -80,15 +80,14 @@ I tag obbligatori sono `role`, `context`, `inputs`, `procedure` (almeno due pass
 Ogni prompt deve essere censito in `direttive/prompts/catalog.json`:
 - `id`: identificatore opaco e immutabile `pmt-` + 8 esadecimali minuscoli, generato una sola volta (`New-SBWorkflowPromptId`) e mai riusato. Le relazioni (`related`) usano solo ID.
 - `code`: pattern `^[A-Z]{2,4}[0-9]{2}$` per area tematica (es. `COM01`, `DEV01`, `SYS01`); dà il nome alla scheda (`<CODE>.md`).
-- `category`: una delle 17 aree registrate in `categories`; ogni area ha un `group` (`repository` o `central`: le aree centrali contengono solo prompt `central`) e un titolo italiano in `i18n.it.title`. Le aree raggruppano per attività o necessità, non per prefisso del codice.
+- `category`: una delle 17 aree registrate in `categories`; ogni area ha un `group` (`repository` o `central`: le aree centrali contengono solo prompt `central`). Le aree raggruppano per attività o necessità, non per prefisso del codice.
 - `summary`: descrizione sintetica in inglese (massimo 82 caratteri; `code + ' | ' + summary` non supera 88).
 - `target`: `repository` (eseguibile nei repository prodotto) o `central` (manutenzione di SecondBrain: si compone solo per SecondBrain; SYS03 dispone del bootstrap senza configurazione).
 - `mode`: `read`, `write` o `verify`; descrive il workflow e non aumenta i permessi né supera la modalità Plan. `destructive` (facoltativo) segna le scritture irreversibili.
 - `scope`, `requires`, `example`: ambito, prerequisiti ed esempio d'uso.
 - `file`: nome della scheda (es. `DEV99.md`).
-- `related`: da 1 a 10 ID di prompt vicini, esistenti e diversi dal prompt; includono ogni codice citato nel testo della scheda (EN e IT), che a sua volta deve esistere; la composizione li propone a fine task insieme ai task pronti del repository, senza avviare nulla.
-- `i18n.it`: `summary`, `requires` ed `example` in italiano.
-- Il validatore controlla schema, unicità di ID e codici, categorie, percorsi confinati, tag, titolo della scheda (uguale al `summary`) e riferimenti dei `related`, per entrambe le lingue. La procedura per aggiungere, modificare o rimuovere un prompt è SYS11.
+- `related`: da 1 a 10 ID di prompt vicini, esistenti e diversi dal prompt; includono ogni codice citato nel testo della scheda (la scheda), che a sua volta deve esistere; la composizione li propone a fine task insieme ai task pronti del repository, senza avviare nulla.
+- Il validatore controlla schema, unicità di ID e codici, categorie, percorsi confinati, tag, titolo della scheda (uguale al `summary`) e riferimenti dei `related`. La procedura per aggiungere, modificare o rimuovere un prompt è SYS11.
 - La risoluzione delle memorie con `-Context` funziona anche se il catalogo dei prompt è assente o non valido. Il resolver confronta indice PARA e metadati reali del dossier; dossier archiviati o ritirati, identità escluse, tracker dichiarati mancanti o invalidi e ambiguità non producono fallback.
 
 ### Rigenerazione e Validazione con `build-prompts.ps1`
@@ -182,11 +181,11 @@ Le modifiche personali fuori dal blocco gestito e le impostazioni specifiche del
 ## 4. Gestione del Catalogo: Rimozione, Deprecazione e Nuove Aree
 
 - **Con l'agente**: il prompt `SYS11` guida aggiunta, modifica e rimozione con scelte strutturate; i passi sotto sono la procedura manuale equivalente. Le schede che chiedono scelte hanno il tag opzionale `decisions`.
-- **Aggiungere una scheda**: genera l'ID con `Import-Module scripts/SecondBrain.Prompts.psm1; New-SBWorkflowPromptId (Read-SBWorkflowCatalog $PWD.Path)` dalla radice di SecondBrain, scrivi le due schede (EN e IT) e registra la voce con `id`, `code`, `related` e `i18n.it`.
+- **Aggiungere una scheda**: genera l'ID con `Import-Module scripts/SecondBrain.Prompts.psm1; New-SBWorkflowPromptId (Read-SBWorkflowCatalog $PWD.Path)` dalla radice di SecondBrain, scrivi la scheda e registra la voce con `id`, `code` e `related`.
 - **Modificare una scheda**: cambia il testo; se cambia il `summary`, aggiornalo nel catalogo e nel titolo di entrambe le schede.
 - **Rimuovere una scheda**: elimina la voce da `prompts`, le due schede e il suo ID dai `related` degli altri prompt; poi esegui `build-prompts.ps1`. Codice e ID rimossi non vanno riutilizzati.
 - **Creare una nuova area**: aggiungi `{ "id": "cloud", "title": "Cloud e infrastruttura" }` a `categories`. Un'area deve contenere almeno un prompt, altrimenti `build-prompts.ps1 -Check` fallisce ("Categoria senza prompt"). Registra quindi la prima scheda con `"category": "cloud"`.
-- Dopo ogni modifica: `build-prompts.ps1` (rigenera `direttive/prompts/README.md` e `README.it.md`) e `build-prompts.ps1 -Check` (exit 0 se allineato).
+- Dopo ogni modifica: `build-prompts.ps1` (rigenera `direttive/prompts/README.md`) e `build-prompts.ps1 -Check` (exit 0 se allineato).
 
 ## 5. Repository su Percorsi e Dischi Arbitrari
 

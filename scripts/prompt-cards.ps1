@@ -18,10 +18,10 @@ pwsh -NoProfile -File scripts/prompt-cards.ps1 -Operation edit -Card pmt-0123abc
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)][ValidateSet('add','edit','duplicate','deprecate','retire')][string]$Operation,
-    [string]$Card,[string]$NewCode,[string]$Summary,[string]$ItSummary,[string]$Reason,[string]$Successor,
-    [string]$Category,[string]$Target,[string]$Mode,[string]$Scope,[string]$Requires,[string]$Example,[string]$ItRequires,[string]$ItExample,
+    [string]$Card,[string]$NewCode,[string]$Summary,[string]$Reason,[string]$Successor,
+    [string]$Category,[string]$Target,[string]$Mode,[string]$Scope,[string]$Requires,[string]$Example,
     [string]$Role,[string[]]$Related,[switch]$Destructive,[hashtable]$Field,
-    [string]$BodyPath,[string]$ItBodyPath,
+    [string]$BodyPath,
     [string]$ConfigPath,[string]$SessionId,[switch]$Apply
 )
 $ErrorActionPreference='Stop'
@@ -36,9 +36,9 @@ try{$config=Read-SBConfiguration $ConfigPath}catch{if($Apply){throw}}
 if($config){$lock=Enter-SBOperation $config $SessionId -ReadOnly:(!$Apply)}
 try {
     $brain=Get-SBBrainRootPath
-    $options=@{Code=$(if($Operation -eq 'add'){$NewCode}else{$Card});NewCode=$NewCode;Summary=$Summary;ItSummary=$ItSummary;Reason=$Reason;Successor=$Successor
-        Category=$Category;Target=$Target;Mode=$Mode;Scope=$Scope;Requires=$Requires;Example=$Example;ItRequires=$ItRequires;ItExample=$ItExample
-        Role=$Role;Related=$Related;Destructive=[bool]$Destructive;Fields=$Field;BodyPath=$BodyPath;ItBodyPath=$ItBodyPath}
+    $options=@{Code=$(if($Operation -eq 'add'){$NewCode}else{$Card});NewCode=$NewCode;Summary=$Summary;Reason=$Reason;Successor=$Successor
+        Category=$Category;Target=$Target;Mode=$Mode;Scope=$Scope;Requires=$Requires;Example=$Example
+        Role=$Role;Related=$Related;Destructive=[bool]$Destructive;Fields=$Field;BodyPath=$BodyPath}
     $plan=Get-SBPromptLifecyclePlan $brain $Operation $options
     Format-SBPromptLifecyclePlan $plan
     if(!$plan.valid){exit 2}

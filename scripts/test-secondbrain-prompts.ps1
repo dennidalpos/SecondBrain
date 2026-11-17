@@ -1,5 +1,5 @@
 #requires -Version 7.5
-# Prompt library: single catalog, card format (EN source + IT counterpart), composition, listing, drift. Read-only on the real catalog.
+# Prompt library: single catalog, card format, composition, listing, drift. Read-only on the real catalog.
 $ErrorActionPreference='Stop'
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1') -Force
@@ -24,8 +24,8 @@ foreach($legacy in 'pack','deprecations','aliases','supersededBy','next','refere
 Assert-Prompts (!(Test-Path -LiteralPath (Join-Path $brain 'direttive/prompts/en'))) 'nessuna cartella en/ legacy'
 Assert-Prompts (!(Get-ChildItem -LiteralPath (Join-Path $brain 'direttive/prompts') -Filter 'README.maintenance*')) 'nessun README.maintenance legacy'
 foreach($p in $prompts){
-    $en=Join-Path $brain ('direttive/prompts/'+$p.code+'.md');$it=Join-Path $brain ('direttive/prompts/it/'+$p.code+'.md')
-    if(!(Test-Path -LiteralPath $en) -or !(Test-Path -LiteralPath $it)){Assert-Prompts $false ($p.code+': scheda EN e IT presenti')}
+    $en=Join-Path $brain ('direttive/prompts/'+$p.code+'.md')
+    if(!(Test-Path -LiteralPath $en)){Assert-Prompts $false ($p.code+': scheda presente')}
     $enText=Get-Content -Raw -LiteralPath $en
     foreach($tag in 'role','context','inputs','procedure','constraints','exit_criteria','output_format'){
         if($enText -notmatch "(?m)^<$tag>\s*$"){Assert-Prompts $false ($p.code+': tag '+$tag)}
@@ -46,7 +46,7 @@ foreach($category in $catalog.categories){
 }
 # Perimeter: a repository prompt works on the repository it runs from; the only cross-repository reads are declared allowlists (REP16).
 foreach($p in @($prompts|Where-Object {$_.target -eq 'repository' -and $_.code -ne 'REP16'})){
-    foreach($relative in @($p.file,('it/'+$p.file))){
+    foreach($relative in @($p.file)){
         $body=Get-Content -Raw -LiteralPath (Join-Path $brain ('direttive/prompts/'+$relative))
         Assert-Prompts ($body -notmatch '(?i)para-index|para\.ps1|-AllDossiers|\.runtime|central maintenance|manutenzione centrale') ($p.code+' ('+$relative+'): nessun riferimento oltre il repository corrente')
     }
@@ -93,11 +93,8 @@ Assert-Prompts ($writeOut -ne $readOut -and $writeOut -match '<operating_rules>'
 $closingRead=([regex]::Match($readOut,'(?s)<operating_rules>(.*?)</operating_rules>')).Groups[1].Value
 $closingWrite=([regex]::Match($writeOut,'(?s)<operating_rules>(.*?)</operating_rules>')).Groups[1].Value
 Assert-Prompts ($closingRead -ne $closingWrite) 'la chiusura del task dipende dalla modalità'
-# Language: IT counterpart.
-Set-SBWorkflowLanguage 'it'
-$itOut=New-SBWorkflowComposition $brain $catalog $readPrompt $ctx '' -Standalone
-Set-SBWorkflowLanguage 'en'
-Assert-Prompts ($itOut -match 'language="it"' -and $itOut -ne $readOut) 'controparte italiana selezionabile'
+# Language: the composition is English only.
+Assert-Prompts ($readOut -match 'language="en"') 'composition language is English'
 # Pointer files for agents that do not read AGENTS.md (Claude Code, Gemini CLI): created, idempotent, preserve user text, conflict on foreign edits.
 $pointerRoot=Join-Path (Get-SBTestRoot) ('fixture-'+(Get-Date -Format 'yyyyMMdd')+'-pointers-'+[guid]::NewGuid().ToString('N').Substring(0,8))
 [IO.Directory]::CreateDirectory($pointerRoot)|Out-Null
@@ -125,7 +122,7 @@ Assert-Prompts ($personalBackup.Count -eq 1) 'puntatore misto mantiene una copia
 # Encoding guard: exercise both read boundaries, including corruption in a body beyond its title.
 $encodingRoot=Join-Path $pointerRoot 'encoding'
 $encodingCatalog=Join-Path $encodingRoot 'direttive/prompts/catalog.json'
-$encodingCard=Join-Path $encodingRoot ('direttive/prompts/it/'+$readPrompt.file)
+$encodingCard=Join-Path $encodingRoot ('direttive/prompts/'+$readPrompt.file)
 $encodingBackup=Join-Path $pointerRoot 'encoding-backups'
 $validUnicode='Usabilità, può, receção, cessação, … — • ⚠ 🔭 ├── 中文'
 & (Get-Module SecondBrain.Prompts) {param($Text) Assert-SBWorkflowEncoding $Text 'valid-unicode'} $validUnicode
@@ -148,7 +145,7 @@ foreach($bad in $badSequences){
     $badCard='# '+$readPrompt.code+' — Fixture'+[Environment]::NewLine+'<context>'+[Environment]::NewLine+$bad
     Write-SBFile $encodingCard ([Text.Encoding]::UTF8.GetBytes($badCard)) (Get-SBFileHash $encodingCard) $encodingBackup|Out-Null
     $cardRejected=$false
-    try{[void](Read-SBWorkflowPrompt $encodingRoot $readPrompt $catalog 'it')}catch{$cardRejected=Test-SBError $_ 'prompts.encoding.invalid'}
+    try{[void](Read-SBWorkflowPrompt $encodingRoot $readPrompt $catalog)}catch{$cardRejected=Test-SBError $_ 'prompts.encoding.invalid'}
     Assert-Prompts $cardRejected 'codifica: corpo scheda corrotto respinto con codice stabile'
 }
 # Generated indexes are in sync.
@@ -269,14 +266,13 @@ try{
 $s2Root=Join-Path (Get-SBTestRoot) ('schema2-'+[guid]::NewGuid().ToString('N').Substring(0,12))
 function Write-S2([string]$Relative,[string]$Text){$p=Join-Path $s2Root $Relative;[IO.Directory]::CreateDirectory((Split-Path $p))|Out-Null;[IO.File]::WriteAllText($p,$Text,[Text.UTF8Encoding]::new($false))}
 function New-S2Card([string]$Id,[string]$Code,$Extra=@{}){
-    $card=[ordered]@{id=$Id;code=$Code;category='understand';summary='Summary of the card.';target='repository';mode='read';destructive=$false;surface='chat';pack='core';requires='Nothing.';example=($Code+': check');file=($Code+'.md');i18n=@{it=@{summary='Sintesi della scheda.';requires='Niente.';example=($Code+': verifica')}}}
+    $card=[ordered]@{id=$Id;code=$Code;category='understand';summary='Summary of the card.';target='repository';mode='read';destructive=$false;surface='chat';pack='core';requires='Nothing.';example=($Code+': check');file=($Code+'.md')}
     foreach($k in $Extra.Keys){if($null -eq $Extra[$k]){$card.Remove($k)}else{$card[$k]=$Extra[$k]}}
     $card
 }
 function Write-S2Catalog($Cards,[int]$Version=2){
-    $cat=[ordered]@{schemaVersion=$Version;catalogVersion=$Version;categories=@(@{id='understand';group='repository';title='Understanding';i18n=@{it=@{title='Comprensione'}}});prompts=@($Cards)}
+    $cat=[ordered]@{schemaVersion=$Version;catalogVersion=$Version;categories=@(@{id='understand';group='repository';title='Understanding'});prompts=@($Cards)}
     Write-S2 'direttive/prompts/catalog.json' (ConvertTo-SBJson $cat)
-    foreach($c in $Cards){Write-S2 ('direttive/prompts/it/'+$c.file) 'stub'}
 }
 function Assert-S2Refused([scriptblock]$Action,[string]$Code,[string]$Message){$refused=$false;try{& $Action|Out-Null}catch{$refused=(Test-SBError $_ $Code)};Assert-Prompts $refused $Message}
 $flowHead='{"schemaVersion":1,"id":"wfl-c0000001","key":"wf-core","title":"Core flow","revision":1,"status":"active","steps":['
@@ -361,9 +357,9 @@ try{
     Assert-Prompts (@($aliases.aliases).Count -eq 121 -and @($aliases.aliases|Where-Object {$_.status -eq 'retired' -and $_.retiredId}).Count -eq 4) '#568: aliases.json has 121 entries and lists the 4 retired IDs'
     Assert-Prompts ($aliases.aliases|Where-Object {$_.code -eq 'AIS01'}|ForEach-Object {$_.status -eq 'renamed' -and $_.ids[0] -eq $before['AIS01']}) '#568: an old code resolves to the same card ID'
     foreach($row in $plan.rows|Where-Object action -eq 'rename'){
-        if(!(Test-Path -LiteralPath (Join-Path $migRoot ('direttive/prompts/'+$row.newCode+'.md'))) -or !(Test-Path -LiteralPath (Join-Path $migRoot ('direttive/prompts/it/'+$row.newCode+'.md'))) -or (Test-Path -LiteralPath (Join-Path $migRoot ('direttive/prompts/'+$row.oldCode+'.md')))){Assert-Prompts $false ('#568: card files moved for '+$row.oldCode)}
+        if(!(Test-Path -LiteralPath (Join-Path $migRoot ('direttive/prompts/'+$row.newCode+'.md'))) -or (Test-Path -LiteralPath (Join-Path $migRoot ('direttive/prompts/'+$row.oldCode+'.md')))){Assert-Prompts $false ('#568: card files moved for '+$row.oldCode)}
     }
-    Assert-Prompts $true '#568: every renamed card has its new EN and IT files and no old file'
+    Assert-Prompts $true '#568: every renamed card has its new file and no old file'
     $again=Get-SBPromptMigrationPlan $migRoot
     Assert-Prompts ($again.changeCount -eq 0 -and @($again.rows|Where-Object pending).Count -eq 0) '#568: a second run changes nothing'
     $afterRaw=Read-SBText $migCatalogPath
@@ -392,14 +388,12 @@ try{
     $withRole=$lcCatalog.prompts|Where-Object {$_.ContainsKey('role')}|Select-Object -First 1
     Assert-Prompts (!(Get-SBPromptLifecyclePlan $lcRoot 'retire' @{Code=$withRole.code}).valid) '#615: retiring a card that holds a role is refused'
     # Add: preview validates, then applies; the code is never reused afterwards.
-    $addBody=Join-Path $lcRoot 'new-en.md'; $addIt=Join-Path $lcRoot 'new-it.md'
+    $addBody=Join-Path $lcRoot 'new-en.md'
     $template=(Read-SBText (Join-Path $lcRoot ('direttive/prompts/'+$first.file))).Replace("`r`n","`n")
     # Bodies cite no other cards, so the new card needs no related entries beyond the required one.
     $uncited={param($text) [regex]::Replace($text.Replace("`r`n","`n"),'\b[A-Z]{3}\d{2}\b','the card')}
     [IO.File]::WriteAllText($addBody,(& $uncited $template),[Text.UTF8Encoding]::new($false))
-    [IO.File]::WriteAllText($addIt,(& $uncited (Read-SBText (Join-Path $lcRoot ('direttive/prompts/it/'+$first.file)))),[Text.UTF8Encoding]::new($false))
-    $addOptions=@{Code='ZZZ91';Category=$first.category;Summary='Lifecycle test card.';Target=$first.target;Mode=$first.mode;Scope=$first.scope;Requires='nothing';Example='lifecycle test'
-        ItSummary='Scheda di prova del ciclo di vita.';ItRequires='niente';ItExample='prova';Related=@($first.code);BodyPath=$addBody;ItBodyPath=$addIt}
+    $addOptions=@{Code='ZZZ91';Category=$first.category;Summary='Lifecycle test card.';Target=$first.target;Mode=$first.mode;Scope=$first.scope;Requires='nothing';Example='lifecycle test';Related=@($first.code);BodyPath=$addBody}
     $dupCodeOptions=$addOptions.Clone(); $dupCodeOptions.Code=$first.code
     $badAdd=Get-SBPromptLifecyclePlan $lcRoot 'add' $dupCodeOptions
     Assert-Prompts (!$badAdd.valid -and ($badAdd.errors -join ' ') -match 'already in the catalog') '#615: add refuses an existing code'
@@ -409,14 +403,14 @@ try{
     $missing=Get-SBPromptLifecyclePlan $lcRoot 'add' @{Code='ZZZ91'}
     Assert-Prompts (!$missing.valid -and $missing.errors.Count -ge 3) '#615: add refuses missing fields and bodies'
     $addPlan=Get-SBPromptLifecyclePlan $lcRoot 'add' $addOptions
-    Assert-Prompts ($addPlan.valid -and $addPlan.changeCount -eq 3 -and (Read-SBText $lcCatalogPath) -ceq $lcRaw) '#615: add previews three file changes and writes nothing'
+    Assert-Prompts ($addPlan.valid -and $addPlan.changeCount -eq 2 -and (Read-SBText $lcCatalogPath) -ceq $lcRaw) '#615: add previews two file changes and writes nothing'
     Invoke-SBPromptLifecycle $lcRoot $addPlan $lcWrite $lcRemove
     $afterAdd=Read-SBWorkflowCatalog $lcRoot -ValidateBodies -ValidateReferences
     $added=@($afterAdd.prompts|Where-Object code -ceq 'ZZZ91')[0]
     Assert-Prompts ($added -and $added.id -match '^pmt-[0-9a-f]{8}$' -and $first.id -in $added.related) '#615: an applied add gives the card a new immutable ID and valid related'
-    # Edit: summary changes follow into both card headers; the code and ID stay.
-    $editPlan=Get-SBPromptLifecyclePlan $lcRoot 'edit' @{Code='ZZZ91';Fields=@{summary='Edited lifecycle card.';itSummary='Scheda modificata.'}}
-    Assert-Prompts ($editPlan.valid -and $editPlan.changeCount -eq 3) '#615: edit previews the catalog and both card headers'
+    # Edit: summary changes follow into the card header; the code and ID stay.
+    $editPlan=Get-SBPromptLifecyclePlan $lcRoot 'edit' @{Code='ZZZ91';Fields=@{summary='Edited lifecycle card.'}}
+    Assert-Prompts ($editPlan.valid -and $editPlan.changeCount -eq 2) '#615: edit previews the catalog and the card header'
     Invoke-SBPromptLifecycle $lcRoot $editPlan $lcWrite $lcRemove
     $afterEdit=Read-SBWorkflowCatalog $lcRoot -ValidateBodies
     $edited=@($afterEdit.prompts|Where-Object code -ceq 'ZZZ91')[0]
@@ -424,7 +418,7 @@ try{
     Assert-Prompts (!(Get-SBPromptLifecyclePlan $lcRoot 'edit' @{Code='ZZZ91';Fields=@{summary=('x'*90)}}).valid) '#615: edit refuses an invalid value'
     # Duplicate: new ID, role not copied, bodies copied with the new header.
     $dupPlan=Get-SBPromptLifecyclePlan $lcRoot 'duplicate' @{Code='ZZZ91';NewCode='ZZZ92';Summary='Duplicated lifecycle card.'}
-    Assert-Prompts ($dupPlan.valid -and $dupPlan.changeCount -eq 3) '#615: duplicate previews three file changes'
+    Assert-Prompts ($dupPlan.valid -and $dupPlan.changeCount -eq 2) '#615: duplicate previews two file changes'
     Assert-Prompts (!(Get-SBPromptLifecyclePlan $lcRoot 'duplicate' @{Code='ZZZ91';NewCode='ZZZ91'}).valid) '#615: duplicate refuses an existing code'
     Invoke-SBPromptLifecycle $lcRoot $dupPlan $lcWrite $lcRemove
     $afterDup=Read-SBWorkflowCatalog $lcRoot -ValidateBodies
@@ -441,7 +435,7 @@ try{
     Assert-Prompts ($resolved.warning -match 'deprecated' -and !(Get-SBPromptLifecyclePlan $lcRoot 'deprecate' @{Code='ZZZ92';Reason='again'}).valid) '#615: a deprecated card warns when selected and cannot be deprecated twice'
     # Retire: the duplicate has no inbound references (it only points out), so it retires with an alias and its ID is never reused.
     $retire=Get-SBPromptLifecyclePlan $lcRoot 'retire' @{Code='ZZZ92'}
-    Assert-Prompts ($retire.valid -and $retire.removals.Count -eq 2) '#615: retiring an unreferenced card previews both file removals and the alias'
+    Assert-Prompts ($retire.valid -and $retire.removals.Count -eq 1) '#615: retiring an unreferenced card previews the file removal and the alias'
     Invoke-SBPromptLifecycle $lcRoot $retire $lcWrite $lcRemove
     $afterRetire=Read-SBWorkflowCatalog $lcRoot -ValidateBodies
     $aliasTable=Read-SBPromptAliases $lcRoot $afterRetire
