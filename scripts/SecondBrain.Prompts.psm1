@@ -432,6 +432,25 @@ Add-SBMessages @{
     'cmd.reconcile' = @{ en = 'tasks.reconcile: plans the reconciliation of conflicting or invalid queued writes and orphan receipts of the repository; -Apply retires duplicates and orphans and re-plans safe stale requests, -Decide ID=OPTION executes the choice the owner made. Nothing is deleted.' }
     'cmd.stop' = @{ en = 'session.stop: stops the agent, saves the session in the dossier (handoff report, tracker, next step) and prepares it to be resumed from another IDE or account with session.resume.' }
     'cmd.compact' = @{ en = 'dossier.compact: compacts the given dossier preserving originals, facts and TOC (preview, then -Apply). Alias: sb compact. With -Mechanical no model is used: the oldest dated sections move to the history tier, losslessly; it also runs by itself when a task is closed and the context is at 80% of the budget.' }
+    'cmd.tasks' = @{ en = 'Lists the open tasks of the repository tracker; add -ReadyOnly for the tasks the runner can take. Nothing is written.' }
+    'cmd.next' = @{ en = 'Proposes the next steps for the repository after a task or a run, each with the reason. Nothing is written.' }
+    'cmd.pending' = @{ en = 'Lists the queued dossier writes of the repository (applied, pending, conflict, invalid). Nothing is integrated.' }
+    'cmd.pendingflush' = @{ en = 'Integrates the queued dossier writes of the own dossier; conflicts stay queued (resolve them with sb reconcile tasks).' }
+    'cmd.runnerstatus' = @{ en = 'Shows whether the task runner of the repository is working, stalled, finished or orphaned and what the agent did last; -List shows the recent runs, -Stop stops the active one.' }
+    'cmd.publishcheck' = @{ en = 'Scans the working tree, index and history of the repository for private data and secrets before a push. Nothing is changed.' }
+    'cmd.grants' = @{ en = 'Lists the scoped MCP write grants of the workstation (repository, state, expiry, operations). Granting and revoking stay with the owner in the terminal (mcp-write.ps1 -Grant, -Revoke).' }
+    'cmd.projects' = @{ en = 'Lists the repositories bound on this workstation with the task counts of each tracker and the gitUpdate preference. Nothing is written.' }
+    'cmd.status' = @{ en = 'Shows the workstation setup state: bindings, IDEs and accounts. Nothing is written.' }
+    'cmd.ides' = @{ en = 'Checks the global instructions of the IDEs listed in the workstation map, without fixing them.' }
+    'cmd.backup' = @{ en = 'Creates the deterministic compressed backup of the local SecondBrain data; -Customer limits it to one customer dossiers.' }
+    'cmd.backupverify' = @{ en = 'Verifies a backup against its manifest (SHA-256 of every file). A real restore test is a separate maintenance prompt (sb prompt area maintenance).' }
+    'cmd.sources' = @{ en = 'Checks the authoritative sources registry locally; remote probes and updates are separate options of the script.' }
+    'cmd.cleanup' = @{ en = 'Lists the .runtime content by category (preview only). Removal needs a reviewed manifest, -Apply and an explicit authorization.' }
+    'cmd.bindings' = @{ en = 'Previews the migration of the repository bindings to the minimal form; -Apply writes it after backing up the configuration. Repeating it changes nothing.' }
+    'cmd.recover' = @{ en = 'Checks an interrupted PARA transaction from its manifest; -Apply restores it. Preview first.' }
+    'cmd.directivescheck' = @{ en = 'Checks that the managed directive blocks of repositories and IDEs match the approved texts, without fixing (same engine as sb check). Changes go through sb directives propose.' }
+    'cmd.directivespropose' = @{ en = 'Prepares a directive revision as a proposal with preview, version and changelog; approval and distribution stay explicit (approve-revision.ps1 -Preview, then sb sync).' }
+    'cmd.promptscheck' = @{ en = 'Validates the prompt catalog and cards and reports drift of the generated indexes. Nothing is written.' }
     'guide.safety.title' = @{ en = 'What SecondBrain changes and where the backups are' }
     'guide.safety.for' = @{ en = 'Read first: files touched, backups, recovery, uninstall.' }
     'guide.start.title' = @{ en = 'Get started' }
@@ -496,7 +515,26 @@ function Get-SBWorkflowCommands {
         @{command='sb compact';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.compact');mode=(Get-SBWorkflowMessage 'mode.write');script='scripts/knowledge.ps1 -Compact -Mechanical [-Apply] | -Compact -CandidatePath FILE'},
         @{command='sb runner';aliases=@();scope='repository';does=(Get-SBWorkflowMessage 'cmd.runner');mode=(Get-SBWorkflowMessage 'mode.run');script='scripts/runner.ps1'},
         @{command='sb reconcile tasks';aliases=@();scope='repository';does=(Get-SBWorkflowMessage 'cmd.reconcile');mode=(Get-SBWorkflowMessage 'mode.write');script='scripts/reconcile-tasks.ps1 [-Apply] [-Decide ID=OPTION]'},
-        @{command='sb stop';aliases=@();scope='repository';does=(Get-SBWorkflowMessage 'cmd.stop');mode=(Get-SBWorkflowMessage 'mode.write');script='scripts/prompts.ps1 -Compose -Prompt session.stop'}
+        @{command='sb stop';aliases=@();scope='repository';does=(Get-SBWorkflowMessage 'cmd.stop');mode=(Get-SBWorkflowMessage 'mode.write');script='scripts/prompts.ps1 -Compose -Prompt session.stop'},
+        @{command='sb tasks';aliases=@();scope='repository';does=(Get-SBWorkflowMessage 'cmd.tasks');mode=(Get-SBWorkflowMessage 'mode.read');script='scripts/knowledge.ps1 -Tasks [-ReadyOnly]'},
+        @{command='sb next';aliases=@();scope='repository';does=(Get-SBWorkflowMessage 'cmd.next');mode=(Get-SBWorkflowMessage 'mode.read');script='scripts/next-steps.ps1'},
+        @{command='sb pending';aliases=@();scope='repository';does=(Get-SBWorkflowMessage 'cmd.pending');mode=(Get-SBWorkflowMessage 'mode.read');script='scripts/knowledge.ps1 -PendingWrites'},
+        @{command='sb pending flush';aliases=@();scope='repository';does=(Get-SBWorkflowMessage 'cmd.pendingflush');mode=(Get-SBWorkflowMessage 'mode.write');script='scripts/knowledge.ps1 -FlushPending'},
+        @{command='sb runner status';aliases=@();scope='repository';does=(Get-SBWorkflowMessage 'cmd.runnerstatus');mode=(Get-SBWorkflowMessage 'mode.read');script='scripts/runner-status.ps1 [-List|-Follow|-Stop]'},
+        @{command='sb publish check';aliases=@();scope='repository';does=(Get-SBWorkflowMessage 'cmd.publishcheck');mode=(Get-SBWorkflowMessage 'mode.verify');script='scripts/publication.ps1 -RepositoryPath .'},
+        @{command='sb grants';aliases=@();scope='repository';does=(Get-SBWorkflowMessage 'cmd.grants');mode=(Get-SBWorkflowMessage 'mode.read');script='scripts/mcp-write.ps1 -Grants'},
+        @{command='sb projects';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.projects');mode=(Get-SBWorkflowMessage 'mode.read');script='scripts/projects.ps1 -List'},
+        @{command='sb status';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.status');mode=(Get-SBWorkflowMessage 'mode.read');script='scripts/secondbrain.ps1 -Setup -Status'},
+        @{command='sb ides';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.ides');mode=(Get-SBWorkflowMessage 'mode.verify');script='scripts/ide-map.ps1 -Verify'},
+        @{command='sb backup';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.backup');mode=(Get-SBWorkflowMessage 'mode.write');script='scripts/backup.ps1 [-Customer NAME]'},
+        @{command='sb backup verify';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.backupverify');mode=(Get-SBWorkflowMessage 'mode.verify');script='scripts/backup.ps1 -Verify'},
+        @{command='sb sources';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.sources');mode=(Get-SBWorkflowMessage 'mode.verify');script='scripts/sources.ps1 -Check'},
+        @{command='sb cleanup';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.cleanup');mode=(Get-SBWorkflowMessage 'mode.read');script='scripts/cleanup.ps1 -ListRuntime'},
+        @{command='sb bindings';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.bindings');mode=(Get-SBWorkflowMessage 'mode.write');script='scripts/bindings.ps1 -MigrateBindings [-Apply]'},
+        @{command='sb recover';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.recover');mode=(Get-SBWorkflowMessage 'mode.write');script='scripts/recover.ps1 -ManifestPath FILE [-Apply]'},
+        @{command='sb directives check';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.directivescheck');mode=(Get-SBWorkflowMessage 'mode.verify');script='scripts/secondbrain.ps1 -Check'},
+        @{command='sb directives propose';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.directivespropose');mode=(Get-SBWorkflowMessage 'mode.card');script='scripts/prompts.ps1 -Compose -Prompt pmt-fd98d7ce -Objective TEXT'},
+        @{command='sb prompts check';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.promptscheck');mode=(Get-SBWorkflowMessage 'mode.verify');script='scripts/build-prompts.ps1 -Check'}
     )
 }
 

@@ -184,6 +184,14 @@ foreach($command in $english){Assert-Prompts ($command -in $registry) "command '
 $aliases=@(Get-SBWorkflowCommands|ForEach-Object {@($_.aliases)})
 Assert-Prompts ($aliases.Count -eq 0) 'the verb registry has no aliases (Italian sb verbs removed)'
 Assert-Prompts ((@(Get-SBWorkflowCommands|Where-Object command -eq 'sb stop')[0].script) -match '-Prompt session.stop$') 'sb stop compone il ruolo session.stop'
+$extended='sb tasks','sb next','sb pending','sb pending flush','sb runner status','sb publish check','sb grants','sb projects','sb status','sb ides','sb backup','sb backup verify','sb sources','sb cleanup','sb bindings','sb recover','sb directives check','sb directives propose','sb prompts check'
+foreach($command in $extended){Assert-Prompts ($command -in $registry) "command '$command' in the registry"}
+Assert-Prompts (@($registry|Group-Object|Where-Object Count -gt 1).Count -eq 0) 'the command registry has no duplicates'
+foreach($entry in @(Get-SBWorkflowCommands)){
+    Assert-Prompts ($entry.scope -in @('repository','secondbrain') -and $entry.does -and $entry.mode) "command '$($entry.command)' has scope, description and mode"
+    $scriptName=[regex]::Match($entry.script,'^scripts/([A-Za-z0-9.-]+\.ps1)').Groups[1].Value
+    Assert-Prompts ($scriptName -and (Test-Path -LiteralPath (Join-Path $PSScriptRoot $scriptName))) "command '$($entry.command)' points to an existing script"
+}
 foreach($word in $english){Assert-Prompts ($station.Contains($word)) "command '$word' described in the workstation text"}
 $referenced=@([regex]::Matches($global+$station+$repoBlock,'(?:COM|PRG|DEV|TST|SEC|AUD|INT|DAT|OPS|DOC|REP|GOV|MEM|SYS)\d{2}')|ForEach-Object {$_.Value}|Select-Object -Unique)
 Assert-Prompts (!(@($referenced|Where-Object {$_ -notin @($prompts.code)}).Count)) 'ogni codice prompt citato nelle direttive esiste nel catalogo'

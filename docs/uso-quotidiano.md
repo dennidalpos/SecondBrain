@@ -22,6 +22,23 @@ The command words below remain unchanged in every documentation language.
 | `sb reconcile tasks` | Plan the reconciliation of conflicting or invalid queued writes and orphan receipts; `-Apply` for the safe items, `-Decide` for the owner's choices (SYS19) |
 | `sb runner` | Run the ready tasks of the current repository from the desktop app or the command line |
 | `sb stop` | Stop the agent, save the session in the dossier and resume it from another IDE or account with `sb prompt MEM07` (MEM09) |
+| `sb tasks` | List the open tasks of the repository (`-ReadyOnly` for the runner's) |
+| `sb next` | Propose the next steps with the reason for each |
+| `sb pending` / `sb pending flush` | List the queued dossier writes / integrate them (conflicts stay queued: `sb reconcile tasks`) |
+| `sb runner status` | Show whether the runner is working, stalled, finished or orphaned; `-List` for recent runs, `-Stop` to stop the active one |
+| `sb publish check` | Scan the repository for private data and secrets before a push |
+| `sb grants` | List the scoped MCP write grants (the owner grants and revokes them in the terminal) |
+| `sb projects` | List the repositories bound on this workstation with their task counts |
+| `sb status` | Show the setup state: bindings, IDEs and accounts |
+| `sb ides` | Check the global instructions of the IDEs, without fixing |
+| `sb backup` / `sb backup verify` | Create the local backup / verify it against its manifest |
+| `sb sources` | Check the authoritative sources registry |
+| `sb cleanup` | List `.runtime` by category (preview); removal needs a reviewed manifest, `-Apply` and an authorization |
+| `sb bindings` | Preview the migration of the bindings to the minimal form; `-Apply` writes it |
+| `sb recover` | Check an interrupted PARA transaction from its manifest; `-Apply` restores it |
+| `sb directives check` | Check the managed directive blocks against the approved texts |
+| `sb directives propose` | Prepare a directive revision as a proposal; approval and distribution stay explicit |
+| `sb prompts check` | Validate the prompt catalog and cards and report drift of the generated indexes |
 
 See the [per-repository workflow](flusso-prodotto.md) for the order of operations.
 
