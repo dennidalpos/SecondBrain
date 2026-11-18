@@ -268,7 +268,7 @@ function Invoke-SBHostActivation {
         if($asset.identity -and $choice.ContainsKey('identity') -and $choice.identity -cne $asset.identity){throw (New-SBError 'portable.identity.reconcile')}
         $existing=@($entities|Where-Object {(Test-SBRepoDossier $_) -and $_.repository -ceq $identity})
         if($existing.Count -gt 1 -or ($existing.Count -and ($existing[0].archived -or $existing[0].status -ne 'active'))){throw (New-SBError 'portable.dossier.ambiguous')}
-        $dossierRelative=if($existing.Count){$existing[0].path}else{'01-projects/'+($asset.name -replace '[^A-Za-z0-9_.-]','-')+'--'+(Get-SBTextHash $identity).Substring(0,8).ToLowerInvariant()}
+        $dossierRelative=if($existing.Count){$existing[0].path}else{'repos/'+($asset.name -replace '[^A-Za-z0-9_.-]','-')+'--'+(Get-SBTextHash $identity).Substring(0,8).ToLowerInvariant()}
         $dossier=Resolve-SBParaPath $BrainRoot $dossierRelative
         if($choice.ContainsKey('associateIdentity')){
             if(!$existing.Count -or !$choice.ContainsKey('aliasesReviewed') -or !$choice.aliasesReviewed){throw (New-SBError 'portable.alias.dossier')}
@@ -297,7 +297,7 @@ function Invoke-SBHostActivation {
             $metadata=New-SBParaMetadata ('project-'+(Get-SBTextHash $identity).Substring(0,20).ToLowerInvariant()) 'project' $asset.name
             $repo=@{schemaVersion=1;identity=$identity}
             if(!$requiresImport){$repo.tracker=@{location='dossier';path='tracker.json';schemaVersion=1}}
-            $seed=@{'para.json'=(ConvertTo-SBJson $metadata);'repository.json'=(ConvertTo-SBJson $repo);'brief.md'=("# "+$asset.name+"`n`nRepository selected for knowledge management. Scope and state are in the current context.`n");
+            $seed=@{'entity.json'=(ConvertTo-SBJson $metadata);'repository.json'=(ConvertTo-SBJson $repo);'brief.md'=("# "+$asset.name+"`n`nRepository selected for knowledge management. Scope and state are in the current context.`n");
               'context.md'=(Read-SBText (Join-Path $PSScriptRoot 'SecondBrain.context.template.md'));
               'memory.md'="# Essential memory`n`nNo technical decision qualified yet.`n"
               'specs/README.md'="# Specifications`n`nSpecifications and requirements to implement in the repository.`n";'material/README.md'="# Material`n`nProject reference material (not in the repository).`n";'data/README.md'="# Data`n`nInitial or working data to implement in the repository.`n"}

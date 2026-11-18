@@ -162,7 +162,7 @@ try {
     Invoke-Case 'scoped-locks' (Join-Path $root 'scoped') {
         # #476: per-dossier locks. Two dossiers hold their locks at once; a global writer and a dossier writer exclude each other.
         $dir=Join-Path $root 'scoped';$coordination=Join-Path $dir 'brain/.runtime/access';$backups=Join-Path $dir 'backups'
-        foreach($path in @($coordination,$backups,(Join-Path $dir 'brain/02-areas'))){[IO.Directory]::CreateDirectory($path)|Out-Null}
+        foreach($path in @($coordination,$backups,(Join-Path $dir 'brain/workstation'))){[IO.Directory]::CreateDirectory($path)|Out-Null}
         $brain=Join-Path $dir 'brain'
         $config=@{brainRoot=$brain;coordinationRoot=$coordination;workstationId='fixture';sessionTimeoutMinutes=30;lockWaitMs=60000}
         $a=Get-SBScopeKey 'github.com/acme/repo-a';$b=Get-SBScopeKey 'github.com/acme/repo-b'
@@ -188,7 +188,7 @@ try {
         Assert-Conc ($null -ne $again) 'scoped locks: released locks can be taken again (gate released with the writer)'
 
         # Parallel transactions on two dossiers, each with its own marker; an interrupted one blocks only its own dossier.
-        $targets=@{};foreach($key in @($a,$b)){$t=Join-Path $brain "02-areas/$key.md";[IO.File]::WriteAllText($t,"base`n");$targets[$key]=$t}
+        $targets=@{};foreach($key in @($a,$b)){$t=Join-Path $brain "workstation/$key.md";[IO.File]::WriteAllText($t,"base`n");$targets[$key]=$t}
         $outcomes=Invoke-Race 2 {param($i,$x)
             $key=$x[$i-1];$op=Enter-SBOperation $x[2] $null -WaitMs 5000 -LockOnly -Scope $key
             try{Start-Sleep -Milliseconds 300;Invoke-SBParaTransaction -Operations @(@{path=$x[3][$key];expected=(Get-SBFileHash $x[3][$key]);bytes=[Text.Encoding]::UTF8.GetBytes("done-$i`n")}) -BackupRoot $x[4] -BrainRoot $x[5] -Scope $key|Out-Null}
@@ -204,13 +204,13 @@ try {
         # The scope follows the dossier of the paths: no caller has to pass -Scope for a single-repository change.
         $dossiers=@{};$dossierFiles=@{}
         foreach($pair in @(@('RepoA','github.com/acme/repo-a',$a),@('RepoB','github.com/acme/repo-b',$b))){
-            $d=Join-Path $brain ('01-projects/'+$pair[0]);[IO.Directory]::CreateDirectory($d)|Out-Null
+            $d=Join-Path $brain ('repos/'+$pair[0]);[IO.Directory]::CreateDirectory($d)|Out-Null
             [IO.File]::WriteAllText((Join-Path $d 'repository.json'),(ConvertTo-SBJson @{schemaVersion=1;identity=$pair[1]}))
             $f=Join-Path $d 'tracker.json';[IO.File]::WriteAllText($f,"base`n");$dossiers[$pair[2]]=$d;$dossierFiles[$pair[2]]=$f
         }
         Assert-Conc ((Get-SBDossierScope $brain @($dossierFiles[$a],(Join-Path $dossiers[$a] 'history/x.md'))) -ceq $a) 'dossier scope: every path of one repository dossier maps to its scope key'
         Assert-Conc ((Get-SBDossierScope $brain @($dossierFiles[$a],$dossierFiles[$b])) -ceq '') 'dossier scope: paths of two repositories keep the global marker'
-        Assert-Conc ((Get-SBDossierScope $brain @((Join-Path $brain '03-resources/x.md'))) -ceq '' -and (Get-SBDossierScope $brain @((Join-Path $dir 'outside.md'))) -ceq '') 'dossier scope: paths outside a repository dossier keep the global marker'
+        Assert-Conc ((Get-SBDossierScope $brain @((Join-Path $brain 'shared/x.md'))) -ceq '' -and (Get-SBDossierScope $brain @((Join-Path $dir 'outside.md'))) -ceq '') 'dossier scope: paths outside a repository dossier keep the global marker'
         $inferred=Invoke-Race 2 {param($i,$x)
             $key=$x[$i-1];$op=Enter-SBOperation $x[2] $null -WaitMs 5000 -LockOnly -Scope $key
             try{Start-Sleep -Milliseconds 300;Invoke-SBParaTransaction -Operations @(@{path=$x[3][$key];expected=(Get-SBFileHash $x[3][$key]);bytes=[Text.Encoding]::UTF8.GetBytes("inferred-$i`n")}) -BackupRoot $x[4] -BrainRoot $x[5]|Out-Null}
@@ -220,7 +220,7 @@ try {
     }
 
     Invoke-Case 'para-transaction' (Join-Path $root 'para') {
-        $brain=Join-Path $root 'para/brain';$backups=Join-Path $root 'para/backups';$target=Join-Path $brain '02-areas/doc.md'
+        $brain=Join-Path $root 'para/brain';$backups=Join-Path $root 'para/backups';$target=Join-Path $brain 'workstation/doc.md'
         foreach($dir in @((Join-Path $brain '.runtime'),(Split-Path $target),$backups)){[IO.Directory]::CreateDirectory($dir)|Out-Null}
         [IO.File]::WriteAllText($target,"base`n");$original=Get-SBFileHash $target
         $outcomes=Invoke-Race 6 {param($i,$a) Invoke-SBParaTransaction -Operations @(@{path=$a[0];expected=$a[1];bytes=[Text.Encoding]::UTF8.GetBytes("transazione-$i`n")}) -BackupRoot $a[2] -BrainRoot $a[3]} @($target,$original,$backups,$brain)
@@ -245,7 +245,7 @@ try {
     }
 
     Invoke-Case 'tracker-new-task' (Join-Path $root 'tracker') {
-        $dir=Join-Path $root 'tracker';$brain=Join-Path $dir 'brain';$dossier=Join-Path $brain '02-areas/products/fixture';$backups=Join-Path $dir 'backups'
+        $dir=Join-Path $root 'tracker';$brain=Join-Path $dir 'brain';$dossier=Join-Path $brain 'repos/fixture';$backups=Join-Path $dir 'backups'
         foreach($path in @((Join-Path $brain '.runtime'),(Join-Path $dossier 'history'),$backups)){[IO.Directory]::CreateDirectory($path)|Out-Null}
         [IO.File]::WriteAllText((Join-Path $dossier 'history/fonte.md'),"fonte`n")
         $identity='github.com/acme/fixture'
@@ -264,7 +264,7 @@ try {
         $brain=Join-Path $root 'backup/brain'
         foreach($sub in @('scripts','config')){Copy-Item -LiteralPath (Join-Path $PSScriptRoot ('../'+$sub)) -Destination (Join-Path $brain $sub) -Recurse -Force}
         Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../VERSION') -Destination (Join-Path $brain 'VERSION')
-        foreach($file in @('02-areas/a/uno.md','02-areas/a/due.md','.runtime/hosts/ws/workstation.json')){$p=Join-Path $brain $file;[IO.Directory]::CreateDirectory((Split-Path $p))|Out-Null;[IO.File]::WriteAllText($p,"contenuto $file`n")}
+        foreach($file in @('workstation/a/uno.md','workstation/a/due.md','.runtime/hosts/ws/workstation.json')){$p=Join-Path $brain $file;[IO.Directory]::CreateDirectory((Split-Path $p))|Out-Null;[IO.File]::WriteAllText($p,"contenuto $file`n")}
         # #396 perimeter: regenerable runtime data is excluded, evidence/reports and open work are kept.
         $hostRepo='.runtime/hosts/ws/repos/prodotto-aa'
         foreach($file in @("$hostRepo/fixture/x.txt","$hostRepo/tmp/x.txt","$hostRepo/report/keep.md","$hostRepo/evidence/keep.md",'.runtime/hosts/ws/repos/fixture-20261109-aa/x.txt','.runtime/hosts/ws/repos/tests-aa/x.txt','.runtime/hosts/ws/sources/python/x.txt',"$hostRepo/work/chiuso/MANIFEST.json","$hostRepo/work/chiuso/dato.txt","$hostRepo/work/aperto/MANIFEST.json","$hostRepo/work/aperto/dato.txt","$hostRepo/work/chiuso/cache/c.txt")){

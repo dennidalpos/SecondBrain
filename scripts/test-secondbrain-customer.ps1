@@ -17,16 +17,16 @@ function New-Dossier([string]$Path,[string]$Name,$Customer,[string]$Status='acti
     $record=@{schemaVersion=1;identity="github.com/test/$Name";tracker=@{location='dossier';path='tracker.json';schemaVersion=1}}
     if($null -ne $Customer){$record.customer=$Customer}
     Put "$Path/repository.json" (ConvertTo-SBJson $record)
-    Put "$Path/para.json" (ConvertTo-SBJson @{schemaVersion=1;id="dossier-$Name";kind='project';title=$Name;status=$Status})
+    Put "$Path/entity.json" (ConvertTo-SBJson @{schemaVersion=1;id="dossier-$Name";kind='project';title=$Name;status=$Status})
     Put "$Path/brief.md" "# $Name"
     Put "$Path/context.md" "# Contesto`nshared-term $Name context`n"
     Put "$Path/memory.md" "# Memoria`n"
     Put "$Path/tracker.json" (ConvertTo-SBJson @{schemaVersion=1;repository="github.com/test/$Name";tasks=@(@{id="T-$Name-1";title='uno'},@{id="T-$Name-2";title='due'});history=@()})
 }
-New-Dossier '01-projects/a' 'a' 'Acme'
-New-Dossier '01-projects/b' 'b' ' acme '
-New-Dossier '01-projects/c' 'c' 'Beta'
-New-Dossier '01-projects/d' 'd' $null
+New-Dossier 'repos/a' 'a' 'Acme'
+New-Dossier 'repos/b' 'b' ' acme '
+New-Dossier 'repos/c' 'c' 'Beta'
+New-Dossier 'repos/d' 'd' $null
 New-Dossier '04-archives/projects/dossier-e' 'e' 'Acme' 'completed'
 $runtime=Get-SBLocalRoot $brain 'fixture';$cfg=Join-Path $runtime 'workstation.json'
 Put ([IO.Path]::GetRelativePath($brain,$cfg)) (ConvertTo-SBJson @{schemaVersion=1;mode='portable';workstationId='fixture';runtimeRoot=$runtime;backupRoot=(Join-Path $runtime 'backups');ides=@();bindings=@()})
@@ -47,10 +47,10 @@ Assert-Cust ((& $names (Find '')) -ceq 'a,b,c,d') 'no filter: every active dossi
 Assert-Cust ((& $names (Find 'acme')) -ceq 'a,b') 'customer filter selects the customer''s active dossiers only'
 Assert-Cust ((Find 'Gamma').count -eq 0) 'unknown customer finds nothing'
 Assert-Cust ((& $names (Find 'Acme' 'github.com/test/a')) -ceq 'a' -and (Find 'Acme' 'github.com/test/c').count -eq 0) 'customer combines with repository (intersection)'
-Assert-Cust ((Find 'Beta' '' '01-projects/c').count -eq 1 -and (Find 'Beta' '' '01-projects/a').count -eq 0) 'customer combines with dossier'
+Assert-Cust ((Find 'Beta' '' 'repos/c').count -eq 1 -and (Find 'Beta' '' 'repos/a').count -eq 0) 'customer combines with dossier'
 
 # Migration: preview does not write; apply writes only repository.json and preserves identifiers.
-$files=@('a','b','c','d')|ForEach-Object {Get-ChildItem -LiteralPath (Join-Path $brain "01-projects/$_") -File -Recurse}
+$files=@('a','b','c','d')|ForEach-Object {Get-ChildItem -LiteralPath (Join-Path $brain "repos/$_") -File -Recurse}
 $hashes=@{};foreach($f in $files){$hashes[$f.FullName]=Get-SBFileHash $f.FullName}
 $r=Invoke-Para @('-SetCustomer','-Customer','Gamma','-Only','dossier-c,github.com/test/d')
 $preview=$r.out
@@ -59,13 +59,13 @@ Assert-Cust (@($files|Where-Object {(Get-SBFileHash $_.FullName) -ne $hashes[$_.
 $r=Invoke-Para @('-SetCustomer','-Customer','Gamma','-Only','dossier-c,github.com/test/d','-Apply')
 Assert-Cust ($r.code -eq 0) ('apply succeeds: '+$r.out)
 foreach($name in @('c','d')){
-    $dir=Join-Path $brain "01-projects/$name"
+    $dir=Join-Path $brain "repos/$name"
     Assert-Cust ((Read-SBJson (Join-Path $dir 'repository.json') $null).customer -ceq 'Gamma') "customer written for $name"
-    foreach($keep in @('para.json','tracker.json','brief.md','context.md','memory.md')){
+    foreach($keep in @('entity.json','tracker.json','brief.md','context.md','memory.md')){
         Assert-Cust ((Get-SBFileHash (Join-Path $dir $keep)) -ceq $hashes[(Join-Path $dir $keep)]) "$name/$keep unchanged (ids and tasks preserved)"
     }
 }
-Assert-Cust ((Read-SBJson (Join-Path $brain '01-projects/a/repository.json') $null).customer -ceq 'Acme' -and (Get-SBFileHash (Join-Path $brain '01-projects/a/repository.json')) -ceq $hashes[(Join-Path $brain '01-projects/a/repository.json')]) 'unselected dossier untouched'
+Assert-Cust ((Read-SBJson (Join-Path $brain 'repos/a/repository.json') $null).customer -ceq 'Acme' -and (Get-SBFileHash (Join-Path $brain 'repos/a/repository.json')) -ceq $hashes[(Join-Path $brain 'repos/a/repository.json')]) 'unselected dossier untouched'
 $after=@(Get-SBParaEntities $brain @('test'))
 Assert-Cust ((($entities|ForEach-Object id|Sort-Object) -join ',') -ceq (($after|ForEach-Object id|Sort-Object) -join ',') -and (($entities|ForEach-Object repository|Sort-Object) -join ',') -ceq (($after|ForEach-Object repository|Sort-Object) -join ',')) 'PARA ids and repository identities unchanged'
 Assert-Cust ((& $names (Find 'gamma')) -ceq 'c,d') 'search sees the migrated customer'
@@ -74,7 +74,7 @@ Assert-Cust ($r.code -eq 0) ('PARA check passes after migration: '+$r.out)
 $r=Invoke-Para @('-SetCustomer','-Customer','Gamma','-Only','dossier-c','-Apply')
 Assert-Cust ($r.code -eq 0) 'apply is idempotent'
 $r=Invoke-Para @('-SetCustomer','-Clear','-Only','dossier-d','-Apply')
-Assert-Cust ($r.code -eq 0 -and !(Read-SBJson (Join-Path $brain '01-projects/d/repository.json') @{}).ContainsKey('customer')) 'clear removes the field'
+Assert-Cust ($r.code -eq 0 -and !(Read-SBJson (Join-Path $brain 'repos/d/repository.json') @{}).ContainsKey('customer')) 'clear removes the field'
 Assert-Cust ((Invoke-Para @('-SetCustomer','-Only','dossier-c')).code -ne 0) 'customer or -Clear is required'
 Assert-Cust ((Invoke-Para @('-SetCustomer','-Customer','x','-Only','dossier-zzz')).code -ne 0) 'unmatched -Only is refused'
 Assert-Cust ((Invoke-Para @('-SetCustomer','-Customer',('x'*121),'-Only','dossier-c')).code -ne 0) 'overlong customer is refused'
@@ -87,8 +87,8 @@ Assert-Cust ($LASTEXITCODE -eq 0 -and (Test-Path -LiteralPath $zipPath)) ('custo
 $archive=[IO.Compression.ZipFile]::OpenRead($zipPath)
 try{$names2=@($archive.Entries|ForEach-Object {$_.FullName});$manifest=([IO.StreamReader]::new($archive.GetEntry('manifest.json').Open())).ReadToEnd()|ConvertFrom-Json -AsHashtable}finally{$archive.Dispose()}
 $has={param($prefix) @($names2|Where-Object {$_.StartsWith($prefix,[StringComparison]::Ordinal)}).Count -gt 0}
-Assert-Cust ((& $has '01-projects/a/') -and (& $has '01-projects/b/') -and (& $has '04-archives/projects/dossier-e/')) 'backup includes active and archived dossiers of the customer'
-Assert-Cust (!(& $has '01-projects/c/') -and !(& $has '01-projects/d/') -and !(& $has '.runtime/') -and 'PARA.md' -notin $names2 -and 'para-index.json' -notin $names2) 'backup leaves out other customers, indexes and workstation data'
+Assert-Cust ((& $has 'repos/a/') -and (& $has 'repos/b/') -and (& $has '04-archives/projects/dossier-e/')) 'backup includes active and archived dossiers of the customer'
+Assert-Cust (!(& $has 'repos/c/') -and !(& $has 'repos/d/') -and !(& $has '.runtime/') -and 'PARA.md' -notin $names2 -and 'para-index.json' -notin $names2) 'backup leaves out other customers, indexes and workstation data'
 Assert-Cust ($manifest.customer -ceq 'ACME' -and $manifest.fileCount -eq (@($names2|Where-Object {$_ -ne 'manifest.json'}).Count)) 'manifest records the customer and counts only included files'
 $verify=& pwsh -NoProfile -File $backup -Verify -BackupPath $zipPath 2>&1|Out-String
 Assert-Cust ($LASTEXITCODE -eq 0 -and $verify -match 'VERIFY SUCCESS') 'customer backup passes -Verify'
@@ -98,5 +98,5 @@ $null=& pwsh -NoProfile -File $backup -OutputPath (Join-Path $root 'full.zip') 2
 Assert-Cust ($LASTEXITCODE -eq 0) 'backup without filter still works'
 $archive=[IO.Compression.ZipFile]::OpenRead((Join-Path $root 'full.zip'))
 try{$fullNames=@($archive.Entries|ForEach-Object {$_.FullName});$fullManifest=([IO.StreamReader]::new($archive.GetEntry('manifest.json').Open())).ReadToEnd()|ConvertFrom-Json -AsHashtable}finally{$archive.Dispose()}
-Assert-Cust ((@($fullNames|Where-Object {$_ -like '01-projects/c/*'}).Count -gt 0) -and 'PARA.md' -in $fullNames -and !$fullManifest.ContainsKey('customer')) 'unfiltered backup keeps every dossier and no customer key'
+Assert-Cust ((@($fullNames|Where-Object {$_ -like 'repos/c/*'}).Count -gt 0) -and 'PARA.md' -in $fullNames -and !$fullManifest.ContainsKey('customer')) 'unfiltered backup keeps every dossier and no customer key'
 'SUCCESS CUSTOMER: '+$script:custChecks+' checks; retained fixture '+$root

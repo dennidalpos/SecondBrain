@@ -115,9 +115,9 @@ foreach ($producerCount in $Producers) {
         'BENCHMARK start producers='+$producerCount+' repeat='+$repeat
         $benchmarkProfileRoot = Join-Path $OutputRoot ('producers-'+$producerCount+'-repeat-'+$repeat)
         $brain = Join-Path $benchmarkProfileRoot 'brain'
-        $dossier = Join-Path $brain '02-areas/products/Benchmark'
+        $dossier = Join-Path $brain 'repos/Benchmark'
         $identity = 'github.com/test/pending-benchmark'
-        Write-BenchmarkJson (Join-Path $dossier 'para.json') @{schemaVersion=1;id='benchmark-area';kind='area';title='Benchmark';status='active'}
+        Write-BenchmarkJson (Join-Path $dossier 'entity.json') @{schemaVersion=1;id='benchmark-area';kind='area';title='Benchmark';status='active'}
         Write-BenchmarkJson (Join-Path $dossier 'repository.json') @{schemaVersion=1;identity=$identity;tracker=@{location='dossier';path='tracker.json';schemaVersion=1}}
         [IO.File]::WriteAllText((Join-Path $dossier 'brief.md'), '# Synthetic benchmark fixture')
         foreach($name in @('context.md','memory.md')){[IO.File]::WriteAllText((Join-Path $dossier $name), '# Synthetic benchmark fixture')}

@@ -11,12 +11,12 @@ $script:cycleChecks=0
 function Assert-Cycle($Condition,[string]$Message){if(!$Condition){throw ('FAIL MEMORY CYCLE: '+$Message)};$script:cycleChecks++}
 function Reject-Cycle([scriptblock]$Action,[string]$Message){$rejected=$false;try{& $Action|Out-Null}catch{$rejected=$true};Assert-Cycle $rejected $Message}
 $root=Join-Path (Get-SBTestRoot) ('memcycle-'+[guid]::NewGuid().ToString('N'))
-$brain=Join-Path $root 'brain';$repo='github.com/acme/one';$d=Join-Path $brain '02-areas/one';$backups=Join-Path $brain '.runtime/backups'
-foreach($folder in @($d,(Join-Path $brain '02-areas/two'),(Join-Path $brain 'direttive'),(Join-Path $brain 'config'))){[void][IO.Directory]::CreateDirectory($folder)}
+$brain=Join-Path $root 'brain';$repo='github.com/acme/one';$d=Join-Path $brain 'repos/one';$backups=Join-Path $brain '.runtime/backups'
+foreach($folder in @($d,(Join-Path $brain 'repos/two'),(Join-Path $brain 'direttive'),(Join-Path $brain 'config'))){[void][IO.Directory]::CreateDirectory($folder)}
 foreach($name in @('one','two')){
-    $dir=Join-Path $brain ('02-areas/'+$name)
+    $dir=Join-Path $brain ('repos/'+$name)
     [IO.File]::WriteAllText((Join-Path $dir 'brief.md'),('# '+$name))
-    [IO.File]::WriteAllText((Join-Path $dir 'para.json'),(ConvertTo-SBJson @{schemaVersion=1;id=('area-'+$name);kind='area';title=$name;status='active'}))
+    [IO.File]::WriteAllText((Join-Path $dir 'entity.json'),(ConvertTo-SBJson @{schemaVersion=1;id=('area-'+$name);kind='area';title=$name;status='active'}))
     [IO.File]::WriteAllText((Join-Path $dir 'repository.json'),(ConvertTo-SBJson @{schemaVersion=1;identity=('github.com/acme/'+$name);tracker=@{location='dossier';path='tracker.json';schemaVersion=1}}))
     [IO.File]::WriteAllText((Join-Path $dir 'context.md'),"# Contesto`n## Stato corrente`nOriginale`n## Vincoli`nVincolo importante`n## Problemi aperti`nErrore 401`n## Prossimo passo`nVerificare`n")
     [IO.File]::WriteAllText((Join-Path $dir 'memory.md'),"# Memoria`n## Decisioni`n- Decisione: mantenere tutti i dati — Motivo: recupero.`n")

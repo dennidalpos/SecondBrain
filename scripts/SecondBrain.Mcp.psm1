@@ -55,7 +55,7 @@ Add-SBMessages @{
     'mcp.description.get_startup_context' = @{ en = 'Startup context. slim (default): essential parts; full: complete. Unchanged revision: no parts.' }
     'mcp.description.get_startup_context.repository' = @{ en = 'Repository identity; default: working checkout' }
     'mcp.description.get_startup_context.checkoutPath' = @{ en = 'Checkout used to resolve the repository' }
-    'mcp.description.get_startup_context.dossier' = @{ en = 'Relative dossier (e.g. 01-projects/X)' }
+    'mcp.description.get_startup_context.dossier' = @{ en = 'Relative dossier (e.g. repos/X)' }
     'mcp.description.get_startup_context.readyOnly' = @{ en = 'Only tasks with satisfied dependencies' }
     'mcp.description.get_startup_context.previousRevision' = @{ en = 'Previous revision: if unchanged, changed=false' }
     'mcp.description.get_startup_context.taskIds' = @{ en = 'Task IDs to include' }

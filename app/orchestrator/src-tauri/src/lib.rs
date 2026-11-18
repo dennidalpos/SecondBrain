@@ -909,6 +909,71 @@ fn browser_args(extra: Option<String>) -> Option<String> {
     Some(format!("--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection {extra}"))
 }
 
+/// Tray (close-to-tray): the window never ends the app; the runner is detached anyway, so the tray keeps its state in view.
+struct TrayHandles {
+    status: tauri::menu::MenuItem<tauri::Wry>,
+    tray: tauri::tray::TrayIcon<tauri::Wry>,
+}
+
+fn show_main_window(app: &AppHandle) {
+    if let Some(w) = app.get_webview_window("main") {
+        let _ = w.unminimize();
+        let _ = w.show();
+        let _ = w.set_focus();
+    }
+}
+
+/// Status line of the tray (menu entry and tooltip), pushed by the window each time the run verdict changes.
+#[tauri::command]
+fn set_tray_status(state: State<'_, TrayHandles>, text: String) {
+    let text: String = text.chars().take(120).collect();
+    let _ = state.status.set_text(&text);
+    let _ = state.tray.set_tooltip(Some(format!("SecondBrain Orchestrator: {text}")));
+}
+
+/// Ends the app. The runner is detached and keeps working; the window asks what to do with an active run before calling this.
+#[tauri::command]
+fn quit_app(app: AppHandle) {
+    app.exit(0);
+}
+
+fn build_tray(app: &tauri::App) -> tauri::Result<()> {
+    use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
+    use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+    let status = MenuItem::with_id(app, "status", "Idle", false, None::<&str>)?;
+    let show = MenuItem::with_id(app, "show", "Show window", true, None::<&str>)?;
+    let stop = MenuItem::with_id(app, "stop", "Stop after the current task", true, None::<&str>)?;
+    let abort = MenuItem::with_id(app, "abort", "Abort now…", true, None::<&str>)?;
+    let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+    let sep1 = PredefinedMenuItem::separator(app)?;
+    let sep2 = PredefinedMenuItem::separator(app)?;
+    let menu = Menu::with_items(app, &[&status, &sep1, &show, &stop, &abort, &sep2, &quit])?;
+    let mut builder = TrayIconBuilder::with_id("main")
+        .tooltip("SecondBrain Orchestrator: Idle")
+        .menu(&menu)
+        .show_menu_on_left_click(false)
+        .on_menu_event(|app, event| match event.id.as_ref() {
+            "show" => show_main_window(app),
+            // The window owns the repository and the confirmations: show it, then it acts.
+            id @ ("stop" | "abort" | "quit") => {
+                show_main_window(app);
+                let _ = app.emit("tray-action", id);
+            }
+            _ => {}
+        })
+        .on_tray_icon_event(|tray, event| {
+            if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = event {
+                show_main_window(tray.app_handle());
+            }
+        });
+    if let Some(icon) = app.default_window_icon() {
+        builder = builder.icon(icon.clone());
+    }
+    let tray = builder.build(app)?;
+    app.manage(TrayHandles { status, tray });
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let mut context = tauri::generate_context!();
@@ -920,6 +985,17 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(AppState::default())
+        .setup(|app| {
+            build_tray(app)?;
+            Ok(())
+        })
+        // The window's X hides it to the tray; only the tray's Quit (or quit_app) ends the app.
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                api.prevent_close();
+                let _ = window.hide();
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             get_launch_context,
             get_settings,
@@ -961,7 +1037,9 @@ pub fn run() {
             workstation_command,
             workstation_run,
             list_runs,
-            add_run_note
+            add_run_note,
+            set_tray_status,
+            quit_app
         ])
         .run(context)
         .expect("error while running the orchestrator");

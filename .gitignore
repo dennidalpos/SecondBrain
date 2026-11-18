@@ -20,25 +20,12 @@ config/local/
 inventory.json
 INVENTORY.md
 
-# Knowledge, PARA dossiers and local indexes: tracked skeleton is the folder README plus .gitkeep in the empty archive subfolders; contents are ignored
-/01-projects/*
-!/01-projects/README.md
-/02-areas/*
-!/02-areas/README.md
-# 03-resources is public (#478): metadata, transcripts and evidence are tracked; originals are downloaded with resources.ps1 -Sync (hash in the manifest).
-/03-resources/**/versions/*/originals/
-/03-resources/**/census/qa/
-/04-archives/*
-!/04-archives/README.md
-!/04-archives/projects/
-/04-archives/projects/*
-!/04-archives/projects/.gitkeep
-!/04-archives/areas/
-/04-archives/areas/*
-!/04-archives/areas/.gitkeep
-!/04-archives/resources/
-/04-archives/resources/*
-!/04-archives/resources/.gitkeep
-/PARA.md
-/para-index.json
+# Knowledge dossiers (repos/ and workstation/): the tracked skeleton is the folder README; contents are ignored
+/repos/*
+!/repos/README.md
+/workstation/*
+!/workstation/README.md
+# shared is public (#478): metadata, transcripts and evidence are tracked; originals are downloaded with resources.ps1 -Sync (hash in the manifest).
+/shared/**/versions/*/originals/
+/shared/**/census/qa/
 /UNATTENDED-QUEUE.md

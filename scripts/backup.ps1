@@ -3,7 +3,7 @@
 .SYNOPSIS
 Creates a deterministic compressed backup of local SecondBrain data or verifies its integrity.
 .DESCRIPTION
-Includes PARA directories (01-projects, 02-areas, 03-resources, 04-archives), PARA.md, para-index.json
+Includes the repos, workstation and shared directories
 and .runtime/hosts. Adds a cryptographic SHA-256 manifest to the archive.
 -Verify checks each included file against the manifest.
 #>
@@ -15,7 +15,7 @@ param(
     [string]$OutputPath,
     [Parameter(ParameterSetName='Backup')]
     [string]$SessionId,
-    # Only the dossiers (active and archived) whose repository.json "customer" matches; omits PARA.md, para-index.json and .runtime/hosts.
+    # Only the dossiers (active and archived) whose repository.json "customer" matches; omits .runtime/hosts.
     [Parameter(ParameterSetName='Backup')]
     [string]$Customer,
     [Parameter(Mandatory,ParameterSetName='Verify')]
@@ -160,12 +160,9 @@ if ($usedDefaultName) {
     while (Test-Path -LiteralPath $resolvedOutput) { $suffix++; $resolvedOutput = Join-Path (Split-Path $resolvedOutput) ($baseName + '-' + $suffix + '.zip') }
 }
 $includeTargets = @(
-    @{ type = 'dir';  path = '01-projects' },
-    @{ type = 'dir';  path = '02-areas' },
-    @{ type = 'dir';  path = '03-resources' },
-    @{ type = 'dir';  path = '04-archives' },
-    @{ type = 'file'; path = 'PARA.md' },
-    @{ type = 'file'; path = 'para-index.json' },
+    @{ type = 'dir';  path = 'repos' },
+    @{ type = 'dir';  path = 'workstation' },
+    @{ type = 'dir';  path = 'shared' },
     @{ type = 'dir';  path = '.runtime/hosts' }
 )
 

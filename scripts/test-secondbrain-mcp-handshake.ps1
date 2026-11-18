@@ -36,10 +36,10 @@ function Assert-Handshake([bool]$Condition, [string]$Name, [string]$Ide) {
 
 # Sample dossier (relative) for get_startup_context: first with context.md; absent = tool recorded as skipped.
 $dossierRelative = $null
-$productsRoot = Join-Path $BrainRoot '02-areas/products'
+$productsRoot = Join-Path $BrainRoot 'repos'
 if (Test-Path -LiteralPath $productsRoot -PathType Container) {
     $first = Get-ChildItem -LiteralPath $productsRoot -Directory | Where-Object { Test-Path -LiteralPath (Join-Path $_.FullName 'context.md') } | Sort-Object Name | Select-Object -First 1
-    if ($first) { $dossierRelative = '02-areas/products/' + $first.Name }
+    if ($first) { $dossierRelative = 'repos/' + $first.Name }
 }
 $isGit = (Invoke-SBGit $PublicationPath @('rev-parse','--is-inside-work-tree')).output -eq 'true'
 

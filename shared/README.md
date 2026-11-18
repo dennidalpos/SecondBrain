@@ -1,4 +1,4 @@
-# 03-resources
+# shared
 
 Riferimenti condivisi e riusabili da tutti i repository: fonti autorevoli, architettura, radar tecnologico, troubleshooting.
 

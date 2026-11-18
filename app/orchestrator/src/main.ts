@@ -618,6 +618,7 @@ async function launchQueue(request: QueueRequest, errorBox: string) {
 function setVerdict(v: string) {
   state.run.verdict = v;
   for (const id of ["run-verdict", "run-badge"]) { const b = $(id); b.dataset.verdict = v; b.textContent = RUN_VERDICT_LABEL[v] ?? v; }
+  void call("set_tray_status", { text: RUN_VERDICT_LABEL[v] ?? v });
   renderHome();
 }
 function resetRunView() {
@@ -871,22 +872,31 @@ listen<{ code: number | null; pid: number; log: string; stdout: string }>("runne
   if (powerRefused) askPowerChoice(e.payload.log);
 });
 
-// Closing with a run in progress asks what to do; the runner itself is detached and survives the window.
+// The window's X only hides it to the tray (Rust side); the runner is detached anyway. Quitting (tray "Quit") with a run in
+// progress asks what to do; the tray's Stop and Abort act on the repository this window holds.
 const dialog = $<HTMLDialogElement>("close-dialog");
-async function closeWindow() { await getCurrentWindow().destroy(); }
+async function quitApp() { await call("quit_app"); }
 dialog.querySelectorAll<HTMLButtonElement>("button[data-close]").forEach((b) => onBusyClick(b, async () => {
   const action = b.dataset.close;
   if (action === "cancel") return dialog.close();
   if (action === "abort" && !confirm("Abort the running agent now?")) return;
   if (action === "stop" || action === "abort") await call("stop_queue", { repo: state.repo, force: action === "abort" });
   dialog.close();
-  await closeWindow();
+  await quitApp();
 }));
-getCurrentWindow().onCloseRequested((event) => {
-  if (state.run.active || state.run.starting) { event.preventDefault(); dialog.showModal(); }
+function runIsLive() { return state.run.active || state.run.starting; }
+async function requestQuit() {
+  if (runIsLive()) { if (!dialog.open) dialog.showModal(); } else await quitApp();
+}
+listen<string>("tray-action", async (e) => {
+  const action = e.payload;
+  if (action === "quit") return requestQuit();
+  if (!runIsLive() || !state.repo) return;
+  if (action === "abort" && !confirm("Abort the running agent now?")) return;
+  await call("stop_queue", { repo: state.repo, force: action === "abort" });
 });
-// Hook for the end-to-end tests: the same close request the window title bar sends.
-(window as unknown as { sbOrchestrator: object }).sbOrchestrator = { requestClose: () => getCurrentWindow().close() };
+// Hook for the end-to-end tests: the same close request the window title bar sends (it hides the window to the tray).
+(window as unknown as { sbOrchestrator: object }).sbOrchestrator = { requestClose: () => getCurrentWindow().close(), requestQuit: () => requestQuit() };
 
 async function start() {
   state.launch = await call<Launch>("get_launch_context");

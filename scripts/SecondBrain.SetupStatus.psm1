@@ -58,7 +58,7 @@ function Get-SBSetupFeatureStatus {
         if($state -and $state.settings.ContainsKey('hooks') -and $state.settings.hooks -is [Collections.IDictionary] -and $state.settings.hooks.ContainsKey('SessionStart')){
             $resourcesInstalled=$null -ne (ConvertTo-Json $state.settings.hooks.SessionStart -Depth 8 | Select-String -SimpleMatch 'resources-hook.ps1')
         }
-        $features+=New-SBFeature 'resources-hook' $(if($resourcesInstalled){'enabled'}else{'available'}) 'SessionStart entry in Claude Code settings' 'pwsh -NoProfile -File scripts/resources-hook.ps1 -ShowConfiguration' @('resources-registry') 'low' (!$resourcesInstalled -and (Test-Path -LiteralPath (Join-Path $brain '03-resources/authoritative-sources/entries'))) 'setupstatus.resources.reason' 'claude-code'
+        $features+=New-SBFeature 'resources-hook' $(if($resourcesInstalled){'enabled'}else{'available'}) 'SessionStart entry in Claude Code settings' 'pwsh -NoProfile -File scripts/resources-hook.ps1 -ShowConfiguration' @('resources-registry') 'low' (!$resourcesInstalled -and (Test-Path -LiteralPath (Join-Path $brain 'shared/authoritative-sources/entries'))) 'setupstatus.resources.reason' 'claude-code'
     }
     foreach($client in @('codex','antigravity')){
         if(@($Ides|Where-Object {[string]$_.adapter -match $client}).Count -eq 0){continue}
@@ -67,7 +67,7 @@ function Get-SBSetupFeatureStatus {
         foreach($name in 'trace-hook','resources-hook'){
             $entry=if($clientState){@($clientState.hooks|Where-Object {$_.hook -eq $name})[0]}else{$null}
             $on=[bool]($entry -and $entry.installed)
-            $features+=New-SBFeature $name $(if(!$clientState){'blocked'}elseif($on){'enabled'}else{'available'}) $(if($clientState){'settings '+$clientState.settingsPath}else{'settings file unreadable'}) ('pwsh -NoProfile -File scripts/client-hooks.ps1 -Install -Client '+$client+' -Hook '+$name) @() 'low' ($clientState -and !$on -and ($name -eq 'trace-hook' -or (Test-Path -LiteralPath (Join-Path $brain '03-resources/authoritative-sources/entries')))) $(if($name -eq 'trace-hook'){'setupstatus.clienttrace.reason'}else{'setupstatus.resources.reason'}) $client
+            $features+=New-SBFeature $name $(if(!$clientState){'blocked'}elseif($on){'enabled'}else{'available'}) $(if($clientState){'settings '+$clientState.settingsPath}else{'settings file unreadable'}) ('pwsh -NoProfile -File scripts/client-hooks.ps1 -Install -Client '+$client+' -Hook '+$name) @() 'low' ($clientState -and !$on -and ($name -eq 'trace-hook' -or (Test-Path -LiteralPath (Join-Path $brain 'shared/authoritative-sources/entries')))) $(if($name -eq 'trace-hook'){'setupstatus.clienttrace.reason'}else{'setupstatus.resources.reason'}) $client
         }
     }
     foreach($ide in @($Ides|Where-Object {[string]$_.adapter -eq 'manual' -and [string]$_.name -match 'account instructions'})){

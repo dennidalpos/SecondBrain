@@ -396,11 +396,11 @@
 
     <dialog id="close-dialog" aria-labelledby="close-title">
       <h2 id="close-title">A queue is running</h2>
-      <p>Closing the window leaves the runner working; when you reopen it, it is found again and reattached. What do you want to do?</p>
+      <p>Quitting leaves the runner working; when you reopen the app, it is found again and reattached. Closing the window only hides it to the tray. What do you want to do?</p>
       <div class="dialog-actions">
-        <button data-close="leave" class="primary">Leave running and close</button>
-        <button data-close="stop">Stop after the task and close</button>
-        <button data-close="abort" class="danger">Abort now and close</button>
+        <button data-close="leave" class="primary">Leave running and quit</button>
+        <button data-close="stop">Stop after the task and quit</button>
+        <button data-close="abort" class="danger">Abort now and quit</button>
         <button data-close="cancel">Cancel</button>
       </div>
     </dialog>

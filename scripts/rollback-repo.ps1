@@ -8,7 +8,7 @@ Requires a write session (Enter-SBOperation, optional -SessionId) and refuses th
 1. Copies the entire dossier (including history/, snapshots/ and tracker.md) to <TargetRepo>/.secondbrain/ and verifies its hashes. Without a checkout (-Force), saves the dossier in backupRoot (rollback-<id>) before removal.
 2. Updates workstation.json (binding removed, repository added to forbiddenRepositories with -Forbid) and state.json.
 3. Removes the managed SecondBrain blocks from the target repository's AGENTS.md and, where present, the CLAUDE.md and GEMINI.md pointers.
-4. Only then removes the dossier and runtime cache, then regenerates para-index.json and PARA.md.
+4. Only then removes the dossier and runtime cache, then no index files are kept.
 An error in steps 1-3 leaves the dossier intact: rollback can be repeated.
 .EXAMPLE
 pwsh -NoProfile -File scripts/rollback-repo.ps1 -RepositoryIdentity "github.com/my-org/my-project" -Forbid -Apply
@@ -57,7 +57,7 @@ Add-SBMessages @{
     'rollback.out.block' = @{ en = '  Removed SecondBrain managed block from {0}' }
     'rollback.out.dossier' = @{ en = '  Deleted dossier: {0}' }
     'rollback.out.runtime' = @{ en = '  Deleted runtime directory: {0}' }
-    'rollback.out.index' = @{ en = '  Updated para-index.json and PARA.md' }
+    'rollback.out.index' = @{ en = '  Entities checked' }
     'rollback.out.done' = @{ en = 'Rollback completed successfully for {0}.' }
 }
 
@@ -86,7 +86,7 @@ $workstationConfigPath = Get-SBHostConfigPath $brain
 $workstationConfig = Read-SBJson $workstationConfigPath @{}
 $operation = Enter-SBOperation $config $SessionId
 try {
-    # 1. Find the dossier in 01-projects or legacy 02-areas/products (case-sensitive comparisons; always reject ambiguity).
+    # 1. Find the dossier in repos or legacy repos (case-sensitive comparisons; always reject ambiguity).
     $entities = @(Get-SBParaEntities $brain @())
     $matchedEntities = @($entities | Where-Object {
         (Test-SBRepoDossier $_) -and (
@@ -110,7 +110,7 @@ try {
         if ($target.repository) { $resolvedIdentity = $target.repository }
     } else {
         $folderMatches = @()
-        foreach ($areasRelative in @('02-areas/products', '01-projects')) {
+        foreach ($areasRelative in @('repos', 'repos')) {
         $areasDir = Join-Path $brain $areasRelative
         if (Test-Path -LiteralPath $areasDir) {
             foreach ($dir in Get-ChildItem -LiteralPath $areasDir -Directory) {
@@ -272,7 +272,7 @@ try {
         }
     }
 
-    # 7. Regenerate para-index.json and PARA.md.
+    # 7. Re-read the entities (there are no index files).
     Update-SBParaIndex $config | Out-Null
     Write-Host (Get-SBMessage 'rollback.out.index') -ForegroundColor Green
 

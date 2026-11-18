@@ -27,9 +27,9 @@ try{
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../VERSION') -Destination (Join-Path $brain 'VERSION')
     Put 'config/shared.json' (ConvertTo-SBJson @{schemaVersion=1;allowedOwners=@('test');excludedDirectories=@('.git')})
     foreach($name in @('a','b')){
-        $d="01-projects/$name"
+        $d="repos/$name"
         Put "$d/repository.json" (ConvertTo-SBJson @{schemaVersion=1;identity="github.com/test/$name";tracker=@{location='dossier';path='tracker.json';schemaVersion=1}})
-        Put "$d/para.json" (ConvertTo-SBJson @{schemaVersion=1;id="dossier-$name";kind='project';title=$name;status='active'})
+        Put "$d/entity.json" (ConvertTo-SBJson @{schemaVersion=1;id="dossier-$name";kind='project';title=$name;status='active'})
         Put "$d/brief.md" "# $name"; Put "$d/context.md" "# Context`n"; Put "$d/memory.md" "# Memory`n"
         Put "$d/tracker.json" (ConvertTo-SBJson @{schemaVersion=1;repository="github.com/test/$name";tasks=@(@{id="T-$name-1";title='one'});history=@()})
     }
@@ -38,8 +38,8 @@ try{
     $para=Join-Path $brain 'scripts/para.ps1'
     function Invoke-Para([string[]]$Arguments){$out=& pwsh -NoProfile -File $para -ConfigPath $cfg @Arguments 2>&1|Out-String;@{code=$LASTEXITCODE;out=$out}}
     Assert-Gu ((Invoke-Para @('-BuildIndex')).code -eq 0) 'fixture index built'
-    $fileA=Join-Path $brain '01-projects/a/repository.json';$fileB=Join-Path $brain '01-projects/b/repository.json'
-    $hashA=Get-SBFileHash $fileA;$hashB=Get-SBFileHash $fileB;$tracker=Get-SBFileHash (Join-Path $brain '01-projects/a/tracker.json')
+    $fileA=Join-Path $brain 'repos/a/repository.json';$fileB=Join-Path $brain 'repos/b/repository.json'
+    $hashA=Get-SBFileHash $fileA;$hashB=Get-SBFileHash $fileB;$tracker=Get-SBFileHash (Join-Path $brain 'repos/a/tracker.json')
     $r=Invoke-Para @('-SetGitUpdate','-GitMode','commit-push-main','-GitBranch','main','-Only','github.com/test/a')
     Assert-Gu ($r.code -eq 0 -and $r.out -match '"apply":\s*false' -and (Get-SBFileHash $fileA) -ceq $hashA) ('preview writes nothing: '+$r.out)
     $r=Invoke-Para @('-SetGitUpdate','-GitMode','commit-push-main','-Only','github.com/test/a','-Apply')
@@ -50,12 +50,12 @@ try{
     Assert-Gu ($r.code -eq 0) ('apply with -Confirmed succeeds: '+$r.out)
     $record=Read-SBJson $fileA $null
     Assert-Gu ($record.gitUpdate.mode -ceq 'branch-pr' -and $record.gitUpdate.branch -ceq 'feature/x' -and $record.identity -ceq 'github.com/test/a') 'gitUpdate written, identity unchanged'
-    Assert-Gu ((Get-SBFileHash $fileB) -ceq $hashB -and (Get-SBFileHash (Join-Path $brain '01-projects/a/tracker.json')) -ceq $tracker) 'other dossier and tracker untouched'
+    Assert-Gu ((Get-SBFileHash $fileB) -ceq $hashB -and (Get-SBFileHash (Join-Path $brain 'repos/a/tracker.json')) -ceq $tracker) 'other dossier and tracker untouched'
     Assert-Gu ((Get-SBGitUpdate $record).confirmed) 'written preference reads back as confirmed'
     # projects.ps1 -List (#657): read-only project list with task counts and the effective preference.
     $checkoutA=Join-Path $root 'checkout-a';[IO.Directory]::CreateDirectory($checkoutA)|Out-Null
     $station=Read-SBJson $cfg @{}
-    $station.bindings=@(@{identity='github.com/test/a';path=$checkoutA;dossier='01-projects/a'},@{identity='github.com/test/b';path=(Join-Path $root 'missing-b');dossier='01-projects/b'})
+    $station.bindings=@(@{identity='github.com/test/a';path=$checkoutA;dossier='repos/a'},@{identity='github.com/test/b';path=(Join-Path $root 'missing-b');dossier='repos/b'})
     [IO.File]::WriteAllText($cfg,(ConvertTo-SBJson $station))
     $hashes=@($fileA,$fileB,$cfg)|ForEach-Object {Get-SBFileHash $_}
     $out=& pwsh -NoProfile -File (Join-Path $brain 'scripts/projects.ps1') -List -ConfigPath $cfg 2>&1|Out-String
@@ -68,7 +68,7 @@ try{
     # Workspaces (#662): listed as kind workspace without a tracker, with output scope and access; status lists them too.
     $wsDir=Join-Path $root 'ws-one';[IO.Directory]::CreateDirectory((Join-Path $wsDir 'out'))|Out-Null
     $station=Read-SBJson $cfg @{}
-    $station.workspaces=@(@{kind='workspace';identity='local:abc123';name='ws-one';path=$wsDir;dossier='02-areas/workspace-ws-one-abc';outputScope=@('out')})
+    $station.workspaces=@(@{kind='workspace';identity='local:abc123';name='ws-one';path=$wsDir;dossier='workstation/workspace-ws-one-abc';outputScope=@('out')})
     [IO.File]::WriteAllText($cfg,(ConvertTo-SBJson $station))
     $out=& pwsh -NoProfile -File (Join-Path $brain 'scripts/projects.ps1') -List -ConfigPath $cfg 2>&1|Out-String
     Assert-Gu ($LASTEXITCODE -eq 0) ('projects -List with a workspace succeeds: '+$out)

@@ -30,3 +30,12 @@ The tests the two tasks ask for (fallback behavior, trigger rules on fixtures) a
 ## Next step
 
 `scripts/approve-revision.ps1 -ProposalPath direttive/proposals/2026-11-14-revision-1-4 -Preview`, then explicit approval by the owner.
+
+## Layout paths (added 2026-11-18)
+
+The PARA folders are replaced by `repos/` (repository dossiers), `workstation/` (workstation areas) and `shared/` (public sources). There are no archive folders: an entity is inactive when its status is not `active`. Two path lines change:
+
+- `AGENTS.global_ide.md`, SecondBrain section: "Resolve the dossier by identity through repository.json under repos/; an entity whose status is not active stays inactive." and "never edit repos, workstation, shared, or .runtime by hand".
+- `AGENTS.repo.managed.md`: the dossier is `repos/<repo>/`.
+
+`scripts/para.ps1` keeps its name until its rename task. The proposal hash changes with these edits: run `-Preview` again before approval.

@@ -25,7 +25,7 @@ try{
     # Preview writes nothing.
     $r=Invoke-Ws @('-Register','-Path',$folder,'-OutputScope','exports')
     Assert-Ws ($r.code -eq 0 -and $r.out -match '"apply":\s*false' -and $r.out -match 'local:[a-f0-9]{32}') ('preview prints the plan: '+$r.out)
-    Assert-Ws (!(Test-Path -LiteralPath (Join-Path $brain '02-areas'))) 'preview creates no dossier'
+    Assert-Ws (!(Test-Path -LiteralPath (Join-Path $brain 'workstation'))) 'preview creates no dossier'
     Assert-Ws (!(Read-SBJson $cfg @{}).ContainsKey('workspaces')) 'preview leaves workstation.json unchanged'
 
     # Apply registers a workspace, a private dossier, and never touches the folder or Git.
@@ -38,7 +38,7 @@ try{
     Assert-Ws (!(Test-Path -LiteralPath (Join-Path $folder '.git'))) 'no .git created'
     Assert-Ws (@(Get-ChildItem -LiteralPath $folder -Recurse -Force).Count -eq 2 -and (Get-SBFileHash (Join-Path $folder 'a.txt')) -ceq $before) 'nothing written inside the workspace'
     $dossier=Join-Path $brain $entries[0].dossier
-    Assert-Ws ((Test-Path -LiteralPath (Join-Path $dossier 'para.json')) -and (Test-Path -LiteralPath (Join-Path $dossier 'brief.md')) -and (Test-Path -LiteralPath (Join-Path $dossier 'workspace.json'))) 'private dossier created'
+    Assert-Ws ((Test-Path -LiteralPath (Join-Path $dossier 'entity.json')) -and (Test-Path -LiteralPath (Join-Path $dossier 'brief.md')) -and (Test-Path -LiteralPath (Join-Path $dossier 'workspace.json'))) 'private dossier created'
     Assert-Ws (!(Test-Path -LiteralPath (Join-Path $dossier 'repository.json'))) 'dossier is not a repository dossier'
     Assert-Ws (@(Get-SBParaEntities $brain @('test')|Where-Object {$_.path -eq $entries[0].dossier}).Count -eq 1) 'dossier is a valid PARA entity'
 

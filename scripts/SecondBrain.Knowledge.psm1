@@ -897,7 +897,7 @@ function Invoke-SBDossierCompaction {
     $root=[IO.Path]::GetFullPath($BrainRoot);$dir=[IO.Path]::GetFullPath($Dossier)
     [void](Assert-SBPlainPath $dir)
     $relative=[IO.Path]::GetRelativePath($root,$dir).Replace('\','/');[void](Resolve-SBParaPath $root $relative)
-    if($relative.StartsWith('04-archives/',[StringComparison]::Ordinal)){throw (New-SBError 'knowledge.dossier.archived')}
+    if(@(Read-SBJson (Join-Path $dir 'entity.json') @{}).status -notin @($null,'active')){throw (New-SBError 'knowledge.dossier.archived')}
     $candidate=Read-SBJson (Assert-SBCentralDataPath $root $CandidatePath) $null
     if(!$candidate -or $candidate.schemaVersion -ne 1 -or $candidate.reviewed -ne $true -or !$candidate.reviewNote){throw (New-SBError 'knowledge.candidate.review')}
     $record=Read-SBJson (Join-Path $dir 'repository.json') $null
@@ -957,7 +957,7 @@ function Invoke-SBMechanicalTiering {
     $root=[IO.Path]::GetFullPath($BrainRoot);$dir=[IO.Path]::GetFullPath($Dossier)
     [void](Assert-SBPlainPath $dir)
     $relative=[IO.Path]::GetRelativePath($root,$dir).Replace('\','/');[void](Resolve-SBParaPath $root $relative)
-    if($relative.StartsWith('04-archives/',[StringComparison]::Ordinal)){throw (New-SBError 'knowledge.dossier.archived')}
+    if(@(Read-SBJson (Join-Path $dir 'entity.json') @{}).status -notin @($null,'active')){throw (New-SBError 'knowledge.dossier.archived')}
     $record=Read-SBJson (Join-Path $dir 'repository.json') $null
     if(!$record){throw (New-SBError 'knowledge.record.missing')}
     $tracker=Resolve-SBTracker -BrainRoot $root -Identity $record.identity -DossierPath $dir -CheckoutPath $CheckoutPath -AllowedOwners @()

@@ -157,7 +157,7 @@ function Read-SBPrivateAssets {
 
 function Get-SBPrivateAssetDossiers([string]$BrainRoot) {
     # Active repository dossiers that hold private assets (prompts/catalog.json or workflows/).
-    $projects=Join-Path $BrainRoot '01-projects'
+    $projects=Join-Path $BrainRoot 'repos'
     if(!(Test-Path -LiteralPath $projects -PathType Container)){return @()}
     @(Get-ChildItem -LiteralPath $projects -Directory|Where-Object {
         (Test-Path -LiteralPath (Join-Path $_.FullName 'repository.json') -PathType Leaf) -and

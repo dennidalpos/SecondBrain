@@ -11,7 +11,7 @@ function Write-CliFile([string]$Path,[string]$Text){[IO.Directory]::CreateDirect
 $fixture=Join-Path (Get-SBTestRoot) ('subagents-cli-'+[guid]::NewGuid().ToString('N'))
 $brain=Join-Path $fixture 'brain'
 $identity='github.com/test/subcli'
-$dossier=Join-Path $brain '02-areas/products/SubCli'
+$dossier=Join-Path $brain 'repos/SubCli'
 $agentDir=Join-Path $dossier 'subagents'
 $hostId=Get-SBHostId
 $runtime=Join-Path $brain ('.runtime/hosts/'+$hostId)
@@ -37,7 +37,7 @@ function Save-CliJson([string]$Name,$Value){$p=Join-Path $fixture $Name;Write-Cl
 Get-ChildItem -LiteralPath $PSScriptRoot -File|Copy-Item -Destination (Join-Path $brain 'scripts')
 Write-CliFile (Join-Path $brain 'VERSION') (Read-SBText (Join-Path $PSScriptRoot '../VERSION'))
 Write-CliFile (Join-Path $brain 'config/shared.json') (ConvertTo-SBJson @{schemaVersion=1;allowedOwners=@('test');excludedDirectories=@('.git')})
-Write-CliFile (Join-Path $dossier 'para.json') (ConvertTo-SBJson @{schemaVersion=1;id='subcli-area';kind='area';title='SubCli';status='active'})
+Write-CliFile (Join-Path $dossier 'entity.json') (ConvertTo-SBJson @{schemaVersion=1;id='subcli-area';kind='area';title='SubCli';status='active'})
 Write-CliFile (Join-Path $dossier 'repository.json') (ConvertTo-SBJson @{schemaVersion=1;identity=$identity;tracker=@{location='dossier';path='tracker.json';schemaVersion=1}})
 Write-CliFile (Join-Path $dossier 'context.md') "# Context`n"
 Write-CliFile (Join-Path $dossier 'memory.md') "# Memory`n"

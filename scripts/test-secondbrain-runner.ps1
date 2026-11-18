@@ -21,7 +21,7 @@ function Put-Runner([string]$Path,[string]$Text){[IO.Directory]::CreateDirectory
 function Get-RealTrackerHashes {
     $real=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
     $map=[ordered]@{}
-    foreach($para in @('01-projects','02-areas','03-resources','04-archives')){
+    foreach($para in @('repos','workstation','shared')){
         $dir=Join-Path $real $para
         if(Test-Path -LiteralPath $dir){Get-ChildItem -LiteralPath $dir -Recurse -File -Filter 'tracker.json'|Sort-Object FullName|ForEach-Object {$map[$_.FullName]=Get-SBFileHash $_.FullName}}
     }
@@ -30,7 +30,7 @@ function Get-RealTrackerHashes {
 $realBefore=Get-RealTrackerHashes
 $fixture=Join-Path (Get-SBTestRoot) ('runner-'+[guid]::NewGuid().ToString('N'))
 $brain=Join-Path $fixture 'brain'
-$dossier=Join-Path $brain '02-areas/products/Runner'
+$dossier=Join-Path $brain 'repos/Runner'
 $checkout=Join-Path $fixture 'checkout'
 $identity='github.com/test/runner'
 $hostId=Get-SBHostId
@@ -52,7 +52,7 @@ try {
     $approval=@{authorization='isolated runner fixture';files=@{}}
     foreach($file in @('AGENTS.global_ide.md','workstation.template.md')){$approval.files['direttive/'+$file]=Get-SBFileHash (Join-Path $brain ('direttive/'+$file))}
     Put-Runner (Join-Path $brain 'direttive/approved.json') (ConvertTo-SBJson $approval)
-    Put-Runner (Join-Path $dossier 'para.json') (ConvertTo-SBJson @{schemaVersion=1;id='runner-area';kind='area';title='Runner';status='active'})
+    Put-Runner (Join-Path $dossier 'entity.json') (ConvertTo-SBJson @{schemaVersion=1;id='runner-area';kind='area';title='Runner';status='active'})
     Put-Runner (Join-Path $dossier 'repository.json') (ConvertTo-SBJson @{schemaVersion=1;identity=$identity;tracker=@{location='dossier';path='tracker.json';schemaVersion=1}})
     Put-Runner (Join-Path $dossier 'context.md') "# Context`n"
     Put-Runner (Join-Path $dossier 'brief.md') '# Synthetic runner fixture'
@@ -87,10 +87,10 @@ try {
     if($LASTEXITCODE){throw 'fixture git'}
     # Second managed repository: its own dossier, tracker and checkout, to exercise the per-repository launcher and installer.
     $identity2='github.com/test/runner2'
-    $dossier2=Join-Path $brain '02-areas/products/Runner2'
+    $dossier2=Join-Path $brain 'repos/Runner2'
     $checkout2=Join-Path $fixture 'checkout2'
     $trackerPath2=Join-Path $dossier2 'tracker.json'
-    Put-Runner (Join-Path $dossier2 'para.json') (ConvertTo-SBJson @{schemaVersion=1;id='runner2-area';kind='area';title='Runner2';status='active'})
+    Put-Runner (Join-Path $dossier2 'entity.json') (ConvertTo-SBJson @{schemaVersion=1;id='runner2-area';kind='area';title='Runner2';status='active'})
     Put-Runner (Join-Path $dossier2 'repository.json') (ConvertTo-SBJson @{schemaVersion=1;identity=$identity2;tracker=@{location='dossier';path='tracker.json';schemaVersion=1}})
     Put-Runner (Join-Path $dossier2 'context.md') "# Context`n"
     Put-Runner (Join-Path $dossier2 'brief.md') '# Synthetic runner fixture 2'

@@ -25,9 +25,9 @@ $approval=@{authorization='synthetic test fixture';files=@{}}
 foreach($name in @('AGENTS.global_ide.md','workstation.template.md')){$approval.files['direttive/'+$name]=Get-SBFileHash (Join-Path $brain ('direttive/'+$name))}
 Put 'direttive/approved.json' (ConvertTo-SBJson $approval)
 # One authoritative dossier shared by both identities.
-$dossier='01-projects/shared'
+$dossier='repos/shared'
 Put "$dossier/repository.json" (ConvertTo-SBJson @{schemaVersion=1;identity=$identity;tracker=@{location='dossier';path='tracker.json';schemaVersion=1}})
-Put "$dossier/para.json" (ConvertTo-SBJson @{schemaVersion=1;id='dossier-shared';kind='project';title='shared';status='active'})
+Put "$dossier/entity.json" (ConvertTo-SBJson @{schemaVersion=1;id='dossier-shared';kind='project';title='shared';status='active'})
 Put "$dossier/brief.md" '# shared'
 Put "$dossier/context.md" "# Contesto`nstato iniziale`n"
 Put "$dossier/memory.md" "# Memoria`n"

@@ -216,15 +216,15 @@ try {
     Assert-Quick (Test-SBProjectIsolation $noBrain) 'isolamento per progetto attivo per default'
     $rootsError=try{Invoke-SBHostDiscovery -BrainRoot $noBrain -Roots @();''}catch{$_.Exception.Message}
     Assert-Quick ($rootsError -match 'Radici obbligatorie|Roots required') 'discovery senza radici esplicite rifiutata'
-    # Repository dossier as a project in 01-projects (strict per-repository perimeter).
+    # Repository dossier as a project in repos (strict per-repository perimeter).
     $paraBrain=Join-Path ([IO.Path]::GetTempPath()) ('sb-para-'+[guid]::NewGuid().ToString('N'))
     try{
-        $dossier=Join-Path $paraBrain '01-projects/demo--aaaaaaaa';[void](New-Item -ItemType Directory -Force $dossier)
-        [IO.File]::WriteAllText((Join-Path $dossier 'para.json'),'{"schemaVersion":1,"id":"project-demo","kind":"project","title":"demo","status":"active"}')
+        $dossier=Join-Path $paraBrain 'repos/demo--aaaaaaaa';[void](New-Item -ItemType Directory -Force $dossier)
+        [IO.File]::WriteAllText((Join-Path $dossier 'entity.json'),'{"schemaVersion":1,"id":"project-demo","kind":"project","title":"demo","status":"active"}')
         [IO.File]::WriteAllText((Join-Path $dossier 'repository.json'),'{"schemaVersion":1,"identity":"github.com/acme/demo"}')
         foreach($name in @('brief.md','context.md','memory.md')){[IO.File]::WriteAllText((Join-Path $dossier $name),"# $name`n")}
         $entities=@(Get-SBParaEntities $paraBrain @())
-        Assert-Quick ($entities.Count -eq 1 -and $entities[0].kind -eq 'project' -and $entities[0].repository -eq 'github.com/acme/demo') 'dossier repository come progetto in 01-projects'
+        Assert-Quick ($entities.Count -eq 1 -and $entities[0].kind -eq 'project' -and $entities[0].repository -eq 'github.com/acme/demo') 'dossier repository come progetto in repos'
         Assert-Quick (Test-SBRepoDossier $entities[0]) 'predicato dossier repository per kind=project con repository'
         Assert-Quick (!(Test-SBRepoDossier @{kind='project';repository=''}) -and (Test-SBRepoDossier @{kind='area'})) 'progetto a tempo non e dossier repository, area legacy si'
     }finally{if(Test-Path -LiteralPath $paraBrain){Remove-Item -LiteralPath $paraBrain -Recurse -Force}}

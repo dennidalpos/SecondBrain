@@ -733,8 +733,7 @@ function Get-SBWorkflowContext {
     $brain=$Config.brainRoot
     $bindings=if($Config.ContainsKey('bindings')){$Config.bindings}else{@()}
     $entities=@(Get-SBParaEntities $brain $Config.allowedOwners)
-    $index=Read-SBJson (Join-Path $brain 'para-index.json') $null
-    if(!$index -or $index.schemaVersion -ne 1){throw (New-SBError 'prompts.para.invalid')}
+    $index=@{schemaVersion=1;entities=$entities}
     $map=@{}
     if($CheckoutMapPath){Assert-SBPlainPath ([IO.Path]::GetFullPath($CheckoutMapPath));$map=Read-SBJson $CheckoutMapPath $null;if($map -isnot [Collections.IDictionary]){throw (New-SBError 'prompts.checkoutmap.invalid')}}
     $project=$null; $current=$null

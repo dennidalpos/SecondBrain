@@ -1,7 +1,7 @@
 #requires -Version 7.5
 <#
 .SYNOPSIS
-03-resources: layout check, control files and indexes, and sync of the authoritative-source registry.
+shared: layout check, control files and indexes, and sync of the authoritative-source registry.
 .DESCRIPTION
 Check (default) is read-only: layout, CONTROL.json drift, INDEX.md drift. BuildIndex rewrites CONTROL.json and INDEX.md
 for every resource folder. Sync probes the registry, collects new candidate versions (never accepting them, never

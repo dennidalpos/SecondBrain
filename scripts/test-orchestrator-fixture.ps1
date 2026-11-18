@@ -14,7 +14,7 @@ $real=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $brain=Join-Path $Root 'brain'
 $checkout=Join-Path $Root 'checkout'
 $identity='github.com/test/orchestrator-e2e'
-$dossier=Join-Path $brain '01-projects/OrchestratorE2E'
+$dossier=Join-Path $brain 'repos/OrchestratorE2E'
 $hostId=Get-SBHostId
 $runtime=Join-Path $brain ('.runtime/hosts/'+$hostId)
 $configPath=Join-Path $runtime 'workstation.json'
@@ -28,7 +28,7 @@ Put (Join-Path $brain 'config/shared.json') (ConvertTo-SBJson @{schemaVersion=1;
 [IO.Directory]::CreateDirectory((Join-Path $brain 'direttive'))|Out-Null
 foreach($f in @(Get-ChildItem -LiteralPath (Join-Path $real 'direttive') -File)){Copy-Item -LiteralPath $f.FullName -Destination (Join-Path $brain ('direttive/'+$f.Name)) -Force}
 Copy-Item -LiteralPath (Join-Path $real 'direttive/prompts') -Destination (Join-Path $brain 'direttive') -Recurse -Force
-Put (Join-Path $dossier 'para.json') (ConvertTo-SBJson @{schemaVersion=1;id='orchestrator-e2e';kind='project';title='Orchestrator E2E';status='active'})
+Put (Join-Path $dossier 'entity.json') (ConvertTo-SBJson @{schemaVersion=1;id='orchestrator-e2e';kind='project';title='Orchestrator E2E';status='active'})
 Put (Join-Path $dossier 'repository.json') (ConvertTo-SBJson @{schemaVersion=1;identity=$identity;tracker=@{location='dossier';path='tracker.json';schemaVersion=1}})
 Put (Join-Path $dossier 'context.md') "# Context`n"
 Put (Join-Path $dossier 'brief.md') '# Synthetic orchestrator fixture'
@@ -57,7 +57,7 @@ Put (Join-Path $dossier 'tracker.json') (ConvertTo-SBJson @{schemaVersion=1;repo
 & git -c core.longpaths=true -C $checkout remote add origin ('https://'+$identity+'.git')
 Put (Join-Path $checkout 'AGENTS.md') "# Synthetic product`n"
 Put (Join-Path $checkout 'README.md') "# Synthetic product`n"
-$cfg=@{schemaVersion=1;mode='portable';workstationId=$hostId;runtimeRoot=$runtime;backupRoot=(Join-Path $runtime 'backups');bindings=@(@{identity=$identity;path=$checkout;remoteIdentity=$identity;dossier='01-projects/OrchestratorE2E';status='managed';managedHash='absent';fingerprint=(Get-SBCheckoutAsset $checkout).fingerprint});ides=@()}
+$cfg=@{schemaVersion=1;mode='portable';workstationId=$hostId;runtimeRoot=$runtime;backupRoot=(Join-Path $runtime 'backups');bindings=@(@{identity=$identity;path=$checkout;remoteIdentity=$identity;dossier='repos/OrchestratorE2E';status='managed';managedHash='absent';fingerprint=(Get-SBCheckoutAsset $checkout).fingerprint});ides=@()}
 Put $configPath (ConvertTo-SBJson $cfg)
 # PARA index of the synthetic brain (prompts.ps1 -Context resolves the dossier through it).
 $indexOut=(& pwsh -NoProfile -File (Join-Path $brain 'scripts/para.ps1') -BuildIndex 2>&1|Out-String);if($LASTEXITCODE){throw ('PARA index of the fixture failed: '+$indexOut)}

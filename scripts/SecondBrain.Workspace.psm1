@@ -52,14 +52,14 @@ function New-SBWorkspacePlan([string]$BrainRoot,$WorkstationConfig,[string]$Path
     $hostId=Get-SBHostId
     $hash=Get-SBTextHash ('workspace|'+$hostId+'|'+$root.ToLowerInvariant())
     $identity='local:'+$hash.Substring(0,32).ToLowerInvariant()
-    $dossier='02-areas/workspace-'+($Name.ToLowerInvariant() -replace '[^a-z0-9-]','-')+'-'+$hash.Substring(0,8).ToLowerInvariant()
+    $dossier='workstation/workspace-'+($Name.ToLowerInvariant() -replace '[^a-z0-9-]','-')+'-'+$hash.Substring(0,8).ToLowerInvariant()
     [ordered]@{kind='workspace';identity=$identity;name=$Name;path=$root;dossier=$dossier;outputScope=@($scope);access=$(if($scope.Count){'scoped-write'}else{'read-only'})}
 }
 function Get-SBWorkspaceSeed($Plan) {
     $id='workspace-'+($Plan.identity -replace '^local:','').Substring(0,20)
     $access=if($Plan.outputScope.Count){'Writes are allowed only in: '+($Plan.outputScope -join ', ')+'.'}else{'Sessions start read-only: no output folder is permitted.'}
     @{
-        'para.json'=(ConvertTo-SBJson @{schemaVersion=1;id=$id;kind='area';title=('Workspace '+$Plan.name);status='active'})
+        'entity.json'=(ConvertTo-SBJson @{schemaVersion=1;id=$id;kind='area';title=('Workspace '+$Plan.name);status='active'})
         'workspace.json'=(ConvertTo-SBJson @{schemaVersion=1;kind='workspace';identity=$Plan.identity;name=$Plan.name;outputScope=@($Plan.outputScope);access=$Plan.access})
         'brief.md'=("# Workspace "+$Plan.name+"`n`nPersonal workspace without Git. "+$access+"`nSecondBrain state stays outside the workspace folder.`n")
     }

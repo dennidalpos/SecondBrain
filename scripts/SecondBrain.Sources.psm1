@@ -4,6 +4,7 @@ $ErrorActionPreference='Stop'
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Access.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Para.psm1')
 Add-SBMessages @{
     'sources.reason.http' = @{ en = 'HTTP {0} response could not be verified' }
     'sources.reason.access-challenge' = @{ en = 'Source access requires a challenge' }
@@ -83,14 +84,13 @@ function Get-SBSourceChild([string]$Root,[string]$Relative) {
     $full
 }
 function Resolve-SBSourceRegistry([string]$BrainRoot) {
-    $index=Read-SBJson (Join-Path $BrainRoot 'para-index.json') $null
-    if(!$index -or $index.schemaVersion -ne 1){throw (New-SBError 'sources.index.invalid')}
+    $index=@{schemaVersion=1;entities=@(Get-SBParaEntities $BrainRoot @())}
     $items=@($index.entities|Where-Object id -eq 'resource-authoritative-sources')
     if($items.Count -ne 1 -or $items[0].kind -ne 'resource'){throw (New-SBError 'sources.resource.unresolved')}
     $root=Get-SBSourceChild $BrainRoot $items[0].path
-    $meta=Read-SBJson (Join-Path $root 'para.json') $null
+    $meta=Read-SBJson (Join-Path $root 'entity.json') $null
     if(!$meta -or $meta.id -ne $items[0].id -or $meta.kind -ne 'resource' -or $meta.schemaVersion -ne 1){throw (New-SBError 'sources.resource.metadata')}
-    @{root=$root;archived=([bool]$items[0].archived -or $items[0].path.StartsWith('04-archives/',[StringComparison]::Ordinal) -or $meta.status -ne 'active');relativePath=$items[0].path}
+    @{root=$root;archived=([bool]$items[0].archived -or $meta.status -ne 'active');relativePath=$items[0].path}
 }
 function Read-SBSourceRegistry([string]$BrainRoot) {
     $resolved=Resolve-SBSourceRegistry $BrainRoot
@@ -429,7 +429,7 @@ function Get-SBSourceChecks($Registry,$Config,[switch]$IncludeDossiers) {
         if((Get-SBFileHash (Join-Path $Registry.root $view.name)) -cne (Get-SBTextHash $view.text)){$issues.Add(@{kind='index-drift';path=$view.name})}
     }
     if($IncludeDossiers){
-        $index=Read-SBJson (Join-Path $Registry.brainRoot 'para-index.json') $null
+        $index=@{schemaVersion=1;entities=@(Get-SBParaEntities $Registry.brainRoot @())}
         foreach($entity in $index.entities|Where-Object {(Test-SBRepoDossier $_) -and !$_.archived -and $_.status -eq 'active'}){
             $root=Get-SBSourceChild $Registry.brainRoot $entity.path
             if(!(Test-Path -LiteralPath (Join-Path $root 'repository.json'))){continue}

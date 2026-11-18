@@ -79,7 +79,7 @@ function Get-SBParaEntities([string]$BrainRoot,[string[]]$AllowedOwners,[switch]
 }
 function Read-SBParaEntitiesFromDisk([string]$BrainRoot,[string[]]$AllowedOwners) {
     $items=[Collections.Generic.List[object]]::new();$ids=@{};$repositories=@{}
-    foreach($root in @('01-projects','02-areas','03-resources','04-archives')) {
+    foreach($root in @('repos','workstation','shared')) {
         $path=Resolve-SBParaPath $BrainRoot $root
         if(!(Test-Path -LiteralPath $path)){continue}
         $queue=[Collections.Generic.Queue[string]]::new();$queue.Enqueue($path)
@@ -89,7 +89,7 @@ function Read-SBParaEntitiesFromDisk([string]$BrainRoot,[string[]]$AllowedOwners
                 if($child.Attributes -band [IO.FileAttributes]::ReparsePoint){throw (New-SBError 'para.reparse.knowledge')}
                 if($child.Name -ne 'snapshots'){$queue.Enqueue($child.FullName)}
             }
-            $metadata=Join-Path $dir 'para.json'
+            $metadata=Join-Path $dir 'entity.json'
             if(!(Test-Path -LiteralPath $metadata)){continue}
             Assert-SBPlainPath $metadata
             $m=Read-SBJson $metadata $null
@@ -99,13 +99,15 @@ function Read-SBParaEntitiesFromDisk([string]$BrainRoot,[string[]]$AllowedOwners
             if($m.status -notin $statuses[$m.kind]){throw (New-SBError 'para.status.invalid')}
             if($ids.ContainsKey($m.id)){throw (New-SBError 'para.id.duplicate' @($m.id))};$ids[$m.id]=$true
             $relative=[IO.Path]::GetRelativePath($BrainRoot,$dir).Replace('\','/')
-            $expected=@{project='01-projects/';area='02-areas/';resource='03-resources/'}[$m.kind]
-            $archive=@{project='projects';area='areas';resource='resources'}[$m.kind]
-            $archived=$relative.StartsWith('04-archives/',[StringComparison]::Ordinal)
-            if(!$relative.StartsWith($expected,[StringComparison]::Ordinal) -and !$relative.StartsWith("04-archives/$archive/",[StringComparison]::Ordinal)){throw (New-SBError 'para.category.diverged')}
+            $expected=@{project='repos/';area='workstation/';resource='shared/'}[$m.kind]
+            # No archive folders: an entity is archived when its status is not active (completed, cancelled or retired).
+            $archived=($m.status -ne 'active')
             if(!(Test-Path -LiteralPath (Join-Path $dir 'brief.md') -PathType Leaf)){throw (New-SBError 'para.brief.missing' @($relative))}
             Assert-SBPlainPath (Join-Path $dir 'brief.md')
             $repo=Read-SBJson (Join-Path $dir 'repository.json') $null
+            # Repository dossiers live in repos/ whatever their kind; other entities follow their kind.
+            if($repo -and $repo.ContainsKey('identity')){$expected='repos/'}
+            if(!$relative.StartsWith($expected,[StringComparison]::Ordinal)){throw (New-SBError 'para.category.diverged')}
             # A project with repository.json is a repository dossier (strict per-repository perimeter): no areas or trackers links.
             $isRepoProject=($m.kind -eq 'project' -and $repo -and $repo.ContainsKey('identity'))
             if($m.kind -eq 'project' -and !$isRepoProject){
@@ -117,7 +119,7 @@ function Read-SBParaEntitiesFromDisk([string]$BrainRoot,[string[]]$AllowedOwners
                     }else{[void](Resolve-SBParaPath $dir $tracker.path)}
                 }
             }
-            # An area with repository.json is a legacy repository dossier; an area without it is a plain ongoing responsibility (02-areas/<id>).
+            # An area with repository.json is a legacy repository dossier; an area without it is a plain ongoing responsibility (workstation/<id>).
             if(($m.kind -eq 'area' -and $repo) -or $isRepoProject){
                 if(!$repo -or !(Test-SBRepositoryIdentity $repo.identity $AllowedOwners)){throw (New-SBError 'para.area.identity')}
                 if($repositories.ContainsKey($repo.identity)){throw (New-SBError 'para.area.repoduplicate')};$repositories[$repo.identity]=$true
@@ -159,16 +161,8 @@ function Get-SBParaIndex([string]$BrainRoot,[string[]]$AllowedOwners) {
 }
 
 function Update-SBParaIndex($Config,[switch]$Check) {
-    $index=Get-SBParaIndex $Config.brainRoot $Config.allowedOwners
-    foreach($pair in @(@('para-index.json','json'),@('PARA.md','markdown'))){
-        $path=Join-Path $Config.brainRoot $pair[0];$text=$index[$pair[1]]
-        $hash=Get-SBFileHash $path
-        if($hash -ne (Get-SBTextHash $text)){
-            if($Check){throw (New-SBError 'para.index.stale')}
-            Write-SBFile $path ([Text.Encoding]::UTF8.GetBytes($text)) $hash $Config.backupRoot -Recoverable|Out-Null
-        }
-    }
-    $index
+    # No index files any more (para-index.json and PARA.md are gone): the entity list is read from the folders. Kept so callers stay valid.
+    Get-SBParaIndex $Config.brainRoot $Config.allowedOwners
 }
 
 # File-level journal: every old payload is verified before the first write. Recovery
@@ -313,7 +307,7 @@ function Remove-SBParaEmptyAncestors([string]$Path,[string]$BrainRoot) {
     $boundary=$root+[IO.Path]::DirectorySeparatorChar
     $dir=Split-Path ([IO.Path]::GetFullPath($Path)) -Parent
     while($dir -and $dir.StartsWith($boundary,[StringComparison]::OrdinalIgnoreCase)){
-        # Never remove the brain root or its first-level folders (01-projects, 02-areas, ...).
+        # Never remove the brain root or its first-level folders (repos, workstation, ...).
         if((Split-Path $dir -Parent).TrimEnd('\','/') -ieq $root){break}
         if(!(Test-Path -LiteralPath $dir -PathType Container)){$dir=Split-Path $dir -Parent;continue}
         Assert-SBPlainPath $dir

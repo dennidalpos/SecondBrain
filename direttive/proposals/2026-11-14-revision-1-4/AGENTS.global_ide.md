@@ -23,9 +23,9 @@ Revision 1.4 — 2026-11-14. These principles apply across projects. Project cho
 
 ## SecondBrain
 
-- Resolve the dossier by identity through PARA and repository.json; archived entities stay inactive. PARA entities change only through scripts/para.ps1 and its `sb prompt` procedure.
+- Resolve the dossier by identity through repository.json under repos/; an entity whose status is not active stays inactive. Entities change only through scripts/para.ps1 and its `sb prompt` procedure.
 - First load: scripts/knowledge.ps1 -Startup or MCP get_startup_context (slim, 25,000 characters). Request further detail only when the task needs it.
-- Write to SecondBrain only through its scripts or MCP write tools; never edit 01-projects, 02-areas, 03-resources, 04-archives, or .runtime by hand. Product builds, caches, and evidence stay in the product's Git-ignored folders; SecondBrain work folders come from scripts/work.ps1 -Init.
+- Write to SecondBrain only through its scripts or MCP write tools; never edit repos, workstation, shared, or .runtime by hand. Product builds, caches, and evidence stay in the product's Git-ignored folders; SecondBrain work folders come from scripts/work.ps1 -Init.
 - Procedures load on request from `sb` commands (sb activate, sb check, sb compact, sb stop).
 - Prompt cards keep an immutable `pmt-` ID; their codes are display keys, renamed only with a catalog version and an alias and never reused. Code, directives, workflows, and tasks refer to cards by ID, role, or `sb` command, never by code.
 

@@ -17,7 +17,7 @@ function Assert-Reconcile($Value,[string]$Message){if(!$Value){throw ('FAIL RECO
 function Write-ReconcileFile([string]$Path,[string]$Text){[IO.Directory]::CreateDirectory((Split-Path $Path))|Out-Null;[IO.File]::WriteAllText($Path,$Text,[Text.UTF8Encoding]::new($false))}
 $fixture=Join-Path (Get-SBTestRoot) ('reconcile-'+[guid]::NewGuid().ToString('N'))
 $brain=Join-Path $fixture 'brain'
-$dossier=Join-Path $brain '02-areas/products/Reconcile'
+$dossier=Join-Path $brain 'repos/Reconcile'
 $checkout=Join-Path $fixture 'checkout'
 $identity='github.com/test/reconcile'
 $hostId=Get-SBHostId
@@ -55,7 +55,7 @@ try {
     $approval=@{authorization='isolated reconcile fixture';files=@{}}
     foreach($file in @('AGENTS.global_ide.md','workstation.template.md')){$approval.files['direttive/'+$file]=Get-SBFileHash (Join-Path $brain ('direttive/'+$file))}
     Write-ReconcileFile (Join-Path $brain 'direttive/approved.json') (ConvertTo-SBJson $approval)
-    Write-ReconcileFile (Join-Path $dossier 'para.json') (ConvertTo-SBJson @{schemaVersion=1;id='reconcile-area';kind='area';title='Reconcile';status='active'})
+    Write-ReconcileFile (Join-Path $dossier 'entity.json') (ConvertTo-SBJson @{schemaVersion=1;id='reconcile-area';kind='area';title='Reconcile';status='active'})
     Write-ReconcileFile (Join-Path $dossier 'repository.json') (ConvertTo-SBJson @{schemaVersion=1;identity=$identity;tracker=@{location='dossier';path='tracker.json';schemaVersion=1}})
     Write-ReconcileFile (Join-Path $dossier 'context.md') "# Context`n"
     Write-ReconcileFile (Join-Path $dossier 'brief.md') '# Synthetic reconcile fixture'

@@ -41,7 +41,7 @@ function Assert-SBRunnerReadScope([switch]$Global,[string]$Repository,[string]$D
     }
 }
 function Test-SBProjectIsolation([string]$BrainRoot){
-    # Strict isolation per project (#475): reads stay in the working project; 03-resources is the only common area. There is no switch to lift it.
+    # Strict isolation per project (#475): reads stay in the working project; shared is the only common area. There is no switch to lift it.
     $true
 }
 function Assert-SBProjectIsolation([string]$BrainRoot){

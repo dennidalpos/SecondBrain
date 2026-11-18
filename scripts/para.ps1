@@ -16,7 +16,6 @@ param(
     [Parameter(Mandatory,ParameterSetName='New')][Parameter(Mandatory,ParameterSetName='Resource')][Parameter(Mandatory,ParameterSetName='Area')][string]$Objective,
     [Parameter(Mandatory,ParameterSetName='New')][string[]]$Acceptance,
     [Parameter(Mandatory,ParameterSetName='Status')][ValidateSet('active','completed','cancelled','retired')][string]$Status,
-    [Parameter(Mandatory,ParameterSetName='Migrate')][switch]$MigrateToProjects,
     [Parameter(Mandatory,ParameterSetName='Customer')][switch]$SetCustomer,
     [Parameter(ParameterSetName='Customer')][string]$Customer,
     [Parameter(ParameterSetName='Customer')][switch]$Clear,
@@ -24,8 +23,8 @@ param(
     [Parameter(Mandatory,ParameterSetName='GitUpdate')][ValidateSet('commit-push-main','branch-pr','none')][string]$GitMode,
     [Parameter(ParameterSetName='GitUpdate')][string]$GitBranch,
     [Parameter(ParameterSetName='GitUpdate')][switch]$Confirmed,
-    [Parameter(ParameterSetName='Migrate')][Parameter(ParameterSetName='Customer')][Parameter(ParameterSetName='GitUpdate')][switch]$Apply,
-    [Parameter(ParameterSetName='Migrate')][Parameter(Mandatory,ParameterSetName='Customer')][Parameter(Mandatory,ParameterSetName='GitUpdate')][string[]]$Only,
+    [Parameter(ParameterSetName='Customer')][Parameter(ParameterSetName='GitUpdate')][switch]$Apply,
+    [Parameter(Mandatory,ParameterSetName='Customer')][Parameter(Mandatory,ParameterSetName='GitUpdate')][string[]]$Only,
     [Parameter(Mandatory,ParameterSetName='Archive')][switch]$Archive,
     [Parameter(Mandatory,ParameterSetName='Restore')][switch]$Restore,
     [Parameter(Mandatory,ParameterSetName='Archive')][Parameter(Mandatory,ParameterSetName='Restore')][Parameter(Mandatory,ParameterSetName='Status')][string]$EntityId
@@ -54,8 +53,8 @@ Add-SBMessages @{
     'paracli.entity.activealready' = @{ en = 'Entity already active' }
     'paracli.archive.blocked' = @{ en = 'Status or active Projects prevent archiving' }
     'paracli.destination.exists' = @{ en = 'Destination already exists' }
-    'paracli.migrate.plan' = @{ en = 'Migration preview ({0} dossiers): rerun with -Apply to move them to 01-projects' }
-    'paracli.migrate.done' = @{ en = 'Migrated {0} dossiers to 01-projects' }
+    'paracli.migrate.plan' = @{ en = 'Migration preview ({0} dossiers): rerun with -Apply to move them to repos' }
+    'paracli.migrate.done' = @{ en = 'Migrated {0} dossiers to repos' }
     'paracli.migrate.dirty' = @{ en = 'Dossier cannot be migrated ({0}): {1}' }
     'paracli.customer.required' = @{ en = 'Provide -Customer with a valid name (single line, at most 120 characters) or -Clear' }
     'paracli.customer.none' = @{ en = 'No repository dossier matches -Only' }
@@ -71,7 +70,7 @@ $config=Read-SBConfiguration $ConfigPath
 if(!$BackupRoot){$BackupRoot=$config.backupRoot}
 if($config.ContainsKey('mode') -and $config.mode -eq 'portable'){$BackupRoot=Assert-SBCentralDataPath $config.brainRoot $BackupRoot}
 if((Read-SBJson (Join-Path $config.brainRoot 'config/shared.json') @{}).schemaVersion -ne 1){throw (New-SBError 'paracli.policy.invalid')}
-$writing=$BuildIndex -or $NewProject -or $NewResource -or $NewArea -or $SetStatus -or $Archive -or $Restore -or ($MigrateToProjects -and $Apply) -or ($SetCustomer -and $Apply) -or ($SetGitUpdate -and $Apply)
+$writing=$BuildIndex -or $NewProject -or $NewResource -or $NewArea -or $SetStatus -or $Archive -or $Restore -or ($SetCustomer -and $Apply) -or ($SetGitUpdate -and $Apply)
 $lock=Enter-SBOperation $config $SessionId -ReadOnly:(!$writing)
 try {
     $index=Get-SBParaIndex $config.brainRoot $config.allowedOwners
@@ -79,93 +78,40 @@ try {
         if(!$Title.Trim() -or $Title -match '[\r\n]' -or !$Objective.Trim() -or !$Acceptance.Count -or @($Acceptance|Where-Object {![string]$_ -or !([string]$_).Trim()}).Count){throw (New-SBError 'paracli.project.fields')}
         if(@($index.entities|Where-Object id -eq $Id).Count){throw (New-SBError 'paracli.id.present')}
         foreach($area in $Areas){if(!@($index.entities|Where-Object {$_.id -eq $area -and (Test-SBRepoDossier $_) -and !$_.archived -and $_.status -eq 'active'}).Count){throw (New-SBError 'paracli.area.unknown')}}
-        $dir=Resolve-SBParaPath $config.brainRoot ('01-projects/'+$Id)
+        $dir=Resolve-SBParaPath $config.brainRoot ('repos/'+$Id)
         if(Test-Path -LiteralPath $dir){throw (New-SBError 'paracli.project.folder')}
         $meta=New-SBParaMetadata $Id 'project' $Title;$meta.areas=@($Areas|Sort-Object -Unique);$meta.trackers=@()
         $brief="# $Title`n`n## Obiettivo`n`n$Objective`n`n## Criteri di completamento`n`n"+(($Acceptance|ForEach-Object {'- '+$_}) -join "`n")+"`n"
-        $ops=@(@{path=(Join-Path $dir 'para.json');expected='absent';bytes=[Text.Encoding]::UTF8.GetBytes((ConvertTo-SBJson $meta))},@{path=(Join-Path $dir 'brief.md');expected='absent';bytes=[Text.Encoding]::UTF8.GetBytes($brief)})
+        $ops=@(@{path=(Join-Path $dir 'entity.json');expected='absent';bytes=[Text.Encoding]::UTF8.GetBytes((ConvertTo-SBJson $meta))},@{path=(Join-Path $dir 'brief.md');expected='absent';bytes=[Text.Encoding]::UTF8.GetBytes($brief)})
         Invoke-SBParaTransaction $ops $BackupRoot $config.brainRoot
     }elseif($NewResource){
         if(!$Title.Trim() -or $Title -match '[\r\n]' -or !$Objective.Trim()){throw (New-SBError 'paracli.resource.fields')}
         if(@($index.entities|Where-Object id -eq $Id).Count){throw (New-SBError 'paracli.id.present')}
-        $dir=Resolve-SBParaPath $config.brainRoot ('03-resources/'+$Id)
+        $dir=Resolve-SBParaPath $config.brainRoot ('shared/'+$Id)
         if(Test-Path -LiteralPath $dir){throw (New-SBError 'paracli.resource.folder')}
         $meta=New-SBParaMetadata $Id 'resource' $Title
         $brief="# $Title`n`n## Obiettivo`n`n$Objective`n"
-        $ops=@(@{path=(Join-Path $dir 'para.json');expected='absent';bytes=[Text.Encoding]::UTF8.GetBytes((ConvertTo-SBJson $meta))},@{path=(Join-Path $dir 'brief.md');expected='absent';bytes=[Text.Encoding]::UTF8.GetBytes($brief)})
+        $ops=@(@{path=(Join-Path $dir 'entity.json');expected='absent';bytes=[Text.Encoding]::UTF8.GetBytes((ConvertTo-SBJson $meta))},@{path=(Join-Path $dir 'brief.md');expected='absent';bytes=[Text.Encoding]::UTF8.GetBytes($brief)})
         Invoke-SBParaTransaction $ops $BackupRoot $config.brainRoot
     }elseif($NewArea){
-        # A PARA area is an ongoing responsibility without an end date (02-areas/<id>); repository dossiers stay in 01-projects.
+        # A PARA area is an ongoing responsibility without an end date (workstation/<id>); repository dossiers stay in repos.
         if(!$Title.Trim() -or $Title -match '[\r\n]' -or !$Objective.Trim()){throw (New-SBError 'paracli.resource.fields')}
         if(@($index.entities|Where-Object id -eq $Id).Count){throw (New-SBError 'paracli.id.present')}
-        $dir=Resolve-SBParaPath $config.brainRoot ('02-areas/'+$Id)
+        $dir=Resolve-SBParaPath $config.brainRoot ('workstation/'+$Id)
         if(Test-Path -LiteralPath $dir){throw (New-SBError 'paracli.resource.folder')}
         $meta=New-SBParaMetadata $Id 'area' $Title
         $brief="# $Title`n`n## Obiettivo`n`n$Objective`n"
-        $ops=@(@{path=(Join-Path $dir 'para.json');expected='absent';bytes=[Text.Encoding]::UTF8.GetBytes((ConvertTo-SBJson $meta))},@{path=(Join-Path $dir 'brief.md');expected='absent';bytes=[Text.Encoding]::UTF8.GetBytes($brief)})
+        $ops=@(@{path=(Join-Path $dir 'entity.json');expected='absent';bytes=[Text.Encoding]::UTF8.GetBytes((ConvertTo-SBJson $meta))},@{path=(Join-Path $dir 'brief.md');expected='absent';bytes=[Text.Encoding]::UTF8.GetBytes($brief)})
         Invoke-SBParaTransaction $ops $BackupRoot $config.brainRoot
     }elseif($SetStatus){
         $matches=@($index.entities|Where-Object id -eq $EntityId)
         if($matches.Count -ne 1){throw (New-SBError 'paracli.entity.unknown')};$item=$matches[0]
-        if($item.archived){throw (New-SBError 'paracli.entity.archived')}
         $allowed=@{project=@('active','completed','cancelled');area=@('active','retired');resource=@('active','retired')}[$item.kind]
         if($Status -notin $allowed){throw (New-SBError 'paracli.status.invalid' @($item.kind, ($allowed -join ', ')))}
         if($item.status -eq $Status){throw (New-SBError 'paracli.status.same')}
-        $metaPath=Join-Path (Resolve-SBParaPath $config.brainRoot $item.path) 'para.json'
+        $metaPath=Join-Path (Resolve-SBParaPath $config.brainRoot $item.path) 'entity.json'
         $m=Read-SBJson $metaPath $null;$m.status=$Status
         Invoke-SBParaTransaction @(,@{path=$metaPath;expected=(Get-SBFileHash $metaPath);bytes=[Text.Encoding]::UTF8.GetBytes((ConvertTo-SBJson $m))}) $BackupRoot $config.brainRoot
-    }elseif($MigrateToProjects){
-        # Repository dossiers move from 02-areas/products (kind area) to 01-projects (kind project): same id, same files, one transaction per dossier.
-        $candidates=@($index.entities|Where-Object {$_.kind -eq 'area' -and !$_.archived -and $_.repository -and (!$Only.Count -or $_.id -in $Only -or $_.repository -in $Only)})
-        $plan=@(foreach($item in $candidates){
-            $leaf=($item.path -split '/')[-1]
-            $destination='01-projects/'+$leaf
-            if(Test-Path -LiteralPath (Resolve-SBParaPath $config.brainRoot $destination)){throw (New-SBError 'paracli.migrate.dirty' @($item.id,(Get-SBMessage 'paracli.destination.exists')))}
-            [ordered]@{id=$item.id;repository=$item.repository;from=$item.path;to=$destination}
-        })
-        if(!$Apply){
-            ConvertTo-SBJson @{apply=$false;dossiers=$plan}
-            (Get-SBMessage 'paracli.migrate.plan' @($plan.Count))
-        }else{
-            $moved=0
-            foreach($step in $plan){
-                $current=Get-SBParaIndex $config.brainRoot $config.allowedOwners
-                $item=@($current.entities|Where-Object id -eq $step.id)[0]
-                $source=Resolve-SBParaPath $config.brainRoot $item.path;$target=Resolve-SBParaPath $config.brainRoot $step.to
-                $mapping=@{$item.path=$step.to}
-                $trackerChanges=@{}
-                foreach($change in @(Get-SBTrackerRelocationData $config $item $mapping)){$trackerChanges[$change.path]=$change}
-                foreach($child in Get-ChildItem -LiteralPath $source -Directory -Recurse -Force){Assert-SBPlainPath $child.FullName}
-                $ops=@()
-                foreach($file in Get-ChildItem -LiteralPath $source -Recurse -File -Force){
-                    Assert-SBPlainPath $file.FullName
-                    $relative=[IO.Path]::GetRelativePath($source,$file.FullName)
-                    $bytes=[IO.File]::ReadAllBytes($file.FullName)
-                    $sourceHash=Get-SBHash $bytes
-                    if($trackerChanges.ContainsKey($file.FullName)){
-                        $change=$trackerChanges[$file.FullName]
-                        if($sourceHash -ne $change.previousHash){throw (New-SBError 'paracli.tracker.changed')}
-                        $bytes=$change.bytes
-                    }
-                    if($relative -eq 'para.json'){
-                        $m=([Text.UTF8Encoding]::new($false,$true)).GetString($bytes).TrimStart([char]0xFEFF)|ConvertFrom-Json -AsHashtable -DateKind String
-                        $m.kind='project';if($m.status -eq 'retired'){$m.status='completed'}
-                        $bytes=[Text.Encoding]::UTF8.GetBytes((ConvertTo-SBJson $m))
-                    }
-                    $ops+=@{path=(Join-Path $target $relative);expected='absent';bytes=$bytes}
-                    $ops+=@{path=$file.FullName;expected=$sourceHash;bytes=$null}
-                }
-                foreach($folder in @('specs','material','data')){
-                    if(!(Test-Path -LiteralPath (Join-Path $source $folder))){$ops+=@{path=(Join-Path $target "$folder/README.md");expected='absent';bytes=[Text.Encoding]::UTF8.GetBytes("# $folder`n")}}
-                }
-                $ops+=@(Get-SBParaReferenceOperations $config $mapping)
-                $ops+=@(Get-SBTrackerRelocationOperations $config $mapping $trackerChanges)
-                Invoke-SBParaTransaction $ops $BackupRoot $config.brainRoot @(Get-SBParaRuntimePaths $config)
-                Remove-SBParaEmptyTree $source $config.brainRoot
-                $moved++
-            }
-            (Get-SBMessage 'paracli.migrate.done' @($moved))
-        }
     }elseif($SetCustomer){
         # Customer grouping: only the "customer" field of repository.json changes (PARA id, repository identity, tracker and folder stay as they are).
         # Preview by default; -Apply writes every selected dossier in one transaction and verifies the identifiers afterwards.
@@ -180,7 +126,7 @@ try {
                 $trackerPath=if($record.ContainsKey('tracker') -and $record.tracker.location -eq 'dossier' -and $record.tracker.path){Join-Path $dir ([string]$record.tracker.path)}else{''}
                 $tracker=if($trackerPath -and (Test-Path -LiteralPath $trackerPath -PathType Leaf)){Read-SBJson $trackerPath @{}}else{@{}}
                 $ids=if($tracker.ContainsKey('tasks')){@($tracker.tasks|ForEach-Object {[string]$_.id}|Sort-Object)}else{@()}
-                [ordered]@{id=$_.id;repository=$_.repository;path=$_.path;paraHash=(Get-SBFileHash (Join-Path $dir 'para.json'));trackerHash=$(if($trackerPath){Get-SBFileHash $trackerPath}else{''});taskIds=($ids -join ',')}
+                [ordered]@{id=$_.id;repository=$_.repository;path=$_.path;paraHash=(Get-SBFileHash (Join-Path $dir 'entity.json'));trackerHash=$(if($trackerPath){Get-SBFileHash $trackerPath}else{''});taskIds=($ids -join ',')}
             })
         }
         # With -File an array is passed as one string: accept comma-separated values too.
@@ -241,42 +187,15 @@ try {
             (Get-SBMessage 'paracli.gitupdate.done' @($plan.Count))
         }
     }elseif($Archive -or $Restore){
+        # No archive folders: archiving sets the terminal status of the entity (completed or retired), restoring sets it back to active. Nothing moves.
         $matches=@($index.entities|Where-Object id -eq $EntityId)
         if($matches.Count -ne 1){throw (New-SBError 'paracli.entity.unknown')};$item=$matches[0]
         if($Archive -and $item.archived){throw (New-SBError 'paracli.entity.archivedalready')}
         if($Restore -and !$item.archived){throw (New-SBError 'paracli.entity.activealready')}
-        if($Archive -and !@($index.candidates|Where-Object id -eq $EntityId).Count){throw (New-SBError 'paracli.archive.blocked')}
-        $category=@{project='projects';area='areas';resource='resources'}[$item.kind]
-        $activeRoot=@{project='01-projects';area='02-areas/products';resource='03-resources'}[$item.kind]
-        $destination=$(if($Archive){'04-archives/'+$category+'/'+$item.id}else{$activeRoot+'/'+$item.id})
-        $source=Resolve-SBParaPath $config.brainRoot $item.path;$target=Resolve-SBParaPath $config.brainRoot $destination
-        if(Test-Path -LiteralPath $target){throw (New-SBError 'paracli.destination.exists')}
-        $mapping=@{$item.path=$destination}
-        $trackerChanges=@{}
-        foreach($change in @(Get-SBTrackerRelocationData $config $item $mapping)){$trackerChanges[$change.path]=$change}
-        foreach($child in Get-ChildItem -LiteralPath $source -Directory -Recurse -Force){Assert-SBPlainPath $child.FullName}
-        $ops=@()
-        foreach($file in Get-ChildItem -LiteralPath $source -Recurse -File -Force){
-            Assert-SBPlainPath $file.FullName
-            $relative=[IO.Path]::GetRelativePath($source,$file.FullName)
-            $bytes=[IO.File]::ReadAllBytes($file.FullName)
-            $sourceHash=Get-SBHash $bytes
-            if($trackerChanges.ContainsKey($file.FullName)){
-                $change=$trackerChanges[$file.FullName]
-                if($sourceHash -ne $change.previousHash){throw (New-SBError 'paracli.tracker.changed')}
-                $bytes=$change.bytes
-            }
-            if($Restore -and $relative -eq 'para.json'){
-                $m=([Text.UTF8Encoding]::new($false,$true)).GetString($bytes).TrimStart([char]0xFEFF)|ConvertFrom-Json -AsHashtable -DateKind String
-                $m.status='active';$bytes=[Text.Encoding]::UTF8.GetBytes((ConvertTo-SBJson $m))
-            }
-            $ops+=@{path=(Join-Path $target $relative);expected='absent';bytes=$bytes}
-            $ops+=@{path=$file.FullName;expected=$sourceHash;bytes=$null}
-        }
-        $ops+=@(Get-SBParaReferenceOperations $config $mapping)
-        $ops+=@(Get-SBTrackerRelocationOperations $config $mapping $trackerChanges)
-        Invoke-SBParaTransaction $ops $BackupRoot $config.brainRoot @(Get-SBParaRuntimePaths $config)
-        Remove-SBParaEmptyTree $source $config.brainRoot
+        $newStatus=$(if($Restore){'active'}elseif($item.kind -eq 'project'){'completed'}else{'retired'})
+        $metaPath=Join-Path (Resolve-SBParaPath $config.brainRoot $item.path) 'entity.json'
+        $m=Read-SBJson $metaPath $null;$m.status=$newStatus
+        Invoke-SBParaTransaction @(,@{path=$metaPath;expected=(Get-SBFileHash $metaPath);bytes=[Text.Encoding]::UTF8.GetBytes((ConvertTo-SBJson $m))}) $BackupRoot $config.brainRoot
     }
     if($writing){$index=Update-SBParaIndex $config}
     elseif(!$SuggestArchive){$index=Update-SBParaIndex $config -Check}

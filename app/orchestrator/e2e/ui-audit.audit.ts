@@ -57,7 +57,7 @@ async function launch(opts: { repo?: string; agentSeconds?: number } = {}): Prom
   return { proc, browser, page, exited };
 }
 async function closeApp(app: App) {
-  await app.page.evaluate(() => (window as unknown as { sbOrchestrator: { requestClose: () => void } }).sbOrchestrator.requestClose()).catch(() => {});
+  await app.page.evaluate(() => (window as unknown as { sbOrchestrator: { requestQuit: () => void } }).sbOrchestrator.requestQuit()).catch(() => {});
   const code = await Promise.race([app.exited, new Promise<"timeout">((r) => setTimeout(() => r("timeout"), 15_000))]);
   if (code === "timeout") app.proc.kill();
   await app.browser.close().catch(() => {});

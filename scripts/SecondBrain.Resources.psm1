@@ -6,13 +6,13 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Access.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Sources.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Add-SBMessages @{
-    'resources.root.missing' = @{ en = '03-resources folder missing' }
+    'resources.root.missing' = @{ en = 'shared folder missing' }
     'resources.sync.archived' = @{ en = 'Source registry archived: sync not performed' }
 }
 $script:ResourceControlName='CONTROL.json'
 $script:ResourceIndexName='INDEX.md'
 function Get-SBResourceFolders([string]$BrainRoot) {
-    $root=Join-Path $BrainRoot '03-resources'
+    $root=Join-Path $BrainRoot 'shared'
     if(!(Test-Path -LiteralPath $root)){throw (New-SBError 'resources.root.missing')}
     Assert-SBPlainPath $root
     @(Get-ChildItem -LiteralPath $root -Directory|Where-Object {!$_.Name.StartsWith('.',[StringComparison]::Ordinal)}|Sort-Object Name|ForEach-Object {Assert-SBPlainPath $_.FullName;$_.FullName})
@@ -32,7 +32,7 @@ function Get-SBResourceControl([string]$Folder) {
     @{schemaVersion=1;resource=(Split-Path $Folder -Leaf);fileCount=$files.Count;files=$files}
 }
 function Get-SBResourceIndex([string]$Folder,$Control) {
-    $meta=Read-SBJson (Join-Path $Folder 'para.json') $null
+    $meta=Read-SBJson (Join-Path $Folder 'entity.json') $null
     $title=if($meta -and $meta.ContainsKey('title') -and $meta.title){[string]$meta.title}else{Split-Path $Folder -Leaf}
     $groups=[ordered]@{}
     foreach($file in $Control.files){
@@ -48,8 +48,8 @@ function Get-SBResourceIndex([string]$Folder,$Control) {
 function Test-SBResourceLayout([string]$Folder) {
     $issues=@()
     $name=Split-Path $Folder -Leaf
-    foreach($required in @('para.json','brief.md')){if(!(Test-Path -LiteralPath (Join-Path $Folder $required))){$issues+=@{kind='layout-missing';resource=$name;path=$required}}}
-    $meta=Read-SBJson (Join-Path $Folder 'para.json') $null
+    foreach($required in @('entity.json','brief.md')){if(!(Test-Path -LiteralPath (Join-Path $Folder $required))){$issues+=@{kind='layout-missing';resource=$name;path=$required}}}
+    $meta=Read-SBJson (Join-Path $Folder 'entity.json') $null
     if($meta -and ($meta.kind -ne 'resource' -or $meta.id -cne ('resource-'+$name))){$issues+=@{kind='layout-identity';resource=$name}}
     $issues
 }

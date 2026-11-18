@@ -14,7 +14,7 @@ function Assert-Pending($Value,[string]$Message){if(!$Value){throw ('FAIL PENDIN
 function Put-Pending([string]$Path,[string]$Text){[IO.Directory]::CreateDirectory((Split-Path $Path))|Out-Null;[IO.File]::WriteAllText($Path,$Text,[Text.UTF8Encoding]::new($false))}
 $fixture=Join-Path (Get-SBTestRoot) ('pending-'+[guid]::NewGuid().ToString('N'))
 $brain=Join-Path $fixture 'brain'
-$dossier=Join-Path $brain '02-areas/products/Pending'
+$dossier=Join-Path $brain 'repos/Pending'
 $checkout=Join-Path $fixture 'checkout'
 $identity='github.com/test/pending'
 $hostId=Get-SBHostId
@@ -40,7 +40,7 @@ try {
     $approval=@{authorization='isolated pending fixture';files=@{}}
     foreach($file in @('AGENTS.global_ide.md','workstation.template.md')){$approval.files['direttive/'+$file]=Get-SBFileHash (Join-Path $brain ('direttive/'+$file))}
     Put-Pending (Join-Path $brain 'direttive/approved.json') (ConvertTo-SBJson $approval)
-    Put-Pending (Join-Path $dossier 'para.json') (ConvertTo-SBJson @{schemaVersion=1;id='pending-area';kind='area';title='Pending';status='active'})
+    Put-Pending (Join-Path $dossier 'entity.json') (ConvertTo-SBJson @{schemaVersion=1;id='pending-area';kind='area';title='Pending';status='active'})
     Put-Pending (Join-Path $dossier 'repository.json') (ConvertTo-SBJson @{schemaVersion=1;identity=$identity;tracker=@{location='dossier';path='tracker.json';schemaVersion=1}})
     Put-Pending (Join-Path $dossier 'context.md') "# Context`n"
     Put-Pending (Join-Path $dossier 'brief.md') '# Synthetic pending fixture'

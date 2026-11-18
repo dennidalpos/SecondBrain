@@ -15,7 +15,7 @@ $repo=Join-Path $root 'repo'
 $settings=Join-Path $root 'claude-settings.json'
 Set-Fixture $settings '{}'
 Set-Fixture (Join-Path $root '.runtime/trace/ws/2026-01-01.jsonl') ('{"secret":"must not be read"}'+"`n"+'{"secret":"x"}'+"`n")
-Set-Fixture (Join-Path $root '03-resources/authoritative-sources/entries/x/metadata.json') '{}'
+Set-Fixture (Join-Path $root 'shared/authoritative-sources/entries/x/metadata.json') '{}'
 $ides=@(@{name='Claude Code';adapter='claude-code';mcpConfigured=$false},@{name='VS Code';adapter='vscode';mcpConfigured=$true},@{name='Android Studio';adapter='android-studio';mcpConfigured=$false},@{name='Claude account instructions';adapter='manual';mcpConfigured=$false})
 $bindings=@(@{path=$repo;identity='github.com/example/repo'})
 $before=@(Get-ChildItem -LiteralPath $root -Recurse -File|ForEach-Object {$_.FullName+'|'+(Get-SBFileHash $_.FullName)})

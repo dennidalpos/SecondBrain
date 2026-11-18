@@ -13,12 +13,12 @@ function Set-Res([string]$Path,[string]$Text){[IO.Directory]::CreateDirectory((S
 $root=Join-Path (Get-SBTestRoot) ('secondbrain-resources-test-'+[guid]::NewGuid().ToString('N'))
 [IO.Directory]::CreateDirectory($root)|Out-Null
 foreach($name in @('source.schema.json','source-applicability.schema.json')){Set-Res (Join-Path $root ('config/'+$name)) (Read-SBText (Join-Path $PSScriptRoot ('../config/'+$name)))}
-$registryPath=Join-Path $root '03-resources/authoritative-sources'
-Set-Res (Join-Path $root 'para-index.json') (ConvertTo-SBJson @{schemaVersion=1;entities=@(@{id='resource-authoritative-sources';kind='resource';path='03-resources/authoritative-sources';archived=$false})})
-Set-Res (Join-Path $registryPath 'para.json') (ConvertTo-SBJson @{id='resource-authoritative-sources';kind='resource';schemaVersion=1;status='active';title='Fonti'})
+$registryPath=Join-Path $root 'shared/authoritative-sources'
+Set-Res (Join-Path $root 'para-index.json') (ConvertTo-SBJson @{schemaVersion=1;entities=@(@{id='resource-authoritative-sources';kind='resource';path='shared/authoritative-sources';archived=$false})})
+Set-Res (Join-Path $registryPath 'entity.json') (ConvertTo-SBJson @{id='resource-authoritative-sources';kind='resource';schemaVersion=1;status='active';title='Fonti'})
 Set-Res (Join-Path $registryPath 'brief.md') "brief`n"
 Set-Res (Join-Path $registryPath 'domains.json') (ConvertTo-SBJson @{schemaVersion=1;domains=@(@{id='privacy';title='Privacy'})})
-Set-Res (Join-Path $root '03-resources/notes/para.json') (ConvertTo-SBJson @{id='resource-notes';kind='resource';schemaVersion=1;status='active'})
+Set-Res (Join-Path $root 'shared/notes/entity.json') (ConvertTo-SBJson @{id='resource-notes';kind='resource';schemaVersion=1;status='active'})
 $config=@{brainRoot=$root;runtimeRoot=(Join-Path $root 'runtime');backupRoot=(Join-Path $root 'backup');configPath=(Join-Path $root '.runtime/hosts/fixture/workstation.json')}
 function New-Card([string]$Id,[string]$OfficialId,[string]$Kind,$Related){
     @{schemaVersion=1;id=$Id;title=$Id;kind=$Kind;issuer='Fixture';domains=@('privacy');jurisdictions=@('EU');language='it';officialId=$OfficialId;edition='v1';publicationDate=$null;rights=@{status='public-reusable';reference='https://example.com/license';notes='Fixture'};endpoints=@(@{id='canonical';url='https://example.com/'+$Id;format='html';role='canonical';allowedHosts=@('example.com');expectedText='Articolo'});versions=@();acceptedVersion=$null;relatedSources=@($Related);effectiveDates=@(@{provision='Entrata in vigore';date=$null;status='requires-verification';reference='Fixture'});notes=@()}

@@ -207,7 +207,7 @@ function Read-SBTrackerManifest($Config,[string]$Path) {
         $dossierRelative=[IO.Path]::GetRelativePath($dir,$operation.path).Replace('\','/')
         $dossierBoundary=$dir.TrimEnd('\','/')+[IO.Path]::DirectorySeparatorChar
         $inDossier=([IO.Path]::GetFullPath($operation.path)).StartsWith($dossierBoundary,[StringComparison]::OrdinalIgnoreCase) -and $dossierRelative -notmatch '(?:^|/)(?:history|snapshots)/' -and [IO.Path]::GetExtension($operation.path) -eq '.md'
-        $curated=$inDossier -or $relative -match '^(?:README\.md|docs/(?!.*(?:^|/)(?:history|snapshots)/).+\.md|(?:02-areas/products|01-projects)/SecondBrain/(?:context|memory|brief)\.md|(?:01-projects|04-archives/projects)/[^/]+/para\.json)$'
+        $curated=$inDossier -or $relative -match '^(?:README\.md|docs/(?!.*(?:^|/)(?:history|snapshots)/).+\.md|repos/SecondBrain/(?:context|memory|brief)\.md|(?:repos|04-archives/projects)/[^/]+/entity.json)$'
         if($operation.path -notin $explicit -and !$curated){throw (New-SBError 'trackerimport.operation.outside')}
         Assert-SBPlainPath $operation.path
     }
@@ -216,7 +216,7 @@ function Read-SBTrackerManifest($Config,[string]$Path) {
 
 function Get-SBTrackerReferenceChanges($Config,$Area,[string]$Original,[string]$Target) {
     $paths=@((Join-Path $Config.brainRoot 'README.md'))
-    foreach($root in @('docs','02-areas/products/SecondBrain','01-projects/SecondBrain',$Area.path)|Sort-Object -Unique){
+    foreach($root in @('docs','repos/SecondBrain','repos/SecondBrain',$Area.path)|Sort-Object -Unique){
         $dir=Join-Path $Config.brainRoot $root
         if(Test-Path -LiteralPath $dir){$paths+=@(Get-ChildItem -LiteralPath $dir -Recurse -File -Filter '*.md'|Where-Object {$_.FullName -notmatch '[\\/](history|snapshots)[\\/]'}|ForEach-Object FullName)}
     }
@@ -266,7 +266,7 @@ function Get-SBTrackerReferenceChanges($Config,$Area,[string]$Original,[string]$
                 $reference.path='tracker.json';[void]$reference.Remove('repository');$changed=$true
             }
         }
-        if($changed){@{path=(Join-Path $Config.brainRoot ($project.path+'/para.json'));bytes=[Text.Encoding]::UTF8.GetBytes((ConvertTo-SBJson $metadata))}}
+        if($changed){@{path=(Join-Path $Config.brainRoot ($project.path+'/entity.json'));bytes=[Text.Encoding]::UTF8.GetBytes((ConvertTo-SBJson $metadata))}}
     }
 }
 

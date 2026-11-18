@@ -10,7 +10,7 @@ $script:subChecks=0
 function Assert-Sub($Condition,[string]$Message){if(!$Condition){throw ('FAIL SUBAGENTS: '+$Message)};$script:subChecks++}
 function Reject-Sub([scriptblock]$Action,[string]$Message){$rejected=$false;try{& $Action|Out-Null}catch{$rejected=$true};Assert-Sub $rejected $Message}
 $root=Join-Path (Get-SBTestRoot) ('subagents-'+[guid]::NewGuid().ToString('N'))
-$brain=Join-Path $root 'brain';$dossier=Join-Path $brain '02-areas/one';$backups=Join-Path $brain '.runtime/backups';$out=Join-Path $brain '.runtime/export'
+$brain=Join-Path $root 'brain';$dossier=Join-Path $brain 'repos/one';$backups=Join-Path $brain '.runtime/backups';$out=Join-Path $brain '.runtime/export'
 [void][IO.Directory]::CreateDirectory($dossier)
 $repo='github.com/acme/one'
 function New-Def([string]$name,[string[]]$tools=@('get_task','search_knowledge'),[bool]$write=$false){
@@ -206,7 +206,7 @@ $realWrite=@($realCatalog.prompts|Where-Object {$_.mode -ceq 'write'})[0]
 Assert-Sub ((Resolve-SBSubagentCards (New-Def2 'a' @($realRead.id)) $realCatalog)[0].mode -ceq 'read') 'a real read card resolves against the public catalog'
 Reject-Sub { Resolve-SBSubagentCards (New-Def2 'a' @($realWrite.id)) $realCatalog } 'a real write card is rejected for a read-only agent'
 # Dossier reading, Resolve summary and export of schema 2 next to schema 1.
-$dossier2=Join-Path $brain '02-areas/two';$out2=Join-Path $brain '.runtime/export2'
+$dossier2=Join-Path $brain 'repos/two';$out2=Join-Path $brain '.runtime/export2'
 $dir2=Join-Path $dossier2 'subagents';[void][IO.Directory]::CreateDirectory($dir2)
 $v1=New-Def 'reviewer';$v2=New-Def2 'reviewer' @('analysis.task')
 [IO.File]::WriteAllText((Join-Path $dir2 'reviewer.json'),(ConvertTo-SBJson $v2))
@@ -250,7 +250,7 @@ Remove-Item (Join-Path $dir2 'deep.json')
 # Register: subagent jobs reference the parent session.
 $log=Join-Path $dossier 'history/activity/report.md'
 # Management operations (#622): create, edit, revise and retire with validation; the plan alone never writes.
-$dossier3=Join-Path $brain '02-areas/manage';[void][IO.Directory]::CreateDirectory($dossier3)
+$dossier3=Join-Path $brain 'repos/manage';[void][IO.Directory]::CreateDirectory($dossier3)
 $plan=Get-SBSubagentManagePlan -Dossier $dossier3 -Catalog $catalog -Action Create -Definition (New-Def2 'planner' @('analysis.task'))
 Assert-Sub ($plan.revision -eq 1 -and $plan.status -eq 'active' -and $plan.id -cmatch '^agt-[0-9a-f]{8}$' -and !(Test-Path -LiteralPath $plan.path)) 'create plan assigns revision 1 and writes nothing'
 $d=New-Def2 'planner';$d.Remove('id');$d.Remove('revision');$d.Remove('status')

@@ -75,7 +75,7 @@ async function launch(opts: { repo?: string; agentSeconds?: number; limitSeconds
 
 async function closeApp(app: App) {
   // The same close request as the title bar; without a running queue the window closes at once.
-  await app.page.evaluate(() => (window as unknown as { sbOrchestrator: { requestClose: () => void } }).sbOrchestrator.requestClose()).catch(() => {});
+  await app.page.evaluate(() => (window as unknown as { sbOrchestrator: { requestQuit: () => void } }).sbOrchestrator.requestQuit()).catch(() => {});
   const code = await Promise.race([app.exited, new Promise<"timeout">((r) => setTimeout(() => r("timeout"), 15_000))]);
   if (code === "timeout") app.proc.kill();
   await app.browser.close().catch(() => {});
@@ -295,7 +295,7 @@ test("a queue run is followed live, survives closing the window and is found aga
   await expect(page.locator("#run-counts")).toBeVisible();
   await expect(page.locator("#run-problems")).toBeHidden();
   // Closing asks what to do; "leave running" closes the window and keeps the detached runner going.
-  await page.evaluate(() => (window as unknown as { sbOrchestrator: { requestClose: () => void } }).sbOrchestrator.requestClose());
+  await page.evaluate(() => (window as unknown as { sbOrchestrator: { requestQuit: () => void } }).sbOrchestrator.requestQuit());
   await expect(page.locator("#close-dialog")).toBeVisible();
   await page.locator('#close-dialog button[data-close="leave"]').click();
   await Promise.race([app.exited, new Promise((r) => setTimeout(r, 15_000))]);

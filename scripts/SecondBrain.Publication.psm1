@@ -149,7 +149,7 @@ function Get-SBPublicationLinkFindings {
     $markdown=[regex]::Replace($markdown,'(?ms)^```.*?^```[^\r\n]*$','')
     $markdown=[regex]::Replace($markdown,'`[^`\r\n]*`','')
     # #478: stored source versions are verbatim third-party documents; their relative links point into the original publication, not into this repository.
-    $verbatimSource=($Relative -match '^03-resources/authoritative-sources/entries/[^/]+/(versions|evidence)/')
+    $verbatimSource=($Relative -match '^shared/authoritative-sources/entries/[^/]+/(versions|evidence)/')
     foreach($match in $(if($verbatimSource){@()}else{[regex]::Matches($markdown,'!?\[[^\]]*\]\(([^)\s]+)\)')})){
         $target=$match.Groups[1].Value
         if($target -match '^(?:[a-z][a-z0-9+.-]*:|#)' ){continue}

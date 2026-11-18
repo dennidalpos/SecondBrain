@@ -34,7 +34,7 @@ function Copy-SetupCatalog([string]$Root){
 }
 $fixture=Join-Path (Get-SBTestRoot) ('e-'+[guid]::NewGuid().ToString('N').Substring(0,6))
 $brain=Join-Path $fixture 'b';$repo=Join-Path $fixture 'r';$identity='github.com/test/essential'
-$dossier=Join-Path $brain '02-areas/products/Essential';$trackerPath=Join-Path $dossier 'tracker.json'
+$dossier=Join-Path $brain 'repos/Essential';$trackerPath=Join-Path $dossier 'tracker.json'
 foreach($path in @((Join-Path $brain 'scripts'),$repo)){[void][IO.Directory]::CreateDirectory($path)}
 Get-ChildItem -LiteralPath $PSScriptRoot -File|Where-Object {$_.Name -notlike 'test-*'}|Copy-Item -Destination (Join-Path $brain 'scripts')
 Put (Join-Path $brain 'VERSION') '1.0.0'
@@ -45,7 +45,7 @@ Put (Join-Path $brain 'direttive/workstation.template.md') '<!-- secondbrain:tra
 $approval=@{authorization='synthetic test fixture';files=@{}}
 foreach($name in @('AGENTS.global_ide.md','workstation.template.md')){$approval.files['direttive/'+$name]=Get-SBFileHash (Join-Path $brain ('direttive/'+$name))}
 Put (Join-Path $brain 'direttive/approved.json') (ConvertTo-SBJson $approval)
-Put (Join-Path $dossier 'para.json') (ConvertTo-SBJson @{schemaVersion=1;id='essential-area';kind='area';title='Essential';status='active'})
+Put (Join-Path $dossier 'entity.json') (ConvertTo-SBJson @{schemaVersion=1;id='essential-area';kind='area';title='Essential';status='active'})
 Put (Join-Path $dossier 'repository.json') (ConvertTo-SBJson @{schemaVersion=1;identity=$identity;tracker=@{location='dossier';path='tracker.json';schemaVersion=1}})
 Put (Join-Path $dossier 'context.md') "# Context`n`n## Stato corrente`nSynthetic current state.`n`n## Vincoli`nKeep bytes.`n`n## Problemi aperti`nT-1.`n`n## Prossimo passo`nT-1.`n"
 Put (Join-Path $dossier 'memory.md') "# Memory`n`n## Decisions`n- Decisione: preserve data — Motivo: synthetic test.`n`n## Events (storico)`nHistorical detail.`n"
@@ -53,11 +53,11 @@ Put (Join-Path $dossier 'brief.md') '# Synthetic'
 Put (Join-Path $dossier 'history/seed/report.md') 'Synthetic provenance'
 $tasks=@(foreach($seq in @(1,2)){$task=New-SBTrackerTask @{id=('T-'+$seq);title=('Task '+$seq);status='todo'} $identity 'fixture' 'history/seed/report.md' (Get-SBTextHash 'Synthetic provenance') 'fixture';$task.seq=$seq;$task.title=('#00'+$seq+' — Task '+$seq);$task})
 Put $trackerPath (ConvertTo-SBJson @{schemaVersion=1;repository=$identity;updatedAt=[DateTimeOffset]::UtcNow.ToString('o');tasks=$tasks;history=@();extensions=@{lastSeq=2}})
-$otherDossier=Join-Path $brain '02-areas/products/Other'
+$otherDossier=Join-Path $brain 'repos/Other'
 Put (Join-Path $otherDossier 'brief.md') '# Synthetic other repository'
 Put (Join-Path $otherDossier 'context.md') '# Other context'
 Put (Join-Path $otherDossier 'memory.md') '# Other memory'
-Put (Join-Path $otherDossier 'para.json') (ConvertTo-SBJson @{schemaVersion=1;id='other-area';kind='area';title='Other';status='active'})
+Put (Join-Path $otherDossier 'entity.json') (ConvertTo-SBJson @{schemaVersion=1;id='other-area';kind='area';title='Other';status='active'})
 Put (Join-Path $otherDossier 'repository.json') (ConvertTo-SBJson @{schemaVersion=1;identity='github.com/test/other';tracker=@{location='dossier';path='tracker.json';schemaVersion=1}})
 $otherTask=New-SBTrackerTask @{id='O-1';title='Other';status='done'} 'github.com/test/other' 'fixture' 'history/seed/report.md' (Get-SBTextHash 'Synthetic provenance') 'fixture'
 $otherTask.seq=1;$otherTask.title='#001 — Other'
@@ -238,7 +238,7 @@ if('portable' -in $Groups){
         Check ($LASTEXITCODE -eq 0 -and (Test-SBApproval $brain)) 'reviewed directive hashes are applied together'
         $publicApproval=Read-SBJson (Join-Path $brain 'direttive/approved.json') @{}
         $privateApproval=Read-SBJson (Join-Path $brain '.runtime/directive-approvals.json') @{}
-        Check (@($publicApproval.files.Keys|Where-Object {$_ -like '02-areas/*'}).Count -eq 0 -and $privateApproval.files.ContainsKey($relative.Replace('\','/')+'/AGENTS.managed.md')) 'dossier directive approvals remain outside the public manifest'
+        Check (@($publicApproval.files.Keys|Where-Object {$_ -like 'workstation/*'}).Count -eq 0 -and $privateApproval.files.ContainsKey($relative.Replace('\','/')+'/AGENTS.managed.md')) 'dossier directive approvals remain outside the public manifest'
         $generated=& $portableModule {param($root,$dir) New-SBPortableRepositoryBody (Get-SBApprovedDirectiveRevision $root) $root $dir} $brain $dossier
         Check ($generated.Contains('https://example.invalid/home/guide') -and $generated.Contains('Synthetic repository-specific directive.')) 'shared and specific Markdown with public URLs feed the managed block'
         Put (Join-Path $dossier 'AGENTS.managed.md') 'Unapproved edit'
@@ -304,8 +304,8 @@ if('portable' -in $Groups){
             $idleOk=try{Assert-SBIdesClosed $ideFixture -ProcessNames @('explorer');$true}catch{$false}
             Check ($runningFixture.Count -eq 1 -and $runningFixture[0] -eq 'VS Code' -and $blockedMessage.Contains('Cursor') -and $blockedMessage.Contains('VS Code') -and $idleOk -and @(Get-SBRunningIdes @(@{name='Codex'}) -ProcessNames @('codex')).Count -eq 0) 'setup detects running selected IDEs from process names, blocks apply and never stops a process'
             $personalRoot=Join-Path $fixture 'personal'
-            $personalDossier=Join-Path $personalRoot '02-areas/Personal'
-            foreach($file in 'para.json','repository.json','brief.md','context.md','memory.md','tracker.json','history/seed/report.md'){
+            $personalDossier=Join-Path $personalRoot 'repos/Personal'
+            foreach($file in 'entity.json','repository.json','brief.md','context.md','memory.md','tracker.json','history/seed/report.md'){
                 Put (Join-Path $personalDossier $file) (Read-SBText (Join-Path $dossier $file))
             }
             $personalContext=Join-Path $personalDossier 'context.md'
@@ -856,9 +856,9 @@ if('workflows' -in $Groups){
 }
 if('workflows' -in $Groups){
     # Roadmap (#417): interventions of one repository from tracker history and git log, exportable as Markdown, without data of other repositories.
-    $roadDossier=Join-Path $brain '02-areas/products/Roadmap';$roadRepo=Join-Path $fixture 'roadmap-checkout';$roadIdentity='github.com/test/roadmap'
+    $roadDossier=Join-Path $brain 'repos/Roadmap';$roadRepo=Join-Path $fixture 'roadmap-checkout';$roadIdentity='github.com/test/roadmap'
     [void][IO.Directory]::CreateDirectory($roadRepo)
-    Put (Join-Path $roadDossier 'para.json') (ConvertTo-SBJson @{schemaVersion=1;id='roadmap-area';kind='area';title='Roadmap';status='active'})
+    Put (Join-Path $roadDossier 'entity.json') (ConvertTo-SBJson @{schemaVersion=1;id='roadmap-area';kind='area';title='Roadmap';status='active'})
     Put (Join-Path $roadDossier 'brief.md') '# Synthetic roadmap'
     Put (Join-Path $roadDossier 'context.md') '# Roadmap context'
     Put (Join-Path $roadDossier 'memory.md') '# Roadmap memory'
@@ -984,15 +984,15 @@ if('audit2' -in $Groups){
     $checker=Join-Path $PSScriptRoot 'check-distribution.ps1'
     $checkOutput=@(& pwsh -NoProfile -File $checker -RepositoryPath $distribution 2>&1)
     Check ($LASTEXITCODE -eq 0) 'distribution accepts public IDE instruction pointers'
-    foreach($para in @('01-projects','02-areas','03-resources','04-archives')){Put (Join-Path $distribution ($para+'/README.md')) '# Synthetic PARA readme'}
-    [void](Invoke-SBGit $distribution @('add','-f','--','01-projects/README.md','02-areas/README.md','03-resources/README.md','04-archives/README.md'))
+    foreach($para in @('repos','workstation','shared')){Put (Join-Path $distribution ($para+'/README.md')) '# Synthetic PARA readme'}
+    [void](Invoke-SBGit $distribution @('add','-f','--','repos/README.md','workstation/README.md','shared/README.md'))
     $checkOutput=@(& pwsh -NoProfile -File $checker -RepositoryPath $distribution 2>&1)
-    Check ($LASTEXITCODE -eq 0) 'distribution accepts the four tracked PARA READMEs'
-    Put (Join-Path $distribution '02-areas/private.md') '# Synthetic private dossier'
+    Check ($LASTEXITCODE -eq 0) 'distribution accepts the three tracked folder READMEs'
+    Put (Join-Path $distribution 'workstation/private.md') '# Synthetic private dossier'
     Put (Join-Path $distribution 'notes.md') '# Unapproved root document'
-    [void](Invoke-SBGit $distribution @('add','--','02-areas/private.md','notes.md'))
+    [void](Invoke-SBGit $distribution @('add','--','workstation/private.md','notes.md'))
     $checkOutput=@(& pwsh -NoProfile -File $checker -RepositoryPath $distribution 2>&1)
-    Check ($LASTEXITCODE -eq 1 -and ($checkOutput -join "`n").Contains('02-areas/private.md') -and ($checkOutput -join "`n").Contains('notes.md')) 'distribution still rejects private dossiers and arbitrary root files'
+    Check ($LASTEXITCODE -eq 1 -and ($checkOutput -join "`n").Contains('workstation/private.md') -and ($checkOutput -join "`n").Contains('notes.md')) 'distribution still rejects private dossiers and arbitrary root files'
     $target=Join-Path $brain 'denied.txt';Put $target 'updated'
     [IO.File]::SetAttributes($target,[IO.FileAttributes]::ReadOnly)
     try{

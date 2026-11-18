@@ -3,13 +3,13 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.McpWrites.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.TaskRunner.psm1')
 $f5Root=Join-Path $fixture 'mcp-writes'
 $f5Brain=Join-Path $f5Root 'brain';$f5Repo=Join-Path $f5Root 'checkout';$f5Id='github.com/test/f5'
-$f5Dossier=Join-Path $f5Brain '02-areas/products/F5'
+$f5Dossier=Join-Path $f5Brain 'repos/F5'
 foreach($dir in @((Join-Path $f5Brain scripts),$f5Repo)){[void][IO.Directory]::CreateDirectory($dir)}
 Get-ChildItem -LiteralPath (Join-Path $brain scripts) -File|Copy-Item -Destination (Join-Path $f5Brain scripts)
 foreach($path in 'config/shared.json','config/tracker.schema.json','direttive/approved.json','direttive/AGENTS.global_ide.md','direttive/workstation.template.md','VERSION'){
     Put (Join-Path $f5Brain $path) (Read-SBText (Join-Path $brain $path))
 }
-Put (Join-Path $f5Dossier para.json) (ConvertTo-SBJson @{schemaVersion=1;id='f5-area';kind='area';title='F5';status='active'})
+Put (Join-Path $f5Dossier entity.json) (ConvertTo-SBJson @{schemaVersion=1;id='f5-area';kind='area';title='F5';status='active'})
 Put (Join-Path $f5Dossier repository.json) (ConvertTo-SBJson @{schemaVersion=1;identity=$f5Id;tracker=@{location='dossier';path='tracker.json';schemaVersion=1}})
 Put (Join-Path $f5Dossier brief.md) '# Synthetic F5'
 Put (Join-Path $f5Dossier memory.md) "# Memory`n"
@@ -208,7 +208,7 @@ Put (Join-Path $f5Dossier memory.md) ((Read-SBText (Join-Path $f5Dossier memory.
     Check ((Get-SBPendingWrites $f5Brain|Where-Object id -eq $f5Other.id).state -eq 'deferred' -and
         !(Read-SBText (Join-Path $f5Dossier memory.md)).Contains('other-authorized-queue-entry')) 'MCP submission does not drain unrelated requests'
     [void](Invoke-SBPendingWrites -BrainRoot $f5Brain -Config $f5RuntimeConfig -RequestId $f5Other.id)
-    $f5Moved=Join-Path $f5Brain '02-areas/products/F5Moved'
+    $f5Moved=Join-Path $f5Brain 'repos/F5Moved'
     [IO.Directory]::CreateDirectory((Split-Path $f5Moved))|Out-Null
     Move-Item -LiteralPath $f5Dossier -Destination $f5Moved
     try {

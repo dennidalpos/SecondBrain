@@ -458,7 +458,7 @@ function Convert-SBTrackerLocation($Data,[hashtable]$Mapping,[string]$BrainRoot,
         $reference=$record.reference
         $relocated=Convert-SBParaReferences $reference $Mapping $BrainRoot
         if($relocated -cne $reference){$record.reference=$relocated;continue}
-        if([IO.Path]::IsPathFullyQualified($reference) -or $reference -match '^(?:[a-z][a-z0-9+.-]*:|#|//|(?:01-projects|02-areas|03-resources|04-archives|docs|scripts|direttive|config)/)'){continue}
+        if([IO.Path]::IsPathFullyQualified($reference) -or $reference -match '^(?:[a-z][a-z0-9+.-]*:|#|//|(?:repos|workstation|shared|docs|scripts|direttive|config)/)'){continue}
         $parts=$reference -split '(?=[#?])',2
         $resolved=[IO.Path]::GetFullPath((Join-Path $oldDir ([Uri]::UnescapeDataString($parts[0]))))
         if(!(Test-Path -LiteralPath $resolved)){continue}
@@ -647,7 +647,7 @@ function Get-SBTrackerTaskForUpdate($Target,$Archive,[string]$TaskId) {
 
 function Move-SBTerminalTrackerTasks([string]$BrainRoot,[string]$Identity,[switch]$Apply,[string]$BackupRoot) {
     $target=Resolve-SBTrackerWriteTarget $BrainRoot $Identity
-    if([IO.Path]::GetRelativePath($target.brainRoot,$target.path).Replace('\','/').StartsWith('04-archives/')){throw (New-SBError 'tracker.archive.identity')}
+    if(@(Read-SBJson (Join-Path (Split-Path -Parent $target.path) 'entity.json') @{}).status -notin @($null,'active')){throw (New-SBError 'tracker.archive.identity')}
     $archive=Read-SBTrackerArchive $target.path $target.identity
     $ids=@($target.data.tasks|Where-Object {$_.status -in @('done','cancelled')}|ForEach-Object id)
     if(!$ids.Count){return @{repository=$Identity;taskIds=$ids;applied=$false}}

@@ -33,7 +33,7 @@ try{
         [void][IO.Directory]::CreateDirectory((Split-Path $to))
         Copy-Item -LiteralPath $from -Destination $to -Force
     }
-    Assert-Clean (!(Test-Path -LiteralPath (Join-Path $clone '.runtime')) -and !(Test-Path -LiteralPath (Join-Path $clone '01-projects/SecondBrain'))) 'a clean clone has no runtime and no private dossier'
+    Assert-Clean (!(Test-Path -LiteralPath (Join-Path $clone '.runtime')) -and !(Test-Path -LiteralPath (Join-Path $clone 'repos/SecondBrain'))) 'a clean clone has no runtime and no private dossier'
 
     [void][IO.Directory]::CreateDirectory($project)
     & git -c core.longpaths=true -C $project init -q
@@ -57,7 +57,7 @@ try{
     $knowledge=Join-Path $clone 'scripts/knowledge.ps1'
     $startup=Invoke-Pwsh $knowledge @('-Startup','-Profile','Slim','-CheckoutPath',$project)
     Assert-Clean ($startup.code -eq 0 -and $startup.data -and $startup.data.repository -ceq $identity -and $startup.data.profile -ceq 'Slim' -and $startup.data.withinBudget -eq $true) 'Startup returns the repository identity, the Slim profile and a load within budget'
-    $dossier=Join-Path $clone ((Get-ChildItem -LiteralPath (Join-Path $clone '01-projects') -Directory|Select-Object -First 1).FullName.Substring($clone.Length+1))
+    $dossier=Join-Path $clone ((Get-ChildItem -LiteralPath (Join-Path $clone 'repos') -Directory|Select-Object -First 1).FullName.Substring($clone.Length+1))
     Assert-Clean ((Test-Path -LiteralPath (Join-Path $dossier 'tracker.json')) -and (Test-Path -LiteralPath (Join-Path $dossier 'repository.json'))) 'Setup created the dossier with tracker and repository metadata'
 
     # A source note in the new dossier is found by a category search (the library itself is seeded by #478).
@@ -70,11 +70,11 @@ try{
     Assert-Clean ($categorySearch.code -eq 0 -and $categorySearch.text.Contains('CleancloneNeedle')) 'search restricted to the normative category finds the source note'
 
     # #478: the library travels in Git (metadata, transcripts, evidence of public-reusable sources); originals are downloaded by resources.ps1 -Sync.
-    $library=Join-Path $clone '03-resources/authoritative-sources'
+    $library=Join-Path $clone 'shared/authoritative-sources'
     $catalog=Get-Content -Raw -LiteralPath (Join-Path $library 'catalog.json')|ConvertFrom-Json -AsHashtable
     Assert-Clean (@($catalog.sources).Count -ge 30 -and (Test-Path -LiteralPath (Join-Path $library 'domains.json')) -and @(Get-ChildItem -LiteralPath (Join-Path $library 'profiles') -File).Count -ge 3) 'a clean clone has the source catalog, the domains and the profiles'
     Assert-Clean (@(Get-ChildItem -LiteralPath (Join-Path $library 'entries') -Directory|Where-Object {Test-Path -LiteralPath (Join-Path $_.FullName 'metadata.json')}).Count -eq @($catalog.sources).Count) 'every catalog source has its metadata in the clone'
-    Assert-Clean (@(Get-ChildItem -LiteralPath (Join-Path $clone '03-resources') -Recurse -Directory -Filter originals).Count -eq 0) 'originals are not in the clone'
+    Assert-Clean (@(Get-ChildItem -LiteralPath (Join-Path $clone 'shared') -Recurse -Directory -Filter originals).Count -eq 0) 'originals are not in the clone'
     $resourcesCheck=Invoke-Pwsh (Join-Path $clone 'scripts/resources.ps1') @('-Check')
     Assert-Clean ($resourcesCheck.code -eq 0 -and @($resourcesCheck.data.issues).Count -eq 0) 'resources.ps1 -Check is clean on the clone without originals'
     $sourcesCheck=Invoke-Pwsh (Join-Path $clone 'scripts/sources.ps1') @('-Check')

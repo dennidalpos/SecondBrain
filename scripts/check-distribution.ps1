@@ -3,8 +3,8 @@
 .SYNOPSIS
 Checks that the SecondBrain Git index contains only public files permitted for distribution.
 .DESCRIPTION
-Ensures that no local file (01-projects/, 02-areas/, 03-resources/, 04-archives/, .runtime/,
-PARA.md, para-index.json) is in the Git index or ready to push.
+Ensures that no local file (repos/, workstation/, shared/, .runtime/,
+index files) is in the Git index or ready to push.
 Checks that every tracked file belongs to the permitted public folders/files:
 scripts/, config/, direttive/, docs/, app/, .github/, README.md, AGENTS.md, CLAUDE.md, GEMINI.md, LICENSE, VERSION, CHANGELOG.md, CREDITS.md, SECURITY.md, CONTRIBUTING.md, CODE_OF_CONDUCT.md, start.ps1, .gitattributes, .gitignore.
 Returns exit code 0 for a compliant working tree, 1 for violations.
@@ -31,7 +31,7 @@ $allowedPrefixes = @(
     'config/',
     'direttive/',
     'docs/',
-    '03-resources/',
+    'shared/',
     'app/',
     '.github/'
 )
@@ -55,13 +55,10 @@ $allowedRootFiles = @(
 
 # Local prefixes and files strictly forbidden in the Git index.
 $forbiddenPatterns = @(
-    '^01-projects/',
-    '^02-areas/',
-    '^03-resources/.+/versions/[^/]+/originals/',
-    '^04-archives/',
-    '^\.runtime/',
-    '^PARA\.md$',
-    '^para-index\.json$'
+    '^repos/',
+    '^workstation/',
+    '^shared/.+/versions/[^/]+/originals/',
+    '^\.runtime/'
 )
 
 # Check indexed files (tracked by Git).
@@ -88,10 +85,10 @@ foreach ($line in $trackedFiles) {
     $f = $line.Trim().Replace('\', '/')
     if (!$f) { continue }
 
-    # The PARA skeleton is public: .gitkeep markers and the four top-level READMEs that .gitignore keeps tracked.
-    $isParaSkeleton = ($f -match '^0[1-4]-[a-z]+(?:/[a-z]+)*/\.gitkeep$' -or $f -match '^0[1-4]-[a-z]+/README\.md$')
+    # The folder skeleton is public: .gitkeep markers and the three top-level READMEs (repos, workstation, shared) that .gitignore keeps tracked.
+    $isParaSkeleton = ($f -match '^(?:repos|workstation|shared)(?:/[a-z]+)*/\.gitkeep$' -or $f -match '^(?:repos|workstation|shared)/README\.md$')
 
-    # Check forbidden patterns (excluding .gitkeep markers allowed by .gitignore for the PARA skeleton).
+    # Check forbidden patterns (excluding .gitkeep markers allowed by .gitignore for the folder skeleton).
     if (!$isParaSkeleton) {
         foreach ($pattern in $forbiddenPatterns) {
             if ($f -match $pattern) {
@@ -119,8 +116,8 @@ foreach ($line in $trackedFiles) {
     }
 
     # Licence gate (#478): a version, transcript or evidence of a source is tracked only when its metadata declares rights.status public-reusable.
-    if ($f -match '^03-resources/authoritative-sources/entries/([^/]+)/(versions|evidence)/') {
-        $metadataPath = Join-Path $repo ('03-resources/authoritative-sources/entries/' + $Matches[1] + '/metadata.json')
+    if ($f -match '^shared/authoritative-sources/entries/([^/]+)/(versions|evidence)/') {
+        $metadataPath = Join-Path $repo ('shared/authoritative-sources/entries/' + $Matches[1] + '/metadata.json')
         $rightsStatus = $null
         try { $rightsStatus = ([IO.File]::ReadAllText($metadataPath) | ConvertFrom-Json).rights.status } catch { $rightsStatus = $null }
         if ($rightsStatus -cne 'public-reusable') { $rightsViolations.Add($f) }

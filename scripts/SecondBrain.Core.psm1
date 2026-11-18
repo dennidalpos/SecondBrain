@@ -43,7 +43,7 @@ function Get-SBScopeKey([string]$Repository) {
     'r'+(Get-SBTextHash $Repository.ToLowerInvariant()).Substring(0,16).ToLowerInvariant()
 }
 function Get-SBDossierScope([string]$BrainRoot,[string[]]$Paths) {
-    # Scope key of the single repository dossier that holds every path (01-projects|02-areas/<dossier>/repository.json identity); '' when a path is
+    # Scope key of the single repository dossier that holds every path (repos|workstation/<dossier>/repository.json identity); '' when a path is
     # outside a repository dossier or the paths belong to different ones, so brain-wide changes keep the global marker and lock.
     $brainFull=[IO.Path]::GetFullPath($BrainRoot).TrimEnd('\','/')+[IO.Path]::DirectorySeparatorChar
     $scopes=@{}
@@ -51,7 +51,7 @@ function Get-SBDossierScope([string]$BrainRoot,[string[]]$Paths) {
         $full=[IO.Path]::GetFullPath($path)
         if(!$full.StartsWith($brainFull,[StringComparison]::OrdinalIgnoreCase)){return ''}
         $parts=@($full.Substring($brainFull.Length) -split '[\\/]')
-        if($parts.Count -lt 3 -or $parts[0] -cnotin @('01-projects','02-areas')){return ''}
+        if($parts.Count -lt 3 -or $parts[0] -cnotin @('repos','workstation')){return ''}
         $dossier=Join-Path $brainFull ($parts[0]+[IO.Path]::DirectorySeparatorChar+$parts[1])
         $meta=Join-Path $dossier 'repository.json'
         if(![IO.File]::Exists($meta)){return ''}
@@ -464,7 +464,7 @@ function Get-SBRuntimeRetention([string]$BrainRoot,[string[]]$ProtectedPaths=@()
     if($names.Count){
         $pattern=[regex]::new('\.runtime[\\/]+(?<n>'+($names -join '|')+')(?![A-Za-z0-9_-])',[Text.RegularExpressions.RegexOptions]::IgnoreCase)
         $byName=@{};foreach($entry in $entries){$byName[$entry.name.ToLowerInvariant()]=$entry}
-        $surfaces=@('README.md','AGENTS.md','docs','scripts','direttive','config','02-areas','01-projects','03-resources')
+        $surfaces=@('README.md','AGENTS.md','docs','scripts','direttive','config','workstation','repos','shared')
         $scan=[IO.EnumerationOptions]::new();$scan.RecurseSubdirectories=$true;$scan.IgnoreInaccessible=$true;$scan.AttributesToSkip=[IO.FileAttributes]::ReparsePoint
         $textExtensions=@('.md','.json','.ps1','.psm1','.txt')
         $files=@()
@@ -1158,7 +1158,7 @@ function Get-SBBrainIdentity([string]$BrainRoot='') {
     ''
 }
 function Test-SBRepoDossier($Entity) {
-    # A repository dossier is a PARA entity bound to one repository: legacy kind 'area' (02-areas/products) or kind 'project' with repository.json (01-projects).
+    # A repository dossier is a PARA entity bound to one repository: legacy kind 'area' (repos) or kind 'project' with repository.json (repos).
     if($null -eq $Entity){return $false}
     $kind=[string]$Entity.kind
     if($kind -eq 'area'){return $true}

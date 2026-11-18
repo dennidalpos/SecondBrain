@@ -9,7 +9,7 @@ $script:actChecks=0
 function Assert-Act($Condition,[string]$Message){if(!$Condition){throw ('FAIL ACTIVITY: '+$Message)};$script:actChecks++}
 function Reject-Act([scriptblock]$Action,[string]$Message){$rejected=$false;try{& $Action|Out-Null}catch{$rejected=$true};Assert-Act $rejected $Message}
 $root=Join-Path (Get-SBTestRoot) ('activity-'+[guid]::NewGuid().ToString('N'))
-$brain=Join-Path $root 'brain';$dossier=Join-Path $brain '02-areas/one';$backups=Join-Path $brain '.runtime/backups'
+$brain=Join-Path $root 'brain';$dossier=Join-Path $brain 'repos/one';$backups=Join-Path $brain '.runtime/backups'
 [void][IO.Directory]::CreateDirectory($dossier)
 $repo='github.com/acme/one'
 $logPath=Join-Path $dossier 'history/activity/report.md'

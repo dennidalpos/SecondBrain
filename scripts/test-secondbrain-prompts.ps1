@@ -201,13 +201,13 @@ $privateRoot=Join-Path (Get-SBTestRoot) ('private-assets-'+[guid]::NewGuid().ToS
 function Write-PrivateFixture([string]$Relative,[string]$Text){$p=Join-Path $privateRoot $Relative;[IO.Directory]::CreateDirectory((Split-Path $p))|Out-Null;[IO.File]::WriteAllText($p,$Text,[Text.UTF8Encoding]::new($false))}
 function New-PrivateCardText([string]$Key,[string]$Summary){"# $Key — $($Summary.TrimEnd('.'))`n<role>`nRelease operator.`n</role>`n<context>`nSigning of this repository.`n</context>`n<inputs>`n- the package`n</inputs>`n<procedure>`n1. Build.`n2. Sign.`n</procedure>`n<constraints>`n- No publication.`n</constraints>`n<exit_criteria>`n- Signed package.`n</exit_criteria>`n<output_format>`nReport.`n</output_format>`n"}
 function New-PrivateDossier([string]$Name,[string]$Identity,$Cards,$Flows=@()){
-    foreach($sub in 'prompts','workflows'){$dir=Join-Path $privateRoot "01-projects/$Name/$sub";if(Test-Path -LiteralPath $dir){Remove-Item -LiteralPath $dir -Recurse -Force}}
-    Write-PrivateFixture "01-projects/$Name/repository.json" (ConvertTo-SBJson @{schemaVersion=1;identity=$Identity})
+    foreach($sub in 'prompts','workflows'){$dir=Join-Path $privateRoot "repos/$Name/$sub";if(Test-Path -LiteralPath $dir){Remove-Item -LiteralPath $dir -Recurse -Force}}
+    Write-PrivateFixture "repos/$Name/repository.json" (ConvertTo-SBJson @{schemaVersion=1;identity=$Identity})
     if($null -ne $Cards){
-        Write-PrivateFixture "01-projects/$Name/prompts/catalog.json" (ConvertTo-SBJson @{schemaVersion=1;repository=$Identity;prompts=@($Cards|ForEach-Object {$_.entry})})
-        foreach($card in @($Cards)){if($card.text){Write-PrivateFixture ("01-projects/$Name/prompts/"+$card.entry.file) $card.text}}
+        Write-PrivateFixture "repos/$Name/prompts/catalog.json" (ConvertTo-SBJson @{schemaVersion=1;repository=$Identity;prompts=@($Cards|ForEach-Object {$_.entry})})
+        foreach($card in @($Cards)){if($card.text){Write-PrivateFixture ("repos/$Name/prompts/"+$card.entry.file) $card.text}}
     }
-    foreach($flow in @($Flows)){Write-PrivateFixture ("01-projects/$Name/workflows/"+(($flow.key -split '/',2)[1])+'.json') (ConvertTo-SBJson $flow)}
+    foreach($flow in @($Flows)){Write-PrivateFixture ("repos/$Name/workflows/"+(($flow.key -split '/',2)[1])+'.json') (ConvertTo-SBJson $flow)}
 }
 function New-PrivateCard([string]$Id,[string]$Key,[string]$Mode='write',[bool]$Destructive=$false,[string]$Status='active',$Related=@()){
     $summary='Sign the release package of this repository.'
@@ -228,7 +228,7 @@ try{
         [ordered]@{step='clean';ref='pmt-a0000003';kind='optional';gate='confirm'})}
     New-PrivateDossier 'acme-app' 'github.com/acme/acme-app' @($sign,$draft,$wipe) @($flow)
     New-PrivateDossier 'beta' 'github.com/acme/Beta' @(New-PrivateCard 'pmt-b0000001' 'beta/notes' 'read')
-    $setA=Read-SBPrivateAssets -Dossier (Join-Path $privateRoot '01-projects/acme-app') -Repository 'github.com/acme/acme-app' -PublicCatalog $catalog
+    $setA=Read-SBPrivateAssets -Dossier (Join-Path $privateRoot 'repos/acme-app') -Repository 'github.com/acme/acme-app' -PublicCatalog $catalog
     Assert-Prompts (@($setA.prompts).Count -eq 3 -and @($setA.workflows).Count -eq 1 -and $setA.slug -eq 'acme-app') '#589: private cards and workflows load from the dossier with the repository slug'
     Assert-Prompts ((Get-SBRepositorySlug 'github.com/acme/Beta') -eq 'beta') '#589: the slug is the lowercased last segment of the identity'
     $listA=Format-SBPrivatePromptList $setA
@@ -239,7 +239,7 @@ try{
     $summary=Test-SBPrivateAssets -BrainRoot $privateRoot -PublicCatalog $catalog
     Assert-Prompts ($summary.dossiers -eq 2 -and $summary.prompts -eq 4 -and $summary.workflows -eq 1) '#589: the workstation check validates every dossier with private assets'
     # Keys, collisions and references.
-    $bad=Join-Path $privateRoot '01-projects/acme-app'
+    $bad=Join-Path $privateRoot 'repos/acme-app'
     $restore={New-PrivateDossier 'acme-app' 'github.com/acme/acme-app' @($sign,$draft,$wipe) @($flow)}
     New-PrivateDossier 'acme-app' 'github.com/acme/acme-app' @(New-PrivateCard 'pmt-a0000001' 'pkg-sign')
     Assert-PrivateRefused {Read-SBPrivateAssets -Dossier $bad -Repository 'github.com/acme/acme-app' -PublicCatalog $catalog} 'private.invalid' '#589: a key without the repository namespace is refused'

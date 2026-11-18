@@ -2,7 +2,22 @@
 
 Formato [Keep a Changelog](https://keepachangelog.com/it-IT/1.1.0/). La numerazione segue il file `VERSION`. Questo registro cambia solo quando accetti un cambio di versione: vedi [Cambiare versione](docs/uso-quotidiano.md).
 
-> Versione corrente: **2.20.0**, numerazione reimpostata il 2026-11-04 con le funzionalità attuali conservate. Le sezioni seguenti mantengono la cronologia dei rilasci precedenti.
+> Versione corrente: **3.0.0**, numerazione reimpostata il 2026-11-04 con le funzionalità attuali conservate. Le sezioni seguenti mantengono la cronologia dei rilasci precedenti.
+
+## [3.0.0] - 2026-11-18
+
+The PARA folders are replaced by a flat layout, and the orchestrator keeps running in the system tray.
+
+### Changed
+- **Breaking:** `01-projects`, `02-areas`, `03-resources` and `04-archives` become `repos/`, `workstation/` and `shared/`. There are no archive folders: an entity is inactive when its status is not `active`. `para.json` is now `entity.json`; `PARA.md` and `para-index.json` are gone. `para.ps1 -Archive` and `-Restore` only change the status; `-MigrateToProjects` is removed.
+- Directive revision 1.4 (approved 2026-11-18): subagent questions go back to the parent, PDCA also covers recurring defects, tasks end with next steps, and the dossier paths follow the new layout.
+- Orchestrator: closing the window hides it to the system tray; the tray shows the run status and offers Show, Stop after the current task, Abort and Quit. Quit with a live run asks what to do with it.
+
+### Removed
+- The `Para` case of the tracker audit (dossier moves to and from the archive no longer exist).
+
+### Migration
+- Existing data was rewritten once: repository dossiers keep only open tasks and a short `history.md`. The previous folders were saved as a zip before removal.
 
 ## [2.20.0] - 2026-11-18
 

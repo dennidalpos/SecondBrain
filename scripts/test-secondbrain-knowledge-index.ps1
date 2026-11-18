@@ -8,19 +8,19 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Para.psm1')
 $script:kiChecks=0
 function Assert-Ki($Condition,[string]$Message){if(!$Condition){throw ('FAIL KNOWLEDGE INDEX: '+$Message)};$script:kiChecks++}
 $root=Join-Path (Get-SBTestRoot) ('kindex-'+[guid]::NewGuid().ToString('N'))
-$brain=Join-Path $root 'brain';$dossier=Join-Path $brain '02-areas/one';$repo='github.com/acme/one'
+$brain=Join-Path $root 'brain';$dossier=Join-Path $brain 'repos/one';$repo='github.com/acme/one'
 foreach($folder in @($dossier,(Join-Path $dossier 'topics/normative'),(Join-Path $dossier 'topics/policy'),(Join-Path $dossier 'history/batch-1'),(Join-Path $brain 'direttive/prompts'))){[void][IO.Directory]::CreateDirectory($folder)}
 function Put([string]$rel,[string]$text){[IO.File]::WriteAllText((Join-Path $brain $rel),$text)}
-Put '02-areas/one/para.json' (ConvertTo-SBJson @{schemaVersion=1;id='area-one';kind='area';title='one';status='active'})
-Put '02-areas/one/repository.json' (ConvertTo-SBJson @{schemaVersion=1;identity=$repo})
-Put '02-areas/one/brief.md' '# one'
-Put '02-areas/one/context.md' "# Contesto`n## Stato corrente`nalpha context line`n"
-Put '02-areas/one/memory.md' "# Memoria`n## Decisioni`n- alpha memory decision 1`n- alpha memory decision 2`n"
-Put '02-areas/one/tracker.json' (ConvertTo-SBJson @{schemaVersion=1;repository=$repo;tasks=@(@{id='T1';title='alpha task'})})
-Put '02-areas/one/topics/normative/law.md' "# Law`nalpha normative text`n"
-Put '02-areas/one/topics/policy/rule.md' "# Rule`nalpha policy text`n"
-Put '02-areas/one/topics/loose.md' "# Loose`nalpha uncategorized note`n"
-Put '02-areas/one/history/batch-1/report.md' "# Report`nalpha report line`n"
+Put 'repos/one/entity.json' (ConvertTo-SBJson @{schemaVersion=1;id='area-one';kind='area';title='one';status='active'})
+Put 'repos/one/repository.json' (ConvertTo-SBJson @{schemaVersion=1;identity=$repo})
+Put 'repos/one/brief.md' '# one'
+Put 'repos/one/context.md' "# Contesto`n## Stato corrente`nalpha context line`n"
+Put 'repos/one/memory.md' "# Memoria`n## Decisioni`n- alpha memory decision 1`n- alpha memory decision 2`n"
+Put 'repos/one/tracker.json' (ConvertTo-SBJson @{schemaVersion=1;repository=$repo;tasks=@(@{id='T1';title='alpha task'})})
+Put 'repos/one/topics/normative/law.md' "# Law`nalpha normative text`n"
+Put 'repos/one/topics/policy/rule.md' "# Rule`nalpha policy text`n"
+Put 'repos/one/topics/loose.md' "# Loose`nalpha uncategorized note`n"
+Put 'repos/one/history/batch-1/report.md' "# Report`nalpha report line`n"
 Put 'direttive/prompts/P01.md' "# P01`nalpha prompt card`n"
 Put 'direttive/prompts/README.md' "# Index`nalpha index must not be searched`n"
 function Find([string[]]$Category=@(),[string]$Previous='',[int]$Offset=0,[int]$Limit=0){
@@ -50,7 +50,7 @@ Assert-Ki (!(Find @() $all.revision 3 3).unchanged) 'PreviousRevision is ignored
 Assert-Ki (!(Find @() ('0'*64)).unchanged -and (Find @() ('0'*64)).count -eq $all.count) 'unknown revision returns the full result'
 Assert-Ki ((Find @('memoria')).revision -cne $all.revision) 'revision depends on categories'
 Assert-Ki ((Find @('memoria') $all.revision).count -eq 2) 'revision of another scope does not suppress results'
-Put '02-areas/one/topics/policy/rule.md' "# Rule`nalpha policy text changed`n"
+Put 'repos/one/topics/policy/rule.md' "# Rule`nalpha policy text changed`n"
 $changed=Find @() $all.revision
 Assert-Ki (!$changed.unchanged -and $changed.count -eq $all.count -and $changed.revision -cne $all.revision) 'a changed searched file invalidates the revision'
 Assert-Ki ((Find @('memoria') (Find @('memoria')).revision).unchanged -and !(Find @('policy') $all.revision).unchanged) 'unchanged files keep their category revision stable'
