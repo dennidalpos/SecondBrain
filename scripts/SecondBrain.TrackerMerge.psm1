@@ -249,7 +249,7 @@ function Get-SBTrackerMergeIssues($Config) {
     }
     $entities=@(Get-SBParaEntities $Config.brainRoot $Config.allowedOwners)
     foreach($binding in @($Config.bindings)){
-        if([string]$binding.status -ne 'managed' -or !(Test-Path -LiteralPath $binding.path -PathType Container)){continue}
+        if((Get-SBBindingStatus $binding) -ne 'managed' -or !(Test-Path -LiteralPath $binding.path -PathType Container)){continue}
         $areas=@($entities|Where-Object {(Test-SBRepoDossier $_) -and !$_.archived -and $_.status -eq 'active' -and $_.repository -ceq $binding.identity})
         if($areas.Count -ne 1){continue}
         $dir=Resolve-SBParaPath $Config.brainRoot $areas[0].path

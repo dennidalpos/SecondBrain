@@ -155,6 +155,10 @@ if('portable' -in $Groups){
     $bindAsset=Get-SBCheckoutAsset $repo @($bindMinimal)
     $bindOld=@{}+$bindMinimal;$bindOld.remoteIdentity=$identity;$bindOld.fingerprint=$bindAsset.fingerprint;$bindOld.dossier=(Resolve-SBBindingDossier $brain $bindMinimal);$bindOld.status='managed'
     Check ((Resolve-SBBoundIdentity $repo @($bindOld)) -ceq $identity -and (Get-SBBindingRemoteIdentity $bindOld) -ceq $identity -and (Get-SBBindingRemoteIdentity $bindMinimal) -ceq $identity) 'an old binding and a minimal one give the same identity and origin guard'
+    $bindObj=[pscustomobject]@{identity=$identity;path=$repo;managedHash='x'}
+    Check ((Get-SBBindingStatus $bindMinimal) -ceq 'managed' -and (Get-SBBindingStatus $bindObj) -ceq 'managed' -and (Get-SBBindingStatus @{status='tracker-import-required'}) -ceq 'tracker-import-required') 'a minimal binding without status (hashtable or object) reads as managed; a stored status wins'
+    $mergeSource=Get-Content -Raw (Join-Path $PSScriptRoot 'SecondBrain.TrackerMerge.psm1');$rollbackSource=Get-Content -Raw (Join-Path $PSScriptRoot 'rollback-repo.ps1')
+    Check ($mergeSource -notmatch '\$binding\.status' -and $mergeSource -match 'Get-SBBindingStatus \$binding' -and $rollbackSource -match "PSObject\.Properties\['dossier'\]") 'tracker merge and rollback read optional binding fields through safe accessors'
     $bindRaw.bindings=@($bindOld);Put $bindPath (ConvertTo-SBJson $bindRaw)
     $bindOldHash=Get-SBFileHash $bindPath
     $bindOldConfig=Read-SBConfiguration $bindPath -ReadOnly;$bindOldConfig.brainRoot=$brain

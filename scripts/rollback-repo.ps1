@@ -147,7 +147,7 @@ try {
     # 2. Resolve the target checkout.
     $checkoutPath = $DestinationPath
     if (!$checkoutPath -and $workstationConfig.ContainsKey('bindings')) {
-        $binding = @($workstationConfig.bindings | Where-Object { $_.identity -ceq $resolvedIdentity -or $_.dossier -ceq $dossierRelative }) | Select-Object -First 1
+        $binding = @($workstationConfig.bindings | Where-Object { $_.identity -ceq $resolvedIdentity -or ($_.PSObject.Properties['dossier'] -and $_.dossier -ceq $dossierRelative) }) | Select-Object -First 1
         if ($binding) { $checkoutPath = $binding.path }
     }
     $hasCheckout = [bool]($checkoutPath -and (Test-Path -LiteralPath $checkoutPath))

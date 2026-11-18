@@ -1182,6 +1182,11 @@ function Get-SBBindingRemoteIdentity($Binding) {
     if($identity.StartsWith('local:',[StringComparison]::Ordinal)){return $null}
     $identity
 }
+function Get-SBBindingStatus($Binding) {
+    # Minimal bindings (#700) omit status when it is 'managed'.
+    $value=if($Binding -is [Collections.IDictionary]){if($Binding.Contains('status')){$Binding['status']}}elseif($Binding.PSObject.Properties['status']){$Binding.status}
+    if($null -eq $value){'managed'}else{[string]$value}
+}
 function Resolve-SBBoundIdentity([string]$Checkout,$Bindings=@()) {
     $git=Invoke-SBGit $Checkout @('rev-parse','--show-toplevel')
     if($git.code -ne 0){return $null};$root=[IO.Path]::GetFullPath($git.output)
@@ -1476,6 +1481,7 @@ Export-ModuleMember -Function @(
     'Test-SBRepositoryIdentity',
     'Test-SBRepoDossier',
     'Get-SBBindingRemoteIdentity',
+    'Get-SBBindingStatus',
     'Resolve-SBBoundIdentity',
     'Resolve-SBWorkingRepository',
     'Test-SBCheckoutScope',
