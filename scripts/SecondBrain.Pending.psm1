@@ -639,7 +639,7 @@ function Invoke-SBPendingTaskBatch {
 function Move-SBPendingConflict {
     # Retires a conflicting or invalid request: request and receipt move to access/pending-discarded/<id>/ with a note;
     # evidence is preserved, never deleted, and deferred or applied requests are refused.
-    param([string]$BrainRoot,[string]$Id,[string]$Repository)
+    param([string]$BrainRoot,[string]$Id,[string]$Repository,[hashtable]$Extra=@{})
     # -Repository: only that repository's queue is searched, so one repository can never retire another's request.
     if($Id -cnotmatch '^[a-f0-9]{32}$'){throw (New-SBError 'pending.invalid' @('request ID'))}
     $entry=@(Get-SBPendingWrites $BrainRoot $Repository|Where-Object id -ceq $Id)
@@ -653,13 +653,32 @@ function Move-SBPendingConflict {
     [IO.Directory]::CreateDirectory($target)|Out-Null
     $requestHash=Get-SBFileHash $entry.path
     $note=@{schemaVersion=1;id=$Id;state=$entry.state;repository=$entry.repository;requestHash=$requestHash;discardedAt=(Get-SBNow).ToString('o')}
+    foreach($key in $Extra.Keys){if($key -notin $note.Keys){$note[$key]=$Extra[$key]}}   # #706: reconcile-tasks records its class and action
     [IO.File]::WriteAllText((Join-Path $target 'discarded.json'),(ConvertTo-SBJson $note),[Text.UTF8Encoding]::new($false))
     Move-Item -LiteralPath $entry.path -Destination (Join-Path $target ($Id+'.json'))
     if(Test-Path -LiteralPath $entry.receiptPath){Move-Item -LiteralPath $entry.receiptPath -Destination (Join-Path $target ($Id+'.receipt.json'))}
     @{id=$Id;state='discarded';previousState=$entry.state;archive=$target;requestHash=$requestHash}
 }
 
+function Get-SBPendingConflictSummary([string]$BrainRoot,[string]$Repository) {
+    # Light count for -Check (#706): receipts of conflict/invalid requests that are still queued, and receipts whose request is gone (orphans).
+    # No hash verification and no tracker read; sb reconcile tasks does the classification.
+    $paths=Get-SBPendingPaths $BrainRoot $Repository
+    $conflicts=0;$orphans=0
+    if([IO.Directory]::Exists($paths.receipts)){
+        foreach($file in Get-ChildItem -LiteralPath $paths.receipts -Filter '*.json' -File){
+            $id=$file.BaseName
+            if($id -cnotmatch '^[a-f0-9]{32}$'){continue}
+            if(!([IO.File]::Exists((Join-Path $paths.queue ($id+'.json'))) -or [IO.File]::Exists((Join-Path $paths.taskUpdates ($id+'.json'))))){$orphans++;continue}
+            $receipt=$null
+            try{$receipt=Read-SBJson $file.FullName $null}catch{Write-Verbose $_.Exception.Message}
+            if($receipt -isnot [Collections.IDictionary] -or $receipt.state -notin @('applied')){$conflicts++}
+        }
+    }
+    @{repository=$Repository;conflicts=$conflicts;orphans=$orphans}
+}
+
 function Format-SBPendingNotice($Summary) {
     Get-SBMessage 'pending.notice' @($Summary.applied.Count,$Summary.conflicts.Count,$Summary.pending,$Summary.state)
 }
-Export-ModuleMember -Function @('Get-SBPendingPaths','Get-SBPendingScopes','New-SBPendingWrite','Get-SBPendingWrites','Invoke-SBPendingWrites','Complete-SBPendingSubmission','Format-SBPendingNotice','Get-SBPendingContentHash','Move-SBPendingConflict','Read-SBTaskBatchFile','New-SBPendingTaskBatch','Invoke-SBPendingTaskBatch')
+Export-ModuleMember -Function @('Get-SBPendingConflictSummary','Read-SBPendingTracker','Resolve-SBPendingDossier','Assert-SBPendingRequest','Test-SBPendingAlreadyApplied','Get-SBPendingScopeWrites','Get-SBPendingPaths','Get-SBPendingScopes','New-SBPendingWrite','Get-SBPendingWrites','Invoke-SBPendingWrites','Complete-SBPendingSubmission','Format-SBPendingNotice','Get-SBPendingContentHash','Move-SBPendingConflict','Read-SBTaskBatchFile','New-SBPendingTaskBatch','Invoke-SBPendingTaskBatch')

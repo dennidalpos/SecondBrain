@@ -301,6 +301,7 @@ function Get-SBMcpToolDefinitions {
     $previewProperties.payload=@{type='object';description=(Get-SBMessage 'mcp.write.param.payload')}
     $submitProperties=@{}+$scopeProperties
     $submitProperties.planHash=@{type='string';pattern='^[A-F0-9]{64}$';description=(Get-SBMessage 'mcp.write.param.planHash')}
+    $submitProperties.plan=@{type='object';description='The previewed plan; needed only when the owner granted this repository (mcp-write.ps1 -Grant) instead of approving each request.'}
     $definitions+=@(
         @{name='preview_dossier_write';description=(Get-SBMessage 'mcp.write.preview.description');inputSchema=@{type='object';additionalProperties=$false;required=@('repository','checkoutPath','requestId','operation','payload');properties=$previewProperties}}
         @{name='submit_dossier_write';description=(Get-SBMessage 'mcp.write.submit.description');inputSchema=@{type='object';additionalProperties=$false;required=@('repository','checkoutPath','requestId','planHash');properties=$submitProperties}}
@@ -509,11 +510,11 @@ function Invoke-SBMcpToolCall([string]$BrainRoot, [string]$ToolName, $Arguments)
             return ConvertTo-SBMcpJson (New-SBMcpWritePlan $BrainRoot $script:SBMcpConfigPath $Arguments.repository $Arguments.checkoutPath $Arguments.requestId $Arguments.operation $Arguments.payload)
         }
         'submit_dossier_write' {
-            Assert-SBMcpWriteFields $Arguments @('repository','checkoutPath','requestId','planHash','noRecovery') @('repository','checkoutPath','requestId','planHash')
+            Assert-SBMcpWriteFields $Arguments @('repository','checkoutPath','requestId','planHash','plan','noRecovery') @('repository','checkoutPath','requestId','planHash')
             Assert-SBRunnerReadScope -Repository ([string]$Arguments.repository) -Write
             $disabled=[bool](Get-Variable -Name SBMcpNoRecovery -Scope Script -ValueOnly -ErrorAction SilentlyContinue)
             if($disabled -or ($Arguments.ContainsKey('noRecovery') -and $Arguments.noRecovery -eq $true)){throw (New-SBError 'mcpwrite.disabled')}
-            return ConvertTo-SBMcpJson (Submit-SBMcpWrite $BrainRoot $script:SBMcpConfigPath $Arguments.repository $Arguments.checkoutPath $Arguments.requestId $Arguments.planHash)
+            return ConvertTo-SBMcpJson (Submit-SBMcpWrite $BrainRoot $script:SBMcpConfigPath $Arguments.repository $Arguments.checkoutPath $Arguments.requestId $Arguments.planHash $(if($Arguments.ContainsKey('plan')){$Arguments.plan}else{$null}))
         }
         'check_publication' {
             if (!$Arguments.ContainsKey('repositoryPath') -or !$Arguments.repositoryPath) {

@@ -525,7 +525,36 @@ function Get-ScriptsManifest {
     foreach ($file in Get-ChildItem -LiteralPath (Join-Path $SecondBrain 'scripts') -File -Include '*.ps1', '*.psm1' -Recurse) {
         $manifest[$file.FullName.Substring($SecondBrain.Length)] = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash
     }
+    # #699: config/ and VERSION are part of the snapshot, so a change to them is part of the manifest too.
+    $configDir = Join-Path $SecondBrain 'config'
+    if (Test-Path -LiteralPath $configDir) {
+        foreach ($file in Get-ChildItem -LiteralPath $configDir -File -Recurse) { $manifest[$file.FullName.Substring($SecondBrain.Length)] = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash }
+    }
+    $versionFile = Join-Path $SecondBrain 'VERSION'
+    if (Test-Path -LiteralPath $versionFile) { $manifest[$versionFile.Substring($SecondBrain.Length)] = (Get-FileHash -LiteralPath $versionFile -Algorithm SHA256).Hash }
     $manifest
+}
+function Get-ManifestHash($Manifest) { Get-SBTextHash (($Manifest.GetEnumerator() | ForEach-Object { "$($_.Key)=$($_.Value)" }) -join "`n") }
+# #699: between tasks (never while one runs) a committed change to scripts/, config/ or VERSION retakes the snapshot, so the health checks and the
+# bookkeeping of the next task use the current code. The change is still reported (scripts-changed) and the new manifest hash is recorded.
+$script:snapshotCount = 0
+function Update-ScriptsSnapshot([string]$Label) {
+    $now = Get-ScriptsManifest
+    $keys = @(@($now.Keys) + @($script:scriptsManifest.Keys) | Select-Object -Unique)
+    $changed = @($keys | Where-Object { $script:scriptsManifest[$_] -ne $now[$_] })
+    if (-not $changed.Count) { return }
+    Write-Event 'scripts-changed' "$($changed.Count) SecondBrain script(s) or config file(s) changed $Label" @($changed | Select-Object -First 10)
+    if ($ScriptsSnapshot) {
+        $script:snapshotCount++
+        $fresh = Join-Path $WorkDir ('snapshot-{0:yyyyMMddHHmmss}-r{1}' -f (Get-SBNow -Local), $script:snapshotCount)
+        New-Item -ItemType Directory -Force -Path $fresh | Out-Null
+        foreach ($item in 'scripts', 'config') { Copy-Item -LiteralPath (Join-Path $SecondBrain $item) -Destination (Join-Path $fresh $item) -Recurse -Force }
+        Copy-Item -LiteralPath (Join-Path $SecondBrain 'VERSION') -Destination (Join-Path $fresh 'VERSION') -Force
+        $script:ScriptsSnapshot = $fresh
+        $script:scriptsDir = Join-Path $fresh 'scripts'
+        Write-Event 'snapshot' "Snapshot retaken $Label; later health checks and bookkeeping use $fresh" @{ manifestHash = (Get-ManifestHash $now); snapshot = $fresh }
+    }
+    $script:scriptsManifest = $now
 }
 $healthSet = @($HealthChecks -split ',')
 # The repository can already fail a check for reasons that are not the run's (for example advisory memory notices in -Check): the exit codes
@@ -590,7 +619,7 @@ if ($power.supported -and -not $power.acquired -and -not $AllowNoPowerRequest) {
     throw (New-SBError 'orchestrate.power.refused' @($power.error))
 }
 $script:scriptsManifest = Get-ScriptsManifest
-if ($ScriptsSnapshot) { Write-Event 'snapshot' "Bookkeeping and health checks run from the snapshot $ScriptsSnapshot against the live dossier (SECONDBRAIN_BRAIN_ROOT)" }
+if ($ScriptsSnapshot) { Write-Event 'snapshot' "Bookkeeping and health checks run from the snapshot $ScriptsSnapshot against the live dossier (SECONDBRAIN_BRAIN_ROOT)" @{ manifestHash = (Get-ManifestHash $script:scriptsManifest); snapshot = $ScriptsSnapshot } }
 else { Write-Event 'snapshot' 'No snapshot (resumed or started without one): the live scripts are used and only the SHA-256 manifest guards them' }
 Get-HealthBaseline
 $script:waitBudgetHours = $MaxWaitHours
@@ -681,6 +710,7 @@ try {
         if ($recorded.Code -eq 0 -and $recorded.Text -match '"state":\s*"applied"') { Write-Event 'evidence' "#$($task.seq) run evidence recorded in the tracker ($outcomeWord)" @{ summary = $summary } }
         else { Write-Event 'evidence' "#$($task.seq) run evidence not accepted by the tracker: $(($recorded.Text.Trim() -split "`n")[0]); see $reference" @{ summary = $summary } }
         $state.current = $null; $state.currentId = $null
+        Update-ScriptsSnapshot "by #$($task.seq)"
         $health = Test-Health "after #$($task.seq)"
         if (-not $health.Ok) {
             Write-Event 'health' "Health check failed after #$($task.seq)" $health.Problems

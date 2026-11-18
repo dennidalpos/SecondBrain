@@ -55,6 +55,16 @@ function Test-SBCustomerMatch([string]$Actual,[string]$Wanted) {
 }
 
 $script:SBParaCache=@{}
+function Resolve-SBBindingDossier([string]$BrainRoot,$Binding) {
+    # Relative dossier of a bound repository: the stored value of an old binding, else (minimal bindings, #700) the single active dossier of its identity. $null when none.
+    if($null -eq $Binding){return $null}
+    $stored=if($Binding -is [Collections.IDictionary]){if($Binding.Contains('dossier')){[string]$Binding['dossier']}}elseif($Binding.PSObject.Properties['dossier']){[string]$Binding.dossier}
+    if($stored){return $stored}
+    $identity=[string]$(if($Binding -is [Collections.IDictionary]){$Binding['identity']}else{$Binding.identity})
+    $areas=@(Get-SBParaEntities $BrainRoot @()|Where-Object {(Test-SBRepoDossier $_) -and !$_.archived -and $_.status -eq 'active' -and $_.repository -ceq $identity})
+    if($areas.Count -ne 1){return $null}
+    [string]$areas[0].path
+}
 function Get-SBParaEntities([string]$BrainRoot,[string[]]$AllowedOwners,[switch]$Refresh) {
     # On a share, scanning every dossier on each call is costly: short-lived memoization, invalidated by each write
     # in this process (generation) and by expiry. Disabled locally unless forced with SECONDBRAIN_PARA_CACHE=1.
@@ -399,6 +409,7 @@ Export-ModuleMember -Function @(
     'Get-SBGitUpdate',
     'Resolve-SBParaPath',
     'Get-SBParaEntities',
+    'Resolve-SBBindingDossier',
     'Get-SBParaIndex',
     'Test-SBCustomerMatch',
     'Update-SBParaIndex',

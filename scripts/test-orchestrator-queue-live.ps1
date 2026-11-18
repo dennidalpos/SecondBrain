@@ -29,6 +29,8 @@ $id=if($prompt -match 'ONLY task (\S+)|ONLY the task (\S+)|task (E2E-\d)'){($Mat
 $log=Join-Path (Split-Path $env:SB_LIVE_BRAIN) 'sessions.log'
 Add-Content -LiteralPath $log -Value (@{id=$id;args=($args -join ' ');at=[DateTimeOffset]::UtcNow.ToString('o')}|ConvertTo-Json -Compress)
 Set-Content -LiteralPath (Join-Path (Get-Location).Path ("work-$id.txt")) -Value $id
+# #699: the first task changes the SecondBrain scripts (a new file), so the queue must retake its scripts snapshot afterwards.
+if($id -eq 'E2E-2'){Set-Content -LiteralPath (Join-Path $env:SB_LIVE_BRAIN 'scripts/queue-refresh-probe.ps1') -Value '# probe'}
 & pwsh -NoProfile -File (Join-Path $env:SB_LIVE_BRAIN 'scripts/knowledge.ps1') -CheckoutPath (Get-Location).Path -UpdateTaskId $id -Evidence "work-$id.txt|passed" -Status done|Out-Null
 [Console]::Out.WriteLine((@{type='result';subtype='success';is_error=$false;result='ok'}|ConvertTo-Json -Compress))
 exit 0
@@ -54,7 +56,7 @@ try {
 }
 finally { Pop-Location }
 
-$work = Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot '../.runtime/hosts') -Recurse -Filter status.json | Where-Object { $_.FullName -match 'orchestrator-e2e-.*task-run' -and (Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json).checkout -eq $fx.checkout } | Sort-Object LastWriteTime | Select-Object -Last 1
+$work = @((Join-Path $fx.brain '.runtime'), (Join-Path $PSScriptRoot '../.runtime/hosts')) | Where-Object { Test-Path -LiteralPath $_ } | ForEach-Object { Get-ChildItem -LiteralPath $_ -Recurse -Filter status.json } | Where-Object { $_.FullName -match 'orchestrator-e2e-.*task-run' -and (Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json).checkout -eq $fx.checkout } | Sort-Object LastWriteTime | Select-Object -Last 1
 if (-not $work) { Fail ('no status.json; output: ' + $out) }
 $status = Get-Content -LiteralPath $work.FullName -Raw | ConvertFrom-Json -Depth 10
 $auth = $status.authorization
@@ -69,4 +71,12 @@ $log = @(Invoke-Repo log --format=%s --reverse)
 $last = Invoke-Repo show --name-only --format=%s HEAD
 if ((@($last) -join ' ') -notmatch 'work-E2E-1\.txt') { Fail ('last commit is not the self-editing task: ' + ($last -join ' ')) }
 if (@(Invoke-Repo status --porcelain).Count) { Fail 'working tree not clean after the run' }
-'SUCCESS QUEUE-LIVE: extended profile + confirmer recorded, wider list passed to 3 sessions, order ' + ($order -join ' > ') + ', one local commit per task (' + (($log | Select-Object -Skip 1) -join ' | ') + '); retained ' + $root
+# #699: a task that changes scripts/ retakes the pinned snapshot; the queue continues and the event records the new manifest hash.
+$events = @(Get-Content -LiteralPath (Join-Path $work.DirectoryName 'events.jsonl') | ForEach-Object { $_ | ConvertFrom-Json -Depth 10 })
+$snapshots = @($events | Where-Object { $_.event -eq 'snapshot' })
+if ($snapshots.Count -ne 2 -or -not $snapshots[1].data.manifestHash -or $snapshots[1].data.manifestHash -eq $snapshots[0].data.manifestHash) { Fail ('snapshot was not retaken exactly once with a new manifest hash: ' + (($snapshots | ForEach-Object { $_.message }) -join ' | ')) }
+if (-not (Test-Path -LiteralPath (Join-Path $snapshots[1].data.snapshot 'scripts/queue-refresh-probe.ps1'))) { Fail 'the retaken snapshot does not hold the changed script' }
+if (Test-Path -LiteralPath (Join-Path $snapshots[0].data.snapshot 'scripts/queue-refresh-probe.ps1')) { Fail 'the first snapshot was modified after it was taken' }
+if (@($events | Where-Object { $_.event -eq 'scripts-changed' }).Count -lt 1) { Fail 'the script change was not reported' }
+if (@($events | Where-Object { $_.event -eq 'health' -and $_.message -match 'failed' }).Count) { Fail 'a health check failed after the snapshot refresh' }
+'SUCCESS QUEUE-LIVE: snapshot retaken once after a script change, extended profile + confirmer recorded, wider list passed to 3 sessions, order ' + ($order -join ' > ') + ', one local commit per task (' + (($log | Select-Object -Skip 1) -join ' | ') + '); retained ' + $root

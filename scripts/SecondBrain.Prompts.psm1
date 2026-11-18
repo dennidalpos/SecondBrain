@@ -429,6 +429,7 @@ Add-SBMessages @{
     'cmd.sync' = @{ en = 'Applies the approved texts to managed assets and proposes the new ones, preserving conflicts. Alias: sb sync.' }
     'mode.run' = @{ en = 'run' }
     'cmd.runner' = @{ en = 'Asks with a multiple choice for the desktop runner (recommended) or the command line, then opens the runner on the current repository with scripts/runner.ps1 -Mode auto|gui|cli: the desktop app is built when stale and, if it cannot open, the command line takes over by itself (preview, then runner.choice).' }
+    'cmd.reconcile' = @{ en = 'tasks.reconcile: plans the reconciliation of conflicting or invalid queued writes and orphan receipts of the repository; -Apply retires duplicates and orphans and re-plans safe stale requests, -Decide ID=OPTION executes the choice the owner made. Nothing is deleted.' }
     'cmd.stop' = @{ en = 'session.stop: stops the agent, saves the session in the dossier (handoff report, tracker, next step) and prepares it to be resumed from another IDE or account with session.resume.' }
     'cmd.compact' = @{ en = 'dossier.compact: compacts the given dossier preserving originals, facts and TOC (preview, then -Apply). Alias: sb compact. With -Mechanical no model is used: the oldest dated sections move to the history tier, losslessly; it also runs by itself when a task is closed and the context is at 80% of the budget.' }
     'guide.safety.title' = @{ en = 'What SecondBrain changes and where the backups are' }
@@ -494,6 +495,7 @@ function Get-SBWorkflowCommands {
         @{command='sb sync';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.sync');mode=(Get-SBWorkflowMessage 'mode.write');script='scripts/secondbrain.ps1 -Sync'},
         @{command='sb compact';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.compact');mode=(Get-SBWorkflowMessage 'mode.write');script='scripts/knowledge.ps1 -Compact -Mechanical [-Apply] | -Compact -CandidatePath FILE'},
         @{command='sb runner';aliases=@();scope='repository';does=(Get-SBWorkflowMessage 'cmd.runner');mode=(Get-SBWorkflowMessage 'mode.run');script='scripts/runner.ps1'},
+        @{command='sb reconcile tasks';aliases=@();scope='repository';does=(Get-SBWorkflowMessage 'cmd.reconcile');mode=(Get-SBWorkflowMessage 'mode.write');script='scripts/reconcile-tasks.ps1 [-Apply] [-Decide ID=OPTION]'},
         @{command='sb stop';aliases=@();scope='repository';does=(Get-SBWorkflowMessage 'cmd.stop');mode=(Get-SBWorkflowMessage 'mode.write');script='scripts/prompts.ps1 -Compose -Prompt session.stop'}
     )
 }

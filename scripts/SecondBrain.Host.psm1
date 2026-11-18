@@ -42,7 +42,7 @@ function Get-SBCheckoutAsset([string]$Path,$Bindings=@()) {
     if($origin.code -notin @(0,1)){throw (New-SBError 'host.git.origin')}
     $remoteIdentity=if($origin.code -eq 0){ConvertTo-SBRepositoryIdentity $origin.output}else{$null}
     $binding=@($Bindings|Where-Object {$null -ne $_ -and [IO.Path]::GetFullPath($_.path) -eq $full})
-    $identity=if($binding.Count -eq 1 -and $binding[0].remoteIdentity -ceq $remoteIdentity){$binding[0].identity}else{$remoteIdentity}
+    $identity=if($binding.Count -eq 1 -and (Get-SBBindingRemoteIdentity $binding[0]) -ceq $remoteIdentity){$binding[0].identity}else{$remoteIdentity}
     $kind=if($super.output){'submodule'}elseif($common.output -ne $gitDir.output){'worktree'}else{'repository'}
     $agents=Join-Path $full 'AGENTS.md'
     @{id=(Get-SBTextHash $full.ToLowerInvariant()).Substring(0,24).ToLowerInvariant();path=$full;name=[IO.Path]::GetFileName($full);identity=$identity;remoteIdentity=$remoteIdentity;

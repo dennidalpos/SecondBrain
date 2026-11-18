@@ -19,7 +19,7 @@ try{
     $config=Read-SBConfiguration $ConfigPath -ReadOnly
     $statuses=@('todo','in_progress','blocked','done','cancelled')
     $projects=@(foreach($binding in @($config.bindings|Sort-Object {[string]$_.identity})){
-        $dossier=if($binding.ContainsKey('dossier')){[string]$binding.dossier}else{''}
+        $dossier=[string](Resolve-SBBindingDossier $config.brainRoot $binding)
         $record=$null;$counts=[ordered]@{total=0};foreach($s in $statuses){$counts[$s]=0};$updated=$null
         if($dossier){
             $dir=Resolve-SBParaPath $config.brainRoot $dossier

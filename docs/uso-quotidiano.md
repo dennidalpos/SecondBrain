@@ -19,6 +19,7 @@ The command words below remain unchanged in every documentation language.
 | `sb sync` | Sync approved instructions |
 | `sb activate` | Discover and activate selected integrations |
 | `sb compact` | Preview dossier compaction; applying it requires confirmation |
+| `sb reconcile tasks` | Plan the reconciliation of conflicting or invalid queued writes and orphan receipts; `-Apply` for the safe items, `-Decide` for the owner's choices (SYS19) |
 | `sb runner` | Run the ready tasks of the current repository from the desktop app or the command line |
 | `sb stop` | Stop the agent, save the session in the dossier and resume it from another IDE or account with `sb prompt MEM07` (MEM09) |
 

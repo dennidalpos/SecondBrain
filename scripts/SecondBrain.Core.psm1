@@ -1171,6 +1171,17 @@ function Test-SBRepositoryIdentity([string]$Identity,[string[]]$AllowedOwners=@(
     if($null -ne $AllowedOwners -and @($AllowedOwners).Count){return $Identity -match '^github\.com/([^/]+)/[^/]+$' -and ($Matches[1] -in $AllowedOwners -or $Identity -eq (Get-SBBrainIdentity))}
     return $Identity -match '^local:[a-f0-9]{32}$|^[a-zA-Z0-9.-]+(?::[0-9]+)?/[^/]+(?:/[^/]+)*$'
 }
+function Get-SBBindingRemoteIdentity($Binding) {
+    # Origin a binding was activated with. Old bindings store remoteIdentity; minimal ones (#700) derive it from identity (local: repositories have no origin).
+    # A stored value wins, so aliased repositories (identity different from the origin) keep their guard.
+    $stored=$false;$value=$null
+    if($Binding -is [Collections.IDictionary]){if($Binding.Contains('remoteIdentity')){$stored=$true;$value=$Binding['remoteIdentity']}}
+    elseif($Binding.PSObject.Properties['remoteIdentity']){$stored=$true;$value=$Binding.remoteIdentity}
+    if($stored){if($null -eq $value){return $null};return [string]$value}
+    $identity=[string]$(if($Binding -is [Collections.IDictionary]){$Binding['identity']}else{$Binding.identity})
+    if($identity.StartsWith('local:',[StringComparison]::Ordinal)){return $null}
+    $identity
+}
 function Resolve-SBBoundIdentity([string]$Checkout,$Bindings=@()) {
     $git=Invoke-SBGit $Checkout @('rev-parse','--show-toplevel')
     if($git.code -ne 0){return $null};$root=[IO.Path]::GetFullPath($git.output)
@@ -1179,7 +1190,7 @@ function Resolve-SBBoundIdentity([string]$Checkout,$Bindings=@()) {
     $remote=if($origin.code -eq 0){ConvertTo-SBRepositoryIdentity $origin.output}else{$null}
     $matches=@($Bindings|Where-Object {$null -ne $_ -and [IO.Path]::GetFullPath($_.path) -eq $root})
     if($matches.Count -gt 1){throw (New-SBError 'core.checkout.ambiguous')}
-    if($matches.Count -eq 1){if($matches[0].remoteIdentity -cne $remote){throw (New-SBError 'core.origin.changed')};return $matches[0].identity}
+    if($matches.Count -eq 1){if((Get-SBBindingRemoteIdentity $matches[0]) -cne $remote){throw (New-SBError 'core.origin.changed')};return $matches[0].identity}
     $remote
 }
 function Resolve-SBWorkingRepository([string]$Path='',$Bindings=@()) {
@@ -1464,6 +1475,7 @@ Export-ModuleMember -Function @(
     'Get-SBBrainIdentity',
     'Test-SBRepositoryIdentity',
     'Test-SBRepoDossier',
+    'Get-SBBindingRemoteIdentity',
     'Resolve-SBBoundIdentity',
     'Resolve-SBWorkingRepository',
     'Test-SBCheckoutScope',

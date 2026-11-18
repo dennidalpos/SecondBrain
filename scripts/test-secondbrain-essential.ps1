@@ -146,6 +146,35 @@ if('portable' -in $Groups){
     $defaultSync=Invoke-EssentialSecondBrain @('-Sync','-Repository',$identity)
     $defaultCheck=Invoke-SBPortableSync $footprintConfig -Check -Repository $identity
     Check ((Read-SBJson $one.configuration $null).bindings[0].repositoryFiles.Count -eq 0 -and (& $treeOf $repo) -ceq $treeBefore -and !@($defaultCheck.issues|Where-Object kind -in @('directive-pending','directive-conflict','pointer-pending','pointer-conflict')).Count) ('default activation and Sync leave the checkout unchanged '+$defaultSync.text)
+    # #700: activations store minimal bindings; old-format bindings keep working and migrate with preview, backup and idempotence.
+    $bindPath=$one.configuration
+    $bindRaw=Read-SBJson $bindPath $null
+    $bindMinimal=$bindRaw.bindings[0]
+    Check (!$bindMinimal.ContainsKey('dossier') -and !$bindMinimal.ContainsKey('fingerprint') -and !$bindMinimal.ContainsKey('status') -and !$bindMinimal.ContainsKey('remoteIdentity') -and $bindMinimal.identity -ceq $identity -and $bindMinimal.ContainsKey('managedHash') -and $bindMinimal.ContainsKey('path')) 'a new activation stores a minimal binding (identity, path, managed block hash)'
+    Check ((Resolve-SBBindingDossier $brain $bindMinimal) -and (Resolve-SBBoundIdentity $repo @($bindMinimal)) -ceq $identity) 'a minimal binding resolves its dossier through PARA and its identity from the checkout'
+    $bindAsset=Get-SBCheckoutAsset $repo @($bindMinimal)
+    $bindOld=@{}+$bindMinimal;$bindOld.remoteIdentity=$identity;$bindOld.fingerprint=$bindAsset.fingerprint;$bindOld.dossier=(Resolve-SBBindingDossier $brain $bindMinimal);$bindOld.status='managed'
+    Check ((Resolve-SBBoundIdentity $repo @($bindOld)) -ceq $identity -and (Get-SBBindingRemoteIdentity $bindOld) -ceq $identity -and (Get-SBBindingRemoteIdentity $bindMinimal) -ceq $identity) 'an old binding and a minimal one give the same identity and origin guard'
+    $bindRaw.bindings=@($bindOld);Put $bindPath (ConvertTo-SBJson $bindRaw)
+    $bindOldHash=Get-SBFileHash $bindPath
+    $bindOldConfig=Read-SBConfiguration $bindPath -ReadOnly;$bindOldConfig.brainRoot=$brain
+    $bindOldCheck=Invoke-SBPortableSync $bindOldConfig -Check -Repository $identity
+    Check (!@($bindOldCheck.issues|Where-Object kind -in @('tracker-import-required','identity-rebind')).Count) 'the drift check accepts an old-format binding'
+    $bindPreview=& pwsh -NoProfile -File (Join-Path $brain 'scripts/bindings.ps1') -MigrateBindings -ConfigPath $bindPath
+    $bindPreviewResult=$bindPreview|ConvertFrom-Json -AsHashtable
+    Check ($LASTEXITCODE -eq 0 -and $bindPreviewResult.state -eq 'preview' -and $bindPreviewResult.changed -eq 1 -and (Get-SBFileHash $bindPath) -ceq $bindOldHash) 'the binding migration previews without writing'
+    $bindApplied=(& pwsh -NoProfile -File (Join-Path $brain 'scripts/bindings.ps1') -MigrateBindings -Apply -ConfigPath $bindPath)|ConvertFrom-Json -AsHashtable
+    $bindMigrated=(Read-SBJson $bindPath $null).bindings[0]
+    Check ($LASTEXITCODE -eq 0 -and $bindApplied.applied -and !$bindMigrated.ContainsKey('dossier') -and !$bindMigrated.ContainsKey('fingerprint') -and !$bindMigrated.ContainsKey('status') -and !$bindMigrated.ContainsKey('remoteIdentity') -and $bindMigrated.repositoryFiles.Count -eq 0 -and $bindMigrated.identity -ceq $identity) 'the migration drops the derivable fields and keeps a non-default file selection'
+    $bindBackups=@(Get-ChildItem -LiteralPath $bindOldConfig.localStateBackupRoot -Recurse -File -ErrorAction SilentlyContinue|Where-Object {(Get-SBFileHash $_.FullName) -ceq $bindOldHash})
+    Check ($bindBackups.Count -ge 1) 'the migration keeps a backup of the previous configuration bytes'
+    $bindAfterHash=Get-SBFileHash $bindPath
+    $bindAgain=(& pwsh -NoProfile -File (Join-Path $brain 'scripts/bindings.ps1') -MigrateBindings -Apply -ConfigPath $bindPath)|ConvertFrom-Json -AsHashtable
+    Check ($LASTEXITCODE -eq 0 -and !$bindAgain.applied -and $bindAgain.state -eq 'unchanged' -and (Get-SBFileHash $bindPath) -ceq $bindAfterHash) 'repeating the binding migration changes nothing'
+    $bindNewConfig=Read-SBConfiguration $bindPath -ReadOnly;$bindNewConfig.brainRoot=$brain
+    $bindNewCheck=Invoke-SBPortableSync $bindNewConfig -Check -Repository $identity
+    Check (!@($bindNewCheck.issues|Where-Object kind -in @('tracker-import-required','identity-rebind')).Count) 'the drift check accepts the migrated binding'
+    Reject {Resolve-SBBoundIdentity $repo @(@{path=$repo;identity='github.com/test/other'})} 'a minimal binding refuses a checkout whose origin no longer matches its identity'
     Reject {ConvertTo-SBRepositoryFiles 'CLAUDE.md'} 'CLAUDE.md without AGENTS.md is refused'
     Reject {ConvertTo-SBRepositoryFiles 'README.md'} 'an unknown repository file is refused'
     $selection.repositories[0].repositoryFiles=@('AGENTS.md','CLAUDE.md');Put $selectionPath (ConvertTo-SBJson $selection)
@@ -352,6 +381,19 @@ if('portable' -in $Groups){
             Check ($LASTEXITCODE -eq 0 -and $setup.applied -and $setup.check.mode -eq 'sync' -and $setup.mcp.permissionConfigurationComplete -and [IO.File]::Exists($setup.setupReport)) 'setup applies sync, named approvals and a persistent report in an isolated profile'
             $repeat=(& pwsh -NoProfile -File $setupScript -Setup -Roots $repo -Select $repo -McpTargets cursor -Yes -Apply -NoRegisterEnvironment)|ConvertFrom-Json -AsHashtable
             Check ($LASTEXITCODE -eq 0 -and $repeat.mcp.items[0].PermissionAction -eq 'unchanged') 'setup repeats with the same repository identity and MCP rules'
+            # #705: manual account surface through Invoke-SBSetup end to end (the surface is always reported by discovery). The interactive
+            # prompt (Read-Host) is not driven here: Resolve-SBManualAccountAlias covers it with unit checks in the ide-observation suite.
+            $aliasSurface='Claude account instructions'
+            $aliasConfigPath=Get-SBHostConfigPath $brain
+            $aliasBefore=if([IO.File]::Exists($aliasConfigPath)){Get-SBFileHash $aliasConfigPath}else{''}
+            $aliasMissing=@(& pwsh -NoProfile -File $setupScript -Setup -Roots $repo -Select $repo -Ides $aliasSurface -Yes -NoRegisterEnvironment 2>&1|Out-String)
+            Check ($LASTEXITCODE -ne 0 -and ($aliasMissing -join ' ') -match 'Account alias required' -and $aliasBefore -ceq $(if([IO.File]::Exists($aliasConfigPath)){Get-SBFileHash $aliasConfigPath}else{''})) 'setup refuses a manual surface selected by name without an alias and registered none'
+            $aliasInvalid=@(& pwsh -NoProfile -File $setupScript -Setup -Roots $repo -Select $repo -IdeAccount ($aliasSurface+'|person@example.com') -Yes -NoRegisterEnvironment 2>&1|Out-String)
+            Check ($LASTEXITCODE -ne 0 -and ($aliasInvalid -join ' ') -match 'Invalid account alias') 'setup rejects an email address as -IdeAccount alias'
+            $aliasApplied=(& pwsh -NoProfile -File $setupScript -Setup -Roots $repo -Select $repo -IdeAccount ($aliasSurface+'|fixture-acct') -Yes -Apply -NoRegisterEnvironment)|ConvertFrom-Json -AsHashtable
+            Check ($LASTEXITCODE -eq 0 -and $aliasApplied.applied -and @($aliasApplied.activation.ideBindings|Where-Object {$_.accountAlias -ceq 'fixture-acct'}).Count -eq 1) 'setup registers a manual surface with a declared alias'
+            $aliasReused=(& pwsh -NoProfile -File $setupScript -Setup -Roots $repo -Select $repo -Ides $aliasSurface -Yes -NoRegisterEnvironment)|ConvertFrom-Json -AsHashtable
+            Check ($LASTEXITCODE -eq 0 -and @($aliasReused.activation.ideBindings|Where-Object {$_.accountAlias -ceq 'fixture-acct'}).Count -eq 1) 'setup reuses the single registered alias for the same manual surface'
             $observationConfig=Read-SBConfiguration -BrainRoot $brain -ReadOnly
             $observationConfig.ides=@(@{id='fixture-cursor';name='Cursor';mode='manual';profile='fixture';accountAlias='fixture'})
             $observationPath=Join-Path $runtime 'mcp-observation.json'

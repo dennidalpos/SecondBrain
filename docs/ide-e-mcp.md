@@ -45,7 +45,7 @@ Preview user-level pairing separately for Codex or Claude Desktop; neither targe
 | `get_prompt` | `prompts.ps1 -Show -Prompt <code>` |
 | `check_publication` | `publication.ps1 -RepositoryPath <checkout>` |
 | `list_ides` | `ide-detect.ps1 [-WorkspacePath <path>] -Json` |
-| `preview_dossier_write` | Reviewed plan preparation; see the [write guide](riferimento/mcp-writes.md) |
+| `preview_dossier_write` | Reviewed plan preparation; see the [write guide](riferimento/mcp-writes.md) (including the optional per-repository grant for task operations) |
 | `submit_dossier_write` | Submit one plan after local CLI approval; see the [write guide](riferimento/mcp-writes.md) |
 
 `ide-detect.ps1` stays read-only. Its selection (`-Ides` with `-Scope`, or `-Interactive`) echoes each IDE, scope and location plus a `pairCommand`: the preview-only `mcp-server.ps1 -Pair -Target <id> -Scope <user|project>` command (no `-Apply`; `system` scope and IDEs without a Pair target get `null`). Run it yourself, then confirm with APPLICA to write; `secondbrain.ps1 -Setup` keeps its own `-Ides` selector.

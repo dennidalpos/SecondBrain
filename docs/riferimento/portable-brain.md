@@ -33,6 +33,17 @@ Discover can save a runtime report; MaxDirectories/ResumePath support bounded re
 | RegisterEnvironment / NoRegisterEnvironment | Explicitly control user-root registration |
 | AndSync | Synchronize on applied setup; disable only deliberately |
 
+## Repository binding format (#700)
+
+A binding in the workstation configuration keeps `identity`, `path` and `managedHash` (the managed block hash). Three fields stay only when they carry information the others cannot derive: `repositoryFiles` (a file selection that differs from the default of all three, including the explicit opt-out `[]`), `remoteIdentity` (an origin that differs from the identity, for example an aliased repository) and `status` (only when it is not `managed`, for example `tracker-import-required`). The dossier is resolved through the PARA index by identity (`Resolve-SBBindingDossier`), the origin guard compares the checkout origin with `remoteIdentity` when stored and with the identity otherwise (`local:` repositories have no origin), and the old `fingerprint` and `dossier` fields are no longer written or required. Old and minimal bindings work side by side, so no migration is mandatory.
+
+~~~powershell
+pwsh -NoProfile -File scripts/bindings.ps1 -MigrateBindings          # preview: bindings and fields that would be dropped, nothing written
+pwsh -NoProfile -File scripts/bindings.ps1 -MigrateBindings -Apply   # backup of the previous configuration, then rewrite; repeating it changes nothing
+~~~
+
+The apply writes with the previewed file hash as precondition and keeps the previous bytes under the workstation backup root. A change of the checkout's `.git` common directory is no longer detected through the stored fingerprint; the origin guard and `path` remain.
+
 Preview the current command and selection; do not treat flags as authorization. Activate SelectionPath is the lower-level path for a confirmed selection with matching report/fingerprint hashes. Outdated selections are refused. Setup Status reads current bindings/integrations/receipt.
 
 New dossiers start with an English context template. Slim startup, compaction and memory-cycle promotion recognize the four required context headings in English or Italian. New dossiers can start with an empty tracker only if no existing authoritative tracker source needs explicit import. Conversion/import and adoption of old memories remain separate reviewed actions. RegisterEnvironment behavior is explicit; restart IDEs to pick up user-environment changes.

@@ -28,7 +28,7 @@ try {
     }
     $inventoryHash=Get-SBFileHash $inventoryPath;$inventory=Read-SBJson $inventoryPath $null
     if(!$inventory -or $inventory.schemaVersion -ne 1){throw (New-SBError 'audit.inventory.required')}
-    $managed=if($portable){@($config.bindings|Where-Object {$_.status -eq 'managed' -and $_.identity.StartsWith('github.com/',[StringComparison]::Ordinal)}|ForEach-Object identity|Sort-Object -Unique)}else{@($inventory.repositories|Where-Object status -eq 'active'|ForEach-Object identities|Sort-Object -Unique)}
+    $managed=if($portable){@($config.bindings|Where-Object {(!$_.ContainsKey('status') -or $_.status -eq 'managed') -and $_.identity.StartsWith('github.com/',[StringComparison]::Ordinal)}|ForEach-Object identity|Sort-Object -Unique)}else{@($inventory.repositories|Where-Object status -eq 'active'|ForEach-Object identities|Sort-Object -Unique)}
     $identities=if($Repository){@($Repository)}else{$managed}
     foreach($identity in $identities){Assert-SBAuditIdentity $identity $config.allowedOwners;if($identity -notin $managed){throw (New-SBError 'audit.repository.outside')}}
     $target=$null;$expected=$null

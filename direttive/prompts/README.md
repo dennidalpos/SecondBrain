@@ -533,6 +533,12 @@ BACKLOG, MEMORY AND CONTINUITY
   • Needs: managed repository, active dossier and user confirmation
   • Example: sb prompt SYS13: set or remove the greenfield lock on this repository
 
+🔥 SYS19 | Reconcile conflicting or invalid queued writes and orphan receipts.
+  • ID: pmt-a76062d2
+  • Scope: repo | Mode: write
+  • Needs: a managed repository and a write session to apply
+  • Example: sb reconcile tasks: plan the queued conflicts of this repository
+
 
 WEBSITES AND WEB APPS
 🔥 WEB01 | Define the requirements, audience and success criteria of a site or app

@@ -25,7 +25,7 @@ Explicit private/do-not-memorize tags are rejected before approval storage or qu
 1. Call preview_dossier_write with repository, checkoutPath, requestId, operation and payload. Use a new ID for new content.
 2. Save the exact returned JSON plan to an owned private, ignored work folder. Review all fields and hashes. The file is data, not authorization.
 3. Approve through the local CLI in a coordinated session for that repository.
-4. Call submit_dossier_write with repository, checkoutPath, requestId and planHash. MCP arguments cannot supply an approval boolean or a receipt path.
+4. Call submit_dossier_write with repository, checkoutPath, requestId and planHash (plus `plan` only under a scoped grant, see below). MCP arguments cannot supply an approval boolean or a receipt path.
 
 After explicit approval of the reviewed plan:
 
@@ -51,6 +51,26 @@ Resolve $brain locally. Never commit plans, receipts or workstation paths. Use t
 The CLI verifies the plan against current files and writes a ten-minute receipt under localStateRoot/mcp-write-approvals/<repository-segment>/<requestId>.json. It does not submit. Changes require a new plan, ID and approval. Moving a dossier invalidates its old receipt, including MCP replay; normal recovery of an already queued request remains separate. Plans larger than 256 KiB in UTF-8 are refused at preview. The receipt includes the reviewed plan, actor, issue/expiry times and integrity hashes.
 
 Filesystem permissions and OS identity protect this store. It is not a cryptographic boundary against code running as the same OS user. A process able to write that user's approval store or invoke the approving CLI with their authority is inside this trust boundary. The Authorization text must reflect an actual approval; an agent must not invent it.
+
+## Scoped grants (#707)
+
+Instead of one receipt per request, the owner can grant one repository for a limited time from the local CLI, in a coordinated session for that repository:
+
+~~~powershell
+& "$brain/scripts/mcp-write.ps1" -Grant -Repository $identity -Hours 8 -Authorization 'Explicit grant for task updates' -SessionId $session.sessionId
+& "$brain/scripts/mcp-write.ps1" -Grants          # list: repository, state (active, expired, revoked), expiry, operations
+& "$brain/scripts/mcp-write.ps1" -Revoke -Repository $identity -SessionId $session.sessionId
+~~~
+
+The grant lives under localStateRoot/mcp-write-grants/<repository-segment>/grant.json, is bound to the repository, workstation and OS user, carries a hash and expires after 1 to 72 hours (default 8). Revoking stamps the file; it is never deleted.
+
+Under an active grant, submit_dossier_write takes the previewed plan in an optional `plan` argument (the preview persists nothing, so the plan cannot be looked up) and checks the grant instead of the ten-minute receipt. The plan must be intact (its own hash), match the request, repository, checkout, dossier and workstation, and be reproduced by a fresh preview with the same hash; otherwise the submit is refused.
+
+| Covered by a grant | Never covered |
+|---|---|
+| task.status; task.update limited to taskId, status, reason, evidence; task.new, forced to `user_required` (the plan shows it) and without requires | memory.append, history.save, task.evidence.correct, activity.append, execution or requires changes |
+
+Expiry and revoke take effect at the next submit. A queued request stays authorized as described below. Documented limit: the agent and the owner share the OS user, so the grant is a policy control, not a cryptographic boundary; grant only repositories where unattended task bookkeeping is acceptable and revoke when done.
 
 ## Replay, conflicts and recovery
 

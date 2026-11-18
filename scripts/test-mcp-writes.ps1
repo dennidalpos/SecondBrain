@@ -75,6 +75,18 @@ try {
     Check (F5-Submit $f5Clear).applied 'approved MCP task update clears the field'
     $f5Ext=@((Read-SBJson (Join-Path $f5Dossier tracker.json) $null).tasks|Where-Object id -eq 'F5-1')[0].extensions
     Check (!$f5Ext.ContainsKey('awaiting')) 'empty awaiting removes the field'
+    # #708: the executor is pinned at preview; approving and submitting from another caller environment must not end in mcpwrite.stale.
+    $f5ExecutorSaved=$env:SECONDBRAIN_EXECUTOR
+    try {
+        $env:SECONDBRAIN_EXECUTOR='{"tool":"claude","mode":"interactive"}'
+        $f5Pin=F5-Plan 'task.update' @{taskId='F5-1';priority='P3'}
+        $env:SECONDBRAIN_EXECUTOR='{"tool":"unknown","mode":"cli"}'
+        $f5PinApproved=$null;try{$f5PinApproved=F5-Approve $f5Pin}catch{Write-Verbose $_.Exception.Message}
+        Check ($f5PinApproved -and $f5PinApproved.approved) 'approval from another executor environment succeeds without mcpwrite.stale'
+        $f5PinResult=$null;try{$f5PinResult=F5-Submit $f5Pin}catch{Write-Verbose $_.Exception.Message}
+        Check ($f5PinResult -and $f5PinResult.applied) 'submission from another executor environment applies the pinned plan'
+        Check ($f5Pin.pending.arguments.Executor.tool -ceq 'claude') 'plan keeps the executor resolved at preview'
+    } finally {$env:SECONDBRAIN_EXECUTOR=$f5ExecutorSaved}
     # evidence: "reference|outcome" strings or {reference, outcome} objects appended to the task, as knowledge.ps1 -Evidence.
     Reject {F5-Plan 'task.update' @{taskId='F5-1';evidence='README|passed'}} 'MCP task update requires evidence as an array'
     Reject {F5-Plan 'task.update' @{taskId='F5-1';evidence=@()}} 'MCP task update rejects an empty evidence array (evidence is append-only)'
@@ -202,6 +214,41 @@ Put (Join-Path $f5Dossier memory.md) ((Read-SBText (Join-Path $f5Dossier memory.
     try {
         Reject {F5-Submit $f5Plan} 'moved dossier invalidates even a replay approval bound to its former path'
     } finally {Move-Item -LiteralPath $f5Moved -Destination $f5Dossier}
+    # #707: scoped grant. Under an active grant the agent submits task.status / task.update (status, reason, evidence) / non-autonomous task.new without a receipt.
+    function Submit-F5Grant($Plan){Submit-SBMcpWrite $f5Brain $f5ConfigPath $f5Id $f5Repo $Plan.requestId $Plan.planHash (ConvertTo-SBJson $Plan|ConvertFrom-Json -AsHashtable -DateKind String)}
+    $f5GrantModule=Get-Module SecondBrain.McpWrites
+    $f5GrantStatus=F5-Plan 'task.status' @{taskId='F5-1';status='todo'}
+    Reject {Submit-F5Grant $f5GrantStatus} 'without a grant a supplied plan is not enough to submit'
+    Reject {New-SBMcpWriteGrant $f5Brain $f5ConfigPath 'github.com/test/other' 4 'Synthetic grant' $f5Session.sessionId} 'a grant for another repository than the session is refused'
+    Reject {New-SBMcpWriteGrant $f5Brain $f5ConfigPath $f5Id 4 '' $f5Session.sessionId} 'a grant needs the owner authorization text'
+    $f5Granted=New-SBMcpWriteGrant $f5Brain $f5ConfigPath $f5Id 4 'Synthetic grant' $f5Session.sessionId
+    Check ($f5Granted.granted -and @($f5Granted.operations) -contains 'task.status' -and @($f5Granted.operations) -notcontains 'memory.append') 'the owner grants the task operations only'
+    Check (@((Get-SBMcpWriteGrants $f5Brain $f5ConfigPath).grants|Where-Object {$_.repository -ceq $f5Id -and $_.state -eq 'active'}).Count -eq 1) 'grants lists the active grant'
+    Check (Submit-F5Grant $f5GrantStatus).applied 'under a grant an agent updates a task status without approval'
+    Check ((Submit-F5Grant $f5GrantStatus).applied) 'a granted submit replays idempotently'
+    $f5GrantUpdate=F5-Plan 'task.update' @{taskId='F5-1';status='in_progress';reason='Synthetic grant update'}
+    Check (Submit-F5Grant $f5GrantUpdate).applied 'under a grant task.update of status and reason is applied'
+    Reject {Submit-F5Grant (F5-Plan 'task.update' @{taskId='F5-1';execution='autonomous'})} 'a grant does not cover execution changes'
+    Reject {Submit-F5Grant (F5-Plan 'task.update' @{taskId='F5-1';requires=@('computer-use')})} 'a grant does not cover requires changes'
+    Reject {Submit-F5Grant (F5-Plan 'memory.append' @{content='outside the grant'})} 'a grant does not cover memory.append'
+    Reject {Submit-F5Grant (F5-Plan 'history.save' @{path='history/seed/report.md';content='outside the grant'})} 'a grant does not cover history.save'
+    $f5GrantNew=F5-Plan 'task.new' @{title='Granted task';acceptance=@('fixture');provenance='history/seed/report.md'}
+    Check ($f5GrantNew.pending.arguments.Execution -ceq 'user_required') 'under a grant task.new is forced non-autonomous'
+    Check (Submit-F5Grant $f5GrantNew).applied 'under a grant a non-autonomous task.new is applied'
+    $f5Tampered=ConvertTo-SBJson $f5GrantStatus|ConvertFrom-Json -AsHashtable -DateKind String
+    $f5Tampered.payload.status='done'
+    Reject {Submit-SBMcpWrite $f5Brain $f5ConfigPath $f5Id $f5Repo $f5GrantStatus.requestId $f5GrantStatus.planHash $f5Tampered} 'a tampered supplied plan is refused under a grant'
+    # Expiry: an expired grant stops covering writes; revoke does the same at once.
+    $f5Expiring=F5-Plan 'task.status' @{taskId='F5-1';status='todo'}
+    & $f5GrantModule {param($c,$r) $g=Read-SBMcpWriteGrantFile $c $r;$g.expiresAt=(Get-SBNow).AddMinutes(-1).ToString('o');Save-SBMcpWriteGrant $c $r $g} (Read-SBConfiguration -ConfigPath $f5ConfigPath -BrainRoot $f5Brain -ReadOnly) $f5Id
+    Reject {Submit-F5Grant $f5Expiring} 'an expired grant no longer lets the agent submit'
+    Check (@((Get-SBMcpWriteGrants $f5Brain $f5ConfigPath).grants|Where-Object {$_.repository -ceq $f5Id})[0].state -eq 'expired') 'grants lists the expired state'
+    [void](New-SBMcpWriteGrant $f5Brain $f5ConfigPath $f5Id 4 'Synthetic grant' $f5Session.sessionId)
+    $f5Revoked=F5-Plan 'task.status' @{taskId='F5-1';status='in_progress'}
+    Check ($f5Revoked.planHash) 'a renewed grant is active again'
+    [void](Revoke-SBMcpWriteGrant $f5Brain $f5ConfigPath $f5Id $f5Session.sessionId)
+    Reject {Submit-F5Grant $f5Revoked} 'a revoked grant no longer lets the agent submit'
+    Check (@((Get-SBMcpWriteGrants $f5Brain $f5ConfigPath).grants|Where-Object {$_.repository -ceq $f5Id})[0].state -eq 'revoked') 'grants lists the revoked state'
     # Actual wire protocol: discover all tools, preview without writes, deny NoRecovery submit.
     $f5WirePlan=F5-Plan 'memory.append' @{content='wire fixture'}
     $f5WireArgs=@{repository=$f5Id;checkoutPath=$f5Repo;requestId=$f5WirePlan.requestId;operation='memory.append';payload=@{content='wire fixture'}}

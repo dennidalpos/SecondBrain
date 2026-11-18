@@ -6,7 +6,7 @@ Supported changes are saved as requests before integration. A central transactio
 
 ## Submit and inspect
 
-Task operations use NewTask and UpdateTaskId. Results include requestId and requestPath; a new task receives its sequence only when integrated. UpdateTasksFile applies several task updates at once: one request and one receipt per update, all written with the tracker in one transaction under one writer lock, and nothing queued when the batch is refused or the writer stays busy ([trackers](trackers.md#changes-and-history)).
+Task operations use NewTask and UpdateTaskId. Results include requestId and requestPath; a new task receives its sequence only when integrated. UpdateTasksFile applies several task updates at once: one request and one receipt per update, all written with the tracker in one transaction under one writer lock, and nothing queued when the batch is refused or the writer stays busy ([trackers](trackers.md#changes-and-history)). MCP task writes under a scoped grant enter the same queues as receipt-approved ones ([mcp-writes](mcp-writes.md)).
 
 File requests accept memory.md, context.md and history/<slug>/report.md in the active identity-resolved dossier:
 
@@ -53,6 +53,27 @@ pwsh -NoProfile -File scripts/knowledge.ps1 -DiscardPending <32-hex request id>
 ~~~
 
 Only conflict, invalid and invalid-receipt states are accepted; deferred and applied requests are refused. Request and receipt move to .runtime/access/pending-discarded/<id>/ with a discarded.json note (state, request hash, time), so the evidence is preserved. The command takes the writer lock and is incompatible with NoRecovery.
+
+## Reconcile queued writes (sb reconcile tasks)
+
+`sb check` reports `pending-conflict` (a warning, never a blocker) when a repository has queued writes whose receipt is a conflict or invalid, or receipts whose request is gone (orphans). `scripts/reconcile-tasks.ps1` verifies and reconciles them for one repository (`-Repository`, or the working checkout; `-All` only plans):
+
+~~~powershell
+pwsh -NoProfile -File scripts/reconcile-tasks.ps1                      # plan: class, safety and options per item, nothing written
+pwsh -NoProfile -File scripts/reconcile-tasks.ps1 -Apply               # execute the safe items
+pwsh -NoProfile -File scripts/reconcile-tasks.ps1 -Decide <request id>=<option>
+~~~
+
+| Class | Meaning | Safe | Options |
+|---|---|---|---|
+| already-applied | The task or file already shows the requested change | yes: retire | retire, keep |
+| stale-hash | The task or file moved on. Safe when the request only appends evidence or text, or nothing changed; otherwise applying it would overwrite the change | safe: re-plan | replan, retire, keep |
+| orphan-receipt | A receipt without a request | yes: retire the receipt | retire-receipt, keep |
+| task-missing, id-collision, provenance-changed, no-dossier, invalid, invalid-request | Not repairable by itself | no: decision | retire, keep, plus replan (provenance) or cancel-task (invalid request on an existing task) |
+
+`-Apply` retires already-applied requests and orphan receipts and re-plans the safe stale ones. A re-plan queues a new request with the current preconditions and retires the old one; the new request is integrated by the normal `knowledge.ps1 -FlushPending`, so the tracker is never written by the reconcile itself. Items that need a decision are returned with a one-sentence question and 2 to 3 options: ask the owner, then run `-Decide <id>=<option>` for each answer. A decision runs without `-Apply`; `-All` cannot apply or decide.
+
+Nothing is deleted. Retired requests and receipts move to `.runtime/access/pending-discarded/<scope>/<id>/` with a `discarded.json` note that records the class, the action and the replacing request ID. Removing a task means status `cancelled` through a new `task.status` request, never a deletion. Exit codes: 0 done or plan only, 1 an item failed, 2 invalid input, 3 busy, 4 write denied.
 
 ## MCP contract
 

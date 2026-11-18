@@ -2241,6 +2241,23 @@
         "pmt-058c474f",
         "pmt-677a10ab"
       ]
+    },
+    {
+      "id": "pmt-a76062d2",
+      "code": "SYS19",
+      "role": "tasks.reconcile",
+      "category": "backlog",
+      "summary": "Reconcile conflicting or invalid queued writes and orphan receipts.",
+      "target": "repository",
+      "mode": "write",
+      "scope": "repo",
+      "requires": "a managed repository and a write session to apply",
+      "example": "sb reconcile tasks: plan the queued conflicts of this repository",
+      "file": "SYS19.md",
+      "related": [
+        "pmt-821f7dec",
+        "pmt-5916b85a"
+      ]
     }
   ]
 }

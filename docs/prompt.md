@@ -2,7 +2,7 @@
 
 [Retained Italian source; use this English page for current behavior](prompt.it.md)
 
-The catalog contains 122 prompt cards in 17 categories, in two groups (current repository and central SecondBrain). The cards are in English.
+The catalog contains 123 prompt cards in 17 categories, in two groups (current repository and central SecondBrain). The cards are in English.
 
 ~~~text
 sb prompt list

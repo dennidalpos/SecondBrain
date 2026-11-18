@@ -90,7 +90,7 @@ function Get-SBSetupFeatureStatus {
         $hookFile=Join-Path $path '.git/hooks/pre-push'
         $hookOn=(Test-Path -LiteralPath $hookFile -PathType Leaf) -and ([IO.File]::ReadAllText($hookFile) -match 'SecondBrain pre-push hook')
         $features+=New-SBFeature 'publication-hook' $(if($hookOn){'enabled'}elseif($remote){'available'}else{'unsupported'}) ('pre-push in '+$path) ('pwsh -NoProfile -File scripts/publication.ps1 -InstallHook -RepositoryPath "'+$path+'"') @('SECONDBRAIN_HOME') 'low' ($remote -and !$hookOn) 'setupstatus.publication.reason' ([string]$binding.identity)
-        $gitRecord=$null;if($binding.ContainsKey('dossier') -and $binding.dossier){$recordPath=Join-Path $brain ([string]$binding.dossier+'/repository.json');if(Test-Path -LiteralPath $recordPath -PathType Leaf){try{$gitRecord=Read-SBJson $recordPath $null}catch{$gitRecord=$null}}}
+        $gitRecord=$null;$bindingDossier=Resolve-SBBindingDossier $brain $binding;if($bindingDossier){$recordPath=Join-Path $brain ([string]$bindingDossier+'/repository.json');if(Test-Path -LiteralPath $recordPath -PathType Leaf){try{$gitRecord=Read-SBJson $recordPath $null}catch{$gitRecord=$null}}}
         $gitUpdate=Get-SBGitUpdate $gitRecord
         $features+=New-SBFeature 'git-update' $(if($gitUpdate.confirmed){'enabled'}else{'available'}) ('gitUpdate '+$gitUpdate.mode+' on '+$gitUpdate.branch+$(if($gitUpdate.confirmed){''}else{' (proposed default, not confirmed)'})) ('pwsh -NoProfile -File scripts/para.ps1 -SetGitUpdate -GitMode '+$gitUpdate.mode+' -GitBranch '+$gitUpdate.branch+' -Only "'+[string]$binding.identity+'"') @('workstation-activated') 'low' $false 'setupstatus.gitupdate.reason' ([string]$binding.identity)
         $launcher=Join-Path $path '.secondbrain/run-tasks.ps1'

@@ -44,8 +44,9 @@ try{
     $runs=@((Get-SBRunnerRunList -BrainRoot $config.brainRoot -HostId $config.workstationId -Repository $identity -Limit 1).runs)
     $binding=@($config.bindings|Where-Object {$_.identity -ceq $identity})|Select-Object -First 1
     $record=$null
-    if($binding -and $binding.ContainsKey('dossier') -and $binding.dossier){
-        $recordPath=Join-Path (Resolve-SBParaPath $config.brainRoot ([string]$binding.dossier)) 'repository.json'
+    $bindingDossier=if($binding){Resolve-SBBindingDossier $config.brainRoot $binding}else{$null}
+    if($bindingDossier){
+        $recordPath=Join-Path (Resolve-SBParaPath $config.brainRoot ([string]$bindingDossier)) 'repository.json'
         if(Test-Path -LiteralPath $recordPath -PathType Leaf){$record=Read-SBJson $recordPath $null}
     }
     $facts=Get-SBProjectFacts $full

@@ -2,6 +2,7 @@
 Set-StrictMode -Version Latest
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Access.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Host.psm1')
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Pending.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Knowledge.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Prompts.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.TrackerImport.psm1')
@@ -89,6 +90,7 @@ Add-SBMessages @{
     'portable.account.alias.invalid' = @{ en = 'Invalid account alias "{0}": use the Claude account id or a pseudonym of 2-64 characters (letters, digits, dot, underscore, hyphen), never an email address' }
     'portable.account.alias.required' = @{ en = 'Account alias required for {0}: it identifies which account the instructions belong to. Pass -IdeAccount "{0}|<account id or pseudonym>" or use -Interactive' }
     'portable.prompt.alias' = @{ en = 'Account id or pseudonym for {0} (letters, digits, . _ -; never an email){1}' }
+    'portable.issue.pendingconflict' = @{ en = 'Queued writes need reconciliation: run sb reconcile tasks (plan first, then -Apply and -Decide)' }
     'portable.issue.aliasmissing' = @{ en = 'No account alias registered: re-run Setup with -IdeAccount "{0}|<account id or pseudonym>"' }
     'portable.path.filetype.alt' = @{ en = 'Alternative path allowed only for file-type IDEs: {0}' }
     'portable.observed.manual' = @{ en = 'Observed revision and hash are recorded only for manual surfaces: {0}' }
@@ -188,6 +190,26 @@ function Get-SBBindingRepositoryFiles($Binding) {
     elseif($Binding.PSObject.Properties['repositoryFiles']){$declared=$true;$value=$Binding.repositoryFiles}
     if(!$declared -or $null -eq $value){return @($script:SBRepositoryFileNames)}
     @($value|Where-Object {$_ -in $script:SBRepositoryFileNames})
+}
+# #700: a binding keeps identity, path and the managed block hash. repositoryFiles, remoteIdentity and status stay only when they carry
+# something the others cannot derive (a reduced file selection, an origin that differs from the identity, a pending tracker import); the dossier
+# is resolved through PARA (Resolve-SBBindingDossier) and the origin guard derives from the identity (Get-SBBindingRemoteIdentity).
+# Idempotent, and it accepts old and minimal bindings alike.
+function ConvertTo-SBMinimalBinding($Binding) {
+    $get={param($name) if($Binding -is [Collections.IDictionary]){if($Binding.Contains($name)){return $Binding[$name]}}elseif($Binding.PSObject.Properties[$name]){return $Binding.PSObject.Properties[$name].Value};$null}
+    $has={param($name) if($Binding -is [Collections.IDictionary]){return $Binding.Contains($name)};[bool]$Binding.PSObject.Properties[$name]}
+    $identity=[string](& $get 'identity')
+    $result=@{path=[string](& $get 'path');identity=$identity}
+    if(& $has 'managedHash'){$result.managedHash=(& $get 'managedHash')}
+    $derived=if($identity.StartsWith('local:',[StringComparison]::Ordinal)){''}else{$identity}
+    if((& $has 'remoteIdentity') -and ([string](& $get 'remoteIdentity')) -cne $derived){$result.remoteIdentity=(& $get 'remoteIdentity')}
+    # An explicit empty list (opt-out, #484) differs from the default and is kept; Get-SBBindingRepositoryFiles reads the binding itself.
+    if(& $has 'repositoryFiles'){
+        $files=@(Get-SBBindingRepositoryFiles $Binding)
+        if((($files|Sort-Object) -join ',') -cne ((@(Get-SBDefaultRepositoryFiles)|Sort-Object) -join ',')){$result.repositoryFiles=@($files)}
+    }
+    if((& $has 'status') -and [string](& $get 'status') -cne 'managed'){$result.status=(& $get 'status')}
+    $result
 }
 # AGENTS.md is the single source. Claude Code reads CLAUDE.md and Gemini CLI GEMINI.md, not AGENTS.md: thin managed pointers import it.
 function Set-SBRepositoryPointers([string]$Checkout,[hashtable]$State,[bool]$Check,[string]$BackupRoot,[string[]]$Files=$script:SBRepositoryPointerFiles) {
@@ -291,7 +313,7 @@ function Invoke-SBHostActivation {
             if(!$choice.ContainsKey('approveExistingBlock') -or !$choice.approveExistingBlock){throw (New-SBError 'portable.block.review')}
             $managedHash=Get-SBTextHash $existingBlock
         }
-        $newBindings+=@{path=$asset.path;identity=$identity;remoteIdentity=$current.remoteIdentity;fingerprint=$current.fingerprint;dossier=$dossierRelative;managedHash=$managedHash;repositoryFiles=@($repositoryFiles);status=$(if($requiresImport){'tracker-import-required'}else{'managed'})}
+        $newBindings+=ConvertTo-SBMinimalBinding @{path=$asset.path;identity=$identity;remoteIdentity=$current.remoteIdentity;managedHash=$managedHash;repositoryFiles=@($repositoryFiles);status=$(if($requiresImport){'tracker-import-required'}else{'managed'})}
         $plans+=@{identity=$identity;path=$asset.path;dossier=$dossierRelative;trackerImportRequired=$requiresImport;trackerSource=$trackerSource;trackerMerge=$trackerMerge;repositoryFiles=@($repositoryFiles)}
     }
     $selectedIDEs=@()
@@ -916,12 +938,13 @@ function Invoke-SBRepositoryBlockResolve {
         $state=Read-SBJson $statePath $null
         if($null -eq $state -and $stateRoot -ine $Config.runtimeRoot){$state=Read-SBJson (Join-Path $Config.runtimeRoot 'state.json') $null}
         if($null -eq $state){$state=@{schemaVersion=1;managed=@{};dossierMap=@{}}}
-        $dossier=$binding.dossier
+        $dossier=Resolve-SBBindingDossier $Config.brainRoot $binding
         if($stateRoot -ine $Config.runtimeRoot){
             $areas=@(Get-SBParaEntities $Config.brainRoot @()|Where-Object {(Test-SBRepoDossier $_) -and !$_.archived -and $_.status -eq 'active' -and $_.repository -ceq $binding.identity})
             if($areas.Count -ne 1){throw (New-SBError 'portable.dossier.identity')}
             $dossier=$areas[0].path
         }
+        if(!$dossier){throw (New-SBError 'portable.dossier.identity')}
         $dir=Resolve-SBParaPath $Config.brainRoot $dossier
         $items=@();$changed=$false
         foreach($name in $files){
@@ -992,15 +1015,16 @@ function Invoke-SBPortableSync {
                     $issues+=@{kind='forbidden-repository-in-bindings';repository=$binding.identity;reason=(Get-SBMessage 'portable.issue.forbidden')}
                     continue
                 }
-                if($binding.status -ne 'managed'){$issues+=@{kind='tracker-import-required';repository=$binding.identity};continue}
+                if($binding.ContainsKey('status') -and $binding.status -ne 'managed'){$issues+=@{kind='tracker-import-required';repository=$binding.identity};continue}
                 $current=Get-SBCheckoutAsset $binding.path $Config.bindings
-                if($current.fingerprint -ne $binding.fingerprint -or $current.remoteIdentity -cne $binding.remoteIdentity){throw (New-SBError 'portable.identity.rebind')}
-                $dossier=$binding.dossier
+                if(($binding.ContainsKey('fingerprint') -and $current.fingerprint -ne $binding.fingerprint) -or $current.remoteIdentity -cne (Get-SBBindingRemoteIdentity $binding)){throw (New-SBError 'portable.identity.rebind')}
+                $dossier=Resolve-SBBindingDossier $Config.brainRoot $binding
                 if($externalState){
                     $areas=@($entities|Where-Object {(Test-SBRepoDossier $_) -and !$_.archived -and $_.status -eq 'active' -and $_.repository -ceq $binding.identity})
                     if($areas.Count -ne 1){throw (New-SBError 'portable.dossier.identity')}
                     $dossier=$areas[0].path
                 }
+                if(!$dossier){throw (New-SBError 'portable.dossier.identity')}
                 $dir=Resolve-SBParaPath $Config.brainRoot $dossier
                 $record=Read-SBJson (Join-Path $dir 'repository.json') $null
                 if(!$record -or $record.identity -cne $binding.identity){throw (New-SBError 'portable.dossier.identity')}
@@ -1033,6 +1057,11 @@ function Invoke-SBPortableSync {
                 }
                 if($Check){
                     $closureTracker=Resolve-SBTracker -BrainRoot $Config.brainRoot -Identity $binding.identity -DossierPath $dir -CheckoutPath $binding.path -AllowedOwners @() -Entities $entities
+                    # #706: queued writes that conflict, are invalid, or whose receipt lost its request; sb reconcile tasks resolves them. A warning, never a blocker.
+                    try{
+                        $queued=Get-SBPendingConflictSummary $Config.brainRoot $binding.identity
+                        if($queued.conflicts -or $queued.orphans){$closureWarnings+=@{kind='pending-conflict';repository=$binding.identity;conflicts=$queued.conflicts;orphans=$queued.orphans;reason=(Get-SBMessage 'portable.issue.pendingconflict')}}
+                    }catch{Write-Verbose $_.Exception.Message}
                     if($closureTracker.source -eq 'dossier'){
                         foreach($pending in @(Get-SBClosureMemoryPending $dir $closureTracker.data)){
                             $closureWarnings+=@{kind='closure-memory-pending';repository=$binding.identity;taskId=$pending.taskId;closedAt=$pending.closedAt;memoryUpdatedAt=$pending.memoryUpdatedAt;reason=(Get-SBMessage 'portable.issue.closure')}
@@ -1154,6 +1183,7 @@ function Invoke-SBPortableSync {
     }finally{Exit-SBOperation $lock}
 }
 Export-ModuleMember -Function @(
+    'ConvertTo-SBMinimalBinding',
     'New-SBPortableConfiguration',
     'Get-SBPortableGlobal',
     'Read-SBAccountObservationReceipt',
