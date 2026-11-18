@@ -233,6 +233,294 @@
       "path": "shared/authoritative-sources/entries/w3c-wcag/versions/20261027-99c47346a5064e4a/transcript.verified.md",
       "reason": "Reviewed 2026-11-11: institutional contact address printed in a third-party public legal or technical text kept verbatim in a public-reusable source transcript; not a personal address of this project.",
       "rule": "personal-email"
+    },
+    {
+      "fingerprint": "7DB0DCBCC510E2E32404BC118EB38A61F705D52B1172FD5186CF0BD0DB8D74A1",
+      "path": "shared/authoritative-sources/entries/it-ai-law-132-2025/versions/20261027-55cc325c4c47b78f/transcript.columns.md",
+      "reason": "Reviewed 2026-11-11: institutional contact address printed in a third-party public legal or technical text kept verbatim in a public-reusable source transcript; not a personal address of this project. Carried over to the shared/ path on 2026-11-18 (folder rename, identical line).",
+      "rule": "personal-email"
+    },
+    {
+      "fingerprint": "390D7152614A8C23A53CDC6785A8C5D058C09DB2DAACF920E1995BC30D095808",
+      "path": "03-resources/authoritative-sources/entries/it-ai-law-132-2025/versions/20261027-55cc325c4c47b78f/transcript.columns.md",
+      "reason": "Reviewed 2026-11-11: institutional contact address printed in a third-party public legal or technical text kept verbatim in a public-reusable source transcript; not a personal address of this project. Kept for the history blobs under the previous 03-resources path.",
+      "rule": "personal-email"
+    },
+    {
+      "fingerprint": "D0F2D40FADD12AFBA49A1058AC17AAAA9EEA184851706C31682CA666CF55CE2A",
+      "path": "shared/authoritative-sources/entries/it-ai-law-132-2025/versions/20261027-55cc325c4c47b78f/transcript.columns.md",
+      "reason": "Reviewed 2026-11-11: institutional contact address printed in a third-party public legal or technical text kept verbatim in a public-reusable source transcript; not a personal address of this project. Carried over to the shared/ path on 2026-11-18 (folder rename, identical line).",
+      "rule": "personal-email"
+    },
+    {
+      "fingerprint": "B4898275E807CE451B715FEE36FCCEF0D80EA87CB70BB76DDAB79C9B7A75ADA6",
+      "path": "03-resources/authoritative-sources/entries/it-ai-law-132-2025/versions/20261027-55cc325c4c47b78f/transcript.columns.md",
+      "reason": "Reviewed 2026-11-11: institutional contact address printed in a third-party public legal or technical text kept verbatim in a public-reusable source transcript; not a personal address of this project. Kept for the history blobs under the previous 03-resources path.",
+      "rule": "personal-email"
+    },
+    {
+      "fingerprint": "420CA8B37385634A567005CA8B96EB5AD6354E8222806B2806E6F9D523CE68BF",
+      "path": "shared/authoritative-sources/entries/it-ai-law-132-2025/versions/20261027-55cc325c4c47b78f/transcript.layout.md",
+      "reason": "Reviewed 2026-11-11: institutional contact address printed in a third-party public legal or technical text kept verbatim in a public-reusable source transcript; not a personal address of this project. Carried over to the shared/ path on 2026-11-18 (folder rename, identical line).",
+      "rule": "personal-email"
+    },
+    {
+      "fingerprint": "961474FE9792F57BFD049DB19BC66068A0E46C3996880228836788D8953AA095",
+      "path": "03-resources/authoritative-sources/entries/it-ai-law-132-2025/versions/20261027-55cc325c4c47b78f/transcript.layout.md",
+      "reason": "Reviewed 2026-11-11: institutional contact address printed in a third-party public legal or technical text kept verbatim in a public-reusable source transcript; not a personal address of this project. Kept for the history blobs under the previous 03-resources path.",
+      "rule": "personal-email"
+    },
+    {
+      "fingerprint": "517EA3A4C42853D2746800F93B8A886AC8DAF6199284FAFFA81B8A0FC5885340",
+      "path": "shared/authoritative-sources/entries/it-ai-law-132-2025/versions/20261027-55cc325c4c47b78f/transcript.layout.md",
+      "reason": "Reviewed 2026-11-11: institutional contact address printed in a third-party public legal or technical text kept verbatim in a public-reusable source transcript; not a personal address of this project. Carried over to the shared/ path on 2026-11-18 (folder rename, identical line).",
+      "rule": "personal-email"
+    },
+    {
+      "fingerprint": "E6611E58EC187FCF3A1AF0F8743FFA742D67070284F3B045DF0C0D92880210D7",
+      "path": "03-resources/authoritative-sources/entries/it-ai-law-132-2025/versions/20261027-55cc325c4c47b78f/transcript.layout.md",
+      "reason": "Reviewed 2026-11-11: institutional contact address printed in a third-party public legal or technical text kept verbatim in a public-reusable source transcript; not a personal address of this project. Kept for the history blobs under the previous 03-resources path.",
+      "rule": "personal-email"
+    },
+    {
+      "fingerprint": "C3342F846BEDBB2D9B354951FDFEFBFE3E787518255E2B6139D1E2D676873E5B",
+      "path": "shared/authoritative-sources/entries/it-ai-law-132-2025/versions/20261027-55cc325c4c47b78f/transcript.layout.md",
+      "reason": "Reviewed 2026-11-11: institutional contact address printed in a third-party public legal or technical text kept verbatim in a public-reusable source transcript; not a personal address of this project. Carried over to the shared/ path on 2026-11-18 (folder rename, identical line).",
+      "rule": "personal-email"
+    },
+    {
+      "fingerprint": "72C1226167BE504FEE1EF786CD6104AAEA809A1C1FF65B6652254E3C3FA1F379",
+      "path": "03-resources/authoritative-sources/entries/it-ai-law-132-2025/versions/20261027-55cc325c4c47b78f/transcript.layout.md",
+      "reason": "Reviewed 2026-11-11: institutional contact address printed in a third-party public legal or technical text kept verbatim in a public-reusable source transcript; not a personal address of this project. Kept for the history blobs under the previous 03-resources path.",
+      "rule": "personal-email"
+    },
+    {
+      "fingerprint": "D26130C5C0E758220707D6B9B5BE66EDF6EA5A795DF61E643B52E7B631E46590",
+      "path": "shared/authoritative-sources/entries/it-ai-law-132-2025/versions/20261027-55cc325c4c47b78f/transcript.md",
+      "reason": "Reviewed 2026-11-11: institutional contact address printed in a third-party public legal or technical text kept verbatim in a public-reusable source transcript; not a personal address of this project. Carried over to the shared/ path on 2026-11-18 (folder rename, identical line).",
+      "rule": "personal-email"
+    },
+    {
+      "fingerprint": "9E2D12782A894106D6A779E115152855229A85737558EC5C9CCF01A9D29B2396",
+      "path": "03-resources/authoritative-sources/entries/it-ai-law-132-2025/versions/20261027-55cc325c4c47b78f/transcript.md",
+      "reason": "Reviewed 2026-11-11: institutional contact address printed in a third-party public legal or technical text kept verbatim in a public-reusable source transcript; not a personal address of this project. Kept for the history blobs under the previous 03-resources path.",
+      "rule": "personal-email"
+    },
+    {
+      "fingerprint": "4E756889BBB623CF149A4290F8826CBF517C25352B98D2B77E20344C21EAC780",
+      "path": "shared/authoritative-sources/entries/it-ai-law-132-2025/versions/20261027-55cc325c4c47b78f/transcript.verified.md",
+      "reason": "Reviewed 2026-11-11: institutional contact address printed in a third-party public legal or technical text kept verbatim in a public-reusable source transcript; not a personal address of this project. Carried over to the shared/ path on 2026-11-18 (folder rename, identical line).",
+      "rule": "personal-email"
+    },
+    {
+      "fingerprint": "1CE65A9D10A3934EBA291BE6F5B64456926013C85BFC893897AABA541A6B039B",
+      "path": "03-resources/authoritative-sources/entries/it-ai-law-132-2025/versions/20261027-55cc325c4c47b78f/transcript.verified.md",
+      "reason": "Reviewed 2026-11-11: institutional contact address printed in a third-party public legal or technical text kept verbatim in a public-reusable source transcript; not a personal address of this project. Kept for the history blobs under the previous 03-resources path.",
+      "rule": "personal-email"
+    },
+    {
+      "fingerprint": "3F76AE6A99F88AC00E09D3DA360F27742BFA91BABAC2CB7BD90287D272337C6D",
+      "path": "shared/authoritative-sources/entries/it-ai-law-132-2025/versions/20261027-55cc325c4c47b78f/transcript.verified.md",
+      "reason": "Reviewed 2026-11-11: institutional contact address printed in a third-party public legal or technical text kept verbatim in a public-reusable source transcript; not a personal address of this project. Carried over to the shared/ path on 2026-11-18 (folder rename, identical line).",
+      "rule": "personal-email"
+    },
+    {
+      "fingerprint": "FBEFFEA980FF1E5527659343D007784711DBC4AA9294EDFA00EEEC432DE55435",
+      "path": "03-resources/authoritative-sources/entries/it-ai-law-132-2025/versions/20261027-55cc325c4c47b78f/transcript.verified.md",
+      "reason": "Reviewed 2026-11-11: institutional contact address printed in a third-party public legal or technical text kept verbatim in a public-reusable source transcript; not a personal address of this project. Kept for the history blobs under the previous 03-resources path.",
+      "rule": "personal-email"
+    },
+    {
+      "fingerprint": "E8787093A495771116D6E8A9D5B9895E7488BC6631FC6E0B2F7355CA910D09B4",
+      "path": "shared/authoritative-sources/entries/it-dlgs-185-2016/versions/20261107-89a10c7f213e5fb0/transcript.md",
+      "reason": "Reviewed 2026-11-11: institutional contact address printed in a third-party public legal or technical text kept verbatim in a public-reusable source transcript; not a personal address of this project. Carried over to the shared/ path on 2026-11-18 (folder rename, identical line).",
+      "rule": "personal-email"
+    },
+    {
+      "fingerprint": "87D98A96A09F8E227892DA17B712700D1B7500ED594B8CE0D3F0FC2522E9B9D8",
+      "path": "03-resources/authoritative-sources/entries/it-dlgs-185-2016/versions/20261107-89a10c7f213e5fb0/transcript.md",
+      "reason": "Reviewed 2026-11-11: institutional contact address printed in a third-party public legal or technical text kept verbatim in a public-reusable source transcript; not a personal address of this project. Kept for the history blobs under the previous 03-resources path.",
+      "rule": "personal-email"
+    },
+    {
+      "fingerprint": "A50CA18D7625D36C42A16427253FAE5D5C65CA1392F0BC23A0099944629D3C07",
+      "path": "shared/authoritative-sources/entries/it-dlgs-185-2016/versions/20261107-89a10c7f213e5fb0/transcript.md",
+      "reason": "Reviewed 2026-11-11: institutional contact address printed in a third-party public legal or technical text kept verbatim in a public-reusable source transcript; not a personal address of this project. Carried over to the shared/ path on 2026-11-18 (folder rename, identical line).",
+      "rule": "personal-email"
+    },
+    {
+      "fingerprint": "9806670E9807361032B2A2629696E66F586445AAC088D38FB7A007D855093820",
+      "path": "03-resources/authoritative-sources/entries/it-dlgs-185-2016/versions/20261107-89a10c7f213e5fb0/transcript.md",
+      "reason": "Reviewed 2026-11-11: institutional contact address printed in a third-party public legal or technical text kept verbatim in a public-reusable source transcript; not a personal address of this project. Kept for the history blobs under the previous 03-resources path.",
+      "rule": "personal-email"
+    },
+    {
+      "fingerprint": "2690B7C26E6C353394B9C382FA471396ED0BCC2B65FE8C8C0C0D13AD3C91EF71",
+      "path": "shared/authoritative-sources/entries/nist-digital-identity/versions/20261027-beb0b6d126f7d291/transcript.layout.md",
+      "reason": "Reviewed 2026-11-11: institutional contact address printed in a third-party public legal or technical text kept verbatim in a public-reusable source transcript; not a personal address of this project. Carried over to the shared/ path on 2026-11-18 (folder rename, identical line).",
+      "rule": "personal-email"
+    },
+    {
+      "fingerprint": "7D94DC8C44BEBEFC7A847D0C73027E81A90BCA683FAC13C8EC1E265FC3A31142",
+      "path": "03-resources/authoritative-sources/entries/nist-digital-identity/versions/20261027-beb0b6d126f7d291/transcript.layout.md",
+      "reason": "Reviewed 2026-11-11: institutional contact address printed in a third-party public legal or technical text kept verbatim in a public-reusable source transcript; not a personal address of this project. Kept for the history blobs under the previous 03-resources path.",
+      "rule": "personal-email"
+    },
+    {
+      "fingerprint": "85AB7F7810098D08BF5866BBA39987324605B303281F4E060DD2AE358463AF02",
+      "path": "shared/authoritative-sources/entries/nist-digital-identity/versions/20261027-beb0b6d126f7d291/transcript.layout.md",
+      "reason": "Reviewed 2026-11-11: institutional contact address printed in a third-party public legal or technical text kept verbatim in a public-reusable source transcript; not a personal address of this project. Carried over to the shared/ path on 2026-11-18 (folder rename, identical line).",
+      "rule": "personal-email"
+    },
+    {
+      "fingerprint": "215A751E151D0AF82E0837B3EEA390B747C7AAFA3D39347FB888C3A1412EB949",
+      "path": "03-resources/authoritative-sources/entries/nist-digital-identity/versions/20261027-beb0b6d126f7d291/transcript.layout.md",
+      "reason": "Reviewed 2026-11-11: institutional contact address printed in a third-party public legal or technical text kept verbatim in a public-reusable source transcript; not a personal address of this project. Kept for the history blobs under the previous 03-resources path.",
+      "rule": "personal-email"
+    },
+    {
+      "fingerprint": "2BD193B31490ADE122CAA4E5FF2D483BE3B91DBC99C0B75D11757BD14AC75EDE",
+      "path": "shared/authoritative-sources/entries/nist-digital-identity/versions/20261027-beb0b6d126f7d291/transcript.md",
+      "reason": "Reviewed 2026-11-11: institutional contact address printed in a third-party public legal or technical text kept verbatim in a public-reusable source transcript; not a personal address of this project. Carried over to the shared/ path on 2026-11-18 (folder rename, identical line).",
+      "rule": "personal-email"
+    },
+    {
+      "fingerprint": "FF0E5762833A756573A4600785B4D333A6025F2066095021E8EBB8765381084B",
+      "path": "03-resources/authoritative-sources/entries/nist-digital-identity/versions/20261027-beb0b6d126f7d291/transcript.md",
+      "reason": "Reviewed 2026-11-11: institutional contact address printed in a third-party public legal or technical text kept verbatim in a public-reusable source transcript; not a personal address of this project. Kept for the history blobs under the previous 03-resources path.",
+      "rule": "personal-email"
+    },
+    {
+      "fingerprint": "091D9C4900462C8F5853804B9C4A47C0AC9C1E2A6BC6916BE210CF42322C76B7",
+      "path": "shared/authoritative-sources/entries/nist-digital-identity/versions/20261027-beb0b6d126f7d291/transcript.verified.md",
+      "reason": "Reviewed 2026-11-11: institutional contact address printed in a third-party public legal or technical text kept verbatim in a public-reusable source transcript; not a personal address of this project. Carried over to the shared/ path on 2026-11-18 (folder rename, identical line).",
+      "rule": "personal-email"
+    },
+    {
+      "fingerprint": "1B36A6D8189244510254C0668AD75BAA84A04D0BF420AD0EAB426BC352CFF55E",
+      "path": "03-resources/authoritative-sources/entries/nist-digital-identity/versions/20261027-beb0b6d126f7d291/transcript.verified.md",
+      "reason": "Reviewed 2026-11-11: institutional contact address printed in a third-party public legal or technical text kept verbatim in a public-reusable source transcript; not a personal address of this project. Kept for the history blobs under the previous 03-resources path.",
+      "rule": "personal-email"
+    },
+    {
+      "fingerprint": "9BE17067435DFF5B133C7ED3F06A2C6EA39ED3A71A62CC0E9A1EAF40BDE670F7",
+      "path": "shared/authoritative-sources/entries/nist-ssdf/versions/20261027-4db66862b8cebd1b/transcript.layout.md",
+      "reason": "Reviewed 2026-11-11: institutional contact address printed in a third-party public legal or technical text kept verbatim in a public-reusable source transcript; not a personal address of this project. Carried over to the shared/ path on 2026-11-18 (folder rename, identical line).",
+      "rule": "personal-email"
+    },
+    {
+      "fingerprint": "4D6EE8E2F7872C9A500493AF2D0123CEB97AF35BBB28A532811CB16C02C4673C",
+      "path": "03-resources/authoritative-sources/entries/nist-ssdf/versions/20261027-4db66862b8cebd1b/transcript.layout.md",
+      "reason": "Reviewed 2026-11-11: institutional contact address printed in a third-party public legal or technical text kept verbatim in a public-reusable source transcript; not a personal address of this project. Kept for the history blobs under the previous 03-resources path.",
+      "rule": "personal-email"
+    },
+    {
+      "fingerprint": "42655209F9C027D826833F6447C91FBFBAA3AD363EC6758790F36C91E093B6CF",
+      "path": "shared/authoritative-sources/entries/nist-ssdf/versions/20261027-4db66862b8cebd1b/transcript.layout.md",
+      "reason": "Reviewed 2026-11-11: institutional contact address printed in a third-party public legal or technical text kept verbatim in a public-reusable source transcript; not a personal address of this project. Carried over to the shared/ path on 2026-11-18 (folder rename, identical line).",
+      "rule": "personal-email"
+    },
+    {
+      "fingerprint": "CA8F8709CC831492DBD3D3733237B17C7B0B6250E3AF2996ADDA5E14EEB7253A",
+      "path": "03-resources/authoritative-sources/entries/nist-ssdf/versions/20261027-4db66862b8cebd1b/transcript.layout.md",
+      "reason": "Reviewed 2026-11-11: institutional contact address printed in a third-party public legal or technical text kept verbatim in a public-reusable source transcript; not a personal address of this project. Kept for the history blobs under the previous 03-resources path.",
+      "rule": "personal-email"
+    },
+    {
+      "fingerprint": "3197E8D5E1B2C67A4474CF546E4DFFCB1A8DC560C845855B43015246BC96732D",
+      "path": "shared/authoritative-sources/entries/nist-ssdf/versions/20261027-4db66862b8cebd1b/transcript.layout.md",
+      "reason": "Reviewed 2026-11-11: institutional contact address printed in a third-party public legal or technical text kept verbatim in a public-reusable source transcript; not a personal address of this project. Carried over to the shared/ path on 2026-11-18 (folder rename, identical line).",
+      "rule": "personal-email"
+    },
+    {
+      "fingerprint": "4B52193E9E1871113D21ABD44309417F0887A28BFB8373C582CF374B40988523",
+      "path": "03-resources/authoritative-sources/entries/nist-ssdf/versions/20261027-4db66862b8cebd1b/transcript.layout.md",
+      "reason": "Reviewed 2026-11-11: institutional contact address printed in a third-party public legal or technical text kept verbatim in a public-reusable source transcript; not a personal address of this project. Kept for the history blobs under the previous 03-resources path.",
+      "rule": "personal-email"
+    },
+    {
+      "fingerprint": "1B2FC80F67CBC2DE6C68CD317E33FA7689CC7A6D583EBBD03C54B3368E5122BA",
+      "path": "shared/authoritative-sources/entries/nist-ssdf/versions/20261027-4db66862b8cebd1b/transcript.layout.md",
+      "reason": "Reviewed 2026-11-11: institutional contact address printed in a third-party public legal or technical text kept verbatim in a public-reusable source transcript; not a personal address of this project. Carried over to the shared/ path on 2026-11-18 (folder rename, identical line).",
+      "rule": "personal-email"
+    },
+    {
+      "fingerprint": "F772E10E7E5E83FEF6F58A70755C6957BF79840FE87257DD8885157522C64013",
+      "path": "03-resources/authoritative-sources/entries/nist-ssdf/versions/20261027-4db66862b8cebd1b/transcript.layout.md",
+      "reason": "Reviewed 2026-11-11: institutional contact address printed in a third-party public legal or technical text kept verbatim in a public-reusable source transcript; not a personal address of this project. Kept for the history blobs under the previous 03-resources path.",
+      "rule": "personal-email"
+    },
+    {
+      "fingerprint": "31386B58B19F23FF847C4A9DFCA6137EB46AC9001A1DFD1EA4A15BF360D7E5C9",
+      "path": "shared/authoritative-sources/entries/nist-ssdf/versions/20261027-4db66862b8cebd1b/transcript.md",
+      "reason": "Reviewed 2026-11-11: institutional contact address printed in a third-party public legal or technical text kept verbatim in a public-reusable source transcript; not a personal address of this project. Carried over to the shared/ path on 2026-11-18 (folder rename, identical line).",
+      "rule": "personal-email"
+    },
+    {
+      "fingerprint": "533B4CC3F441E86F1AA36FA437C285E77203C241C8F9E73B71A3A68C1624B470",
+      "path": "03-resources/authoritative-sources/entries/nist-ssdf/versions/20261027-4db66862b8cebd1b/transcript.md",
+      "reason": "Reviewed 2026-11-11: institutional contact address printed in a third-party public legal or technical text kept verbatim in a public-reusable source transcript; not a personal address of this project. Kept for the history blobs under the previous 03-resources path.",
+      "rule": "personal-email"
+    },
+    {
+      "fingerprint": "F7350F573217850E88120FBDC78B5F76E89411F1CE4DBDD19575BE9FF2CC9502",
+      "path": "shared/authoritative-sources/entries/nist-ssdf/versions/20261027-4db66862b8cebd1b/transcript.md",
+      "reason": "Reviewed 2026-11-11: institutional contact address printed in a third-party public legal or technical text kept verbatim in a public-reusable source transcript; not a personal address of this project. Carried over to the shared/ path on 2026-11-18 (folder rename, identical line).",
+      "rule": "personal-email"
+    },
+    {
+      "fingerprint": "52BFF0AC1855AAE974B5F22994045EE83F4C892AF2521B27E489AADB174F5BD0",
+      "path": "03-resources/authoritative-sources/entries/nist-ssdf/versions/20261027-4db66862b8cebd1b/transcript.md",
+      "reason": "Reviewed 2026-11-11: institutional contact address printed in a third-party public legal or technical text kept verbatim in a public-reusable source transcript; not a personal address of this project. Kept for the history blobs under the previous 03-resources path.",
+      "rule": "personal-email"
+    },
+    {
+      "fingerprint": "CB482E6B78029D39F0B4BEF470B3D3ABADD5E94F09E5F8EAD38D4E519827E4DC",
+      "path": "shared/authoritative-sources/entries/nist-ssdf/versions/20261027-4db66862b8cebd1b/transcript.verified.md",
+      "reason": "Reviewed 2026-11-11: institutional contact address printed in a third-party public legal or technical text kept verbatim in a public-reusable source transcript; not a personal address of this project. Carried over to the shared/ path on 2026-11-18 (folder rename, identical line).",
+      "rule": "personal-email"
+    },
+    {
+      "fingerprint": "0EF760CC4D033DF73DBC4B53B9AA594B818C761541BC5FD2B6FB6CEE2873D35C",
+      "path": "03-resources/authoritative-sources/entries/nist-ssdf/versions/20261027-4db66862b8cebd1b/transcript.verified.md",
+      "reason": "Reviewed 2026-11-11: institutional contact address printed in a third-party public legal or technical text kept verbatim in a public-reusable source transcript; not a personal address of this project. Kept for the history blobs under the previous 03-resources path.",
+      "rule": "personal-email"
+    },
+    {
+      "fingerprint": "222B8683F44CF2BA18182A220E86623132B309249F10FA55567E53BB0F6ACE34",
+      "path": "shared/authoritative-sources/entries/nist-ssdf/versions/20261027-4db66862b8cebd1b/transcript.verified.md",
+      "reason": "Reviewed 2026-11-11: institutional contact address printed in a third-party public legal or technical text kept verbatim in a public-reusable source transcript; not a personal address of this project. Carried over to the shared/ path on 2026-11-18 (folder rename, identical line).",
+      "rule": "personal-email"
+    },
+    {
+      "fingerprint": "5671875B3F14C6104508B6B7CB9E47975D4E55F87D24DB2EC3377B24351611B2",
+      "path": "03-resources/authoritative-sources/entries/nist-ssdf/versions/20261027-4db66862b8cebd1b/transcript.verified.md",
+      "reason": "Reviewed 2026-11-11: institutional contact address printed in a third-party public legal or technical text kept verbatim in a public-reusable source transcript; not a personal address of this project. Kept for the history blobs under the previous 03-resources path.",
+      "rule": "personal-email"
+    },
+    {
+      "fingerprint": "485C85DE138E1D4F56C6C8E490BA63900DC36FADBAD5D07B312CB8F0B5A3317D",
+      "path": "shared/authoritative-sources/entries/w3c-wcag/versions/20261027-99c47346a5064e4a/transcript.md",
+      "reason": "Reviewed 2026-11-11: institutional contact address printed in a third-party public legal or technical text kept verbatim in a public-reusable source transcript; not a personal address of this project. Carried over to the shared/ path on 2026-11-18 (folder rename, identical line).",
+      "rule": "personal-email"
+    },
+    {
+      "fingerprint": "465CFEFA130B8C676C40F6C6F78D898FFEF93CF7F5E53D89DE269DDAC8E602E4",
+      "path": "03-resources/authoritative-sources/entries/w3c-wcag/versions/20261027-99c47346a5064e4a/transcript.md",
+      "reason": "Reviewed 2026-11-11: institutional contact address printed in a third-party public legal or technical text kept verbatim in a public-reusable source transcript; not a personal address of this project. Kept for the history blobs under the previous 03-resources path.",
+      "rule": "personal-email"
+    },
+    {
+      "fingerprint": "EA3EB2795A0ED24A6382E4EE5BF3E96C4B7AB909DA6C1A6D2807B96C72D3A72E",
+      "path": "shared/authoritative-sources/entries/w3c-wcag/versions/20261027-99c47346a5064e4a/transcript.verified.md",
+      "reason": "Reviewed 2026-11-11: institutional contact address printed in a third-party public legal or technical text kept verbatim in a public-reusable source transcript; not a personal address of this project. Carried over to the shared/ path on 2026-11-18 (folder rename, identical line).",
+      "rule": "personal-email"
+    },
+    {
+      "fingerprint": "6BA25F1ADF605278DC8DEC21D256C53C8DFD7D845A2550E0315C1D5FE87DFA48",
+      "path": "03-resources/authoritative-sources/entries/w3c-wcag/versions/20261027-99c47346a5064e4a/transcript.verified.md",
+      "reason": "Reviewed 2026-11-11: institutional contact address printed in a third-party public legal or technical text kept verbatim in a public-reusable source transcript; not a personal address of this project. Kept for the history blobs under the previous 03-resources path.",
+      "rule": "personal-email"
     }
   ],
   "binaryReviews": [
