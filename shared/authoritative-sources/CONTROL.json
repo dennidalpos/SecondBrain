@@ -32,6 +32,11 @@
       "sha256": "B298159903E9231EFF3EFC4E06285F5CD5276F07CC6C21084CD76F4371102460"
     },
     {
+      "bytes": 164,
+      "path": "entity.json",
+      "sha256": "2DE07A0710A19C6A90783189C21B9726101A309CF649384209364000F271917C"
+    },
+    {
       "bytes": 1266,
       "path": "entries/anthropic-code-workflows/metadata.json",
       "sha256": "C10332EC3273472564E6A39CEEBE54E39A882191D37B658A045740E4078D4A16"
@@ -830,11 +835,6 @@
       "bytes": 25784,
       "path": "normative-queue.json",
       "sha256": "0AE32E012CC998C2AAE9CD20EDE6BBE4A8CF11EB80938BE1D97D736CDFB60F34"
-    },
-    {
-      "bytes": 164,
-      "path": "para.json",
-      "sha256": "2DE07A0710A19C6A90783189C21B9726101A309CF649384209364000F271917C"
     },
     {
       "bytes": 1790,
