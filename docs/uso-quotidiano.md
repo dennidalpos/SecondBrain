@@ -24,6 +24,15 @@ The command words below remain unchanged in every documentation language.
 
 See the [per-repository workflow](flusso-prodotto.md) for the order of operations.
 
+### Mechanical compaction (no model)
+
+`knowledge.ps1 -Compact -Mechanical` moves the oldest dated `##` sections of `context.md` and `memory.md` to the history tier (`<!-- sb:tier=history -->`) until the startup context (package plus directive text) is at 70% of the budget (`-TargetPercent`). It rewrites nothing and deletes nothing: the sections stay in the files, are left out of the startup package, and remain available through `-Section` and `-Search`. Originals are archived by hash in `history/compaction/`, and `memory.agent.md` and `index.md` are regenerated in the same transaction.
+
+- Eligible: sections whose newest `yyyy-MM-dd` date is older than `-OlderThanDays` (default 30). Never touched: undated sections, the required context sections, sections already in history, sections with an active `sb:decision` marker.
+- Without `-Apply` it only previews; `-TriggerPercent N` makes it act only when the context is at N% of the budget or more.
+- It runs by itself when a task is closed with `knowledge.ps1 -UpdateTaskId <id> -Status done`, at 80% of the budget. Opt out with `-NoAutoCompact` or `SECONDBRAIN_AUTO_COMPACT=0`. A failure is reported on stderr and never changes the exit code of the close.
+- Undo: restore the archived original from `history/compaction/<hash>/`, or remove the marker line.
+
 ## PARA and the dossier
 
 | Folder | Use |

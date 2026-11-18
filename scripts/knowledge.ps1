@@ -6,6 +6,8 @@ param([Parameter(ParameterSetName='Tasks')][switch]$Tasks,[Parameter(ParameterSe
     [Parameter(ParameterSetName='Startup')][switch]$Report,
     [Parameter(Mandatory,ParameterSetName='Compact')][switch]$Compact,
     [Parameter(ParameterSetName='Compact')][Parameter(ParameterSetName='Renumber')][Parameter(ParameterSetName='HistoryMigration')][Parameter(ParameterSetName='ArchiveTasks')][Parameter(ParameterSetName='BackfillTaskRuns')][switch]$Apply,[Parameter(ParameterSetName='Compact')][string]$CandidatePath,
+    [Parameter(ParameterSetName='Compact')][switch]$Mechanical,[Parameter(ParameterSetName='Compact')][ValidateRange(0,3650)][int]$OlderThanDays=30,[Parameter(ParameterSetName='Compact')][ValidateRange(1,100)][int]$TargetPercent=70,[Parameter(ParameterSetName='Compact')][ValidateRange(0,100)][int]$TriggerPercent=0,
+    [Parameter(ParameterSetName='TaskUpdate')][switch]$NoAutoCompact,
     [Parameter(Mandatory,ParameterSetName='ArchiveTasks')][switch]$ArchiveTasks,
     [Parameter(Mandatory,ParameterSetName='Search')][string]$Search,[Parameter(ParameterSetName='Search')][Parameter(ParameterSetName='Startup')][Parameter(ParameterSetName='Compact')][int]$Budget=25000,
     [Parameter(Mandatory,ParameterSetName='TaskUpdate')][string]$UpdateTaskId,[Parameter(ParameterSetName='TaskUpdate')][string]$Status,[Parameter(ParameterSetName='TaskUpdate')][string]$StateReason,
@@ -68,6 +70,9 @@ Add-SBMessages @{
     'knowledgecli.evidence.reason' = @{ en = '-CorrectEvidence needs -CorrectionReason; the replacement list is given with -Evidence (omit it to remove every entry) and cannot be combined with other fields' }
     'knowledgecli.repository.checkout' = @{ en = 'Working repository not resolvable: run from the checkout or give -CheckoutPath' }
     'knowledgecli.params.incompatible' = @{ en = 'Incompatible parameters: -All and -Repository' }
+    'knowledgecli.mechanical.candidate' = @{ en = '-Mechanical builds its own plan: do not combine it with -CandidatePath' }
+    'knowledgecli.autocompact.notice' = @{ en = 'Task closed: {0} dossier section(s) moved to the history tier ({1} -> {2} characters, nothing deleted; originals in history/compaction). Opt out with -NoAutoCompact or SECONDBRAIN_AUTO_COMPACT=0' }
+    'knowledgecli.autocompact.failed' = @{ en = 'Automatic tiering skipped: {0}' }
 }
 $brain=(Get-SBBrainRootPath);$lock=$null
 try{
@@ -142,7 +147,11 @@ try{
     elseif($Compact){
         if(!$Dossier){$compactRepository=& $resolveWorking;if($Apply){& $writeScope $compactRepository};$Dossier=Join-Path $brain (Resolve-SBWorkingDossier $brain $compactRepository)}
         elseif(![IO.Path]::IsPathRooted($Dossier)){$Dossier=Join-Path $brain $Dossier}
-        $result=Invoke-SBDossierCompaction -BrainRoot $brain -Dossier $Dossier -CandidatePath $CandidatePath -BackupRoot $config.backupRoot -Apply:$Apply -CheckoutPath $CheckoutPath -Budget $effectiveBudget}
+        if($Mechanical){
+            if($CandidatePath){throw (New-SBError 'knowledgecli.mechanical.candidate')}
+            $result=Invoke-SBMechanicalTiering -BrainRoot $brain -Dossier $Dossier -BackupRoot $config.backupRoot -Apply:$Apply -CheckoutPath $CheckoutPath -Budget $effectiveBudget -TargetPercent $TargetPercent -TriggerPercent $TriggerPercent -OlderThanDays $OlderThanDays
+        }else{
+        $result=Invoke-SBDossierCompaction -BrainRoot $brain -Dossier $Dossier -CandidatePath $CandidatePath -BackupRoot $config.backupRoot -Apply:$Apply -CheckoutPath $CheckoutPath -Budget $effectiveBudget}}
     elseif($Search){
         # Default scope: the working repository's dossier, if resolvable; -AllDossiers selects all active dossiers (refused under project isolation).
         $searchRepository=$Repository
@@ -329,6 +338,18 @@ try{
     if($Roadmap -and $Format -eq 'Markdown'){ConvertTo-SBRoadmapMarkdown $result}
     elseif($Search -or $All){(ConvertTo-SBStableValue $result|ConvertTo-Json -Depth 40 -Compress)}else{ConvertTo-SBJson $result}
     if($Startup -and !$result.withinBudget){exit 1}
+    # Automatic, lossless tiering when a task is closed: a separate writer process (this one holds a read-only lock) marks the oldest dated
+    # sections as history only when the startup context reaches 80% of the budget. It never changes this command's output or exit code.
+    if($UpdateTaskId -and $Status -ceq 'done' -and !$NoAutoCompact -and $env:SECONDBRAIN_AUTO_COMPACT -ne '0'){
+        try{
+            $childArguments=@('-NoProfile','-File',$PSCommandPath,'-Compact','-Mechanical','-Apply','-TriggerPercent','80')
+            foreach($pair in @(@('-CheckoutPath',$CheckoutPath),@('-ConfigPath',$ConfigPath),@('-SessionId',$SessionId))){if($pair[1]){$childArguments+=@($pair[0],$pair[1])}}
+            $childText=(& pwsh @childArguments 2>&1|Out-String)
+            if($LASTEXITCODE -ne 0){throw $childText.Trim()}
+            $auto=$childText|ConvertFrom-Json -AsHashtable
+            if($auto.action -ceq 'tiered' -and $auto.applied){[Console]::Error.WriteLine((Get-SBMessage 'knowledgecli.autocompact.notice' @(@($auto.demoted).Count,$auto.beforeCharacters,$auto.afterCharacters)))}
+        }catch{[Console]::Error.WriteLine((Get-SBMessage 'knowledgecli.autocompact.failed' @(($_.Exception.Message -split "`n")[0])))}
+    }
     # Exit contract: 0 only when the requested write is applied; 5 = accepted but not applied yet (deferred or conflict).
     if($bufferedWrite -and $result -is [Collections.IDictionary] -and $result.Contains('applied') -and !$result.applied){exit 5}
     exit 0

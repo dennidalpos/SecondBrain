@@ -14,7 +14,7 @@ Use chat conventions or the same PowerShell scripts. Run central scripts from th
 | Implement authorized work | Agent in the product repository | Follow repository instructions and session permissions |
 | Check before any authorized push | `sb prompt SEC07` | `scripts/publication.ps1 -RepositoryPath <product>` |
 | Close authorized work | `sb prompt MEM03` | Update permitted tracker/context/memory, then Sync and Check |
-| Compact only when necessary | `sb compact` | `knowledge.ps1 -Compact -CandidatePath <file>`; inspect before Apply |
+| Compact only when necessary | `sb compact` | `knowledge.ps1 -Compact -Mechanical` (no model, lossless tiering; add `-Apply` to write) or `-Compact -CandidatePath <file>` for a reviewed rewrite; inspect before Apply |
 
 Knowledge lookups never write; pending writes are integrated only by an explicit `knowledge.ps1 -FlushPending`. Audits that propose tracker changes leave the tracker unchanged; do not close a task simply because some code exists.
 

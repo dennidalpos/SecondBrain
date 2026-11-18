@@ -430,7 +430,7 @@ Add-SBMessages @{
     'mode.run' = @{ en = 'run' }
     'cmd.runner' = @{ en = 'Asks with a multiple choice for the desktop runner (recommended) or the command line, then opens the runner on the current repository with scripts/runner.ps1 -Mode auto|gui|cli: the desktop app is built when stale and, if it cannot open, the command line takes over by itself (preview, then runner.choice).' }
     'cmd.stop' = @{ en = 'session.stop: stops the agent, saves the session in the dossier (handoff report, tracker, next step) and prepares it to be resumed from another IDE or account with session.resume.' }
-    'cmd.compact' = @{ en = 'dossier.compact: compacts the given dossier preserving originals, facts and TOC (preview, then -Apply). Alias: sb compact.' }
+    'cmd.compact' = @{ en = 'dossier.compact: compacts the given dossier preserving originals, facts and TOC (preview, then -Apply). Alias: sb compact. With -Mechanical no model is used: the oldest dated sections move to the history tier, losslessly; it also runs by itself when a task is closed and the context is at 80% of the budget.' }
     'guide.safety.title' = @{ en = 'What SecondBrain changes and where the backups are' }
     'guide.safety.for' = @{ en = 'Read first: files touched, backups, recovery, uninstall.' }
     'guide.start.title' = @{ en = 'Get started' }
@@ -492,7 +492,7 @@ function Get-SBWorkflowCommands {
         @{command='sb skills';aliases=@();scope='repository';does=(Get-SBWorkflowMessage 'cmd.skills');mode=(Get-SBWorkflowMessage 'mode.write');script='scripts/skills.ps1'},
         @{command='sb check';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.check');mode=(Get-SBWorkflowMessage 'mode.verify');script='scripts/secondbrain.ps1 -Check'},
         @{command='sb sync';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.sync');mode=(Get-SBWorkflowMessage 'mode.write');script='scripts/secondbrain.ps1 -Sync'},
-        @{command='sb compact';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.compact');mode=(Get-SBWorkflowMessage 'mode.write');script='scripts/knowledge.ps1 -Compact -CandidatePath FILE'},
+        @{command='sb compact';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.compact');mode=(Get-SBWorkflowMessage 'mode.write');script='scripts/knowledge.ps1 -Compact -Mechanical [-Apply] | -Compact -CandidatePath FILE'},
         @{command='sb runner';aliases=@();scope='repository';does=(Get-SBWorkflowMessage 'cmd.runner');mode=(Get-SBWorkflowMessage 'mode.run');script='scripts/runner.ps1'},
         @{command='sb stop';aliases=@();scope='repository';does=(Get-SBWorkflowMessage 'cmd.stop');mode=(Get-SBWorkflowMessage 'mode.write');script='scripts/prompts.ps1 -Compose -Prompt session.stop'}
     )

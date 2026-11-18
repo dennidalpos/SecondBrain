@@ -719,6 +719,27 @@ if('workflows' -in $Groups){
     [void](Invoke-SBDossierCompaction -BrainRoot $brain -Dossier $dossier -CandidatePath $candidatePath -BackupRoot $cfg.backupRoot -Budget 16000 -CheckoutPath $repo -Apply)
     Check ((Get-SBFileHash (Join-Path $dossier ('history/compaction/'+$before.ToLowerInvariant()+'/memory.md'))) -ceq $before) 'compaction preserves byte-exact original'
     Reject {Invoke-SBDossierCompaction -BrainRoot $brain -Dossier $dossier -CandidatePath $candidatePath -BackupRoot $cfg.backupRoot -Budget 16000 -Apply} 'stale compaction candidate rejected'
+    # Mechanical tiering (no model): lossless demotion of old dated sections to the history tier.
+    $memPath=Join-Path $dossier 'memory.md';$viewPath=Join-Path $dossier 'memory.agent.md'
+    $memBefore=Read-SBText $memPath;$viewBefore=Read-SBText $viewPath
+    $today=(Get-SBNow).ToString('yyyy-MM-dd')
+    Put $memPath ($memBefore.TrimEnd()+"`n`n## Old batch`n`nDecision: legacy choice 2026-01-05 — Reason: MECHANICAL-OLD-MARKER "+('y'*3000)+"`n`n## Undated notes`n`nDecision: no date here, MECHANICAL-UNDATED-MARKER`n`n## Fresh notes`n`nDecision: recent choice $today MECHANICAL-FRESH-MARKER`n")
+    $mechBefore=Get-SBFileHash $memPath
+    $mechPreview=Invoke-SBMechanicalTiering -BrainRoot $brain -Dossier $dossier -BackupRoot $cfg.backupRoot -Budget 1 -CheckoutPath $repo
+    Check ($mechPreview.action -ceq 'tiered' -and !$mechPreview.applied -and @($mechPreview.demoted).Count -eq 1 -and $mechPreview.demoted[0].title -ceq 'Old batch' -and (Get-SBFileHash $memPath) -ceq $mechBefore) 'mechanical preview selects only the old dated section and writes nothing'
+    $mechGate=Invoke-SBMechanicalTiering -BrainRoot $brain -Dossier $dossier -BackupRoot $cfg.backupRoot -Budget 1000000 -CheckoutPath $repo -TriggerPercent 100
+    Check ($mechGate.action -ceq 'none' -and (Get-SBFileHash $memPath) -ceq $mechBefore) 'mechanical tiering does nothing below the target'
+    $mechApplied=Invoke-SBMechanicalTiering -BrainRoot $brain -Dossier $dossier -BackupRoot $cfg.backupRoot -Budget 1 -CheckoutPath $repo -Apply
+    $mechText=Read-SBText $memPath
+    Check ($mechApplied.applied -and $mechText.Contains("## Old batch`n<!-- sb:tier=history -->") -and !$mechText.Contains("## Undated notes`n<!-- sb:tier=history -->") -and !$mechText.Contains("## Fresh notes`n<!-- sb:tier=history -->")) 'mechanical apply marks only the old dated section'
+    Check ((Get-SBFileHash (Join-Path $dossier ('history/compaction/'+$mechBefore.ToLowerInvariant()+'/memory.md'))) -ceq $mechBefore) 'mechanical apply archives the byte-exact original'
+    $mechStartup=Get-SBStartupContext -BrainRoot $brain -Dossier $dossier -CheckoutPath $repo -Profile Slim
+    Check (!$mechStartup.parts.memory.Contains('MECHANICAL-OLD-MARKER') -and $mechStartup.parts.memory.Contains('MECHANICAL-FRESH-MARKER') -and $mechStartup.parts.memory.Contains('MECHANICAL-UNDATED-MARKER')) 'startup leaves out the demoted section and keeps the others'
+    Check ((Read-SBText $viewPath).Contains('source='+(Get-SBTextHash ($mechText.Replace("`r`n","`n"))))) 'mechanical apply regenerates the agent view of the new memory'
+    Check ((ConvertTo-SBJson (Get-SBSection -BrainRoot $brain -Dossier $dossier -Title 'Old batch' -Source 'memory')).Contains('MECHANICAL-OLD-MARKER')) 'the demoted section stays retrievable'
+    $mechAgain=Invoke-SBMechanicalTiering -BrainRoot $brain -Dossier $dossier -BackupRoot $cfg.backupRoot -Budget 1 -CheckoutPath $repo -Apply
+    Check ($mechAgain.action -cne 'tiered' -and (Read-SBText $memPath) -ceq $mechText) 'mechanical tiering is idempotent'
+    Put $memPath $memBefore;Put $viewPath $viewBefore
 }
 if('workflows' -in $Groups){
     # Perimeter (#412): with project isolation active nothing reads or writes another repository's data, through knowledge.ps1, MCP tools and work.ps1.

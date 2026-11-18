@@ -944,6 +944,102 @@ function Invoke-SBDossierCompaction {
     if($Apply){[void](Assert-SBCentralDataPath $root $BackupRoot);Invoke-SBParaTransaction $ops $BackupRoot $root|Out-Null}
     @{repository=$record.identity;applied=[bool]$Apply;archives=$archives;operations=$ops.Count;originalsPreserved=$true;manifest=$manifestPath}
 }
+# Mechanical, lossless tiering (no model): when the startup context (Slim package plus directive text) reaches TriggerPercent of the budget,
+# the oldest dated `## ` sections of context.md and memory.md are marked <!-- sb:tier=history --> until the total falls to TargetPercent.
+# Nothing is rewritten or deleted: marked sections stay in the files and are retrievable with -Section / -Search. A section is eligible only
+# when its newest ISO date (yyyy-MM-dd) is older than OlderThanDays; undated sections, the required context sections, sections that are
+# already history and sections holding an active sb:decision marker are never touched. Originals are archived by hash like -Compact,
+# memory.agent.md and index.md are regenerated in the same transaction. Without -Apply it only previews.
+function Invoke-SBMechanicalTiering {
+    param([string]$BrainRoot,[string]$Dossier,[string]$BackupRoot,[switch]$Apply,[string]$CheckoutPath,[int]$Budget=(Get-SBSlimStartupBudget),
+        [ValidateRange(1,100)][int]$TargetPercent=70,[ValidateRange(0,100)][int]$TriggerPercent=0,[ValidateRange(0,3650)][int]$OlderThanDays=30)
+    if([string]::IsNullOrWhiteSpace($Dossier)){throw (New-SBError 'knowledge.dossier.unspecified')}
+    $root=[IO.Path]::GetFullPath($BrainRoot);$dir=[IO.Path]::GetFullPath($Dossier)
+    [void](Assert-SBPlainPath $dir)
+    $relative=[IO.Path]::GetRelativePath($root,$dir).Replace('\','/');[void](Resolve-SBParaPath $root $relative)
+    if($relative.StartsWith('04-archives/',[StringComparison]::Ordinal)){throw (New-SBError 'knowledge.dossier.archived')}
+    $record=Read-SBJson (Join-Path $dir 'repository.json') $null
+    if(!$record){throw (New-SBError 'knowledge.record.missing')}
+    $tracker=Resolve-SBTracker -BrainRoot $root -Identity $record.identity -DossierPath $dir -CheckoutPath $CheckoutPath -AllowedOwners @()
+    $toc=Get-SBDossierTOC $dir $root
+    $directive=[int](Get-SBDirectiveCharacters $CheckoutPath).total
+    $measure={
+        param([string]$Context,[string]$Memory)
+        $view=ConvertTo-SBAgentMemoryView $Memory
+        [int](New-SBStartupPackage -Record $record -Tracker $tracker -TOC $toc -ContextText $Context -MemoryText $Memory -AgentViewHash (Get-SBTextHash $view) -Profile Slim -Budget 0).uncompactedCharacters
+    }
+    $sources=[ordered]@{};$eol=@{}
+    foreach($name in @('context.md','memory.md')){
+        $text=Read-SBText (Join-Path $dir $name)
+        $eol[$name]=$text.Contains("`r`n")
+        $sources[$name]=$text.Replace("`r`n","`n")
+    }
+    $before=(& $measure $sources['context.md'] $sources['memory.md'])+$directive
+    $target=[int][Math]::Floor($Budget*$TargetPercent/100.0)
+    $result=@{repository=$record.identity;applied=$false;action='none';budget=$Budget;targetCharacters=$target;triggerPercent=$TriggerPercent;beforeCharacters=$before;afterCharacters=$before;demoted=@();operations=0;originalsPreserved=$true;unit='characters-not-tokens'}
+    if($Budget -le 0 -or $before -le $target -or (100.0*$before/$Budget) -lt $TriggerPercent){return $result}
+    $cutoff=(Get-SBNow).AddDays(-$OlderThanDays)
+    $required=@($script:SBContextSections.english)+@($script:SBContextSections.italian)
+    $candidates=@()
+    foreach($name in $sources.Keys){
+        $chunks=@(Split-SBMarkdownH2 $sources[$name])
+        for($i=0;$i -lt $chunks.Count;$i++){
+            $chunk=$chunks[$i]
+            if(!$chunk.StartsWith('## ')){continue}
+            $title=Get-SBMarkdownSectionTitle $chunk
+            if($name -eq 'context.md' -and $title -in $required){continue}
+            if((Split-SBTieredMarkdown $chunk).essential.Length -eq 0){continue}
+            if($chunk -match '<!-- sb:decision id=[^ ]+ state=(?!superseded|expired)'){continue}
+            $newest=$null
+            foreach($m in [regex]::Matches($chunk,'\b20\d{2}-\d{2}-\d{2}\b')){
+                $parsed=[datetime]::MinValue
+                if([datetime]::TryParseExact($m.Value,'yyyy-MM-dd',[Globalization.CultureInfo]::InvariantCulture,[Globalization.DateTimeStyles]::AssumeUniversal -bor [Globalization.DateTimeStyles]::AdjustToUniversal,[ref]$parsed) -and (!$newest -or $parsed -gt $newest)){$newest=$parsed}
+            }
+            if(!$newest -or $newest -ge $cutoff.UtcDateTime){continue}
+            $candidates+=,@{file=$name;index=$i;title=$title;newest=$newest;characters=$chunk.Length}
+        }
+    }
+    $planned=@{}
+    foreach($name in $sources.Keys){$planned[$name]=@(Split-SBMarkdownH2 $sources[$name])}
+    $demoted=@();$after=$before
+    foreach($candidate in @($candidates|Sort-Object @{Expression={$_.newest}},@{Expression={$_.file}},@{Expression={$_.index}})){
+        if($after -le $target){break}
+        $lines=$planned[$candidate.file][$candidate.index] -split "`n",2
+        $planned[$candidate.file][$candidate.index]=$lines[0]+"`n<!-- sb:tier=history -->`n"+$(if($lines.Count -gt 1){$lines[1]}else{''})
+        $after=(& $measure (($planned['context.md']) -join '') (($planned['memory.md']) -join ''))+$directive
+        $demoted+=@{file=$candidate.file;title=$candidate.title;newestDate=$candidate.newest.ToString('yyyy-MM-dd');characters=$candidate.characters}
+    }
+    if(!$demoted.Count){$result.action='no-eligible';return $result}
+    $result.action='tiered';$result.demoted=@($demoted);$result.afterCharacters=$after
+    $ops=@();$archives=@();$newText=@{}
+    $attributesPath=Join-Path $dir 'history/compaction/.gitattributes'
+    if((Get-SBFileHash $attributesPath) -eq 'absent'){$ops+=@{path=$attributesPath;expected='absent';bytes=[Text.Encoding]::UTF8.GetBytes("* -text -whitespace`n")}}
+    foreach($name in @($demoted|ForEach-Object file|Select-Object -Unique)){
+        $source=Join-Path $dir $name;$hash=Get-SBFileHash $source
+        $text=($planned[$name]) -join ''
+        if($eol[$name]){$text=$text.Replace("`n","`r`n")}
+        $newText[$name]=$text
+        $archiveRelative='history/compaction/'+$hash.ToLowerInvariant()+'/'+$name
+        $archive=Join-Path $dir $archiveRelative;$existing=Get-SBFileHash $archive
+        if($existing -eq 'absent'){$ops+=@{path=$archive;expected='absent';bytes=[IO.File]::ReadAllBytes($source)}}elseif($existing -ne $hash){throw (New-SBError 'knowledge.original.diverged')}
+        $ops+=@{path=$source;expected=$hash;bytes=[Text.Encoding]::UTF8.GetBytes($text)}
+        $archives+=@{source=$name;sha256=$hash;archive=$archiveRelative}
+    }
+    $memoryAfter=if($newText.ContainsKey('memory.md')){$newText['memory.md']}else{$sources['memory.md']}
+    if($newText.ContainsKey('memory.md')){
+        $viewPath=Join-Path $dir 'memory.agent.md'
+        $ops+=@{path=$viewPath;expected=(Get-SBFileHash $viewPath);bytes=[Text.Encoding]::UTF8.GetBytes((ConvertTo-SBAgentMemoryView $memoryAfter))}
+    }
+    $index=Join-Path $dir 'index.md'
+    $ops+=@{path=$index;expected=(Get-SBFileHash $index);bytes=[Text.Encoding]::UTF8.GetBytes($toc)}
+    $manifest=@{schemaVersion=1;mode='mechanical';repository=$record.identity;archives=$archives;demoted=@($demoted);olderThanDays=$OlderThanDays;targetPercent=$TargetPercent;beforeCharacters=$before;afterCharacters=$after;at=(Get-SBNow).ToString('o')}
+    $manifestText=ConvertTo-SBJson $manifest
+    $manifestPath=Join-Path $dir ('history/compaction/mechanical-'+(Get-SBTextHash $manifestText).Substring(0,16).ToLowerInvariant()+'.json')
+    if((Get-SBFileHash $manifestPath) -eq 'absent'){$ops+=@{path=$manifestPath;expected='absent';bytes=[Text.Encoding]::UTF8.GetBytes($manifestText)}}
+    if($Apply){[void](Assert-SBCentralDataPath $root $BackupRoot);Invoke-SBParaTransaction $ops $BackupRoot $root|Out-Null;$result.applied=$true}
+    $result.operations=$ops.Count;$result.archives=$archives;$result.manifest=$manifestPath
+    $result
+}
 Export-ModuleMember -Function @(
     'Get-SBRoadmap',
     'ConvertTo-SBRoadmapMarkdown',
@@ -972,5 +1068,6 @@ Export-ModuleMember -Function @(
     'Set-SBRepositoryCustomer',
     'Get-SBTaskDetail',
     'Get-SBSection',
-    'Invoke-SBDossierCompaction'
+    'Invoke-SBDossierCompaction',
+    'Invoke-SBMechanicalTiering'
 )
