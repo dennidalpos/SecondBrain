@@ -836,6 +836,21 @@ if('workflows' -in $Groups){
                 $manifest=Read-SBJson (Join-Path $initPlan.root 'MANIFEST.json') $null
                 Check ($manifest -and $manifest.expires -ceq (Get-Date).AddDays($expiring[1]).ToString('yyyy-MM-dd')) ('work.ps1 -Init sets a '+$expiring[1]+'-day expiry for '+$expiring[0])
             }
+            # #702: teardown of a capture work folder: preview first, refusal outside the declared folder, removal only once closed.
+            $null=(& pwsh -NoProfile -File $workCli -Repository $identity -Category work -Slug capture-teardown -Init -Task synthetic -ConfigPath $configPath 2>&1|Out-String)
+            $teardown=(Get-SBWorkEnvironment -BrainRoot $brain -HostId $hostId -Repository $identity -Category work -Slug capture-teardown).root
+            [IO.File]::WriteAllText((Join-Path $teardown 'raw.png'),'synthetic')
+            $null=(& pwsh -NoProfile -File $workCli -Repository $identity -Remove -Path $teardown -Apply -ConfigPath $configPath 2>&1|Out-String)
+            Check ($LASTEXITCODE -ne 0 -and [IO.Directory]::Exists($teardown)) '#702: removal refuses a folder that is still open'
+            $null=(& pwsh -NoProfile -File $workCli -Repository $identity -Category work -Slug capture-teardown -Close -ConfigPath $configPath 2>&1|Out-String)
+            $teardownPreview=(& pwsh -NoProfile -File $workCli -Repository $identity -Remove -Path $teardown -ConfigPath $configPath 2>&1|Out-String)|ConvertFrom-Json -AsHashtable
+            Check ($LASTEXITCODE -eq 0 -and !$teardownPreview.applied -and $teardownPreview.files -eq 2 -and [IO.File]::Exists((Join-Path $teardown 'raw.png'))) '#702: removal previews first and deletes nothing'
+            foreach($outside in @($brain,$fixture,(Split-Path $teardown -Parent),(Join-Path $teardown 'raw.png'))){
+                $null=(& pwsh -NoProfile -File $workCli -Repository $identity -Remove -Path $outside -Apply -ConfigPath $configPath 2>&1|Out-String)
+                Check ($LASTEXITCODE -ne 0 -and [IO.Directory]::Exists($teardown)) ('#702: removal refuses a path outside the declared work folder: '+[IO.Path]::GetFileName($outside))
+            }
+            $null=(& pwsh -NoProfile -File $workCli -Repository $identity -Remove -Path $teardown -Apply -ConfigPath $configPath 2>&1|Out-String)
+            Check ($LASTEXITCODE -eq 0 -and ![IO.Directory]::Exists($teardown)) '#702: -Apply removes the whole closed work folder'
         }finally{$env:SECONDBRAIN_RUNNER_REPOSITORY=$null}
     }finally{Put $otherContext $otherContextBytes}
 }

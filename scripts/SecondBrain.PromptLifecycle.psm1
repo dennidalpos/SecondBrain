@@ -1,4 +1,4 @@
-#requires -Version 7.5
+﻿#requires -Version 7.5
 Set-StrictMode -Version Latest
 # Prompt library lifecycle (plan D07): add, edit, duplicate, deprecate and retire cards through validated operations.
 # Every operation is planned first (the plan is the preview): the planned files are staged in a temporary copy of the catalog and

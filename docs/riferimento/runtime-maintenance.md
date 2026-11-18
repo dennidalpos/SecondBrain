@@ -36,7 +36,7 @@ CheckRuntime (read-only) verifies that every hosts/<id>/repos/<repo>/<category>/
 
 New work uses hosts/<id>/repos/<repo>/<category>/<yyyyMMdd>-<slug> with work/evidence/report/fixture/tmp. The repository segment includes an identity hash. TEMP/TMP, tool caches and build outputs stay in the native OS and product folders (nothing is redirected into .runtime). Every folder gets an expiry in its MANIFEST.json: work 30 days after closing, fixture and tmp 7 days, evidence and report 90 days (review date; nothing is removed automatically).
 
-For SecondBrain work folders, initialize with work.ps1 Repository/Category/Slug/Init/Task/SessionId; Close marks the manifest closed. A plan without Init/Run creates nothing. Normal access Start/End belongs in one try/finally script; pass the same SessionId to CLIs.
+For SecondBrain work folders, initialize with work.ps1 Repository/Category/Slug/Init/Task/SessionId; Close marks the manifest closed. At the end of a capture or test run, copy the reviewed output (for example images into `docs/assets`), close the folder, then tear it down with `work.ps1 -Repository <id> -Remove -Path <folder>`: it previews by default, refuses any path outside this repository's `.runtime` work folders or without a `MANIFEST.json`, refuses a folder that is still open, and `-Apply` removes the whole folder. A plan without Init/Run creates nothing. Normal access Start/End belongs in one try/finally script; pass the same SessionId to CLIs.
 
 Manifests bind host/user/client/session/task, status and expiry. Fixture/tmp default to 7 days; work receives a 30-day expiry from closure. Evidence/report do not expire automatically. This is not a scheduled deletion service.
 

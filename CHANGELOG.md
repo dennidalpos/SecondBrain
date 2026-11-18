@@ -2,7 +2,22 @@
 
 Formato [Keep a Changelog](https://keepachangelog.com/it-IT/1.1.0/). La numerazione segue il file `VERSION`. Questo registro cambia solo quando accetti un cambio di versione: vedi [Cambiare versione](docs/uso-quotidiano.md).
 
-> Versione corrente: **2.19.0**, numerazione reimpostata il 2026-11-04 con le funzionalità attuali conservate. Le sezioni seguenti mantengono la cronologia dei rilasci precedenti.
+> Versione corrente: **2.20.0**, numerazione reimpostata il 2026-11-04 con le funzionalità attuali conservate. Le sezioni seguenti mantengono la cronologia dei rilasci precedenti.
+
+## [2.20.0] - 2026-11-18
+
+Capture and test work folders can be torn down when the work ends; the IDE guide cites vendor documentation; small fixes.
+
+### Added
+- `work.ps1 -Remove -Path <folder> [-Apply]`: removes a closed work folder created by `-Init`. It previews by default and refuses a path outside the repository's work folders, a folder without `MANIFEST.json` and a folder still open (#702).
+
+### Changed
+- `ide-map -Guide` names the instruction location of the Claude account, VS Code, Android Studio, Continue and JetBrains AI with the vendor source and check date, or says why it stays generic (#679).
+- Orchestrator: the run counts of Runner runs read "N of M tasks (X succeeded, Y failed)", and the Tracker "Branch" label no longer wraps (#685).
+
+### Fixed
+- `orchestrate-tasks.ps1` stops with a clear message when `work.ps1 -Init` fails, instead of a missing-property error.
+- `scripts/SecondBrain.PromptLifecycle.psm1` carries the UTF-8 BOM, so the lint baseline is green again (#712).
 
 ## [2.19.0] - 2026-11-18
 

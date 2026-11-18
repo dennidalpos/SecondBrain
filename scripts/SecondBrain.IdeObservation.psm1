@@ -95,11 +95,12 @@ function Remove-SBStaleIdeObservations($Map,[string]$BrainRoot,[string]$BackupRo
 # Guide: everything deterministic is checked here (file block against the generated text, account text hash against the observed
 # one, observation receipts); what only a person can do is returned as an action with the steps for that client. Read-only.
 $script:SBIdeGuideWhere=@{
-    'Claude account instructions'='Claude app or claude.ai: Settings, then the profile or personal preferences (custom instructions) field.'
-    'VS Code'='Your chat extension''s custom-instructions setting (user settings or a user-level instructions file); the location depends on the extension and version.'
-    'Android Studio'='Settings, then the AI assistant''s rules or custom-instructions page; the location depends on the plugin and version.'
-    'Continue'='The user-level Continue configuration (rules); the location depends on the version.'
-    'JetBrains AI'='Settings, then the AI Assistant rules or custom-instructions page; the location depends on the version.'
+    # Locations checked against the vendor documentation on 2026-11-18 (#679); the layout can change with a client version, so each text names its source.
+    'Claude account instructions'='Claude app or claude.ai: Settings, then Your Claude (older layout: Account), section Instructions for Claude (support.claude.com article 10185728, checked 2026-11-18).'
+    'VS Code'='GitHub Copilot harness: run Chat: Open Customizations and add a user instructions file with +, or create ~/.copilot/copilot-instructions.md; harness user folders do not roam with Settings Sync (code.visualstudio.com/docs/agent-customization/custom-instructions, checked 2026-11-18). Other chat extensions keep their own setting: generic.'
+    'Android Studio'='File, Settings, Tools, AI, Prompt Library, then Rules at IDE level (private, all projects); project rules live in .idea/project.prompts.xml (developer.android.com/studio/gemini/rules, checked 2026-11-18); the page depends on the Android Studio version.'
+    'Continue'='Global level of the Continue configuration: a rules entry in ~/.continue/config.yaml, inline or as a file:// reference (docs.continue.dev/customize/rules, checked 2026-11-18); a ~/.continue/rules folder is not documented for global use.'
+    'JetBrains AI'='Settings, Tools, AI Assistant, Rules; the documented rules are Markdown files under .aiassistant/rules in a project, and the old Chat Instructions field is deprecated (jetbrains.com/help/ai-assistant/configure-project-rules.html, checked 2026-11-18); a user-level location is not documented, so paste into the project rule of each project or keep it generic.'
 }
 Add-SBMessages @{
     'ideguide.file.aligned' = @{ en = 'file block aligned (revision {0}); loading in a session is not certified by the file' }

@@ -2,7 +2,8 @@
 [CmdletBinding()]
 param([Parameter(Mandatory)][string]$Repository,[string]$Project='root',[string]$Runtime='default',[string]$Category,[string]$Slug,[string]$ConfigPath,
     [string]$FilePath,[string[]]$Arguments=@(),[string]$WorkingDirectory,[switch]$Run,
-    [switch]$Init,[switch]$Close,[string]$Task,[string]$SessionId,[string]$Client='agent')
+    [switch]$Init,[switch]$Close,[string]$Task,[string]$SessionId,[string]$Client='agent',
+    [switch]$Remove,[string]$Path,[switch]$Apply)
 $ErrorActionPreference='Stop'
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Access.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Host.psm1')
@@ -14,6 +15,10 @@ Add-SBMessages @{
     'work.init.categoryslug' = @{ en = 'Init requires Category and Slug' }
     'work.close.manifest' = @{ en = 'Close requires a folder initialized with MANIFEST.json' }
     'work.checkout.unmanaged' =@{ en = 'Checkout not managed or ambiguous' }
+    'work.remove.path' = @{ en = 'Remove requires -Path of an initialized work folder of this repository' }
+    'work.remove.outside' = @{ en = 'Path is not a work folder of this repository: ''{0}''; use a folder created by work.ps1 -Init' }
+    'work.remove.manifest' = @{ en = 'Folder has no MANIFEST.json; only folders created by work.ps1 -Init are removed' }
+    'work.remove.open' = @{ en = 'Folder is still open: close it first with -Close once the reviewed images or reports are stored' }
 }
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.TaskRunner.psm1')
 # Runner session perimeter: work folders are written only for the task repository.
@@ -48,6 +53,24 @@ if($Close){
     Write-SBFile $manifestPath ([Text.Encoding]::UTF8.GetBytes((ConvertTo-SBJson $record))) (Get-SBFileHash $manifestPath) (Join-Path $config.runtimeRoot 'backups')|Out-Null
     $plan.manifest=$manifestPath;$plan.closed=$true
     ConvertTo-SBJson $plan;exit 0
+}
+if($Remove){
+    # Teardown at the end of the work (#702): previews by default; -Apply removes the whole folder, once it is closed and its reviewed
+    # output is stored elsewhere. Only a folder created by -Init under this repository's work root is accepted; nothing is left behind.
+    if(!$Path){throw (New-SBError 'work.remove.path')}
+    $full=[IO.Path]::GetFullPath($Path).TrimEnd('\','/')
+    $category=Split-Path (Split-Path $full -Parent) -Leaf
+    $repoRoot=Split-Path (Split-Path (Get-SBRuntimeWorkPath $config.brainRoot $config.workstationId $Repository $category 'x') -Parent) -Parent
+    $inside=(Test-SBSamePath (Split-Path (Split-Path $full -Parent) -Parent) $repoRoot) -and (Test-Path -LiteralPath $full -PathType Container) -and !((Get-Item -LiteralPath $full -Force).Attributes -band [IO.FileAttributes]::ReparsePoint)
+    if(!$inside){throw (New-SBError 'work.remove.outside' @($Path))}
+    $manifest=Read-SBJson (Join-Path $full 'MANIFEST.json') $null
+    if($null -eq $manifest){throw (New-SBError 'work.remove.manifest')}
+    if($manifest.status -cne 'closed'){throw (New-SBError 'work.remove.open')}
+    $options=[IO.EnumerationOptions]::new();$options.RecurseSubdirectories=$true;$options.IgnoreInaccessible=$true;$options.AttributesToSkip=[IO.FileAttributes]::ReparsePoint
+    $count=0;$bytes=0L
+    foreach($file in ([IO.DirectoryInfo]::new($full)).EnumerateFiles('*',$options)){$count++;$bytes+=$file.Length}
+    if($Apply){Remove-SBRuntimeTree $full $config.brainRoot}
+    ConvertTo-SBJson @{applied=[bool]$Apply;removed=[bool]$Apply;path=$full;category=$category;files=$count;bytes=$bytes};exit 0
 }
 if(!$Run){ConvertTo-SBJson $plan;exit 0}
 if(!$FilePath -or !$WorkingDirectory){throw (New-SBError 'work.run.explicit')}

@@ -90,6 +90,7 @@ Add-SBMessages @{
     'orchestrate.checkout.missing' = @{ en = 'Not inside a Git checkout; pass -Checkout' }
     'orchestrate.brain.missing' = @{ en = 'SecondBrain not found; set SECONDBRAIN_HOME or pass -SecondBrain' }
     'orchestrate.identity.missing' = @{ en = 'No GitHub origin to identify the repository; pass -WorkDir' }
+    'orchestrate.workdir.init' = @{ en = 'The work folder could not be created (work.ps1 -Init failed, see the message above); fix that first or pass -WorkDir' }
     'orchestrate.dossier.missing' = @{ en = "No dossier with identity '{0}' in {1}" }
     'orchestrate.agent.missing' = @{ en = '{0} CLI not found; pass -AgentPath' }
     'orchestrate.git.status' = @{ en = 'git status failed: {0}' }
@@ -248,6 +249,8 @@ if (-not $WorkDir) {
         Push-Location $Checkout
         try { $init = & pwsh -NoProfile -File (Join-Path $SecondBrain 'scripts\work.ps1') -Repository $identity -Init -Category report -Slug task-run | Out-String | ConvertFrom-Json }
         finally { Pop-Location }
+        # A failed -Init prints its own message and no JSON: stop with a clear error instead of a missing-property one.
+        if ($LASTEXITCODE -ne 0 -or -not $init -or -not $init.PSObject.Properties['root']) { throw (New-SBError 'orchestrate.workdir.init') }
         $WorkDir = $init.root
     }
 }
