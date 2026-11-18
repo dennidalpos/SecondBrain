@@ -1,7 +1,5 @@
 # Runtime work, retained tests and layered context
 
-[Retained Italian source; use this English page for current behavior](runtime-maintenance.it.md)
-
 .runtime contains backups, reports, fixtures and operational work, and holds workstation configuration by default. It is excluded from Git. Preserve references, original evidence and other sessions' ownership when reviewing cleanup.
 
 ## Optional local workstation state
@@ -46,6 +44,12 @@ Legacy tests/flat fixture/tmp folders, Python environments, handshake reports an
 
 ~~~powershell
 pwsh -NoProfile -File scripts/cleanup.ps1 -Regenerable -KeepFixtures 5
+~~~
+
+**Retention rule for test leftovers.** Top-level `.runtime` entries named `pub*.out`, `t<number>-*.out` and `smoke-<hex>` are stale test output and smoke runs. `cleanup.ps1 -Leftovers [-OlderThanDays 14]` lists those whose newest file is older than the window (default 14 days); with `-Apply -Authorization <the owner's request>` it removes exactly the listed ones, after refusing pending transactions and active sessions, and writes a journal in `.runtime/cleanup`. Nothing else is selected by name or age, reparse points are skipped, and nothing is backed up: the suites that wrote them regenerate them.
+
+~~~powershell
+pwsh -NoProfile -File scripts/cleanup.ps1 -Leftovers -OlderThanDays 14
 ~~~
 
 The preview changes nothing. Apply additionally requires an explicit cleanup request quoted in Authorization; review exact targets, references, hashes and recovery first. MinAgeMinutes (default 10), configuration/access paths, reparse points anywhere in a candidate tree, pending transactions and active access sessions remain protection gates. The command reselects each target and compares a fingerprint of manifest, file hashes and directory metadata before removal. Changed or no-longer-eligible targets are preserved, journaled as skipped and produce a partial outcome. Inspection failures never authorize removal. Cooperative locks and revalidation do not guarantee atomic protection against an external process writing during filesystem deletion; close producers before applying cleanup. Only synthetic test folders exercise removal in the regression suite.
@@ -97,4 +101,4 @@ This profile applies to a local workstation used to test SecondBrain, where repo
 - `.runtime` holds only `hosts/<id>/` (workstation.json, selection, state and IDE receipts; the saved discovery keeps just the selected repositories), `access/` (locks, queue, sessions, workstation registry) and transient test fixtures under `hosts/<id>/repos/tests-*`.
 - Everything else is regenerable and can be deleted at any time: fixtures, tmp, closed work folders, caches, reports. Product builds, caches and temporary files belong in the operating system folders, not in `.runtime`.
 - No backup is kept. Each repository keeps its own minimal original context in `AGENTS.md`; dossiers (context, memory, tracker) can be rebuilt or discarded.
-- Reset: with no pending PARA transaction and no active session, delete everything under `.runtime`, then run `secondbrain.ps1 -Setup -Roots <folders> -Select <repositories> -Ides <ides> -ApproveExistingBlocks -Yes -Apply`. Dossiers in `01-projects` are matched by repository identity, so no data moves. On 2026-11-10 this took `.runtime` from about 56 GB to under 200 KB, and the 22 repositories were bound again with `filesAligned: true`.
+- Reset: with no pending dossier transaction and no active session, delete everything under `.runtime`, then run `secondbrain.ps1 -Setup -Roots <folders> -Select <repositories> -Ides <ides> -ApproveExistingBlocks -Yes -Apply`. Dossiers in `repos` are matched by repository identity, so no data moves. On 2026-11-10 this took `.runtime` from about 56 GB to under 200 KB, and the 22 repositories were bound again with `filesAligned: true`.

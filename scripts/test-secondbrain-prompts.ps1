@@ -192,6 +192,17 @@ foreach($entry in @(Get-SBWorkflowCommands)){
     $scriptName=[regex]::Match($entry.script,'^scripts/([A-Za-z0-9.-]+\.ps1)').Groups[1].Value
     Assert-Prompts ($scriptName -and (Test-Path -LiteralPath (Join-Path $PSScriptRoot $scriptName))) "command '$($entry.command)' points to an existing script"
 }
+# #724: every registry command resolves through the sb dispatcher to an existing script; help lists them all.
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Dispatch.psm1') -Force
+foreach($entry in @(Get-SBWorkflowCommands)){
+    $words=@(($entry.command -replace '^sb ','' -replace ':','') -split ' '|ForEach-Object {$_ -creplace '^(KEY|AREA|TEXT)$','x'})
+    $plan=Resolve-SBDispatch $words
+    Assert-Prompts ($plan.script -and (Test-Path -LiteralPath (Join-Path $PSScriptRoot $plan.script))) "sb dispatcher resolves '$($entry.command)' to an existing script"
+}
+Assert-Prompts ((Resolve-SBDispatch @()).help -and (Resolve-SBDispatch @('help')).help) 'sb help and bare sb show the command list'
+Assert-Prompts (((Resolve-SBDispatch @('prompt','show','x')).arguments -join ' ') -ceq '-Show -Prompt x') 'sb prompt show KEY resolves to -Show -Prompt'
+$unknownError=$null;try{Resolve-SBDispatch @('bogus')|Out-Null}catch{$unknownError=$_}
+Assert-Prompts ($null -ne $unknownError) 'an unknown sb command is refused'
 foreach($word in $english){Assert-Prompts ($station.Contains($word)) "command '$word' described in the workstation text"}
 $referenced=@([regex]::Matches($global+$station+$repoBlock,'(?:COM|PRG|DEV|TST|SEC|AUD|INT|DAT|OPS|DOC|REP|GOV|MEM|SYS)\d{2}')|ForEach-Object {$_.Value}|Select-Object -Unique)
 Assert-Prompts (!(@($referenced|Where-Object {$_ -notin @($prompts.code)}).Count)) 'ogni codice prompt citato nelle direttive esiste nel catalogo'

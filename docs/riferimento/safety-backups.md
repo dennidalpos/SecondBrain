@@ -1,7 +1,5 @@
 # Safe writes and backups
 
-[Retained Italian source; use this English page for current behavior](safety-backups.it.md)
-
 Review command effects first. Ordinary synchronization does not edit product source, but instructions and selected MCP configurations may be written outside the clone.
 
 ## Operation boundaries

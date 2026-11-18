@@ -2,7 +2,7 @@
 # Fixtures for personal workspaces (#620, #621): registration without Git, private dossier, output scope, runner refusal. Synthetic data only.
 $ErrorActionPreference='Stop'
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1') -Force
-Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Para.psm1')
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Entity.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Workspace.psm1') -Force
 . (Join-Path $PSScriptRoot 'test-helpers.ps1')
 $script:wsChecks=0

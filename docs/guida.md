@@ -1,7 +1,5 @@
 # Installation and operations guide
 
-[Retained Italian source; use this English page for current behavior](guida.it.md)
-
 This guide connects installation, everyday commands, environment settings and recovery. Start with [getting started](inizia.md); use the [technical reference](riferimento/operations.md) for detailed procedures.
 
 ## Install and activate

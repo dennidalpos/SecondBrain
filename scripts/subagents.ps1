@@ -24,7 +24,7 @@ param(
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
-foreach($m in 'Core','Access','Host','Para','Knowledge','Subagents'){Import-Module (Join-Path $PSScriptRoot ('SecondBrain.'+$m+'.psm1'))}
+foreach($m in 'Core','Access','Host','Entity','Knowledge','Subagents'){Import-Module (Join-Path $PSScriptRoot ('SecondBrain.'+$m+'.psm1'))}
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Add-SBMessages @{'subagent.cli'=@{ en = 'Subagents: missing or out-of-scope parameter ({0})' }}
 $brain=Get-SBBrainRootPath

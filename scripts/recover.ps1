@@ -16,7 +16,7 @@ pwsh -NoProfile -File scripts/recover.ps1 -ManifestPath <manifest> -Apply
 param([Parameter(Mandatory)][string]$ManifestPath,[switch]$Apply,[string]$ConfigPath,[string]$SessionId)
 $ErrorActionPreference='Stop'
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Portable.psm1')
-Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Para.psm1')
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Entity.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.TrackerImport.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Access.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')

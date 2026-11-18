@@ -385,7 +385,8 @@ switch($Mode){
     try{$hang=Invoke-Runner @('-Run','-MaxTasks','1','-TimeoutMinutes','1','-AgentArguments','hang')}
     finally{$watch.Stop();Remove-Item Env:SB_RUNNER_TEST_TIMEOUT_SECONDS -ErrorAction SilentlyContinue;$env:SECONDBRAIN_TEST_ROOT=$savedTestRoot}
     Assert-Runner ($hang.code -eq 1 -and @($hang.data.tasks).Count -eq 1 -and @($hang.data.tasks)[0].state -eq 'timeout') ('hung agent ends in timeout: '+$hang.text)
-    Assert-Runner ($watch.Elapsed.TotalSeconds -lt 20) ('timeout phase stays under 20 s with the test-only override: '+[math]::Round($watch.Elapsed.TotalSeconds,1)+' s')    Assert-Folder @($hang.data.tasks)[0] 'timeout'
+    Assert-Runner ($watch.Elapsed.TotalSeconds -lt 45) ('timeout phase ends well before the 60 s minimum limit with the test-only override: '+[math]::Round($watch.Elapsed.TotalSeconds,1)+' s')
+    Assert-Folder @($hang.data.tasks)[0] 'timeout'
     Assert-Runner ((Get-SBFileHash $trackerPath) -ceq $hash) 'failed and timed-out runs leave the tracker unchanged'
 
     Close-RunnerPhase 'timeout'

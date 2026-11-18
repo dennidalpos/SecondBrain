@@ -64,7 +64,7 @@ if (!$Apply) {
 $operation = Enter-SBOperation $config $SessionId
 try {
     $entry = Register-SBWorkspace $config $workstationConfigPath $plan $config.localStateBackupRoot
-    Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Para.psm1') -Force
+    Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Entity.psm1') -Force
     Update-SBParaIndex $config | Out-Null
     ConvertTo-SBJson @{ apply = $true; workspace = $entry }
 } finally { Exit-SBOperation $operation }

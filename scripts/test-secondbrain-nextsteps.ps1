@@ -19,7 +19,7 @@ Assert-Ns (@(Get-SBNextSteps -Tasks @() -Ready @() -Runs @() -GitUpdate $confirm
 $tasks=@(@{id='T-2';seq=2;status='in_progress';title='two';priority='P2'},@{id='T-1';seq=1;status='in_progress';title='one';priority='P2'},@{id='T-3';seq=3;status='todo';title='three';priority='P1'})
 $ready=@(@{id='T-4';seq=4;priority='P2';title='#4 - four'},@{id='T-5';seq=5;priority='P1';title='#5 - five'})
 $run=@{results=@(@{id='T-1';process='failed'},@{id='T-2';process='succeeded';acceptance='unverified'},@{id='T-6';process='succeeded';acceptance='verified';findings=@{created=2}})}
-$steps=@(Get-SBNextSteps -Tasks $tasks -Ready $ready -Runs @($run) -GitUpdate $git -HasSkills $false -Limit 20)
+$steps=@(Get-SBNextSteps -Tasks $tasks -Ready $ready -Runs @($run) -GitUpdate $git -HasSkills $false -Limit 20 -SkillsCard ([ordered]@{id='pmt-3d7b91c4';file='SYS18.md';title='Skills procedure'}))
 Assert-Ns ((Ids $steps) -ceq 'recheck-failed,verify-acceptance,review-findings,finish-open,run-next,git-update,skills') ('full order: '+(Ids $steps))
 $open=$steps|Where-Object id -eq 'finish-open'
 Assert-Ns ($open.action.value -ceq 'T-1' -and $open.title -match '#1') 'in-progress tasks start with the lowest number'

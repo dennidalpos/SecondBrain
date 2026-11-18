@@ -21,7 +21,7 @@ param(
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
-foreach($m in 'Core','Access','Host','Para','Knowledge','Activity'){Import-Module (Join-Path $PSScriptRoot ('SecondBrain.'+$m+'.psm1'))}
+foreach($m in 'Core','Access','Host','Entity','Knowledge','Activity'){Import-Module (Join-Path $PSScriptRoot ('SecondBrain.'+$m+'.psm1'))}
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 $brain=Get-SBBrainRootPath
 if(!(Test-SBRepositoryIdentity $Repository)){throw (New-SBError 'activity.invalid' @('repository'))}

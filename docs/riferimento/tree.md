@@ -1,7 +1,5 @@
 # Repository and runtime layout
 
-[Retained Italian source; use this English page for current behavior](tree.it.md)
-
 This map describes ownership and recovery boundaries. Regenerable does not mean authorized for deletion. Preserve artifacts until a concrete cleanup scope, references, hashes and recoverability have been reviewed.
 
 ## Public checkout
@@ -17,26 +15,25 @@ This map describes ownership and recovery boundaries. Regenerable does not mean 
 | README, VERSION, CHANGELOG, CREDITS, LICENSE | Public product information and attribution |
 | AGENTS.md | Repository instructions; managed blocks come from generators |
 
-Git tracks the PARA skeleton using the folder READMEs and .gitkeep in the 04-archives subfolders. PARA contents, generated PARA.md/para-index.json, local configuration and .runtime are ignored. Ignore rules do not remove tracked files or erase history.
+Git tracks the folder READMEs of `repos/` and `workstation/` and the contents of `shared/` (except downloadable originals). Dossier contents, local configuration and .runtime are ignored. Ignore rules do not remove tracked files or erase history.
 
 <a id="para-gestione-dei-progetti"></a>
 
-## PARA and dossiers
+## Dossiers
 
 | Root | Purpose |
 |---|---|
-| 01-projects/ | One dossier per managed repository (isolated from each other: specs, material, data, context, memory, tracker) and finite initiatives |
-| 02-areas/ | Continuing responsibilities not tied to a repository; legacy `02-areas/products/` dossiers migrate with `para.ps1 -MigrateToProjects` |
-| 03-resources/ | Reusable references |
-| 04-archives/projects, areas, resources | Explicitly archived entities |
+| repos/ | One dossier per managed repository (isolated from each other: specs, material, data, context, memory, tracker) |
+| workstation/ | Continuing responsibilities not tied to a repository: governance, workstation, directives |
+| shared/ | Reusable references: authoritative sources, architecture, technology radar, troubleshooting |
 
-Entities retain stable IDs in para.json and a brief.md. Resolve paths through para-index.json and verify metadata; repository.json establishes repository identity and tracker location. Duplicate names and missing checkouts do not establish retirement.
+Entities retain stable IDs in entity.json and a brief.md; repository.json establishes repository identity and tracker location. Duplicate names and missing checkouts do not establish retirement.
 
 A dossier contains index.md, context.md, memory.md, repository.json, its declared tracker, derived memory.agent.md and history/. Optional authoritative-sources.json records applicability. Original knowledge/history are not regenerable; indexes and agent views are.
 
-Projects (including repository dossiers) use active/completed/cancelled; Areas and Resources use active/retired. Repository dossiers are archived under 04-archives/projects. A time-bound project may link repository dossiers (or areas) by id, and may link none. Archiving changes location, preserving identity and references. Sync does not reactivate archives.
+There are no archive folders: an inactive entity keeps its place and has a status other than `active`. `entity.ps1 -Archive` and `-Restore` only change the status; identity and references are preserved. Sync does not reactivate inactive entities.
 
-Use MEM05 and para.ps1 for entity creation/state changes. Check and SuggestArchive inspect; NewProject/NewResource/SetStatus/Archive/Restore are writing workflows with separate authorization. Tracker import manifests must be reconciled before a move. PARA.md and para-index.json are generated, never manually edited.
+Use MEM05 and entity.ps1 for entity creation/state changes. Check and SuggestArchive inspect; NewProject/NewResource/SetStatus/Archive/Restore are writing workflows with separate authorization. Tracker import manifests must be reconciled before a move.
 
 ## Runtime
 

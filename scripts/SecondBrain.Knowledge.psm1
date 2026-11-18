@@ -1,7 +1,7 @@
 #requires -Version 7.5
 Set-StrictMode -Version Latest
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
-Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Para.psm1')
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Entity.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Tracker.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Trace.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Host.psm1')

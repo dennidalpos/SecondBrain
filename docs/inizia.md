@@ -1,7 +1,5 @@
 # Getting started
 
-[Retained Italian source; use this English page for current behavior](inizia.it.md)
-
 Load one local Git project's context through the CLI, then optionally connect an agent. Use Windows, PowerShell 7.5+ and Git 2.42+. Dossiers and runtime files are ignored by Git and need their own backups.
 
 ## Install with one prompt
@@ -70,8 +68,8 @@ Setup performs Sync for the approved selection. Do not immediately repeat a glob
 SecondBrain asks how to update Git and GitHub for each repository instead of assuming. At task closing a write prompt tells the agent to ask you (commit and push on the main branch is the default proposal; alternatives are a branch with a pull request, or nothing) and then to record the answer in the repository dossier:
 
 ~~~powershell
-pwsh -NoProfile -File scripts/para.ps1 -SetGitUpdate -GitMode commit-push-main -GitBranch main -Only <identity>
-pwsh -NoProfile -File scripts/para.ps1 -SetGitUpdate -GitMode commit-push-main -GitBranch main -Only <identity> -Apply -Confirmed
+pwsh -NoProfile -File scripts/entity.ps1 -SetGitUpdate -GitMode commit-push-main -GitBranch main -Only <identity>
+pwsh -NoProfile -File scripts/entity.ps1 -SetGitUpdate -GitMode commit-push-main -GitBranch main -Only <identity> -Apply -Confirmed
 ~~~
 
 The first command previews; writing needs both `-Apply` and `-Confirmed`. The stored `gitUpdate` value is a preference for what to propose, not an authorization: the agent still shows what will be committed and runs it only after you confirm in that session, and the runner and delegates never commit or push. `sb setup` lists it as the `git-update` feature.

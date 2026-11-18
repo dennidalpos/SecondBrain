@@ -499,7 +499,7 @@ async fn list_projects(app: AppHandle) -> Result<Value, String> {
     script(app, "projects.ps1", vec!["-List".into()]).await
 }
 
-/// Git and GitHub update preference (#663): `-SetGitUpdate` of para.ps1. Without `apply` it only previews; with it the owner has confirmed in the window
+/// Git and GitHub update preference (#663): `-SetGitUpdate` of entity.ps1. Without `apply` it only previews; with it the owner has confirmed in the window
 /// (`-Apply -Confirmed`). The runner and delegates still never commit or push.
 fn git_update_args(identity: &str, mode: &str, branch: Option<&str>, apply: bool) -> Result<Vec<String>, String> {
     if identity.is_empty() || identity.len() > 200 || !identity.chars().all(|c| c.is_ascii_alphanumeric() || "._:/-".contains(c)) {
@@ -530,7 +530,7 @@ fn git_update_args(identity: &str, mode: &str, branch: Option<&str>, apply: bool
 
 #[tauri::command]
 async fn set_git_update(app: AppHandle, identity: String, mode: String, branch: Option<String>, apply: bool) -> Result<Value, String> {
-    script(app, "para.ps1", git_update_args(&identity, &mode, branch.as_deref(), apply)?).await
+    script(app, "entity.ps1", git_update_args(&identity, &mode, branch.as_deref(), apply)?).await
 }
 
 /// Workstation view (#577): a closed set of upkeep actions. Each one is one SecondBrain script; without `apply` the script only previews

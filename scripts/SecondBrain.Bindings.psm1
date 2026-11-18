@@ -1,6 +1,6 @@
 #requires -Version 7.5
 Set-StrictMode -Version Latest
-foreach($m in 'Core','Access','Host','Para','Portable'){Import-Module (Join-Path $PSScriptRoot ('SecondBrain.'+$m+'.psm1'))}
+foreach($m in 'Core','Access','Host','Entity','Portable'){Import-Module (Join-Path $PSScriptRoot ('SecondBrain.'+$m+'.psm1'))}
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Add-SBMessages @{
     'bindings.config.invalid' = @{ en = 'The workstation configuration is not a portable schema 1 file with bindings: nothing to migrate' }

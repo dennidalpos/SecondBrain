@@ -34,7 +34,7 @@ $OutputEncoding = [Text.UTF8Encoding]::new($false)
 
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Access.psm1') -Force
-Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Para.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Entity.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Add-SBMessages @{
     'backup.config.unavailable' = @{ en = 'Workstation configuration unavailable, backup in .runtime/backups: {0}' }

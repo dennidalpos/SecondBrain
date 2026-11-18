@@ -17,4 +17,4 @@ The URL cited in F07 (`https://developers.openai.com/codex/subagents`) still res
 
 ## Registry status
 
-The common source registry (`03-resources/authoritative-sources`) holds legal, regulatory and dependency cards, and `scripts/sources.ps1` has no command to add a new card. These six vendor and standard pages are therefore recorded in this report, which the acceptance criterion allows ("in the registry or a report"). Promotion to registry cards stays with the source-card procedure.
+The common source registry (`shared/authoritative-sources`) holds legal, regulatory and dependency cards, and `scripts/sources.ps1` has no command to add a new card. These six vendor and standard pages are therefore recorded in this report, which the acceptance criterion allows ("in the registry or a report"). Promotion to registry cards stays with the source-card procedure.

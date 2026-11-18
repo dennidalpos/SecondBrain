@@ -5,7 +5,7 @@ param([string[]]$Groups=@('portable','trackers','workflows','pending'),[switch]$
 $ErrorActionPreference='Stop'
 # A comma-separated list arrives as one element through -File.
 $Groups=@($Groups|ForEach-Object {$_ -split ','}|Where-Object {$_})
-foreach($name in @('Core','Access','Host','Para','TaskLedger','Tracker','Knowledge','Pending','Portable','Mcp','McpConfig','McpPackage','Publication')){Import-Module (Join-Path $PSScriptRoot ('SecondBrain.'+$name+'.psm1'))}
+foreach($name in @('Core','Access','Host','Entity','TaskLedger','Tracker','Knowledge','Pending','Portable','Mcp','McpConfig','McpPackage','Publication')){Import-Module (Join-Path $PSScriptRoot ('SecondBrain.'+$name+'.psm1'))}
 . (Join-Path $PSScriptRoot 'test-helpers.ps1')
 . (Join-Path $PSScriptRoot 'test-run-evidence.ps1')
 # The ledger records who writes: the suite may run inside an agent CLI, so its executor signals are cleared for every write of the suite.
@@ -456,7 +456,7 @@ if('portable' -in $Groups){
                 $newMeta=Read-SBJson (Join-Path $newDossier 'repository.json') $null
                 $newTracker=Read-SBJson (Join-Path $newDossier 'tracker.json') $null
                 Check ($newCode -eq 0 -and $newApplied.applied -and [IO.Directory]::Exists((Join-Path $newPath '.git')) -and $newMeta.identity -ceq 'github.com/test/brandnew' -and $newMeta.lifecycle -ceq 'greenfield' -and $newMeta.customer -ceq 'Acme' -and $newTracker.schemaVersion -eq 1 -and !$newTracker.tasks.Count -and [IO.File]::Exists((Join-Path $newDossier 'context.md')) -and [IO.File]::Exists((Join-Path $newDossier 'memory.md'))) ('new-project creates checkout, dossier, tracker seed, greenfield lifecycle and customer: '+$newCode+' '+($newMeta|ConvertTo-Json -Compress -Depth 3))
-                $newParaCheck=(& pwsh -NoProfile -File (Join-Path $brain 'scripts/para.ps1') -Check -ConfigPath $configPath 2>&1|Out-String)
+                $newParaCheck=(& pwsh -NoProfile -File (Join-Path $brain 'scripts/entity.ps1') -Check -ConfigPath $configPath 2>&1|Out-String)
                 Check ($LASTEXITCODE -eq 0) ('the new dossier passes the PARA check: '+$newParaCheck.Substring(0,[math]::Min(500,$newParaCheck.Length)))
             }finally{if([IO.File]::Exists($allowFile)){[IO.File]::Delete($allowFile)}}
         }finally{$env:USERPROFILE=$oldProfile;$env:SECONDBRAIN_HOME=$oldBrain;$env:SECONDBRAIN_STATE_ROOT=$oldState}

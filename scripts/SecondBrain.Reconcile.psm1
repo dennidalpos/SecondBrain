@@ -3,7 +3,7 @@
 # Plan-only by default. Safe classes are applied with -Apply; everything else returns a multiple-choice decision answered with -Decide.
 # Nothing is ever deleted: requests and receipts move to pending-discarded/<scope>/<id>/ with a note; "removing" a task means status cancelled.
 Set-StrictMode -Version Latest
-foreach($m in 'Core','Access','Host','Pending','Tracker','Knowledge','Para'){Import-Module (Join-Path $PSScriptRoot ('SecondBrain.'+$m+'.psm1'))}
+foreach($m in 'Core','Access','Host','Pending','Tracker','Knowledge','Entity'){Import-Module (Join-Path $PSScriptRoot ('SecondBrain.'+$m+'.psm1'))}
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Add-SBMessages @{
     'reconcile.decide.invalid' = @{ en = 'Invalid -Decide entry "{0}": use <request id>=<option>' }

@@ -1,7 +1,5 @@
 # Read-only GitHub audit
 
-[Retained Italian source; use this English page for current behavior](external-audit.it.md)
-
 audit-github.ps1 performs explicit GET requests through the existing GitHub CLI authentication. Sync and Check do not invoke the collector. Do not inspect credential stores or retain tokens.
 
 ~~~powershell

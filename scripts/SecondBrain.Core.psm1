@@ -620,7 +620,7 @@ function Get-SBRuntimeOwnership([string]$BrainRoot,$Nested,$Legacy) {
 function Get-SBRuntimeIndex([string]$BrainRoot,[string[]]$ProtectedPaths=@(),[int]$OlderThanDays=90) {
     $report=Get-SBRuntimeRetention $BrainRoot $ProtectedPaths $OlderThanDays
     $runtime=[IO.Path]::GetFullPath((Join-Path $BrainRoot '.runtime')).TrimEnd('\','/')
-    $writers=@{access='access.ps1 / Enter-SBOperation';hosts='secondbrain.ps1 -Setup/-Activate/-Sync, backup';backups='mcp-server.ps1 -Pair, trace.ps1, publication.ps1, tracker';logs='cleanup.ps1 -Migrate (log delle esecuzioni)';workstations='host legacy (registro accessi)';tests='test-secondbrain*.ps1';'mcp-handshake'='test-secondbrain-mcp-handshake.ps1';cleanup='cleanup.ps1';publication='publication.ps1';captures='assets.ps1';'directives-activation'='agente (workstation.activate)';'mcp-package'='mcp-server.ps1 -Package';trace='trace.ps1';'state.json'='secondbrain.ps1';'para-transaction.json'='para.ps1';'index.md'='cleanup.ps1 -RuntimeReport'}
+    $writers=@{access='access.ps1 / Enter-SBOperation';hosts='secondbrain.ps1 -Setup/-Activate/-Sync, backup';backups='mcp-server.ps1 -Pair, trace.ps1, publication.ps1, tracker';logs='cleanup.ps1 -Migrate (log delle esecuzioni)';workstations='host legacy (registro accessi)';tests='test-secondbrain*.ps1';'mcp-handshake'='test-secondbrain-mcp-handshake.ps1';cleanup='cleanup.ps1';publication='publication.ps1';captures='assets.ps1';'directives-activation'='agente (workstation.activate)';'mcp-package'='mcp-server.ps1 -Package';trace='trace.ps1';'state.json'='secondbrain.ps1';'para-transaction.json'='entity.ps1';'index.md'='cleanup.ps1 -RuntimeReport'}
     $order=@{protected=0;evidence=1;backup=2;working=3;regenerable=4}
     $format={param([long]$Bytes) if($Bytes -ge 1GB){('{0:N1} GB' -f ($Bytes/1GB))}elseif($Bytes -ge 1MB){('{0:N1} MB' -f ($Bytes/1MB))}else{('{0:N0} KB' -f ($Bytes/1KB))}}
     $options=[IO.EnumerationOptions]::new();$options.RecurseSubdirectories=$true;$options.IgnoreInaccessible=$true;$options.AttributesToSkip=[IO.FileAttributes]::ReparsePoint
@@ -817,6 +817,25 @@ function Get-SBRegenerableFolderState {
     }
     @{path=$Path;relative=$relative;kind=('nested-'+$category);files=$files;bytes=$bytes;newestWriteUtc=$newest.ToString('o');
       fingerprint=(Get-SBTextHash (ConvertTo-SBJson @($snapshot|Sort-Object path)));recovery=(Get-SBMessage 'core.runtime.regenerable.recovery')}
+}
+# Retention rule for .runtime test leftovers (#732): only top-level entries with a fixed leftover name, older than the window.
+# Names: pub*.out, t<number>-*.out (test output captures) and smoke-<hex> (smoke-run folders). Nothing else is ever selected.
+function Get-SBRuntimeLeftovers([string]$RuntimeRoot,[ValidateRange(1,3650)][int]$OlderThanDays=14) {
+    $limit=(Get-Date).ToUniversalTime().AddDays(-$OlderThanDays)
+    $selected=@();$skipped=@()
+    if(!(Test-Path -LiteralPath $RuntimeRoot -PathType Container)){return @{targets=@();skipped=@();bytes=0L}}
+    foreach($entry in @(Get-ChildItem -LiteralPath $RuntimeRoot -Force)){
+        if($entry.Name -cnotmatch '^(pub[A-Za-z0-9_-]*\.out|t\d+-[A-Za-z0-9_-]+\.out|smoke-[0-9a-f]{6,})$'){continue}
+        if($entry.Attributes -band [IO.FileAttributes]::ReparsePoint){$skipped+=@{name=$entry.Name;reason='reparse-point'};continue}
+        $files=@(if($entry.PSIsContainer){Get-ChildItem -LiteralPath $entry.FullName -Recurse -Force -File -ErrorAction SilentlyContinue}else{$entry})
+        if($entry.PSIsContainer -and @(Get-ChildItem -LiteralPath $entry.FullName -Recurse -Force|Where-Object {$_.Attributes -band [IO.FileAttributes]::ReparsePoint}).Count){$skipped+=@{name=$entry.Name;reason='contains-reparse-point'};continue}
+        $newest=if($files.Count){($files|Measure-Object LastWriteTimeUtc -Maximum).Maximum}else{$entry.LastWriteTimeUtc}
+        if($entry.LastWriteTimeUtc -gt $newest){$newest=$entry.LastWriteTimeUtc}
+        if($newest -ge $limit){$skipped+=@{name=$entry.Name;reason='within-retention-window'};continue}
+        $bytes=[int64]0;foreach($f in $files){$bytes+=[int64]$f.Length}
+        $selected+=@{name=$entry.Name;path=$entry.FullName;directory=[bool]$entry.PSIsContainer;files=$files.Count;bytes=$bytes;newestWriteUtc=$newest.ToString('o')}
+    }
+    @{targets=$selected;skipped=$skipped;bytes=[int64](@($selected|ForEach-Object {$_.bytes})|Measure-Object -Sum).Sum}
 }
 function Get-SBRegenerableRuntimeTargets {
     param([string]$BrainRoot,[string[]]$ProtectedPaths=@(),[ValidateRange(0,1000)][int]$KeepFixtures=5,[ValidateRange(0,10080)][int]$MinAgeMinutes=10,
@@ -1468,6 +1487,7 @@ Export-ModuleMember -Function @(
     'Get-SBRuntimeOwnership',
     'Get-SBRuntimeCleanupProposal',
     'Get-SBRegenerableRuntimeTargets',
+    'Get-SBRuntimeLeftovers',
     'Remove-SBRegenerableRuntimeTarget',
     'ConvertTo-SBRuntimeFolderName',
     'Get-SBRuntimeMigrationPlan',

@@ -3,7 +3,7 @@
 # (paths beyond 260 characters, Unicode, case differences, locked files). Fixtures under Get-SBTestRoot; no writes to the real .runtime.
 # Fixtures are always retained; results (duration, size, fixture status) remain in this run's esito-concurrency.json.
 $ErrorActionPreference='Stop'
-foreach($module in @('Core','Access','Host','Para','Tracker','Trace')){Import-Module (Join-Path $PSScriptRoot ('SecondBrain.'+$module+'.psm1')) -Force}
+foreach($module in @('Core','Access','Host','Entity','Tracker','Trace')){Import-Module (Join-Path $PSScriptRoot ('SecondBrain.'+$module+'.psm1')) -Force}
 . (Join-Path $PSScriptRoot 'test-helpers.ps1')
 $script:checks=0
 $script:cases=[Collections.Generic.List[object]]::new()
@@ -26,7 +26,7 @@ function Get-ErrorCode($Exception){while($null -ne $Exception){if($Exception.Dat
 # Launch $Count workers in separate threads, start them together (barrier), then return results sorted by index.
 function Invoke-Race([int]$Count,[scriptblock]$Work,[object[]]$Arguments=@()){
     $gate=[Threading.ManualResetEventSlim]::new($false);$ready=[Threading.CountdownEvent]::new($Count)
-    $modules=@('Core','Access','Host','Para','Tracker','Trace')|ForEach-Object {Join-Path $PSScriptRoot ('SecondBrain.'+$_+'.psm1')}
+    $modules=@('Core','Access','Host','Entity','Tracker','Trace')|ForEach-Object {Join-Path $PSScriptRoot ('SecondBrain.'+$_+'.psm1')}
     $runner={
         param($Index,$Gate,$Ready,$Modules,$WorkText,$WorkArguments)
         $ErrorActionPreference='Stop'

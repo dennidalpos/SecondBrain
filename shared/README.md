@@ -1,7 +1,7 @@
 # shared
 
-Riferimenti condivisi e riusabili da tutti i repository: fonti autorevoli, architettura, radar tecnologico, troubleshooting.
+References shared and reusable by all repositories: authoritative sources, architecture, technology radar, troubleshooting.
 
-- **Creazione:** `scripts/para.ps1 -NewResource -Id <id> -Title <titolo> -Objective <obiettivo>`.
-- **Chi scrive:** script SecondBrain e persona titolare; una risorsa non contiene dati di un singolo repository.
-- **Git:** il contenuto è tracciato (catalogo, domini, profili, metadati, trascrizioni e prove delle fonti public-reusable), esclusi gli originali (`versions/*/originals/`) e gli screenshot di controllo (`census/qa/`). Gli originali si scaricano con `scripts/resources.ps1 -Sync` (o `-Restore`) e si scrivono solo se lo SHA-256 coincide con il manifest. Un testo conservato di una fonte non public-reusable è rifiutato da `scripts/check-distribution.ps1`.
+- **Creation:** `scripts/entity.ps1 -NewResource -Id <id> -Title <title> -Objective <objective>`.
+- **Who writes:** SecondBrain scripts and the owner; an entity here never holds data of a single repository.
+- **Git:** contents are tracked (catalog, domains, profiles, metadata, transcripts and evidence of public-reusable sources), except the originals (`versions/*/originals/`) and the check screenshots (`census/qa/`). Originals are downloaded with `scripts/resources.ps1 -Sync` (or `-Restore`) and written only when the SHA-256 matches the manifest. A stored text of a source that is not public-reusable is rejected by `scripts/check-distribution.ps1`.

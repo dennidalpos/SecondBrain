@@ -5,7 +5,7 @@ param([string]$Authorization,[string]$ConfigPath,[string]$SessionId,[Parameter(M
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Access.psm1') -Force
-Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Para.psm1')
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Entity.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Add-SBMessages @{
     'approve.proposal.text' = @{ en = 'Proposal text missing: {0}' }

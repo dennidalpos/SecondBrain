@@ -1,7 +1,5 @@
 # Operations reference
 
-[Retained Italian source; use this English page for current behavior](operations.it.md)
-
 Run scripts from the SecondBrain checkout with PowerShell 7.5+ and Git 2.42+. ConfigPath is optional after activation; the current host configuration resolves under .runtime/hosts/<id>.
 
 ## Workflow

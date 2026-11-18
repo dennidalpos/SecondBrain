@@ -1,0 +1,79 @@
+#requires -Version 7.5
+# sb uninstall (#727): inventory of what SecondBrain installed and removal of only that. User content is never touched:
+# managed blocks are removed by their markers, the launcher only when it is byte-identical to a SecondBrain template.
+Set-StrictMode -Version Latest
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
+Add-SBMessages @{
+    'uninstall.data.authorization' = @{ en = '-RemoveData needs -Authorization with the exact text: delete dossiers' }
+    'uninstall.step.unknown' = @{ en = 'Unknown uninstall step: {0}. Steps: repositories, launchers, ide-blocks, hooks, environment, data' }
+}
+
+$script:SBUninstallBlocks=@(
+    @{name='global';pattern='(?s)\r?\n?<!-- secondbrain:global:begin -->.*?<!-- secondbrain:global:end -->\r?\n?'},
+    @{name='repository';pattern='(?s)\r?\n?<!-- secondbrain:repository:begin -->.*?<!-- secondbrain:repository:end -->\r?\n?'},
+    @{name='pointer';pattern='(?s)\r?\n?<!-- secondbrain:pointer:begin -->.*?<!-- secondbrain:pointer:end -->\r?\n?'}
+)
+
+# Which managed blocks a text contains (names).
+function Get-SBUninstallBlockNames([string]$Text) {
+    @($script:SBUninstallBlocks|Where-Object {$Text -match $_.pattern}|ForEach-Object {$_.name})
+}
+# The text without any managed block; user text is kept as it is.
+function Remove-SBUninstallBlocks([string]$Text) {
+    $result=$Text
+    foreach($block in $script:SBUninstallBlocks){$result=[regex]::Replace($result,$block.pattern,"`n")}
+    $result.Trim()
+}
+
+# Files that carry SecondBrain markers: IDE instruction files and the instruction files of the bound checkouts.
+function Get-SBUninstallInstructionFiles($Config,[object[]]$Ides=@()) {
+    $files=[Collections.Generic.List[string]]::new()
+    foreach($ide in @($Ides)){
+        if($ide -is [System.Collections.IDictionary]){$mode=$ide['mode'];$instructions=$ide['instructions']}else{$mode=$ide.mode;$instructions=$ide.instructions}
+        if($mode -eq 'file' -and $instructions -and !$files.Contains([string]$instructions)){$files.Add([string]$instructions)}
+    }
+    foreach($binding in @($Config.bindings)){
+        if(!$binding.path){continue}
+        foreach($name in 'AGENTS.md','CLAUDE.md','GEMINI.md'){
+            $path=Join-Path ([string]$binding.path) $name
+            if(!$files.Contains($path)){$files.Add($path)}
+        }
+    }
+    @($files|Where-Object {Test-Path -LiteralPath $_ -PathType Leaf})
+}
+
+# Preview data: every item to remove and every item that stays.
+function Get-SBUninstallInventory($Config,[string]$BrainRoot,[object[]]$Ides=@()) {
+    $remove=@();$keep=@()
+    foreach($binding in @($Config.bindings)){
+        $remove+=[ordered]@{kind='repository';target=[string]$binding.identity;path=[string]$binding.path;action='sb offboard: binding, managed blocks and pointers removed, open tasks written to TASKS.md, dossier saved first'}
+        if($binding.path){
+            $launcher=Join-Path ([string]$binding.path) '.secondbrain/run-tasks.ps1'
+            if(Test-Path -LiteralPath $launcher -PathType Leaf){$remove+=[ordered]@{kind='launcher';target=$launcher;path=$launcher;action='removed only when identical to a SecondBrain template'}}
+        }
+    }
+    foreach($file in @(Get-SBUninstallInstructionFiles $Config $Ides)){
+        $names=@(Get-SBUninstallBlockNames ([IO.File]::ReadAllText($file)))
+        if($names.Count){$remove+=[ordered]@{kind='managed-block';target=($names -join ',');path=$file;action='managed block removed by its markers, the rest of the file is kept'}}
+    }
+    foreach($client in 'claude-code','codex','antigravity'){$remove+=[ordered]@{kind='hook';target=$client;path='';action="client-hooks.ps1 -Uninstall -Client $client"}}
+    $env=[Environment]::GetEnvironmentVariable('SECONDBRAIN_HOME','User')
+    if($env){$remove+=[ordered]@{kind='environment';target='SECONDBRAIN_HOME';path='';action='user environment variable removed'}}
+    $remove+=[ordered]@{kind='data';target='repos/ and workstation/ dossiers';path=$BrainRoot;action='only with -RemoveData and the authorization text; dossier contents are deleted, README files stay'}
+    foreach($ide in @($Ides)){
+        $mcp=if($ide -is [System.Collections.IDictionary]){$ide['mcpConfigPath']}else{$ide.mcpConfigPath}
+        if($mcp -and !@($keep|Where-Object {$_.kind -eq 'mcp-config' -and $_.path -ceq [string]$mcp}).Count){$keep+=[ordered]@{kind='mcp-config';path=[string]$mcp;reason='not removed automatically: delete the secondbrain server entry in this client configuration yourself'}}
+    }
+    $keep+=[ordered]@{kind='shared';path=(Join-Path $BrainRoot 'shared');reason='tracked in Git; delete the checkout folder yourself if you want it gone'}
+    $keep+=[ordered]@{kind='runtime';path=(Join-Path $BrainRoot '.runtime');reason='holds backups saved by this command; delete it yourself after checking them'}
+    $keep+=[ordered]@{kind='user-content';path='';reason='all text outside the managed blocks, product code and any launcher that differs from a template'}
+    [ordered]@{remove=$remove;keep=$keep}
+}
+
+# Instruction files that still carry a SecondBrain marker (scan after apply).
+function Find-SBUninstallResidue($Config,[object[]]$Ides=@()) {
+    @(Get-SBUninstallInstructionFiles $Config $Ides|Where-Object {([IO.File]::ReadAllText($_)) -match '<!-- secondbrain:'})
+}
+
+Export-ModuleMember -Function Get-SBUninstallBlockNames,Remove-SBUninstallBlocks,Get-SBUninstallInstructionFiles,Get-SBUninstallInventory,Find-SBUninstallResidue

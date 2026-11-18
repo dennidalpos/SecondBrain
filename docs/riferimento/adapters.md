@@ -1,7 +1,5 @@
 # IDE adapters and live qualification
 
-[Retained Italian source; use this English page for current behavior](adapters.it.md)
-
 SecondBrain distinguishes file configuration, installed client, profile, environment, account and actual loaded instructions. Evidence on one surface does not certify the others. SYS01 guides verification after setup and after login/profile changes.
 
 ## Inspect the map

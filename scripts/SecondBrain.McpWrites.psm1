@@ -1,6 +1,6 @@
 #requires -Version 7.5
 Set-StrictMode -Version Latest
-foreach($m in 'Core','Access','Host','Pending','Tracker','Knowledge','Para'){Import-Module (Join-Path $PSScriptRoot ('SecondBrain.'+$m+'.psm1'))}
+foreach($m in 'Core','Access','Host','Pending','Tracker','Knowledge','Entity'){Import-Module (Join-Path $PSScriptRoot ('SecondBrain.'+$m+'.psm1'))}
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Add-SBMessages @{
     'mcpwrite.invalid' = @{ en = 'MCP write: invalid input ({0})' }

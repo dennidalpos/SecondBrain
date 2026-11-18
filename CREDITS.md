@@ -84,7 +84,7 @@ Icone dell'app (`app/orchestrator/src-tauri/icons/`): la provenienza delle icone
 
 ## 4. Testi di terzi nel registro delle fonti
 
-`03-resources/authoritative-sources/entries/*/versions/` contiene, dal #478, trascrizioni in Markdown di fonti con `rights.status` `public-reusable`: conversioni di formato degli originali, che restano locali (`versions/*/originals/` è escluso da Git). I file sono identificati per hash e non si modificano; gli avvisi richiesti dalle licenze sono raccolti qui. Condizioni lette dalle pagine degli enti il 2026-11-12.
+`shared/authoritative-sources/entries/*/versions/` contiene, dal #478, trascrizioni in Markdown di fonti con `rights.status` `public-reusable`: conversioni di formato degli originali, che restano locali (`versions/*/originals/` è escluso da Git). I file sono identificati per hash e non si modificano; gli avvisi richiesti dalle licenze sono raccolti qui. Condizioni lette dalle pagine degli enti il 2026-11-12.
 
 | Fonte (scheda) | Titolare | Condizioni | Obblighi per le copie nel repository |
 | --- | --- | --- | --- |

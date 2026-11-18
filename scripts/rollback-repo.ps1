@@ -10,6 +10,7 @@ Requires a write session (Enter-SBOperation, optional -SessionId) and refuses th
 3. Removes the managed SecondBrain blocks from the target repository's AGENTS.md and, where present, the CLAUDE.md and GEMINI.md pointers.
 4. Only then removes the dossier and runtime cache, then no index files are kept.
 An error in steps 1-3 leaves the dossier intact: rollback can be repeated.
+With -TasksOnly (sb offboard) step 1 is different: the dossier is saved in backupRoot (rollback-<id>) and the checkout only receives TASKS.md with the open tasks, so it matches a fresh clone plus TASKS.md.
 .EXAMPLE
 pwsh -NoProfile -File scripts/rollback-repo.ps1 -RepositoryIdentity "github.com/my-org/my-project" -Forbid -Apply
 #>
@@ -22,6 +23,7 @@ param(
     [string]$SessionId,
     [switch]$Forbid,
     [switch]$Force,
+    [switch]$TasksOnly,
     [switch]$Apply
 )
 
@@ -31,7 +33,7 @@ $brain = if ($BrainRoot) { [IO.Path]::GetFullPath($BrainRoot) } else { Get-SBBra
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Access.psm1') -Force
 # Writer busy beyond the wait limit: exit 3 (the message identifies the owner).
 trap { if (Test-SBWriteDeniedError $_) { Write-SBWriteDeniedDiagnostic $_ $PSCommandPath $PSBoundParameters; exit 4 }; if (Test-SBBusyError $_) { [Console]::Error.WriteLine($_.Exception.Message); exit 3 }; break }
-Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Para.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Entity.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Portable.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Host.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
@@ -58,6 +60,7 @@ Add-SBMessages @{
     'rollback.out.dossier' = @{ en = '  Deleted dossier: {0}' }
     'rollback.out.runtime' = @{ en = '  Deleted runtime directory: {0}' }
     'rollback.out.index' = @{ en = '  Entities checked' }
+    'rollback.out.tasks' = @{ en = '  Wrote {0} open tasks -> TASKS.md; dossier saved in {1}' }
     'rollback.out.done' = @{ en = 'Rollback completed successfully for {0}.' }
 }
 
@@ -173,7 +176,21 @@ try {
     # 3. Transfer the whole dossier to the target repository, or a central backup if the checkout is absent.
     $transferred = 0
     $backupPath = $null
-    if ($hasCheckout) {
+    if ($TasksOnly) {
+        # Offboard: the full dossier goes to the central backup; the checkout only gets the open tasks.
+        $backupPath = Join-Path $config.backupRoot ('rollback-' + (New-SBId))
+        $transferred = Copy-RollbackTree $dossierPath (Join-Path $backupPath 'dossier')
+        if ($hasCheckout) {
+            $trackerFile = Join-Path $dossierPath 'tracker.json'
+            $tracker = Read-SBJson $trackerFile @{ tasks = @() }
+            $open = @(@($tracker.tasks) | Where-Object { $_.status -cnotin @('done', 'cancelled', 'closed') } | Sort-Object { [int]$_.seq })
+            $lines = @('# Open tasks', '', ('Exported from the SecondBrain tracker of ' + $resolvedIdentity + ' on ' + (Get-SBNow).ToString('yyyy-MM-dd') + '.', ''))
+            foreach ($task in $open) { $lines += ('- [{0}] {1} ({2})' -f $(if ($task.priority) { $task.priority } else { '-' }), $task.title, $task.status) }
+            $tasksPath = Join-Path $checkoutPath 'TASKS.md'
+            Write-SBFile $tasksPath ([Text.UTF8Encoding]::new($false).GetBytes((($lines -join "`n") + "`n"))) (Get-SBFileHash $tasksPath) $config.backupRoot | Out-Null
+            Write-Information (Get-SBMessage 'rollback.out.tasks' @($open.Count, $backupPath)) -InformationAction Continue
+        }
+    } elseif ($hasCheckout) {
         $transferred = Copy-RollbackTree $dossierPath (Join-Path $checkoutPath '.secondbrain')
         Write-Host (Get-SBMessage 'rollback.out.copied' @($transferred)) -ForegroundColor Green
         $gitDir = Join-Path $checkoutPath '.git'

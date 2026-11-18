@@ -15,9 +15,9 @@ Use only on explicit user request to decommission, forbid or revoke a repository
 <procedure>
 1. Check the checkout is reachable; create the protected `.secondbrain/` folder in the target repository.
 2. Transfer `brief.md`, `context.md`, `memory.md`, `tracker.json`, `history/` and metadata into it; remove the SecondBrain managed block from the repository's instruction files.
-3. Remove the dossier from `01-projects/` (or legacy `02-areas/products/`) and clean transient data in `.runtime`.
+3. Remove the dossier from `repos/` and clean transient data in `.runtime`.
 4. Update the workstation configuration: remove the binding and register the repository in `forbiddenRepositories`.
-5. Regenerate the PARA views (`Update-SBParaIndex`).
+5. Regenerate the dossier index (`Update-SBParaIndex`).
 </procedure>
 
 <constraints>

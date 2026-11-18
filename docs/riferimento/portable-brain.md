@@ -1,7 +1,5 @@
 # Portable workstation setup
 
-[Retained Italian source; use this English page for current behavior](portable-brain.it.md)
-
 SecondBrain resolves its root from the running checkout and optional user-local SECONDBRAIN_HOME. It does not require a hard-coded personal path, silently install prerequisites or install a background monitor.
 
 <a id="configurazione-e-prerequisiti"></a>
@@ -50,7 +48,7 @@ New dossiers start with an English context template. Slim startup, compaction an
 
 ## Configuration and identity
 
-Workstation state, inventory, backups and selection receipts live under .runtime/hosts/<id>. repository.json and PARA establish dossier identity; configuration binds actual checkouts. Use ConfigPath for an explicit configuration override, not an example file as authority to manage assets.
+Workstation state, inventory, backups and selection receipts live under .runtime/hosts/<id>. repository.json and entity.json establish dossier identity; configuration binds actual checkouts. Use ConfigPath for an explicit configuration override, not an example file as authority to manage assets.
 
 Spaces are supported when paths are quoted. Missing SECONDBRAIN_HOME does not prevent direct checkout bootstrap, but the pre-push hook needs a resolvable brain/runtime. Moving a real workstation configuration requires reviewed setup/reconciliation; aliases are not automatically relocation.
 
@@ -86,12 +84,9 @@ See [safe writes](safety-backups.md), [MCP](mcp-setup.md), [trackers](trackers.m
 
 ## Project isolation
 
-Each managed repository has its own dossier in `01-projects/<name>--<hash>/` (kind project with `repository.json`, plus `specs/`, `material/` and `data/` for the material to implement in that repository). Only `03-resources/` is shared between repositories. By default every read is scoped to the working repository: `-All`, `-AllDossiers`, `all=true` and a search with no resolved repository are refused with a project-isolation error. There is no switch to lift the isolation (#475).
-
-Dossiers created before this layout live in `02-areas/products/`. Preview the move with `pwsh -NoProfile -File scripts/para.ps1 -MigrateToProjects`, then run it with `-Apply` (optionally `-Only <id or identity>`). Each dossier moves in its own PARA transaction with a backup, keeps its id and files, and gets `specs/`, `material/` and `data/`; bindings and state files are rewritten to the new paths. Take a verified `backup.ps1` archive first.
-
+Each managed repository has its own dossier in `repos/<name>--<hash>/` (kind project with `repository.json`, plus `specs/`, `material/` and `data/` for the material to implement in that repository). Only `shared/` is shared between repositories. By default every read is scoped to the working repository: `-All`, `-AllDossiers`, `all=true` and a search with no resolved repository are refused with a project-isolation error. There is no switch to lift the isolation (#475).
 ## New projects and roadmap
 
 - `scripts/secondbrain.ps1 -NewProject <path> [-Remote <url>] [-Customer <name>] [-ApplyNew]` creates a project from scratch in one command. It previews by default; with `-ApplyNew` it creates the folder, runs `git init`, adds the remote, records the repository in `config/local/allowlist.json`, activates it (dossier, tracker seed, managed block), declares the greenfield lifecycle and stores the customer in `repository.json`.
 - `scripts/knowledge.ps1 -Roadmap [-Format Markdown|Json] [-Since yyyy-MM-dd]` prints the roadmap of the working repository only: interventions from its tracker history (date from the history folder, task numbers, commit and pull-request mentions) and its git log, with the customer from `repository.json`. Data of other repositories is never read.
-- Customer grouping (#485): the `customer` field of a dossier's `repository.json` (set by `-AddRepo`/`-NewProject -Customer`) groups dossiers by customer without moving folders, so PARA ids, identities and trackers stay as they are. `scripts/para.ps1 -SetCustomer (-Customer <name> | -Clear) -Only <id|identity>[,...] [-Apply]` assigns or clears it: preview by default, one transaction on `repository.json` with `-Apply`, then a check that PARA ids, identities, folders and tracker task ids are unchanged. `scripts/knowledge.ps1 -Search <text> -Customer <name>` (and the `customer` argument of the MCP tool `search_knowledge`) searches only that customer's active dossiers; used alone it is a global read, refused like `-AllDossiers` under project isolation and in runner sessions. `scripts/backup.ps1 -Customer <name>` archives only that customer's dossiers (active and archived) without `PARA.md`, `para-index.json` or `.runtime/hosts`, and records the customer in the manifest. Matching is trimmed and case-insensitive.
+- Customer grouping (#485): the `customer` field of a dossier's `repository.json` (set by `-AddRepo`/`-NewProject -Customer`) groups dossiers by customer without moving folders, so PARA ids, identities and trackers stay as they are. `scripts/entity.ps1 -SetCustomer (-Customer <name> | -Clear) -Only <id|identity>[,...] [-Apply]` assigns or clears it: preview by default, one transaction on `repository.json` with `-Apply`, then a check that PARA ids, identities, folders and tracker task ids are unchanged. `scripts/knowledge.ps1 -Search <text> -Customer <name>` (and the `customer` argument of the MCP tool `search_knowledge`) searches only that customer's active dossiers; used alone it is a global read, refused like `-AllDossiers` under project isolation and in runner sessions. `scripts/backup.ps1 -Customer <name>` archives only that customer's dossiers (active and archived) without the dossier index or `.runtime/hosts`, and records the customer in the manifest. Matching is trimmed and case-insensitive.

@@ -1,7 +1,5 @@
 # Prompts
 
-[Retained Italian source; use this English page for current behavior](prompt.it.md)
-
 The catalog contains 123 prompt cards in 17 categories, in two groups (current repository and central SecondBrain). The cards are in English.
 
 ~~~text
@@ -40,7 +38,7 @@ Composition combines the objective, repository context and card in XML with `tas
 
 ## Categories
 
-Prompts are grouped by development area or need, not by code prefix. A repository prompt works only on the repository it runs from; central prompts run from the SecondBrain checkout. No card reads another repository: 03-resources is the only shared area.
+Prompts are grouped by development area or need, not by code prefix. A repository prompt works only on the repository it runs from; central prompts run from the SecondBrain checkout. No card reads another repository: `shared/` is the only shared area.
 
 **Current repository: run from the repository you work on**
 

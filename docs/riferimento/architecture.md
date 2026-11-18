@@ -1,7 +1,5 @@
 # Architecture and modules
 
-[Retained Italian source; use this English page for current behavior](architecture.it.md)
-
 SecondBrain separates distributable code and approved instructions from private knowledge and workstation state.
 
 ~~~mermaid

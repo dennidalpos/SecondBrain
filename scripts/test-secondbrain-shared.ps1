@@ -4,7 +4,7 @@
 # Declared limit: both identities run under this PC and user (same MachineName/SID); the real two-PC qualification stays in #348.
 $ErrorActionPreference='Stop'
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1') -Force
-Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Para.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Entity.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Tracker.psm1') -Force
 . (Join-Path $PSScriptRoot 'test-helpers.ps1')
 $script:checks=0

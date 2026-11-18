@@ -23,6 +23,8 @@ backup/* into backups/*, root *.log into logs/. Rename on the same volume only (
 -Repository is the repository identity of the destination segment (default github.com/dennidalpos/secondbrain). Journal in .runtime/cleanup/migrate-*.json.
 -Migrate -LocalState compares the current workstation's legacy state with the SECONDBRAIN_STATE_ROOT destination. This mode is preview only.
 -ListInstallBackups lists verified pairs for untracked user-profile files after InstallBackupDays (default 7). It is review only.
+-Leftovers (#732) applies the retention rule to top-level .runtime leftovers: pub*.out, t<number>-*.out and smoke-<hex>, older than -OlderThanDays (default 14, by the newest file inside).
+Without -Apply it only lists them; with -Apply and -Authorization it removes exactly the listed ones (refuses pending transactions and active sessions, skips reparse points) and writes a journal in .runtime/cleanup.
 -Regenerable previews (without -Apply) or removes (with -Apply and -Authorization quoting the user's explicit request) only regenerable .runtime folders:
 only hosts/<current-host>/repos/<repo>/fixture|tmp folders beyond the latest -KeepFixtures, with a valid schema-1 MANIFEST.json
 matching path and current owner, status closed and expiry strictly before today (the expiry day is retained).
@@ -33,7 +35,7 @@ junctions/symlinks; rechecks eligibility and content hashes before each removal,
 No backup (recreated with the owning suite/command), but records a .runtime/cleanup journal with entries, sizes, outcomes and recovery instructions.
 #>
 [CmdletBinding()]
-param([string]$ConfigPath,[string]$SessionId,[switch]$Apply,[string]$ManifestPath,[string]$Authorization,[switch]$ListStageRecords,[switch]$ListRuntime,[switch]$ProposeRuntime,[switch]$RuntimeReport,[switch]$CheckRuntime,[string]$ReportPath,[switch]$Regenerable,[switch]$Migrate,[switch]$LocalState,[switch]$ListInstallBackups,[ValidateRange(1,3650)][int]$InstallBackupDays=7,[string]$Repository='github.com/dennidalpos/secondbrain',[ValidateRange(0,1000)][int]$KeepFixtures=5,[ValidateRange(0,10080)][int]$MinAgeMinutes=10,[string]$ProposalPath,[ValidateRange(1,3650)][int]$OlderThanDays=90)
+param([string]$ConfigPath,[string]$SessionId,[switch]$Apply,[string]$ManifestPath,[string]$Authorization,[switch]$ListStageRecords,[switch]$ListRuntime,[switch]$ProposeRuntime,[switch]$RuntimeReport,[switch]$CheckRuntime,[string]$ReportPath,[switch]$Regenerable,[switch]$Leftovers,[switch]$Migrate,[switch]$LocalState,[switch]$ListInstallBackups,[ValidateRange(1,3650)][int]$InstallBackupDays=7,[string]$Repository='github.com/dennidalpos/secondbrain',[ValidateRange(0,1000)][int]$KeepFixtures=5,[ValidateRange(0,10080)][int]$MinAgeMinutes=10,[string]$ProposalPath,[ValidateRange(1,3650)][int]$OlderThanDays=90)
 $ErrorActionPreference='Stop'
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Access.psm1') -Force
@@ -134,6 +136,31 @@ try {
         if($result.failed.Count){$summary.status='partial'}
         ConvertTo-SBJson $summary
         exit $(if($result.failed.Count){1}else{0})
+    }
+    if($Leftovers){
+        if($Regenerable -or $Migrate -or $ManifestPath -or $ListStageRecords -or $ListRuntime -or $ProposeRuntime -or $RuntimeReport -or $CheckRuntime){throw (New-SBError 'cleanup.regenerable.exclusive')}
+        $days=if($PSBoundParameters.ContainsKey('OlderThanDays')){$OlderThanDays}else{14}
+        $runtimeDir=Join-Path $config.brainRoot '.runtime'
+        $plan=Get-SBRuntimeLeftovers $runtimeDir $days
+        $summary=@{applied=$false;scope='runtime-leftovers-only';olderThanDays=$days;targets=@($plan.targets);skipped=@($plan.skipped);bytes=$plan.bytes}
+        if(!$Apply){$summary.note='Preview: nothing removed. With -Apply and -Authorization only the listed targets are removed.';ConvertTo-SBJson $summary;exit 0}
+        if(!$Authorization){throw (New-SBError 'cleanup.apply.authorization')}
+        if(Test-Path -LiteralPath (Get-SBTransactionMarkerPath $config.brainRoot)){throw (New-SBError 'cleanup.transaction.pending')}
+        $busy=@(Get-SBAccessStatus $config|Where-Object {$_ -is [Collections.IDictionary] -and $_.ContainsKey('sessionId') -and $_.sessionId -ne $operation.ownerSessionId -and $_.status -in @('active','unverified')})
+        if($busy.Count){throw (New-SBError 'cleanup.sessions.active' @($busy.Count))}
+        $registryDir=Join-Path $runtimeDir 'cleanup';[IO.Directory]::CreateDirectory($registryDir)|Out-Null
+        $registryPath=Join-Path $registryDir ('leftovers-'+(Get-SBNow -Local).ToString('yyyyMMddTHHmmss')+'.json')
+        $current=@((Get-SBRuntimeLeftovers $runtimeDir $days).targets|ForEach-Object {$_.name})
+        $removed=@();$failures=@()
+        foreach($target in $plan.targets){
+            if($target.name -cnotin $current){$failures+=@{name=$target.name;error='no longer eligible'};continue}
+            try{Remove-Item -LiteralPath $target.path -Recurse -Force;$removed+=$target}catch{$failures+=@{name=$target.name;error=$_.Exception.Message}}
+        }
+        $record=@{schemaVersion=1;executedAt=(Get-SBNow -Local).ToString('o');authorization=$Authorization;scope='runtime-leftovers-only';olderThanDays=$days;items=@($removed);failed=@($failures);status=$(if($failures.Count){'partial'}else{'completed'});recovery='Test output and smoke folders are regenerated by the suites that wrote them; nothing is backed up.'}
+        [IO.File]::WriteAllText($registryPath,(ConvertTo-SBJson $record),[Text.UTF8Encoding]::new($false))
+        $summary.applied=[bool]($removed.Count -gt 0 -and !$failures.Count);$summary.removed=@($removed);$summary.failed=@($failures);$summary.registry=$registryPath
+        ConvertTo-SBJson $summary
+        exit $(if($failures.Count){1}else{0})
     }
     if($Regenerable){
         if($ManifestPath -or $ListStageRecords -or $ListRuntime -or $ProposeRuntime -or $RuntimeReport -or $CheckRuntime){throw (New-SBError 'cleanup.regenerable.exclusive')}

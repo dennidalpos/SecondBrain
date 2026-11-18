@@ -60,7 +60,7 @@ Put (Join-Path $checkout 'README.md') "# Synthetic product`n"
 $cfg=@{schemaVersion=1;mode='portable';workstationId=$hostId;runtimeRoot=$runtime;backupRoot=(Join-Path $runtime 'backups');bindings=@(@{identity=$identity;path=$checkout;remoteIdentity=$identity;dossier='repos/OrchestratorE2E';status='managed';managedHash='absent';fingerprint=(Get-SBCheckoutAsset $checkout).fingerprint});ides=@()}
 Put $configPath (ConvertTo-SBJson $cfg)
 # PARA index of the synthetic brain (prompts.ps1 -Context resolves the dossier through it).
-$indexOut=(& pwsh -NoProfile -File (Join-Path $brain 'scripts/para.ps1') -BuildIndex 2>&1|Out-String);if($LASTEXITCODE){throw ('PARA index of the fixture failed: '+$indexOut)}
+$indexOut=(& pwsh -NoProfile -File (Join-Path $brain 'scripts/entity.ps1') -BuildIndex 2>&1|Out-String);if($LASTEXITCODE){throw ('PARA index of the fixture failed: '+$indexOut)}
 # Fake Claude Code: --version, a --help that offers stream-json and model aliases, and a streamed run that marks the task in progress.
 $bin=Join-Path $Root 'bin'
 $fake=Join-Path $bin 'fake-claude.ps1'

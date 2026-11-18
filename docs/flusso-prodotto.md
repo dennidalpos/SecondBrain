@@ -1,7 +1,5 @@
 # Per-repository workflow
 
-[Retained Italian source; use this English page for current behavior](flusso-prodotto.it.md)
-
 Use chat conventions or the same PowerShell scripts. Run central scripts from the SecondBrain checkout and identify the product checkout explicitly when needed.
 
 | Step | Chat | CLI or action |

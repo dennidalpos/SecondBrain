@@ -1,0 +1,119 @@
+#requires -Version 7.5
+<#
+.SYNOPSIS
+sb uninstall: removes what SecondBrain installed, and only that.
+.DESCRIPTION
+Previews by default: lists every item to remove and every item that stays, changes nothing.
+-Apply runs the selected steps (default: repositories, launchers, ide-blocks, hooks, environment):
+  repositories  sb offboard for every binding: managed blocks and pointers removed, open tasks in TASKS.md, dossier saved in the backup folder first
+  launchers     .secondbrain/run-tasks.ps1 removed only when identical to a SecondBrain template
+  ide-blocks    managed blocks removed from IDE and checkout instruction files by their markers; every other line is kept; backups are verified
+  hooks         client-hooks.ps1 -Uninstall for Claude Code, Codex and Antigravity
+  environment   the SECONDBRAIN_HOME user variable
+  data          dossiers under repos/ and workstation/; needs -RemoveData and -Authorization "delete dossiers"
+Not removed: the MCP entries of the clients (listed, delete them yourself), shared/, .runtime and the checkout itself.
+A scan for remaining markers closes the report.
+.EXAMPLE
+pwsh -NoProfile -File scripts/uninstall.ps1
+.EXAMPLE
+pwsh -NoProfile -File scripts/uninstall.ps1 -Apply -Only ide-blocks,launchers
+#>
+[CmdletBinding()]
+param(
+    [switch]$Apply,
+    [string[]]$Only=@('repositories','launchers','ide-blocks','hooks','environment'),
+    [switch]$RemoveData,[string]$Authorization,
+    [string]$ConfigPath,[string]$SessionId
+)
+$Only=@($Only|ForEach-Object {$_ -split ','}|ForEach-Object {$_.Trim()}|Where-Object {$_})
+$validSteps='repositories','launchers','ide-blocks','hooks','environment','data'
+$badStep=@($Only|Where-Object {$_ -cnotin $validSteps})
+$ErrorActionPreference='Stop'
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Access.psm1')
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Host.psm1')
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Uninstall.psm1')
+trap { if (Test-SBWriteDeniedError $_) { Write-SBWriteDeniedDiagnostic $_ $PSCommandPath $PSBoundParameters; exit 4 }; if (Test-SBBusyError $_) { [Console]::Error.WriteLine($_.Exception.Message); exit 3 }; break }
+if($badStep.Count){throw (New-SBError 'uninstall.step.unknown' @($badStep -join ','))}
+$brain=Get-SBBrainRootPath
+$config=Read-SBConfiguration $ConfigPath -ReadOnly:(!$Apply)
+$stateRoot=Get-SBWorkstationStateRoot $brain (Get-SBHostId)
+$ideMap=Read-SBJson (Join-Path $stateRoot 'ide-map.json') @{}
+$ides=@(if($ideMap.ContainsKey('ides')){$ideMap.ides}elseif($config.ContainsKey('ides')){$config.ides})
+$inventory=Get-SBUninstallInventory $config $brain $ides
+$report=[ordered]@{applied=$false;steps=@();inventory=$inventory;residue=@()}
+if(!$Apply){ConvertTo-SBJson $report;exit 0}
+if($Only -contains 'data' -and (!$RemoveData -or $Authorization -cne 'delete dossiers')){throw (New-SBError 'uninstall.data.authorization')}
+
+$instructionFiles=@(Get-SBUninstallInstructionFiles $config $ides)
+$bindings=@($config.bindings)
+$operation=Enter-SBOperation $config $SessionId
+try{
+    if($Only -contains 'repositories'){
+        foreach($binding in $bindings){
+            $arguments=@('-RepositoryIdentity',[string]$binding.identity,'-Apply')
+            if($ConfigPath){$arguments+=@('-ConfigPath',$ConfigPath)}
+            if(!$binding.path -or !(Test-Path -LiteralPath $binding.path)){$arguments+='-Force'}
+            & pwsh -NoProfile -File (Join-Path $PSScriptRoot 'offboard.ps1') @arguments | Out-Null
+            $report.steps+=[ordered]@{step='repositories';target=[string]$binding.identity;exitCode=$LASTEXITCODE}
+        }
+    }
+    if($Only -contains 'launchers'){
+        $template=Join-Path $PSScriptRoot 'templates/run-tasks.launcher.ps1'
+        $known=@('4D4725AEB58EAD7EC4327806BE5F68933A248C04328CF526E0160A9DA73D0879')
+        if(Test-Path -LiteralPath $template){$known+=Get-SBHash ([IO.File]::ReadAllBytes($template))}
+        foreach($binding in $bindings){
+            if(!$binding.path){continue}
+            $launcher=Join-Path ([string]$binding.path) '.secondbrain/run-tasks.ps1'
+            if(!(Test-Path -LiteralPath $launcher -PathType Leaf)){continue}
+            $hash=Get-SBFileHash $launcher
+            if($hash -in $known){Remove-SBFile $launcher ([string]$binding.path) $hash $config.backupRoot|Out-Null;$report.steps+=[ordered]@{step='launchers';target=$launcher;result='removed'}}
+            else{$report.steps+=[ordered]@{step='launchers';target=$launcher;result='kept: differs from every template'}}
+        }
+    }
+    if($Only -contains 'ide-blocks'){
+        foreach($file in $instructionFiles){
+            if(!(Test-Path -LiteralPath $file -PathType Leaf)){continue}
+            $text=[IO.File]::ReadAllText($file,[Text.UTF8Encoding]::new($false))
+            if(!(Get-SBUninstallBlockNames $text).Count){continue}
+            $remaining=Remove-SBUninstallBlocks $text
+            $hash=Get-SBFileHash $file
+            $isCheckoutFile=@($bindings|Where-Object {$_.path -and $file.StartsWith(([string]$_.path),[StringComparison]::OrdinalIgnoreCase)}).Count -gt 0
+            if(!$remaining -and $isCheckoutFile){
+                Remove-SBFile $file (Split-Path $file) $hash $config.backupRoot|Out-Null
+                $report.steps+=[ordered]@{step='ide-blocks';target=$file;result='removed: only the managed block was in it'}
+            }else{
+                Write-SBFile $file ([Text.UTF8Encoding]::new($false).GetBytes($(if($remaining){$remaining+"`n"}else{''}))) $hash $config.backupRoot -BackupDirty|Out-Null
+                $report.steps+=[ordered]@{step='ide-blocks';target=$file;result='block removed, other text kept'}
+            }
+        }
+    }
+    if($Only -contains 'hooks'){
+        foreach($client in 'claude-code','codex','antigravity'){
+            $arguments=@('-Uninstall','-Client',$client,'-Apply')
+            if($ConfigPath){$arguments+=@('-ConfigPath',$ConfigPath)}
+            if($SessionId){$arguments+=@('-SessionId',$SessionId)}
+            & pwsh -NoProfile -File (Join-Path $PSScriptRoot 'client-hooks.ps1') @arguments | Out-Null
+            $report.steps+=[ordered]@{step='hooks';target=$client;exitCode=$LASTEXITCODE}
+        }
+    }
+    if($Only -contains 'environment'){
+        [Environment]::SetEnvironmentVariable('SECONDBRAIN_HOME',$null,'User')
+        $report.steps+=[ordered]@{step='environment';target='SECONDBRAIN_HOME';result='removed'}
+    }
+    if($Only -contains 'data'){
+        foreach($area in 'repos','workstation'){
+            $areaPath=Join-Path $brain $area
+            if(!(Test-Path -LiteralPath $areaPath)){continue}
+            foreach($child in @(Get-ChildItem -LiteralPath $areaPath -Force|Where-Object Name -ne 'README.md')){
+                Remove-Item -LiteralPath $child.FullName -Recurse -Force
+                $report.steps+=[ordered]@{step='data';target=$child.FullName;result='removed'}
+            }
+        }
+    }
+}finally{Exit-SBOperation $operation}
+$report.applied=$true
+$report.residue=@(Find-SBUninstallResidue $config $ides)
+ConvertTo-SBJson $report
+exit $(if($report.residue.Count){2}else{0})

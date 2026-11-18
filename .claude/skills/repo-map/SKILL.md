@@ -9,15 +9,14 @@ Use this map to find where things live before searching broadly.
 
 Top-level folders (detected, may be incomplete):
 - `.github/`
-- `01-projects/`
-- `02-areas/`
-- `03-resources/`
-- `04-archives/`
 - `app/`
 - `config/`
 - `direttive/`
 - `docs/`
+- `repos/` (one dossier per managed repository; contents ignored by Git)
 - `scripts/`
+- `shared/` (shared references: sources, architecture, radar, troubleshooting)
+- `workstation/` (governance, workstation and directive dossiers; contents ignored by Git)
 
 - Read the folder's own README or instructions before editing inside it.
 - Prefer existing patterns in the neighbouring files over new ones.

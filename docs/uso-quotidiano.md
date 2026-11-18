@@ -1,7 +1,5 @@
 # Daily use
 
-[Retained Italian source; use this English page for current behavior](uso-quotidiano.it.md)
-
 Work with your agent as usual. SecondBrain supplies repository context, decisions, tasks and approved instructions. The agent must still respect the permissions of the current session.
 
 ## Chat commands
@@ -51,18 +49,46 @@ See the [per-repository workflow](flusso-prodotto.md) for the order of operation
 - It runs by itself when a task is closed with `knowledge.ps1 -UpdateTaskId <id> -Status done`, at 80% of the budget. Opt out with `-NoAutoCompact` or `SECONDBRAIN_AUTO_COMPACT=0`. A failure is reported on stderr and never changes the exit code of the close.
 - Undo: restore the archived original from `history/compaction/<hash>/`, or remove the marker line.
 
-## PARA and the dossier
+## Folders and the dossier
 
 | Folder | Use |
 |---|---|
-| `01-projects/` | One folder per managed repository (specs, material, data, context, memory, tracker) and other work with an end condition |
-| `02-areas/` | Continuing responsibilities that are not a repository |
-| `03-resources/` | Reference material |
-| `04-archives/` | Inactive material; do not reactivate it implicitly |
+| `repos/` | One folder per managed repository (specs, material, data, context, memory, tracker) |
+| `workstation/` | Continuing responsibilities that are not a repository (governance, workstation, directives) |
+| `shared/` | Reference material shared by all repositories |
+
+There are no archive folders: an inactive entity keeps its place and has a status other than `active`; do not reactivate it implicitly.
 
 A repository dossier contains `index.md`, `context.md`, `memory.md`, `repository.json` and its declared tracker. Resolve it by repository identity, not the folder name. A declared dossier tracker is authoritative; a missing or invalid tracker is an error, not permission to use another file.
 
 Durable decisions use `Decisione: … — Motivo: …` in memory. Keep only verified, useful changes in context and memory. Read the essential startup package first, then request relevant task details and historical evidence. Slim defaults to 25,000 characters for the first load; characters are not tokens. See [loading and maintenance](riferimento/runtime-maintenance.md).
+
+## One entry point: `sb`
+
+`scripts/sb.ps1` runs every `sb` command from a terminal; the existing scripts stay the implementation and extra arguments are passed through.
+
+~~~powershell
+pwsh -NoProfile -File scripts/sb.ps1 help                 # every command with a one-line description
+pwsh -NoProfile -File scripts/sb.ps1 check                # same as scripts/secondbrain.ps1 -Check
+pwsh -NoProfile -File scripts/sb.ps1 prompt show KEY      # same as scripts/prompts.ps1 -Show -Prompt KEY
+pwsh -NoProfile -File scripts/sb.ps1 runner -RepositoryPath <checkout>
+~~~
+
+An unknown command is refused with a pointer to `sb help`.
+
+## Onboard and offboard one repository
+
+Both preview by default and change nothing until `-Apply`.
+
+~~~powershell
+pwsh -NoProfile -File scripts/sb.ps1 onboard -Path <checkout> [-Customer <name>] [-Apply]
+pwsh -NoProfile -File scripts/sb.ps1 offboard -RepositoryIdentity <identity> [-Forbid] [-Apply]
+~~~
+
+- **Onboard** records the repository in the local allowlist and activates it: binding, dossier (brief, context, memory, tracker) and directives. The only thing written to the repository is the managed block (and the managed pointer blocks).
+- **Resync** realigns a repository that was edited outside SecondBrain or not opened for a long time: `sb resync -RepositoryIdentity <identity>` prints a plan (exit code 2 when a decision is needed). Safe items (out-of-date managed blocks and generated views) are realigned with `-Apply`; every conflict names the action to take in the repository or the prompt to run. Nothing is written without `-Apply`.
+- **Uninstall** (`sb uninstall`) removes only what SecondBrain installed. The preview lists every item to remove and every item that stays; `-Apply` runs the steps `repositories` (offboard of every binding), `launchers` (only when identical to a template), `ide-blocks` (managed blocks by their markers, other text kept, verified backups), `hooks` and `environment`. Pick steps with `-Only ide-blocks,launchers`. Dossiers are removed only with `-Only data -RemoveData -Authorization "delete dossiers"`. The MCP entries of the clients, `shared/` and `.runtime` are never removed automatically; a scan for remaining markers closes the report (exit code 2 if any remains).
+- **Offboard** removes the binding, the managed blocks and the pointers, writes the open tasks to `TASKS.md` in the repository and saves the whole dossier in the backup folder before removing it. Afterwards `git status` equals a fresh clone plus `TASKS.md`.
 
 ## CLI lookups
 

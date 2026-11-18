@@ -4,7 +4,7 @@ $ErrorActionPreference='Stop'
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Access.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
-Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Para.psm1')
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Entity.psm1')
 Add-SBMessages @{
     'sources.reason.http' = @{ en = 'HTTP {0} response could not be verified' }
     'sources.reason.access-challenge' = @{ en = 'Source access requires a challenge' }

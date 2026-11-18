@@ -3,7 +3,7 @@
 $ErrorActionPreference='Stop'
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Knowledge.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
-Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Para.psm1')
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Entity.psm1')
 . (Join-Path $PSScriptRoot 'test-helpers.ps1')
 $script:custChecks=0
 function Assert-Cust($Condition,[string]$Message){if(!$Condition){throw ('FAIL CUSTOMER: '+$Message)};$script:custChecks++}
@@ -27,10 +27,10 @@ New-Dossier 'repos/a' 'a' 'Acme'
 New-Dossier 'repos/b' 'b' ' acme '
 New-Dossier 'repos/c' 'c' 'Beta'
 New-Dossier 'repos/d' 'd' $null
-New-Dossier '04-archives/projects/dossier-e' 'e' 'Acme' 'completed'
+New-Dossier 'repos/e' 'e' 'Acme' 'completed'
 $runtime=Get-SBLocalRoot $brain 'fixture';$cfg=Join-Path $runtime 'workstation.json'
 Put ([IO.Path]::GetRelativePath($brain,$cfg)) (ConvertTo-SBJson @{schemaVersion=1;mode='portable';workstationId='fixture';runtimeRoot=$runtime;backupRoot=(Join-Path $runtime 'backups');ides=@();bindings=@()})
-$para=Join-Path $brain 'scripts/para.ps1'
+$para=Join-Path $brain 'scripts/entity.ps1'
 function Invoke-Para([string[]]$Arguments){$out=& pwsh -NoProfile -File $para -ConfigPath $cfg @Arguments 2>&1|Out-String;@{code=$LASTEXITCODE;out=$out}}
 $r=Invoke-Para @('-BuildIndex')
 Assert-Cust ($r.code -eq 0) ('fixture index built: '+$r.out)
@@ -79,7 +79,7 @@ Assert-Cust ((Invoke-Para @('-SetCustomer','-Only','dossier-c')).code -ne 0) 'cu
 Assert-Cust ((Invoke-Para @('-SetCustomer','-Customer','x','-Only','dossier-zzz')).code -ne 0) 'unmatched -Only is refused'
 Assert-Cust ((Invoke-Para @('-SetCustomer','-Customer',('x'*121),'-Only','dossier-c')).code -ne 0) 'overlong customer is refused'
 
-# Backup filter: only the customer's dossiers (active and archived); no global indexes or workstation data.
+# Backup filter: only the customer's dossiers (active and inactive); no global indexes or workstation data.
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $backup=Join-Path $brain 'scripts/backup.ps1';$zipPath=Join-Path $root 'acme.zip'
 $out=& pwsh -NoProfile -File $backup -Customer 'ACME' -OutputPath $zipPath 2>&1|Out-String
@@ -87,7 +87,7 @@ Assert-Cust ($LASTEXITCODE -eq 0 -and (Test-Path -LiteralPath $zipPath)) ('custo
 $archive=[IO.Compression.ZipFile]::OpenRead($zipPath)
 try{$names2=@($archive.Entries|ForEach-Object {$_.FullName});$manifest=([IO.StreamReader]::new($archive.GetEntry('manifest.json').Open())).ReadToEnd()|ConvertFrom-Json -AsHashtable}finally{$archive.Dispose()}
 $has={param($prefix) @($names2|Where-Object {$_.StartsWith($prefix,[StringComparison]::Ordinal)}).Count -gt 0}
-Assert-Cust ((& $has 'repos/a/') -and (& $has 'repos/b/') -and (& $has '04-archives/projects/dossier-e/')) 'backup includes active and archived dossiers of the customer'
+Assert-Cust ((& $has 'repos/a/') -and (& $has 'repos/b/') -and (& $has 'repos/e/')) 'backup includes active and inactive dossiers of the customer'
 Assert-Cust (!(& $has 'repos/c/') -and !(& $has 'repos/d/') -and !(& $has '.runtime/') -and 'PARA.md' -notin $names2 -and 'para-index.json' -notin $names2) 'backup leaves out other customers, indexes and workstation data'
 Assert-Cust ($manifest.customer -ceq 'ACME' -and $manifest.fileCount -eq (@($names2|Where-Object {$_ -ne 'manifest.json'}).Count)) 'manifest records the customer and counts only included files'
 $verify=& pwsh -NoProfile -File $backup -Verify -BackupPath $zipPath 2>&1|Out-String
@@ -98,5 +98,5 @@ $null=& pwsh -NoProfile -File $backup -OutputPath (Join-Path $root 'full.zip') 2
 Assert-Cust ($LASTEXITCODE -eq 0) 'backup without filter still works'
 $archive=[IO.Compression.ZipFile]::OpenRead((Join-Path $root 'full.zip'))
 try{$fullNames=@($archive.Entries|ForEach-Object {$_.FullName});$fullManifest=([IO.StreamReader]::new($archive.GetEntry('manifest.json').Open())).ReadToEnd()|ConvertFrom-Json -AsHashtable}finally{$archive.Dispose()}
-Assert-Cust ((@($fullNames|Where-Object {$_ -like 'repos/c/*'}).Count -gt 0) -and 'PARA.md' -in $fullNames -and !$fullManifest.ContainsKey('customer')) 'unfiltered backup keeps every dossier and no customer key'
+Assert-Cust ((@($fullNames|Where-Object {$_ -like 'repos/c/*'}).Count -gt 0) -and (@($fullNames|Where-Object {$_ -like 'repos/e/*'}).Count -gt 0) -and !$fullManifest.ContainsKey('customer')) 'unfiltered backup keeps every dossier and no customer key'
 'SUCCESS CUSTOMER: '+$script:custChecks+' checks; retained fixture '+$root

@@ -19,8 +19,8 @@ try {
     [IO.Directory]::CreateDirectory($root)|Out-Null
     foreach($name in @('source.schema.json','source-applicability.schema.json','source-decisions.schema.json')){Put-Source (Join-Path $root ('config/'+$name)) (Read-SBText (Join-Path $PSScriptRoot ('../config/'+$name)))}
     $registryPath=Join-Path $root 'shared/authoritative-sources'
-    Put-Source (Join-Path $root 'para-index.json') (ConvertTo-SBJson @{schemaVersion=1;entities=@(@{id='resource-authoritative-sources';kind='resource';path='shared/authoritative-sources';archived=$false})})
-    Put-Source (Join-Path $registryPath 'entity.json') (ConvertTo-SBJson @{id='resource-authoritative-sources';kind='resource';schemaVersion=1;status='active'})
+    Put-Source (Join-Path $registryPath 'entity.json') (ConvertTo-SBJson @{id='resource-authoritative-sources';kind='resource';schemaVersion=1;status='active';title='Authoritative sources'})
+    Put-Source (Join-Path $registryPath 'brief.md') '# Authoritative sources'
     Put-Source (Join-Path $registryPath 'domains.json') (ConvertTo-SBJson @{schemaVersion=1;domains=@(@{id='security';title='Security'})})
     $config=@{brainRoot=$root;runtimeRoot=(Join-Path $root 'runtime');backupRoot=(Join-Path $root 'backup');configPath=(Join-Path $root '.runtime/hosts/fixture/workstation.json')}
     $source=@{schemaVersion=1;id='fixture';title='Fixture';kind='guideline';issuer='Fixture';domains=@('security');jurisdictions=@('Global');language='it';officialId=$null;rights=@{status='public-reusable';reference='https://example.com/license';notes='Fixture'};endpoints=@(@{id='canonical';url='https://example.com/document';format='html';role='canonical';allowedHosts=@('example.com');expectedText='Articolo'});versions=@();acceptedVersion=$null;relatedSources=@();effectiveDates=@();notes=@()}
@@ -146,9 +146,9 @@ try {
     Assert-Source (@(Get-SBSourceChecks (Read-SBSourceRegistry $root) $config|Where-Object kind -eq 'verification-stale').Count -eq 1) 'scheda cambiata invalida rapporto precedente'
     $areaPath=Join-Path $root 'repos/Fixture'
     Put-Source (Join-Path $areaPath 'repository.json') (ConvertTo-SBJson @{schemaVersion=1;identity='github.com/test/fixture'})
-    $index=Read-SBJson (Join-Path $root 'para-index.json') $null
-    $index.entities+=@{id='area-fixture';kind='area';path='repos/Fixture';archived=$false;status='active'}
-    Put-Source (Join-Path $root 'para-index.json') (ConvertTo-SBJson $index)
+    Put-Source (Join-Path $areaPath 'entity.json') (ConvertTo-SBJson @{schemaVersion=1;id='area-fixture';kind='area';title='Fixture';status='active'})
+    Put-Source (Join-Path $areaPath 'brief.md') '# Fixture'
+    Put-Source (Join-Path $areaPath 'context.md') '# Context';Put-Source (Join-Path $areaPath 'memory.md') '# Memory'
     Assert-Source (@(Get-SBSourceChecks (Read-SBSourceRegistry $root) $config -IncludeDossiers|Where-Object kind -eq 'mapping-missing').Count -eq 1) 'dossier attivo senza scheda segnalato'
     $mapping=@{schemaVersion=1;areaId='area-fixture';repository='github.com/test/fixture';assessedAt=[DateTimeOffset]::UtcNow.ToString('o');assessment='Fixture';sources=@(@{sourceId='missing';versionId=$null;applicability='unassessed';rationale='Fixture';implementation='unverified';requirements=@();evidence=@();tasks=@()});census=@{status='complete';reference='fixture'};residualTasks=@()}
     Put-Source (Join-Path $areaPath 'authoritative-sources.json') (ConvertTo-SBJson $mapping)

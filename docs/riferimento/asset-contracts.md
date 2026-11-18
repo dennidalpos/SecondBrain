@@ -115,7 +115,7 @@ Storage: step-scoped decisions live in the workflow run state (§3). Task and du
 
 ## 6. Placement: public reusable and private repository-specific
 
-| Asset | Public, reusable (this repository) | Private, one repository (its dossier `01-projects/<repo>/`) |
+| Asset | Public, reusable (this repository) | Private, one repository (its dossier `repos/<repo>/`) |
 |---|---|---|
 | Cards | `direttive/prompts/catalog.json` and `<code>.md` | `prompts/catalog.json` and `<key>.md` |
 | Workflows | `direttive/workflows/<key>.json` | `workflows/<key>.json` |

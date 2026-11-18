@@ -1,7 +1,5 @@
 # A shared SecondBrain root
 
-[Retained Italian source; use this English page for current behavior](shared-brain.it.md)
-
 The implementation supports a shared-root model with one authoritative dossier per identity, per-host configuration and serialized writes. Local and loopback SMB fixtures exist; real multi-PC/multi-user SMB qualification remains incomplete. Do not present that deployment as fully supported from fixture success alone.
 
 ## Topology

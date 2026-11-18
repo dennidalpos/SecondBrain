@@ -13,7 +13,7 @@ param([Parameter(Mandatory)][switch]$List,[string]$ConfigPath)
 $ErrorActionPreference='Stop'
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Access.psm1') -Force
-Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Para.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Entity.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Workspace.psm1') -Force
 try{
     $config=Read-SBConfiguration $ConfigPath -ReadOnly

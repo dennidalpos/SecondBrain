@@ -16,7 +16,7 @@ $ErrorActionPreference='Stop'
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Access.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
-Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Para.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Entity.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.RunnerStatus.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Skills.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.NextSteps.psm1') -Force

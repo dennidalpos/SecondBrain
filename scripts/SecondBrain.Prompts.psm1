@@ -1,7 +1,7 @@
 #requires -Version 7.5
 Set-StrictMode -Version Latest
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
-Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Para.psm1')
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Entity.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Tracker.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Knowledge.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
@@ -33,12 +33,12 @@ Add-SBMessages @{
     'prompts.scope.unknown' = @{ en = 'Unknown scope. Available: {0}' }
     'prompts.checkout.notgit' = @{ en = 'Directory does not belong to a Git checkout: pass a Git checkout with CheckoutPath' }
     'prompts.origin.missing' = @{ en = 'Origin identity missing or owner excluded: configure the checkout origin remote with an allowed owner' }
-    'prompts.para.metadata' = @{ en = 'PARA index diverges from the metadata: {0}; regenerate the index with para.ps1 and rerun' }
-    'prompts.para.invalid' = @{ en = 'PARA index missing or invalid: regenerate the index with para.ps1 or run sb activate (workstation.activate)' }
+    'prompts.para.metadata' = @{ en = 'PARA index diverges from the metadata: {0}; regenerate the index with entity.ps1 and rerun' }
+    'prompts.para.invalid' = @{ en = 'PARA index missing or invalid: regenerate the index with entity.ps1 or run sb activate (workstation.activate)' }
     'prompts.checkoutmap.invalid' = @{ en = 'Invalid checkout map: fix the file given in CheckoutMapPath' }
     'prompts.project.unavailable' = @{ en = 'Project not available: check the dossier with secondbrain.ps1 -Check' }
     'prompts.dossier.unbound' = @{ en = 'Repository not bound to an allowed dossier: bind the repository with secondbrain.ps1 -AddRepo' }
-    'prompts.dossier.archived' = @{ en = 'Archived or retired dossier: no implicit reactivation; reactivate it explicitly with para.ps1 if needed' }
+    'prompts.dossier.archived' = @{ en = 'Archived or retired dossier: no implicit reactivation; reactivate it explicitly with entity.ps1 if needed' }
     'prompts.inventory.invalid' = @{ en = 'Checkout inventory missing or invalid: regenerate the inventory with secondbrain.ps1 -Setup' }
     'prompts.checkout.ambiguous' = @{ en = 'Checkout missing or ambiguous: give CheckoutPath or CheckoutMapPath' }
     'prompts.checkout.identity' = @{ en = 'Checkout and dossier identity diverge: use the checkout of the dossier repository or fix repository.json' }
@@ -451,6 +451,10 @@ Add-SBMessages @{
     'cmd.directivescheck' = @{ en = 'Checks that the managed directive blocks of repositories and IDEs match the approved texts, without fixing (same engine as sb check). Changes go through sb directives propose.' }
     'cmd.directivespropose' = @{ en = 'Prepares a directive revision as a proposal with preview, version and changelog; approval and distribution stay explicit (approve-revision.ps1 -Preview, then sb sync).' }
     'cmd.promptscheck' = @{ en = 'Validates the prompt catalog and cards and reports drift of the generated indexes. Nothing is written.' }
+    'cmd.onboard' = @{ en = 'Lean registration of one repository: binding, dossier (brief, context, memory, tracker) and directives; only the managed block is written to the repository. Previews unless -Apply.' }
+    'cmd.offboard' = @{ en = 'Removes SecondBrain from one repository: binding, managed blocks and pointers go, open tasks are written to TASKS.md, the dossier is saved first. Previews unless -Apply.' }
+    'cmd.resync' = @{ en = 'Realigns a repository changed outside SecondBrain: prints a plan (safe items and conflicts with the action or prompt to run); -Apply runs the safe sync only.' }
+    'cmd.uninstall' = @{ en = 'Removes what SecondBrain installed (repositories, launchers, IDE blocks, hooks, environment variable) and nothing else; previews by default, data only with -RemoveData and the authorization text.' }
     'guide.safety.title' = @{ en = 'What SecondBrain changes and where the backups are' }
     'guide.safety.for' = @{ en = 'Read first: files touched, backups, recovery, uninstall.' }
     'guide.start.title' = @{ en = 'Get started' }
@@ -534,7 +538,11 @@ function Get-SBWorkflowCommands {
         @{command='sb recover';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.recover');mode=(Get-SBWorkflowMessage 'mode.write');script='scripts/recover.ps1 -ManifestPath FILE [-Apply]'},
         @{command='sb directives check';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.directivescheck');mode=(Get-SBWorkflowMessage 'mode.verify');script='scripts/secondbrain.ps1 -Check'},
         @{command='sb directives propose';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.directivespropose');mode=(Get-SBWorkflowMessage 'mode.card');script='scripts/prompts.ps1 -Compose -Prompt pmt-fd98d7ce -Objective TEXT'},
-        @{command='sb prompts check';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.promptscheck');mode=(Get-SBWorkflowMessage 'mode.verify');script='scripts/build-prompts.ps1 -Check'}
+        @{command='sb prompts check';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.promptscheck');mode=(Get-SBWorkflowMessage 'mode.verify');script='scripts/build-prompts.ps1 -Check'},
+        @{command='sb onboard';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.onboard');mode=(Get-SBWorkflowMessage 'mode.write');script='scripts/onboard.ps1 -Path DIR [-Customer NAME] [-Apply]'},
+        @{command='sb offboard';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.offboard');mode=(Get-SBWorkflowMessage 'mode.write');script='scripts/offboard.ps1 -RepositoryIdentity ID [-Apply]'},
+        @{command='sb resync';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.resync');mode=(Get-SBWorkflowMessage 'mode.write');script='scripts/resync.ps1 -RepositoryIdentity ID [-Apply]'},
+        @{command='sb uninstall';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.uninstall');mode=(Get-SBWorkflowMessage 'mode.write');script='scripts/uninstall.ps1 [-Apply] [-Only STEPS]'}
     )
 }
 
@@ -802,7 +810,7 @@ function Get-SBGitUpdateClosingLines($Context,$Prompt) {
         if($pref.confirmed){
             $lines+=('- Git and GitHub for '+$label+': the owner chose '+$pref.mode+' on '+$pref.branch+'. Propose that update at closing, show what will be committed, and run it only after the owner confirms in this session; delegates and the runner never commit or push.')
         }else{
-            $lines+=('- Git and GitHub for '+$label+': no choice recorded. At closing ask the owner with the question tool how to update Git and GitHub (commit and push on the main branch is the default proposal; alternatives: branch and pull request, or nothing); after the answer record it with `scripts/para.ps1 -SetGitUpdate -GitMode <mode> -GitBranch <branch> -Only <identity> -Apply -Confirmed`. Commit or push nothing before the answer.')
+            $lines+=('- Git and GitHub for '+$label+': no choice recorded. At closing ask the owner with the question tool how to update Git and GitHub (commit and push on the main branch is the default proposal; alternatives: branch and pull request, or nothing); after the answer record it with `scripts/entity.ps1 -SetGitUpdate -GitMode <mode> -GitBranch <branch> -Only <identity> -Apply -Confirmed`. Commit or push nothing before the answer.')
         }
     }
     @($lines)

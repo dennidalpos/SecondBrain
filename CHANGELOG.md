@@ -2,7 +2,24 @@
 
 Formato [Keep a Changelog](https://keepachangelog.com/it-IT/1.1.0/). La numerazione segue il file `VERSION`. Questo registro cambia solo quando accetti un cambio di versione: vedi [Cambiare versione](docs/uso-quotidiano.md).
 
-> Versione corrente: **3.0.0**, numerazione reimpostata il 2026-11-04 con le funzionalità attuali conservate. Le sezioni seguenti mantengono la cronologia dei rilasci precedenti.
+> Versione corrente: **3.1.0**, numerazione reimpostata il 2026-11-04 con le funzionalità attuali conservate. Le sezioni seguenti mantengono la cronologia dei rilasci precedenti.
+
+## [3.1.0] - 2026-11-19
+
+One `sb` entry point and repository lifecycle commands.
+
+### Added
+- `scripts/sb.ps1`: single entry point; `sb help` lists every command and every registry command resolves through the dispatcher.
+- `sb onboard`, `sb offboard` (open tasks to `TASKS.md`, dossier saved first), `sb resync` (plan with safe items and conflicts, nothing written without `-Apply`) and `sb uninstall` (preview, reversible steps, scan for remaining markers).
+- `cleanup.ps1 -Leftovers`: retention rule for `.runtime` test leftovers (`pub*.out`, `t<number>-*.out`, `smoke-<hex>`), preview by default.
+- Task readiness reports `files` and `checks` as advisory items; `-Strict` makes them blocking.
+
+### Changed
+- `para.ps1` and `SecondBrain.Para.psm1` are now `entity.ps1` and `SecondBrain.Entity.psm1`. The common directive text still names the old script until revision 1.5 (proposal prepared, not approved).
+- English-only docs: the `docs/**/*.it.md` pages are removed and the guides describe the flat layout.
+
+### Fixed
+- Test debt: tracker-audit merge check, runner timeout bound (no longer load dependent), ide-observation, customer, next-steps, sources and resources fixtures.
 
 ## [3.0.0] - 2026-11-18
 

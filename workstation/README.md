@@ -1,8 +1,8 @@
-# 02-areas
+# workstation
 
-Responsabilità continue senza data di fine, una cartella per area (`02-areas/<id>/`, con `brief.md` e `para.json`).
+Ongoing responsibilities with no end date, one folder per entity (`workstation/<id>/`, with `brief.md` and `entity.json`).
 
-- **Aree attuali:** `governance` (regole, versioni, decisioni), `postazione` (stato e perimetro delle postazioni), `direttive` (bozze, approvazioni e distribuzione).
-- **Creazione:** `scripts/para.ps1 -NewArea -Id <id> -Title <titolo> -Objective <obiettivo>`.
-- **Chi scrive:** script SecondBrain e persona titolare.
-- **Git:** contenuto ignorato; si traccia solo questo file.
+- **Current entities:** `governance` (rules, versions, decisions), `postazione` (workstation state and scope), `direttive` (drafts, approvals and distribution).
+- **Creation:** `scripts/entity.ps1 -NewArea -Id <id> -Title <title> -Objective <objective>`.
+- **Who writes:** SecondBrain scripts and the owner.
+- **Git:** contents are ignored; only this file is tracked.

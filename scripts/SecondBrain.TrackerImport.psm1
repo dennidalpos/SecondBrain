@@ -1,7 +1,7 @@
 #requires -Version 7.5
 Set-StrictMode -Version Latest
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
-Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Para.psm1')
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Entity.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Tracker.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Access.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
@@ -25,7 +25,7 @@ Add-SBMessages @{
     'trackerimport.history.outside' = @{ en = 'Source history outside the archive: use a history inside the archive' }
     'trackerimport.archive.review' = @{ en = 'Review archive outside the dossier: use an archive under the dossier' }
     'trackerimport.operation.outside' = @{ en = 'Manifest operation outside the tracker scope: prepare the migration again' }
-    'trackerimport.area.ambiguous' = @{ en = 'Active tracker dossier is not unique: leave a single active dossier for the repository with para.ps1' }
+    'trackerimport.area.ambiguous' = @{ en = 'Active tracker dossier is not unique: leave a single active dossier for the repository with entity.ps1' }
     'trackerimport.import.registered' = @{ en = 'Tracker import already registered: resume the manifest {0}' }
     'trackerimport.source.notundeclared' = @{ en = 'The source is not the undeclared tracker to import: give the undeclared tracker of the repository' }
     'trackerimport.checkout.identity' = @{ en = 'Source checkout identity diverges: use the checkout of the right repository' }
@@ -272,7 +272,7 @@ function Get-SBTrackerReferenceChanges($Config,$Area,[string]$Original,[string]$
 
 function Get-SBTrackerImportReadiness($Data) {
     # #607: the shared readiness assessment of each imported task (decisions of a foreign tracker are not known here), id, ready and missing.
-    @(@($Data.tasks)|Where-Object {$_}|ForEach-Object {$r=Get-SBTaskReadiness $_ @($Data.tasks) $null;[ordered]@{id=[string]$_.id;ready=$r.ready;missing=@($r.missing)}})
+    @(@($Data.tasks)|Where-Object {$_}|ForEach-Object {$r=Get-SBTaskReadiness $_ @($Data.tasks) $null;[ordered]@{id=[string]$_.id;ready=$r.ready;missing=@($r.missing);advisory=@($r.advisory)}})
 }
 
 function Add-SBTrackerImportReadiness($Data) {

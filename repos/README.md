@@ -1,8 +1,8 @@
-# 01-projects
+# repos
 
-Un dossier per ogni repository gestito (`01-projects/<repo>/`): contesto, memoria, tracker, specifiche e storico.
+One dossier per managed repository (`repos/<repo>/`): context, memory, tracker, specs and history.
 
-- **Chi scrive:** solo gli script SecondBrain (`knowledge.ps1`, `para.ps1`, tool MCP di scrittura). L'agente non modifica questi file a mano.
-- **Cosa non va messo:** codice, build, cache, fixture, dati sensibili grezzi (restano nel repository prodotto o in `.runtime`).
-- **Git:** il contenuto è ignorato; si traccia solo questo file.
-- **Chiusura:** un progetto completato passa a `04-archives/projects` con `para.ps1 -Archive`.
+- **Who writes:** only SecondBrain scripts (`knowledge.ps1`, `para.ps1`, MCP write tools). Agents do not edit these files by hand.
+- **What does not belong here:** code, builds, caches, fixtures, raw sensitive data (they stay in the product repository or in `.runtime`).
+- **Git:** contents are ignored; only this file is tracked.
+- **Closing:** a finished project gets a status other than `active` with `para.ps1 -Archive`; the folder does not move.

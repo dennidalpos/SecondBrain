@@ -2,7 +2,7 @@
 # Fixtures for the per-repository Git and GitHub update preference (#656): validation, default, preview, confirmation, write. Synthetic data only.
 $ErrorActionPreference='Stop'
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
-Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Para.psm1')
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Entity.psm1')
 . (Join-Path $PSScriptRoot 'test-helpers.ps1')
 $script:guChecks=0
 function Assert-Gu($Condition,[string]$Message){if(!$Condition){throw ('FAIL GITUPDATE: '+$Message)};$script:guChecks++}
@@ -35,7 +35,7 @@ try{
     }
     $runtime=Get-SBLocalRoot $brain 'fixture';$cfg=Join-Path $runtime 'workstation.json'
     Put ([IO.Path]::GetRelativePath($brain,$cfg)) (ConvertTo-SBJson @{schemaVersion=1;mode='portable';workstationId='fixture';runtimeRoot=$runtime;backupRoot=(Join-Path $runtime 'backups');ides=@();bindings=@()})
-    $para=Join-Path $brain 'scripts/para.ps1'
+    $para=Join-Path $brain 'scripts/entity.ps1'
     function Invoke-Para([string[]]$Arguments){$out=& pwsh -NoProfile -File $para -ConfigPath $cfg @Arguments 2>&1|Out-String;@{code=$LASTEXITCODE;out=$out}}
     Assert-Gu ((Invoke-Para @('-BuildIndex')).code -eq 0) 'fixture index built'
     $fileA=Join-Path $brain 'repos/a/repository.json';$fileB=Join-Path $brain 'repos/b/repository.json'

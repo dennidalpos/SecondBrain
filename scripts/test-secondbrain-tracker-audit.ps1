@@ -1,9 +1,9 @@
 #requires -Version 7.5
-param([ValidateSet('All','Source','References','Graph','Para','Greenfield','Onboard','Merge')][string]$Case='All')
+param([ValidateSet('All','Source','References','Graph','Greenfield','Onboard','Merge')][string]$Case='All')
 $ErrorActionPreference='Stop'
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Access.psm1') -Force
-Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Para.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Entity.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Tracker.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.TrackerImport.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.TrackerMerge.psm1') -Force
@@ -257,7 +257,7 @@ try {
         }finally{$env:SECONDBRAIN_STATE_ROOT=$savedState}
         Assert-Audit ((Get-SBFileHash $dossierTracker) -ceq $beforeHash) 'merge preview writes nothing'
         $mergeBinding=@($hostConfig.bindings|Where-Object {Test-SBSamePath $_.path $onboard})[0]
-        Assert-Audit ($mergeBinding.status -ceq 'managed' -and @(Get-SBTrackerMergeIssues $hostConfig).Count -eq 1 -and (@(Get-SBTrackerMergeIssues $hostConfig)[0]) -match 'pending') 'check reports the unresolved merge'
+        Assert-Audit ((Get-SBBindingStatus $mergeBinding) -ceq 'managed' -and @(Get-SBTrackerMergeIssues $hostConfig).Count -eq 1 -and (@(Get-SBTrackerMergeIssues $hostConfig)[0]) -match 'pending') 'check reports the unresolved merge'
         $cli=Join-Path $f.brain 'scripts/import-tracker.ps1'
         $cliArgs=@('-NoProfile','-File',$cli,'-ConfigPath',$activation.configuration,'-Repository',$onboardIdentity,'-SourcePath',$trackerPath,'-Merge')
         $preview=(& pwsh @cliArgs)|ConvertFrom-Json -AsHashtable

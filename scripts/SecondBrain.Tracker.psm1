@@ -1,7 +1,7 @@
 #requires -Version 7.5
 Set-StrictMode -Version Latest
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
-Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Para.psm1')
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Entity.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Host.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.ComputerUse.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
@@ -753,7 +753,7 @@ function ConvertTo-SBTaskDecisions($Value) {
 # title), scope (stream and description), inputs (provenance with hash), acceptance, dependencies (all known, none cancelled), tools
 # (known required capabilities), authorization (autonomous, not awaiting anyone) and decisions (no open dec- decision on the task).
 # Same task, tasks and decisions give the same result: no clock, no model. The result is stored on the task as extensions.readiness.
-function Get-SBTaskReadiness($Task,$Tasks=$null,$Decisions=$null) {
+function Get-SBTaskReadiness($Task,$Tasks=$null,$Decisions=$null,[switch]$Strict) {
     $field={param($o,[string]$n) if($o -is [Collections.IDictionary]){if($o.Contains($n)){$o[$n]}else{$null}}elseif($null -ne $o -and $o.PSObject.Properties[$n]){$o.$n}else{$null}}
     $ext=& $field $Task 'extensions'
     $checks=[Collections.Generic.List[object]]::new()
@@ -790,8 +790,14 @@ function Get-SBTaskReadiness($Task,$Tasks=$null,$Decisions=$null) {
         if(!$record.Count -or [string](& $field $record[0] 'status') -eq 'open'){$open+=$linked}
     }
     & $add 'decisions' @($open|Sort-Object -Unique|ForEach-Object {'open:'+$_})
+    # #723: files in scope (extensions.files) and checks to run (extensions.checks) are advisory: listed when missing,
+    # blocking only with -Strict, so existing tasks stay runnable.
+    $advisory=@()
+    if(!@(& $field $ext 'files'|Where-Object {([string]$_).Trim()}).Count){$advisory+='files'}
+    if(!@(& $field $ext 'checks'|Where-Object {([string]$_).Trim()}).Count){$advisory+='checks'}
+    if($Strict){& $add 'verification' $advisory;$advisory=@()}
     $missing=@($checks|Where-Object {!$_.passed}|ForEach-Object {$_.check})
-    [ordered]@{schemaVersion=1;ready=($missing.Count -eq 0);missing=$missing;checks=@($checks)}
+    [ordered]@{schemaVersion=1;ready=($missing.Count -eq 0);missing=$missing;advisory=$advisory;checks=@($checks)}
 }
 function Set-SBTaskReadiness($Task,$Tasks,[string]$Dossier,[string]$Repository) {
     # Stores the assessment on a hashtable task (extensions.readiness); an unreadable decisions.json is reported, never ignored.

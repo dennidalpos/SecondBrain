@@ -1,7 +1,5 @@
 # Agents and MCP
 
-[Retained Italian source; use this English page for current behavior](ide-e-mcp.it.md)
-
 SecondBrain distributes approved instructions and can configure a local stdio MCP connection. Configuration support does not prove that an IDE loaded those instructions or that every profile has been qualified.
 
 ## Instruction and configuration targets

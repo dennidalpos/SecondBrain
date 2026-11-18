@@ -1,7 +1,5 @@
 # Security, backups and side effects
 
-[Retained Italian source; use this English page for current behavior](sicurezza.it.md)
-
 SecondBrain manages instructions, configuration and local knowledge. Its core workflow does not edit product source code. It can write outside its checkout when syncing managed instructions or configuring an explicitly selected IDE.
 
 ## What commands can change

@@ -9,7 +9,7 @@ Use before architectural changes, directive updates or migrations, and at the en
 </context>
 
 <inputs>
-- the local PARA tree (01-projects, 02-areas, 03-resources, 04-archives), local indices and `.runtime/hosts`.
+- the local dossier tree (repos, workstation, shared), local indices and `.runtime/hosts`.
 </inputs>
 
 <procedure>

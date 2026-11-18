@@ -5,7 +5,7 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Access.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Portable.psm1') -Force
-Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Para.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Entity.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Prompts.psm1') -Force
 $script:quickChecks=0
 function Assert-Quick($Condition,[string]$Message){if(!$Condition){throw 'FAIL QUICK: '+$Message};$script:quickChecks++;'PASS QUICK: '+$Message}
@@ -176,7 +176,7 @@ try {
         foreach($m in [regex]::Matches((Read-SBText $file.FullName),'exit\s+(\d+)')){if([int]$m.Groups[1].Value -notin $documentedCodes){$undocumentedExits+=($file.Name+': exit '+$m.Groups[1].Value)}}
     }
     Assert-Quick (!$undocumentedExits.Count) ('codici di uscita degli script tra quelli documentati'+$(if($undocumentedExits.Count){': '+(($undocumentedExits|Select-Object -First 5) -join '; ')}))
-    foreach($guide in @('operations.md','operations.it.md')){
+    foreach($guide in @('operations.md')){
         $guideText=Read-SBText (Join-Path $productRoot ('docs/riferimento/'+$guide))
         $missingRows=@($documentedCodes|Where-Object {$guideText -notmatch ('(?m)^\|\s*'+$_+'\s*\|')})
         Assert-Quick (!$missingRows.Count) ('tabella dei codici di uscita completa in '+$guide)

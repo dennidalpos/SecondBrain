@@ -1,7 +1,5 @@
 # Cleanup and recovery
 
-[Retained Italian source; use this English page for current behavior](recovery.it.md)
-
 Preserve backups, reports, builds, caches, captures and fixtures after success or failure. The current test runner retains unique runs and run.json; older descriptions of automatic successful-fixture deletion are superseded.
 
 ## Inspect before cleanup

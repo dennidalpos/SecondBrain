@@ -3,7 +3,7 @@
 $ErrorActionPreference='Stop'
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Knowledge.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
-Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Para.psm1')
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Entity.psm1')
 . (Join-Path $PSScriptRoot 'test-helpers.ps1')
 $script:kiChecks=0
 function Assert-Ki($Condition,[string]$Message){if(!$Condition){throw ('FAIL KNOWLEDGE INDEX: '+$Message)};$script:kiChecks++}
