@@ -1,5 +1,5 @@
 {
-  "fileCount": 170,
+  "fileCount": 171,
   "files": [
     {
       "bytes": 371,
@@ -12,9 +12,9 @@
       "sha256": "79111AA25D249719BB78DE518F1E0B74E649738FD0EAF9B8473C07E35ECE0B9E"
     },
     {
-      "bytes": 16582,
+      "bytes": 16685,
       "path": "catalog.json",
-      "sha256": "43EA4361E3625BAF9FB3A517A3BC5BA5D2C78B2FF2F2C0441169FD84878C08BB"
+      "sha256": "097F3380C93212C054039B97992833EA3A44A20C21250DC814A31722B79D1F70"
     },
     {
       "bytes": 87002,
@@ -592,14 +592,14 @@
       "sha256": "DD996060508AAEB7087C4B8BF2908AF3216AD2E8C77F66B0BD9F6B1BA9995247"
     },
     {
-      "bytes": 654,
+      "bytes": 1233,
       "path": "entries/nist-ssdf/decisions.json",
-      "sha256": "B75AF5E5F2C435BC437D389BBBF036A09569FA40BF2231C4435709EBBF23B256"
+      "sha256": "4E5F523FC4E69372ED45B693618666B166220A9D71008C84AA191013E391CD89"
     },
     {
-      "bytes": 1705,
+      "bytes": 1792,
       "path": "entries/nist-ssdf/metadata.json",
-      "sha256": "96938DD631E51EEFCACA534567B5DD11AD5F17AFAAF287CF5E590CA92B3051A1"
+      "sha256": "97AA6A16C13B8E2864CDCD47160BFDB6549670CA2F291E2B815817E24A23BA2A"
     },
     {
       "bytes": 265,
@@ -635,6 +635,11 @@
       "bytes": 1500,
       "path": "entries/nist-ssdf/versions/20261110-1241458c6d8c85b3/manifest.json",
       "sha256": "A125B642AEEAE008BC0F3AC9EE121883EB12560D1A5FB35F3200D7B319826D08"
+    },
+    {
+      "bytes": 1493,
+      "path": "entries/nist-ssdf/versions/20261118-54affef1d6eb46c3/manifest.json",
+      "sha256": "6A91D3C85C4927EC6C980C9E2300B1FB5B4EE4BD2193A1EE329C4AE8BA005279"
     },
     {
       "bytes": 1486,
@@ -847,9 +852,9 @@
       "sha256": "E903EA85AF0C06C57ECC7DDABDB1772C60789B864196E9A126337D31FAA5551E"
     },
     {
-      "bytes": 5557,
+      "bytes": 5537,
       "path": "README.md",
-      "sha256": "58F287C67CD77EF08825402C07FE11A528F1926D136A5EC30F884FF174462E32"
+      "sha256": "E4FF25125D15FD00C14379B864ED98F7206DE5D5F4A9F50E02E8C5E197D76391"
     }
   ],
   "resource": "authoritative-sources",

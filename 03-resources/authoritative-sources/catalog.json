@@ -368,7 +368,7 @@
       ],
       "id": "nist-ssdf",
       "kind": "standard",
-      "metadataSha256": "96938DD631E51EEFCACA534567B5DD11AD5F17AFAAF287CF5E590CA92B3051A1",
+      "metadataSha256": "97AA6A16C13B8E2864CDCD47160BFDB6549670CA2F291E2B815817E24A23BA2A",
       "path": "entries/nist-ssdf/metadata.json",
       "title": "NIST SP 800-218 - SSDF 1.1, final 2022",
       "versions": [
@@ -378,6 +378,10 @@
         },
         {
           "id": "20261110-1241458c6d8c85b3",
+          "reviewStatus": "rejected"
+        },
+        {
+          "id": "20261118-54affef1d6eb46c3",
           "reviewStatus": "rejected"
         }
       ]
