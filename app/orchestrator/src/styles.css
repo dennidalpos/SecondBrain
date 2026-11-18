@@ -65,7 +65,7 @@ h3 { font-size: 13px; margin: 22px 0 8px; text-transform: uppercase; letter-spac
 .row input[type="text"] { flex: 1 1 320px; }
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
 label { display: flex; flex-direction: column; gap: 4px; color: var(--muted); margin: 8px 0; }
-label.inline { flex-direction: row; align-items: center; gap: 6px; margin: 0; }
+label.inline { flex-direction: row; align-items: center; gap: 6px; margin: 0; white-space: nowrap; }
 input, select, textarea, button { font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; }
 input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 textarea { width: 100%; font-family: var(--mono); font-size: 13px; resize: vertical; }

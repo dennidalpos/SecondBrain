@@ -129,7 +129,7 @@ export async function refreshRuns() {
   $("reg-runs-empty").hidden = r.runs.length > 0;
   $("reg-run-rows").replaceChildren(...r.runs.map((x) => {
     const tr = el("tr");
-    const counts = x.counts ? `${x.counts.done}/${x.counts.total} (${x.counts.succeeded} ok, ${x.counts.failed} ko)` + (x.counts.accepted !== undefined ? ` · ${x.counts.accepted} accepted` : "") : "—";
+    const counts = x.counts ? `${x.counts.done} of ${x.counts.total} tasks (${x.counts.succeeded} succeeded, ${x.counts.failed} failed)` + (x.counts.accepted !== undefined ? ` · ${x.counts.accepted} accepted` : "") : "—";
     const tasks = x.results.map((t) => `#${t.seq} ${t.state}`).join(", ") || "—";
     const folder = el("details", {}, el("summary", {}, "Run folder"), el("span", { className: "mono small" }, x.folder));
     // #694 F8: opening a run marks its row as selected (one at a time); clicking elsewhere in the row toggles the same details.

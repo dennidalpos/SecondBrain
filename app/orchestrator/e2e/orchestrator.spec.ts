@@ -340,7 +340,7 @@ test("registry: every task with its tool badge, archived tasks and the runner hi
   const folder = ((await finished.locator("td .mono").textContent()) ?? "").trim();
   expect(folder).toMatch(/runner-run-/);
   await expect(finished.locator("td details > summary")).toHaveText("Run folder");
-  await expect(page.locator("#reg-run-rows tr").filter({ hasText: "accepted" }).first()).toContainText(/\d+ ok, \d+ ko\) · \d+ accepted/);
+  await expect(page.locator("#reg-run-rows tr").filter({ hasText: "accepted" }).first()).toContainText(/\d+ of \d+ tasks \(\d+ succeeded, \d+ failed\) · \d+ accepted/);
   await expect(finished.locator("td").nth(1)).not.toContainText(/running|interrupted|unknown/);
   const orphanId = "29991231-235959-runner-run-e2eorphan";
   const orphanFolder = path.join(path.dirname(folder), orphanId);
@@ -392,6 +392,13 @@ test("queue: a task that cannot run alone is analyzed, the owner answers and the
   const dialog = page.locator("#an-dialog");
   await expect(dialog).toBeVisible({ timeout: 120_000 });
   expect(calls("analyze_task")).toBe(1);
+  // G01 F4: every control of the dialog has an accessible name, the free-text "Other" radio included.
+  await expect(dialog.getByRole("radio", { name: "Other answer" })).toHaveCount(1);
+  const unnamed = await dialog.locator("input, button, select, textarea").evaluateAll((nodes) => nodes.filter((e) => {
+    const c = e as HTMLInputElement;
+    return !(e.getAttribute("aria-label") || e.textContent?.trim() || c.labels?.length || e.getAttribute("title") || c.placeholder);
+  }).length);
+  expect(unnamed).toBe(0);
   await expect(dialog.locator("legend")).toContainText("Which section should be added to the README?");
   await expect(dialog.locator("label.choice").first()).toContainText("Installation (recommended)");
   await expect(page.locator("#an-primary")).toBeDisabled();
