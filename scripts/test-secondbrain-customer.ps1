@@ -99,4 +99,8 @@ Assert-Cust ($LASTEXITCODE -eq 0) 'backup without filter still works'
 $archive=[IO.Compression.ZipFile]::OpenRead((Join-Path $root 'full.zip'))
 try{$fullNames=@($archive.Entries|ForEach-Object {$_.FullName});$fullManifest=([IO.StreamReader]::new($archive.GetEntry('manifest.json').Open())).ReadToEnd()|ConvertFrom-Json -AsHashtable}finally{$archive.Dispose()}
 Assert-Cust ((@($fullNames|Where-Object {$_ -like 'repos/c/*'}).Count -gt 0) -and (@($fullNames|Where-Object {$_ -like 'repos/e/*'}).Count -gt 0) -and !$fullManifest.ContainsKey('customer')) 'unfiltered backup keeps every dossier and no customer key'
+# Default of #485: a customer search needs a repository or dossier scope; the global customer search stays refused.
+$knowledge=Join-Path $brain 'scripts/knowledge.ps1'
+$globalCustomer=& pwsh -NoProfile -File $knowledge -ConfigPath $cfg -Search 'shared-term' -Customer 'Acme' 2>&1|Out-String
+Assert-Cust ($LASTEXITCODE -ne 0) ('the global customer search is refused: '+$globalCustomer)
 'SUCCESS CUSTOMER: '+$script:custChecks+' checks; retained fixture '+$root
