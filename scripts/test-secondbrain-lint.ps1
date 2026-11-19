@@ -28,3 +28,18 @@ finally { Remove-Item -LiteralPath $fixtureRoot -Recurse -Force -ErrorAction Sil
 $null = & pwsh -NoProfile -File (Join-Path $PSScriptRoot 'lint-renames.ps1') 2>&1 | ForEach-Object { Write-Output ([string]$_) }
 if ($LASTEXITCODE -ne 0) { throw 'FAIL LINT: lint-renames.ps1 found stale references in the repository' }
 Write-Output 'SUCCESS LINT: no stale references to renamed scripts'
+
+# RCTFE card schema (#721, first step): three real cards convert and validate; broken cards are caught.
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.PromptSchema.psm1') -Force
+$rctfeSchema = Join-Path $PSScriptRoot '../config/prompt-card-rctfe.schema.json'
+foreach ($code in 'SYS01', 'AIS01', 'DEV01') {
+    $card = ConvertTo-SBRctfeCard (Get-Content -LiteralPath (Join-Path $PSScriptRoot ('../direttive/prompts/' + $code + '.md')) -Raw)
+    $problems = @(Test-SBRctfeCard $card $rctfeSchema)
+    if ($problems.Count -or $card.code -cne $code -or @($card.task.steps).Count -lt 2) { throw ('FAIL LINT: RCTFE pilot card ' + $code + ' does not validate: ' + ($problems -join ',')) }
+}
+$broken = ConvertTo-SBRctfeCard (Get-Content -LiteralPath (Join-Path $PSScriptRoot '../direttive/prompts/SYS01.md') -Raw)
+$broken.description = 'x' * 121
+$broken.task.steps = @('only one')
+$brokenProblems = @(Test-SBRctfeCard $broken $rctfeSchema)
+if ('schema' -notin $brokenProblems -or 'description' -notin $brokenProblems -or 'steps' -notin $brokenProblems) { throw ('FAIL LINT: a broken RCTFE card was not reported: ' + ($brokenProblems -join ',')) }
+Write-Output 'SUCCESS LINT: RCTFE schema validates three pilot cards and rejects a broken one'
