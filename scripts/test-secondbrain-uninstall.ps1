@@ -107,7 +107,7 @@ $fullData=$full.Substring($full.IndexOf('{'))|ConvertFrom-Json
 $gitStatus=@(& git -C $checkout2 status --porcelain 2>&1)
 Assert-Un (@($fullData.steps|Where-Object {$_.step -eq 'repositories' -and $_.exitCode -eq 0}).Count -eq 1) ('the repositories step offboards the binding: '+$full)
 Assert-Un ($fullCode -eq 0 -and @($fullData.residue).Count -eq 0) ('the marker scan finds nothing after the repositories step: '+$full)
-Assert-Un (@($gitStatus|Where-Object {$_ -notmatch 'TASKS\.md$'}).Count -eq 0 -or @($gitStatus|Where-Object {$_ -notmatch 'TASKS\.md$|AGENTS\.md$|CLAUDE\.md$'}).Count -eq 0) ('the checkout differs from the seed only by TASKS.md and the removed blocks: '+($gitStatus -join ' | '))
+Assert-Un (@($gitStatus|Where-Object {$_ -match '^[ MADRCU?!]{2} ' -and $_ -notmatch '^(\?\?|\s?M|\s?D)\s+(TASKS|AGENTS|CLAUDE)\.md\s*$'}).Count -eq 0) ('the checkout differs from the seed only by TASKS.md and the removed blocks: '+($gitStatus -join ' | '))
 $tasksFull=[IO.File]::ReadAllText((Join-Path $checkout2 'TASKS.md'))
 Assert-Un ($tasksFull -match 'Open work' -and $tasksFull -notmatch 'Finished work') 'TASKS.md keeps only the open task'
 Assert-Un (([IO.File]::ReadAllText((Join-Path $checkout2 'AGENTS.md'))) -match 'Own text' -and !(Test-Path -LiteralPath (Join-Path $checkout2 'CLAUDE.md')) -and !(Test-Path -LiteralPath (Join-Path $brain2 'repos/full'))) 'user text kept, pointer-only file and dossier removed'
