@@ -46,7 +46,8 @@ $preview=Invoke-Un @()
 $data=$preview.out.Substring($preview.out.IndexOf('{'))|ConvertFrom-Json
 Assert-Un ($preview.code -eq 0 -and !$data.applied) ('preview runs and applies nothing: '+$preview.out)
 Assert-Un (@($data.inventory.remove|Where-Object kind -eq 'repository').Count -eq 1 -and @($data.inventory.remove|Where-Object kind -eq 'managed-block').Count -eq 4) 'preview lists the repository and the four files with managed blocks'
-Assert-Un (@($data.inventory.keep|Where-Object kind -eq 'mcp-config').Count -eq 1 -and @($data.inventory.keep|Where-Object kind -eq 'shared').Count -eq 1) 'preview lists what stays: MCP configuration and shared'
+Assert-Un (@($data.inventory.keep|Where-Object kind -eq 'mcp-config').Count -eq 1 -and @($data.inventory.keep|Where-Object kind -eq 'checkout').Count -eq 1) 'preview lists what stays: MCP configuration and the checkout'
+Assert-Un (@($data.inventory.remove|Where-Object kind -in @('shared','runtime')).Count -eq 2) 'preview lists the shared and runtime steps as removals'
 Assert-Un (@($hashes.Keys|Where-Object {(Get-SBFileHash $_) -cne $hashes[$_]}).Count -eq 0) 'preview changed no file'
 $apply=Invoke-Un @('-Apply','-Only','launchers,ide-blocks')
 Assert-Un ($apply.code -eq 0) ('apply with launchers and ide-blocks succeeds and leaves no marker: '+$apply.out)
@@ -68,4 +69,15 @@ $mcpAfter=[IO.File]::ReadAllText($mcpFile)|ConvertFrom-Json
 Assert-Un ($mcpApply.code -eq 0 -and $mcpAfter.mcpServers.other.command -ceq 'node' -and !$mcpAfter.mcpServers.PSObject.Properties['secondbrain'] -and @(Get-ChildItem -LiteralPath (Join-Path $brain '.runtime/hosts/fixture/backups') -Recurse -File).Count -ge 3) ('apply removes only the secondbrain MCP entry after a backup: '+$mcpApply.out)
 $denied=Invoke-Un @('-Apply','-Only','data')
 Assert-Un ($denied.code -ne 0) 'data removal is refused without -RemoveData and the authorization text'
+$deniedShared=Invoke-Un @('-Apply','-Only','shared')
+Assert-Un ($deniedShared.code -ne 0) 'shared removal is refused without -RemoveData and the authorization text'
+$deniedRuntime=Invoke-Un @('-Apply','-Only','runtime','-RemoveRuntime','-RuntimeAuthorization','yes')
+Assert-Un ($deniedRuntime.code -ne 0 -and (Test-Path -LiteralPath (Join-Path $brain '.runtime'))) 'runtime removal is refused without the exact authorization text and removes nothing'
+Put $brain 'shared/README.md' 'readme stays'
+Put $brain 'shared/notes/a.md' 'shared data'
+$sharedApply=Invoke-Un @('-Apply','-Only','shared','-RemoveData','-Authorization','delete dossiers')
+Assert-Un ($sharedApply.code -eq 0 -and !(Test-Path -LiteralPath (Join-Path $brain 'shared/notes')) -and (Test-Path -LiteralPath (Join-Path $brain 'shared/README.md'))) ('shared step removes the contents and keeps README: '+$sharedApply.out)
+$runtimeApply=Invoke-Un @('-Apply','-Only','runtime','-RemoveRuntime','-RuntimeAuthorization','delete runtime and backups')
+$runtimeData=$runtimeApply.out.Substring($runtimeApply.out.IndexOf('{'))|ConvertFrom-Json
+Assert-Un ($runtimeApply.code -eq 0 -and !(Test-Path -LiteralPath (Join-Path $brain '.runtime')) -and @($runtimeData.steps|Where-Object {$_.step -eq 'runtime' -and $_.result -eq 'removed'}).Count -eq 1 -and (Test-Path -LiteralPath (Join-Path $brain 'scripts/uninstall.ps1'))) ('runtime step removes .runtime last and leaves the checkout: '+$runtimeApply.out)
 'SUCCESS UNINSTALL: '+$script:unChecks+' checks; retained fixture '+$root

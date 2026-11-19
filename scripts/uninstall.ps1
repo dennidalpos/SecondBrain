@@ -12,7 +12,9 @@ Previews by default: lists every item to remove and every item that stays, chang
   hooks         client-hooks.ps1 -Uninstall for Claude Code, Codex and Antigravity
   environment   the SECONDBRAIN_HOME user variable
   data          dossiers under repos/ and workstation/; needs -RemoveData and -Authorization "delete dossiers"
-Not removed: shared/, .runtime and the checkout itself.
+  shared        contents of shared/ (README files stay); same -RemoveData and -Authorization as data
+  runtime       the .runtime folder, run last, with every backup this command wrote (they cannot be restored afterwards); needs -RemoveRuntime and -RuntimeAuthorization "delete runtime and backups"
+Not removed: the checkout itself.
 A scan for remaining markers closes the report.
 .EXAMPLE
 pwsh -NoProfile -File scripts/uninstall.ps1
@@ -23,11 +25,11 @@ pwsh -NoProfile -File scripts/uninstall.ps1 -Apply -Only ide-blocks,launchers
 param(
     [switch]$Apply,
     [string[]]$Only=@('repositories','launchers','ide-blocks','mcp','hooks','environment'),
-    [switch]$RemoveData,[string]$Authorization,
+    [switch]$RemoveData,[string]$Authorization,[switch]$RemoveRuntime,[string]$RuntimeAuthorization,
     [string]$ConfigPath,[string]$SessionId
 )
 $Only=@($Only|ForEach-Object {$_ -split ','}|ForEach-Object {$_.Trim()}|Where-Object {$_})
-$validSteps='repositories','launchers','ide-blocks','mcp','hooks','environment','data'
+$validSteps='repositories','launchers','ide-blocks','mcp','hooks','environment','data','shared','runtime'
 $badStep=@($Only|Where-Object {$_ -cnotin $validSteps})
 $ErrorActionPreference='Stop'
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
@@ -45,7 +47,8 @@ $ides=@(if($ideMap.ContainsKey('ides')){$ideMap.ides}elseif($config.ContainsKey(
 $inventory=Get-SBUninstallInventory $config $brain $ides
 $report=[ordered]@{applied=$false;steps=@();inventory=$inventory;residue=@()}
 if(!$Apply){ConvertTo-SBJson $report;exit 0}
-if($Only -contains 'data' -and (!$RemoveData -or $Authorization -cne 'delete dossiers')){throw (New-SBError 'uninstall.data.authorization')}
+if(($Only -contains 'data' -or $Only -contains 'shared') -and (!$RemoveData -or $Authorization -cne 'delete dossiers')){throw (New-SBError 'uninstall.data.authorization')}
+if($Only -contains 'runtime' -and (!$RemoveRuntime -or $RuntimeAuthorization -cne 'delete runtime and backups')){throw (New-SBError 'uninstall.runtime.authorization')}
 
 $instructionFiles=@(Get-SBUninstallInstructionFiles $config $ides)
 $bindings=@($config.bindings)
@@ -124,8 +127,25 @@ try{
             }
         }
     }
+    if($Only -contains 'shared'){
+        $areaPath=Join-Path $brain 'shared'
+        if(Test-Path -LiteralPath $areaPath){
+            foreach($child in @(Get-ChildItem -LiteralPath $areaPath -Force|Where-Object Name -ne 'README.md')){
+                Remove-Item -LiteralPath $child.FullName -Recurse -Force
+                $report.steps+=[ordered]@{step='shared';target=$child.FullName;result='removed'}
+            }
+        }
+    }
 }finally{Exit-SBOperation $operation}
 $report.applied=$true
 $report.residue=@(Find-SBUninstallResidue $config $ides)
+# Last: the runtime folder holds the lock, the configuration and every backup this command wrote, so nothing may run after it.
+if($Only -contains 'runtime'){
+    $runtimePath=Join-Path $brain '.runtime'
+    if(Test-Path -LiteralPath $runtimePath){
+        Remove-Item -LiteralPath $runtimePath -Recurse -Force
+        $report.steps+=[ordered]@{step='runtime';target=$runtimePath;result=$(if(Test-Path -LiteralPath $runtimePath){'not removed'}else{'removed'})}
+    }
+}
 ConvertTo-SBJson $report
 exit $(if($report.residue.Count){2}else{0})

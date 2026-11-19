@@ -6,7 +6,8 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Add-SBMessages @{
     'uninstall.data.authorization' = @{ en = '-RemoveData needs -Authorization with the exact text: delete dossiers' }
-    'uninstall.step.unknown' = @{ en = 'Unknown uninstall step: {0}. Steps: repositories, launchers, ide-blocks, mcp, hooks, environment, data' }
+    'uninstall.step.unknown' = @{ en = 'Unknown uninstall step: {0}. Steps: repositories, launchers, ide-blocks, mcp, hooks, environment, data, shared, runtime' }
+    'uninstall.runtime.authorization' = @{ en = 'The runtime step needs -RemoveRuntime and -RuntimeAuthorization with the exact text: delete runtime and backups' }
     'uninstall.mcp.verify' = @{ en = 'MCP entry removal did not verify for {0}: the file is left unchanged' }
 }
 
@@ -62,6 +63,8 @@ function Get-SBUninstallInventory($Config,[string]$BrainRoot,[object[]]$Ides=@()
     $env=[Environment]::GetEnvironmentVariable('SECONDBRAIN_HOME','User')
     if($env){$remove+=[ordered]@{kind='environment';target='SECONDBRAIN_HOME';path='';action='user environment variable removed'}}
     $remove+=[ordered]@{kind='data';target='repos/ and workstation/ dossiers';path=$BrainRoot;action='only with -RemoveData and the authorization text; dossier contents are deleted, README files stay'}
+    $remove+=[ordered]@{kind='shared';target='shared/ contents';path=(Join-Path $BrainRoot 'shared');action='step shared, only with -RemoveData and the same authorization text as data; contents are deleted, README files stay'}
+    $remove+=[ordered]@{kind='runtime';target='.runtime folder with every backup saved by this command';path=(Join-Path $BrainRoot '.runtime');action='step runtime, last, only with -RemoveRuntime and -RuntimeAuthorization "delete runtime and backups"; backups are deleted with it and cannot be restored'}
     foreach($ide in @($Ides)){
         $mcp=if($ide -is [System.Collections.IDictionary]){$ide['mcpConfigPath']}else{$ide.mcpConfigPath}
         if(!$mcp){continue}
@@ -70,8 +73,7 @@ function Get-SBUninstallInventory($Config,[string]$BrainRoot,[object[]]$Ides=@()
         }
         elseif(!@($keep|Where-Object {$_.kind -eq 'mcp-config' -and $_.path -ceq [string]$mcp}).Count){$keep+=[ordered]@{kind='mcp-config';path=[string]$mcp;reason='no secondbrain server entry found in this client configuration'}}
     }
-    $keep+=[ordered]@{kind='shared';path=(Join-Path $BrainRoot 'shared');reason='tracked in Git; delete the checkout folder yourself if you want it gone'}
-    $keep+=[ordered]@{kind='runtime';path=(Join-Path $BrainRoot '.runtime');reason='holds backups saved by this command; delete it yourself after checking them'}
+    $keep+=[ordered]@{kind='checkout';path=$BrainRoot;reason='the SecondBrain checkout itself (scripts, docs, README files); delete the folder yourself if you want it gone'}
     $keep+=[ordered]@{kind='user-content';path='';reason='all text outside the managed blocks, product code and any launcher that differs from a template'}
     [ordered]@{remove=$remove;keep=$keep}
 }
