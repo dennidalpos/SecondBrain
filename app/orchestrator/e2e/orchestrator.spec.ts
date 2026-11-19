@@ -156,6 +156,16 @@ test("home: three actions, concise status, and opening starts no execution (#630
   await expect(page.locator("#home-run")).toHaveText("No run is active.");
   await expect(page.locator("#home-questions")).toContainText(/None|waiting for the person/);
   await expect(page.locator("#run-badge")).toHaveText("Idle");
+  // #751 (audit F6): the header badge reads "Status: <verdict>" and its accessible name says it is the run status.
+  expect(await page.locator("#run-badge").evaluate((n) => getComputedStyle(n, "::before").content)).toContain("Status: ");
+  await expect(page.locator("#run-badge")).toHaveAttribute("aria-label", "Run status");
+  // #751 (audit F1): every visible control of every section is at least 24 px in both directions.
+  for (const name of ["home", "repo", "workstation", "directives", "queue", "run", "registry", "tracker", "prompts", "settings"]) {
+    await page.locator(`.steps button[data-tab="${name}"]`).click();
+    const small = await page.evaluate(() => Array.from(document.querySelectorAll("button,input,select,textarea,a[href]")).filter((e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0 && (r.height < 24 || r.width < 24); }).map((e) => e.outerHTML.slice(0, 80)));
+    expect(small, `controls under 24px in ${name}`).toEqual([]);
+  }
+  await page.locator('.steps button[data-tab="home"]').click();
   // The actions only navigate.
   await page.locator("#home-setup").click();
   await expect(page.locator("#tab-workstation")).toBeVisible();

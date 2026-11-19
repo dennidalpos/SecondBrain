@@ -70,9 +70,10 @@ async function shot(page: Page, name: string) {
     const vis = (e: Element) => { const r = (e as HTMLElement).getBoundingClientRect(); return r.width > 0 && r.height > 0; };
     const ctrls = Array.from(document.querySelectorAll("button,input,select,textarea,a[href]")).filter(vis) as HTMLElement[];
     const noName = ctrls.filter((e) => !(e.getAttribute("aria-label") || e.textContent?.trim() || (e as HTMLInputElement).labels?.length || e.getAttribute("title"))).length;
+    const unnamed = ctrls.filter((e) => !(e.getAttribute("aria-label") || e.textContent?.trim() || (e as HTMLInputElement).labels?.length || e.getAttribute("title"))).map((e) => e.outerHTML.slice(0, 120));
     const small = ctrls.filter((e) => { const r = e.getBoundingClientRect(); return r.height < 24 || r.width < 24; }).length;
     return { viewport: [innerWidth, innerHeight], hScroll: document.documentElement.scrollWidth > innerWidth, vScrollPx: document.documentElement.scrollHeight - innerHeight,
-      visibleControls: ctrls.length, controlsWithoutName: noName, targetsUnder24px: small, tabs: Array.from(document.querySelectorAll(".steps button")).map((b) => (b as HTMLButtonElement).textContent!.trim() + (b.hasAttribute("disabled") ? " (disabled)" : "")) };
+      visibleControls: ctrls.length, controlsWithoutName: noName, unnamed, targetsUnder24px: small, tabs: Array.from(document.querySelectorAll(".steps button")).map((b) => (b as HTMLButtonElement).textContent!.trim() + (b.hasAttribute("disabled") ? " (disabled)" : "")) };
   });
 }
 async function tab(page: Page, name: string) { await page.locator(`.steps button[data-tab="${name}"]`).click(); }
