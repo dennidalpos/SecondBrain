@@ -70,6 +70,27 @@ function Get-SBRunnerOpenDecisions([string]$TrackerPath){
     }
     $map
 }
+function Get-SBRunnerReadinessReason($Task){
+    # #744: the stored readiness assessment (extensions.readiness) is honoured. A failed check keeps the task out of the queue with a stable code
+    # readiness:<check>:<missing>. The scope check that lacks only a stream is legacy and tolerated: the runner never required it.
+    $readiness=Get-SBRunnerValue (Get-SBRunnerValue $Task 'extensions') 'readiness'
+    if($null -eq $readiness -or $readiness -isnot [Collections.IDictionary] -and $readiness -isnot [pscustomobject]){return $null}
+    $ready=Get-SBRunnerValue $readiness 'ready'
+    if($null -eq $ready -or [bool]$ready){return $null}
+    $failed=foreach($check in @(Get-SBRunnerValue $readiness 'checks')){
+        if($null -eq $check){continue}
+        $passed=Get-SBRunnerValue $check 'passed'
+        if($null -eq $passed){if($check -is [Collections.IDictionary]){$passed=$check['passed']}}
+        if($null -eq $passed -or [bool]$passed){continue}
+        $name=[string](Get-SBRunnerValue $check 'check');if(!$name -and $check -is [Collections.IDictionary]){$name=[string]$check['check']}
+        $missing=@(@(Get-SBRunnerValue $check 'missing')|Where-Object {$_}|ForEach-Object {[string]$_})
+        if(!$missing.Count -and $check -is [Collections.IDictionary]){$missing=@(@($check['missing'])|Where-Object {$_}|ForEach-Object {[string]$_})}
+        if($name -ceq 'scope' -and !@($missing|Where-Object {$_ -cne 'stream'}).Count){continue}
+        if($name -ceq 'authorization'){continue}  # execution and awaiting are decided by their own exclusion codes above
+        $name+':'+($missing -join '+')
+    }
+    if(@($failed).Count){'readiness:'+(@($failed) -join ',')}else{$null}
+}
 function Get-SBRunnerExclusionReason($Task,[switch]$AllowComputerUse,$OpenDecisions){
     # Why a task is not runnable, as a stable code ($null when it is): status, execution, stream:<name>, decision:<dec ids> or awaiting:<value>.
     $status=Get-SBRunnerValue $Task 'status'
@@ -88,6 +109,8 @@ function Get-SBRunnerExclusionReason($Task,[switch]$AllowComputerUse,$OpenDecisi
     }
     $awaiting=Get-SBRunnerValue $ext 'awaiting'
     if($awaiting -and $awaiting -notin @('structural-completion')){return "awaiting:$awaiting"}
+    $notReady=Get-SBRunnerReadinessReason $Task
+    if($notReady){return $notReady}
     # Computer use needs an attended session: `claude -p` cannot approve apps, and no IDE documents a persistent pre-approval for it (Codex on Windows aside).
     # A task that declares extensions.requires=computer-use is left for an attended session instead of failing midway.
     $requires=@(Get-SBRunnerValue $ext 'requires'|Where-Object {$_}|ForEach-Object {[string]$_})
@@ -172,10 +195,16 @@ function New-SBTaskRunPrompt($Task,[string]$ScriptsRoot,[string]$CheckoutPath,[s
     $decided=if($decisions.Count){
         @('Decisions already taken by the owner (apply them and do not ask again):')+@($decisions|ForEach-Object {'- '+([string](& $field $_ 'question')).Trim()+' -> '+([string](& $field $_ 'answer')).Trim()}) -join "`n"
     }else{$null}
+    $scopeFiles=@(@(& $field (& $field $Task 'extensions') 'files')|Where-Object {$_ -and ([string]$_).Trim()}|ForEach-Object {([string]$_).Trim()})
+    $scopeChecks=@(@(& $field (& $field $Task 'extensions') 'checks')|Where-Object {$_ -and ([string]$_).Trim()}|ForEach-Object {([string]$_).Trim()})
+    $filesLine=if($scopeFiles.Count){'Files in scope (stay inside them unless the task proves otherwise): '+($scopeFiles -join '; ')}else{$null}
+    $checksLine=if($scopeChecks.Count){'Checks to run before closing (record each result as evidence): '+($scopeChecks -join '; ')}else{$null}
     @(
         "Execute ONLY task $id (#$(Get-SBRunnerValue $Task 'seq')) of the SecondBrain tracker, in this fresh session.",
         $where,
         $decided,
+        $filesLine,
+        $checksLine,
         'Procedure: read AGENTS.md, load the context with scripts/knowledge.ps1 -Startup, read the task with scripts/knowledge.ps1 -Task, do the work, verify every acceptance criterion with available, working tools, then update the status with scripts/knowledge.ps1 -UpdateTaskId.',
         'Scope: work only on the repository of this checkout and its tracker; do not read, take or update tasks of other repositories, do not use -All, -AllDossiers or all=true, and do not pass -Repository of another repository.',
         'Forbidden: commit, push, publication or deletion; applying dossier.compact or cleanups; any other task. If a confirmation or a live proof is needed, stop and report the limit in the task state without closing it.',
@@ -199,4 +228,4 @@ function Get-SBRunnerAcceptance($Task,[DateTimeOffset]$AttemptStartedAt) {
     }
     'unverified'
 }
-Export-ModuleMember -Function @('Get-SBRunnerOpenDecisions','Get-SBRunnerAcceptance','Get-SBRunnerValue','Test-SBProjectIsolation','Assert-SBProjectIsolation','Get-SBRunnerExcludedStreams','Test-SBRunnableTask','Get-SBRunnerExclusionReason','Get-SBRunnerExclusions','Select-SBRunnableTasks','New-SBTaskRunPrompt','ConvertTo-SBFindingKey','Read-SBRunnerFindings','Find-SBFollowUpMatch','Get-SBRunnerScopeVariables','Get-SBRunnerReadScope','Assert-SBRunnerReadScope')
+Export-ModuleMember -Function @('Get-SBRunnerReadinessReason','Get-SBRunnerOpenDecisions','Get-SBRunnerAcceptance','Get-SBRunnerValue','Test-SBProjectIsolation','Assert-SBProjectIsolation','Get-SBRunnerExcludedStreams','Test-SBRunnableTask','Get-SBRunnerExclusionReason','Get-SBRunnerExclusions','Select-SBRunnableTasks','New-SBTaskRunPrompt','ConvertTo-SBFindingKey','Read-SBRunnerFindings','Find-SBFollowUpMatch','Get-SBRunnerScopeVariables','Get-SBRunnerReadScope','Assert-SBRunnerReadScope')

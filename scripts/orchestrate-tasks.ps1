@@ -346,6 +346,20 @@ function Test-SelfEditing($task) {
     $text = "$($task.title) $(Get-Property $task 'description' '') $(@($task.acceptance) -join ' ')"
     [bool]($SelfPattern -and $text -match $SelfPattern)
 }
+# #744: the stored readiness (extensions.readiness) is honoured, as in the runner (SecondBrain.TaskRunner): a failed check keeps the task out of the queue.
+# The scope check that lacks only a stream is legacy and tolerated; execution and awaiting have their own filters.
+function Get-NotReadyReason($task) {
+    $readiness = Get-Property (Get-Property $task 'extensions') 'readiness'
+    if ($null -eq $readiness -or [bool](Get-Property $readiness 'ready' $true)) { return '' }
+    $failed = foreach ($check in @(Get-Property $readiness 'checks' @())) {
+        if ([bool](Get-Property $check 'passed' $true)) { continue }
+        $name = [string](Get-Property $check 'check' '')
+        $missing = @(@(Get-Property $check 'missing' @()) | Where-Object { $_ } | ForEach-Object { [string]$_ })
+        if ($name -ceq 'authorization' -or ($name -ceq 'scope' -and -not @($missing | Where-Object { $_ -cne 'stream' }).Count)) { continue }
+        "${name}:$($missing -join '+')"
+    }
+    if (@($failed).Count) { 'readiness:' + (@($failed) -join ',') } else { '' }
+}
 $script:attempts = @{}
 # Same exclusions as the runner (SecondBrain.TaskRunner): final qualification, on-request work and product coordination are never queued.
 $excludedStreams = @('qualifica-finale', 'intervento-su-richiesta', 'coordinamento-prodotti', 'final-qualification', 'on-request', 'product-coordination')
@@ -363,6 +377,11 @@ function Get-Queue {
         if ($unmet.Count) { continue }
         # A task waiting for a person is not queued (same as the runner); screen-bound work is filtered by -ExcludePattern.
         if ([string](Get-Property $ext 'awaiting' '')) { continue }
+        $notReady = Get-NotReadyReason $task
+        if ($notReady) {
+            if ($task.id -notin $state.skipped) { $state.skipped += $task.id; Write-Event 'skip' "#$($task.seq) not ready ($notReady)" }
+            continue
+        }
         $haystack = "$($task.title) $(Get-Property $task 'blocker' '') $(@(Get-Property $ext 'requires' @()) -join ' ')"
         if (-not $IncludeExcluded -and $ExcludePattern -and $haystack -match $ExcludePattern) {
             if ($task.id -notin $state.skipped) { $state.skipped += $task.id; Write-Event 'skip' "#$($task.seq) matches the screen/interactive filter" }
@@ -378,6 +397,9 @@ function New-Prompt($task, [bool]$Resuming = $false) {
     $acceptance = (@($task.acceptance) | ForEach-Object { "- $_" }) -join "`n"
     $deps = (@(Get-Property $task 'dependencies' @()) | ForEach-Object { $_.id }) -join ', '
     $ext = Get-Property $task 'extensions'
+    $scopeFiles = @(@(Get-Property $ext 'files' @()) | Where-Object { $_ -and ([string]$_).Trim() } | ForEach-Object { "- $(([string]$_).Trim())" }) -join "`n"
+    $scopeChecks = @(@(Get-Property $ext 'checks' @()) | Where-Object { $_ -and ([string]$_).Trim() } | ForEach-Object { "- $(([string]$_).Trim())" }) -join "`n"
+    $scopeText = (@(if ($scopeFiles) { "Files in scope (stay inside them unless the task proves otherwise):`n$scopeFiles`n" }; if ($scopeChecks) { "Checks to run before closing (record each result as evidence):`n$scopeChecks`n" }) -join "`n")
     $resumeNote = if ($Resuming) { "`nRESUME: a previous session on this task was cut. The working tree holds its partial work: inspect it with git status and git diff, continue from it, and never reset, clean or stash.`n" } else { '' }
     @"
 You are executing ONE tracker task in a fresh session for the repository at $Checkout. Do only this task.
@@ -390,7 +412,7 @@ $(Get-Property $task 'description' '-')
 
 Acceptance criteria:
 $acceptance
-
+$scopeText
 Procedure:
 1. Read AGENTS.md and load the startup context (MCP get_startup_context, or knowledge.ps1 -Startup run from the checkout). Follow the repository directives.
 2. Do the work. Run the project checks that are relevant to what you changed, and no others.

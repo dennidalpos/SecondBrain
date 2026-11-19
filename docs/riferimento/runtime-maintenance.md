@@ -54,6 +54,12 @@ pwsh -NoProfile -File scripts/cleanup.ps1 -Leftovers -OlderThanDays 14
 
 The preview changes nothing. Apply additionally requires an explicit cleanup request quoted in Authorization; review exact targets, references, hashes and recovery first. MinAgeMinutes (default 10), configuration/access paths, reparse points anywhere in a candidate tree, pending transactions and active access sessions remain protection gates. The command reselects each target and compares a fingerprint of manifest, file hashes and directory metadata before removal. Changed or no-longer-eligible targets are preserved, journaled as skipped and produce a partial outcome. Inspection failures never authorize removal. Cooperative locks and revalidation do not guarantee atomic protection against an external process writing during filesystem deletion; close producers before applying cleanup. Only synthetic test folders exercise removal in the regression suite.
 
+**Retention rule for test fixtures (#740).** The folders directly inside `.runtime/tests` are regenerable test output. `cleanup.ps1 -TestOutput [-KeepFixtures 5] [-OlderThanDays 14]` previews the folders beyond the latest N and older than the window that no tracked file mentions, with size, file count and references; skipped folders carry their reason (`kept-latest`, `within-retention-window`, `referenced`, `reparse-point`). `.runtime/compaction` is listed for review only and never selected. `-Apply` with `-Authorization` removes exactly the listed folders, refuses pending transactions and active sessions, rechecks eligibility before each removal and writes `.runtime/cleanup/testoutput-*.json`.
+
+~~~powershell
+pwsh -NoProfile -File scripts/cleanup.ps1 -TestOutput -KeepFixtures 5 -OlderThanDays 14
+~~~
+
 Old flat/legacy layouts are preserved. Migrate previews proposed same-volume moves; Apply needs explicit Authorization and checks active sessions, recent folders, reparse points and collisions. No migration/cleanup belongs to an ordinary documentation update.
 
 ## Verification levels

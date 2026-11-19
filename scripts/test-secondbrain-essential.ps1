@@ -1085,6 +1085,12 @@ if('audit2' -in $Groups){
     Check ((Test-SBAgentUnattendedComputerUse 'C:\tools\codex.cmd' $cuCodex) -and !(Test-SBAgentUnattendedComputerUse 'claude' $cuCodex) -and !(Test-SBAgentUnattendedComputerUse 'unknown-agent' $cuCodex) -and !(Test-SBAgentUnattendedComputerUse '' $cuCodex)) 'preflight: only an agent with a documented opt-in and a present setting runs computer-use tasks unattended'
     $cuTask=[pscustomobject]@{id='CU';seq=1;status='todo';priority='P2';execution='autonomous';extensions=[pscustomobject]@{requires=@('computer-use')}}
     Check ((Get-SBRunnerExclusionReason $cuTask) -ceq 'requires:computer-use' -and $null -eq (Get-SBRunnerExclusionReason $cuTask -AllowComputerUse) -and (Select-SBRunnableTasks @($cuTask) 5).Count -eq 0 -and (Select-SBRunnableTasks @($cuTask) 5 -AllowComputerUse).Count -eq 1) 'runner: a computer-use task is excluded unless the preflight allows it'
+    # #744: stored readiness is honoured by the runner; files and checks reach the agent prompt.
+    $readyOk=[pscustomobject]@{id='RD1';seq=11;status='todo';priority='P2';execution='autonomous';extensions=[pscustomobject]@{readiness=[pscustomobject]@{ready=$false;checks=@([pscustomobject]@{check='scope';passed=$false;missing=@('stream')})}}}
+    $readyNo=[pscustomobject]@{id='RD2';seq=12;status='todo';priority='P2';execution='autonomous';extensions=[pscustomobject]@{readiness=[pscustomobject]@{ready=$false;checks=@([pscustomobject]@{check='inputs';passed=$false;missing=@('provenance')})};files=@('scripts/a.ps1');checks=@('test-secondbrain.ps1 -Quick')}}
+    Check ($null -eq (Get-SBRunnerExclusionReason $readyOk) -and (Get-SBRunnerExclusionReason $readyNo) -ceq 'readiness:inputs:provenance' -and (Select-SBRunnableTasks @($readyOk,$readyNo) 5).Count -eq 1) 'runner: a task that fails a readiness check (other than the legacy missing stream) is skipped with its reason'
+    $readyPrompt=New-SBTaskRunPrompt $readyNo
+    Check ($readyPrompt.Contains('Files in scope') -and $readyPrompt.Contains('scripts/a.ps1') -and $readyPrompt.Contains('Checks to run') -and $readyPrompt.Contains('-Quick') -and !(New-SBTaskRunPrompt $readyOk).Contains('Files in scope')) 'runner: the prompt lists extensions.files and extensions.checks when present'
     Put (Join-Path $repo 'README.md') $privateText
     & git -C $repo add README.md
     $pub=Test-SBPublication -BrainRoot $brain -RepositoryPath $repo

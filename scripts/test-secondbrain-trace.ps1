@@ -118,6 +118,7 @@ try {
     & (Join-Path $PSScriptRoot 'test-secondbrain-uninstall.ps1')
     & (Join-Path $PSScriptRoot 'test-secondbrain-retention.ps1')
     & (Join-Path $PSScriptRoot 'test-secondbrain-readiness.ps1')
+    & (Join-Path $PSScriptRoot 'test-orchestrator-readiness.ps1')
     & (Join-Path $PSScriptRoot 'test-secondbrain-workspace.ps1')
     & (Join-Path $PSScriptRoot 'test-secondbrain-gitupdate.ps1')
     & (Join-Path $PSScriptRoot 'test-secondbrain-skills.ps1')

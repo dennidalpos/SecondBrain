@@ -23,6 +23,16 @@ Assert-Ret (($names -join ',') -ceq 'pub546.out,smoke-5322d350,t546-full.out') (
 Assert-Ret (@($plan.skipped|Where-Object reason -eq 'within-retention-window').Count -eq 2) 'recent leftovers are skipped with a reason'
 Assert-Ret (!(@($plan.targets|Where-Object {$_.name -in @('notes.out','access','hosts')}).Count)) 'other names and protected folders are never selected'
 Assert-Ret ((Get-SBRuntimeLeftovers $runtime 60).targets.Count -eq 0) 'a longer window selects nothing'
+# Test output retention (#740): folders in tests/ beyond the latest N and older than the window; compaction is review only.
+foreach($i in 1..4){Put ("tests/old-$i/out.txt") ('old fixture '+$i) (40+$i)}
+Put 'tests/recent/out.txt' 'recent fixture' 1
+Put 'tests/referenced-fixture/out.txt' 'old but mentioned' 90
+Put 'compaction/report.md' 'compaction history' 90
+$testPlan=Get-SBRuntimeTestOutput $runtime 14 1
+$testNames=@($testPlan.targets|ForEach-Object name|Sort-Object)
+Assert-Ret ($testNames.Count -eq 5 -and 'recent' -notin $testNames -and 'old-1' -in $testNames) ('old fixtures beyond the latest one are selected: '+($testNames -join ','))
+Assert-Ret (@($testPlan.skipped|Where-Object {$_.name -ceq 'recent' -and $_.reason -ceq 'kept-latest'}).Count -eq 1 -and @($testPlan.reviewOnly|Where-Object name -ceq 'compaction/report.md').Count -eq 1 -and !@($testPlan.targets|Where-Object name -like 'compaction*').Count) 'the latest is kept and compaction is review only'
+Assert-Ret ((Get-SBRuntimeTestOutput $runtime 14 10).targets.Count -eq 0) 'keeping more than exist selects nothing'
 # CLI: preview changes nothing; apply needs authorization.
 foreach($sub in @('scripts','config')){Copy-Item -LiteralPath (Join-Path $PSScriptRoot ('../'+$sub)) -Destination (Join-Path $brain $sub) -Recurse -Force}
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../VERSION') -Destination (Join-Path $brain 'VERSION')
@@ -39,4 +49,11 @@ $apply=Invoke-Clean @('-Leftovers','-Apply','-Authorization','owner asked to app
 Assert-Ret ($apply.code -eq 0 -and !(Test-Path -LiteralPath (Join-Path $runtime 'pub546.out')) -and !(Test-Path -LiteralPath (Join-Path $runtime 'smoke-5322d350')) -and !(Test-Path -LiteralPath (Join-Path $runtime 't546-full.out'))) ('apply removes the listed leftovers: '+$apply.out)
 Assert-Ret ((Test-Path -LiteralPath (Join-Path $runtime 't900-new.out')) -and (Test-Path -LiteralPath (Join-Path $runtime 'smoke-aaaaaaaa')) -and (Test-Path -LiteralPath (Join-Path $runtime 'notes.out')) -and (Test-Path -LiteralPath (Join-Path $runtime 'access/session.json'))) 'recent, unrelated and protected entries stay'
 Assert-Ret (@(Get-ChildItem -LiteralPath (Join-Path $runtime 'cleanup') -Filter 'leftovers-*.json').Count -eq 1) 'a journal is written'
+$tPreview=Invoke-Clean @('-TestOutput','-KeepFixtures','1')
+Assert-Ret ($tPreview.code -eq 0 -and $tPreview.out -match 'Preview' -and $tPreview.out -match 'old-1' -and $tPreview.out -match 'compaction/report.md' -and (Test-Path -LiteralPath (Join-Path $runtime 'tests/old-1'))) ('test-output preview lists targets and removes nothing: '+$tPreview.out)
+$tNoAuth=Invoke-Clean @('-TestOutput','-KeepFixtures','1','-Apply')
+Assert-Ret ($tNoAuth.code -ne 0 -and (Test-Path -LiteralPath (Join-Path $runtime 'tests/old-1'))) 'test-output apply without authorization is refused'
+$tApply=Invoke-Clean @('-TestOutput','-KeepFixtures','1','-Apply','-Authorization','owner asked to apply the test output retention rule')
+Assert-Ret ($tApply.code -eq 0 -and !(Test-Path -LiteralPath (Join-Path $runtime 'tests/old-1')) -and (Test-Path -LiteralPath (Join-Path $runtime 'tests/recent')) -and (Test-Path -LiteralPath (Join-Path $runtime 'compaction/report.md'))) ('test-output apply removes only the listed folders: '+$tApply.out)
+Assert-Ret (@(Get-ChildItem -LiteralPath (Join-Path $runtime 'cleanup') -Filter 'testoutput-*.json').Count -eq 1) 'test-output apply writes a journal'
 'SUCCESS RETENTION: '+$script:retChecks+' checks; retained fixture '+$root

@@ -837,6 +837,50 @@ function Get-SBRuntimeLeftovers([string]$RuntimeRoot,[ValidateRange(1,3650)][int
     }
     @{targets=$selected;skipped=$skipped;bytes=[int64](@($selected|ForEach-Object {$_.bytes})|Measure-Object -Sum).Sum}
 }
+# Retention rule for regenerable test output under .runtime/tests (#740): the folders directly inside tests/, beyond the latest $Keep by newest write
+# and older than the window. References are textual mentions of the folder name in the tracked files of the checkout (text up to 2 MB).
+# .runtime/compaction is listed for review only: compaction reports are history, never selected.
+function Get-SBRuntimeTestOutput([string]$RuntimeRoot,[ValidateRange(1,3650)][int]$OlderThanDays=14,[ValidateRange(0,1000)][int]$Keep=5,[string]$BrainRoot) {
+    $limit=(Get-Date).ToUniversalTime().AddDays(-$OlderThanDays)
+    $testsRoot=Join-Path $RuntimeRoot 'tests'
+    $reviewOnly=@()
+    $compactionRoot=Join-Path $RuntimeRoot 'compaction'
+    if(Test-Path -LiteralPath $compactionRoot -PathType Container){
+        foreach($item in @(Get-ChildItem -LiteralPath $compactionRoot -Force)){
+            $reviewOnly+=@{name=('compaction/'+$item.Name);reason='review-only: compaction reports are history';bytes=$(if($item.PSIsContainer){[int64](@(Get-ChildItem -LiteralPath $item.FullName -Recurse -Force -File -ErrorAction SilentlyContinue)|Measure-Object Length -Sum).Sum}else{[int64]$item.Length})}
+        }
+    }
+    if(!(Test-Path -LiteralPath $testsRoot -PathType Container)){return @{targets=@();skipped=@();reviewOnly=$reviewOnly;bytes=0L}}
+    $corpus=''
+    if($BrainRoot -and (Test-Path -LiteralPath (Join-Path $BrainRoot '.git'))){
+        $parts=foreach($relative in @(& git -C $BrainRoot ls-files)){
+            $full=Join-Path $BrainRoot $relative
+            if([IO.File]::Exists($full) -and ([IO.FileInfo]$full).Length -le 2MB -and $relative -match '\.(ps1|psm1|md|json|txt|ts|rs|yml|yaml)$'){[IO.File]::ReadAllText($full)}
+        }
+        $corpus=$parts -join "`n"
+    }
+    $rows=@();$skipped=@()
+    foreach($entry in @(Get-ChildItem -LiteralPath $testsRoot -Force -Directory)){
+        if($entry.Attributes -band [IO.FileAttributes]::ReparsePoint){$skipped+=@{name=$entry.Name;reason='reparse-point'};continue}
+        if(@(Get-ChildItem -LiteralPath $entry.FullName -Recurse -Force -ErrorAction SilentlyContinue|Where-Object {$_.Attributes -band [IO.FileAttributes]::ReparsePoint}).Count){$skipped+=@{name=$entry.Name;reason='contains-reparse-point'};continue}
+        $files=@(Get-ChildItem -LiteralPath $entry.FullName -Recurse -Force -File -ErrorAction SilentlyContinue)
+        $newest=if($files.Count){($files|Measure-Object LastWriteTimeUtc -Maximum).Maximum}else{$entry.LastWriteTimeUtc}
+        if($entry.LastWriteTimeUtc -gt $newest){$newest=$entry.LastWriteTimeUtc}
+        $bytes=[int64]0;foreach($f in $files){$bytes+=[int64]$f.Length}
+        $mentions=if($corpus){([regex]::Matches($corpus,[regex]::Escape($entry.Name))).Count}else{0}
+        $rows+=@{name=$entry.Name;path=$entry.FullName;directory=$true;files=$files.Count;bytes=$bytes;newest=$newest;newestWriteUtc=$newest.ToString('o');references=$mentions}
+    }
+    $ordered=@($rows|Sort-Object {$_.newest} -Descending)
+    $selected=@()
+    for($i=0;$i -lt $ordered.Count;$i++){
+        $row=$ordered[$i]
+        if($i -lt $Keep){$skipped+=@{name=$row.name;reason='kept-latest'};continue}
+        if($row.newest -ge $limit){$skipped+=@{name=$row.name;reason='within-retention-window'};continue}
+        if($row.references -gt 0){$skipped+=@{name=$row.name;reason='referenced';references=$row.references};continue}
+        $selected+=@{name=$row.name;path=$row.path;directory=$true;files=$row.files;bytes=$row.bytes;newestWriteUtc=$row.newestWriteUtc;references=$row.references}
+    }
+    @{targets=$selected;skipped=$skipped;reviewOnly=$reviewOnly;bytes=[int64](@($selected|ForEach-Object {$_.bytes})|Measure-Object -Sum).Sum}
+}
 function Get-SBRegenerableRuntimeTargets {
     param([string]$BrainRoot,[string[]]$ProtectedPaths=@(),[ValidateRange(0,1000)][int]$KeepFixtures=5,[ValidateRange(0,10080)][int]$MinAgeMinutes=10,
         [string]$HostId,[string]$OwnerUser,[string]$OwnerComputer)
@@ -1488,6 +1532,7 @@ Export-ModuleMember -Function @(
     'Get-SBRuntimeCleanupProposal',
     'Get-SBRegenerableRuntimeTargets',
     'Get-SBRuntimeLeftovers',
+    'Get-SBRuntimeTestOutput',
     'Remove-SBRegenerableRuntimeTarget',
     'ConvertTo-SBRuntimeFolderName',
     'Get-SBRuntimeMigrationPlan',
