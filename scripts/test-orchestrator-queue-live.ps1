@@ -79,4 +79,19 @@ if (-not (Test-Path -LiteralPath (Join-Path $snapshots[1].data.snapshot 'scripts
 if (Test-Path -LiteralPath (Join-Path $snapshots[0].data.snapshot 'scripts/queue-refresh-probe.ps1')) { Fail 'the first snapshot was modified after it was taken' }
 if (@($events | Where-Object { $_.event -eq 'scripts-changed' }).Count -lt 1) { Fail 'the script change was not reported' }
 if (@($events | Where-Object { $_.event -eq 'health' -and $_.message -match 'failed' }).Count) { Fail 'a health check failed after the snapshot refresh' }
+# -InstallAgent needs no dossier: a plain Git repository gets the supervisor definition for each provider once, never overwritten, English ASCII text.
+$plain = Join-Path $root 'plain-repo'
+[IO.Directory]::CreateDirectory($plain) | Out-Null
+& git -C $plain init -q
+foreach ($provider in 'claude', 'codex', 'gemini') {
+    $first = (& pwsh -NoProfile -File $run -InstallAgent -Provider $provider -SecondBrain $fx.brain -Checkout $plain 2>&1 | Out-String)
+    if ($LASTEXITCODE -or $first -notmatch '"state":\s*"created"') { Fail ("-InstallAgent $provider in a repository without a dossier: " + $first) }
+    $file = Get-ChildItem -LiteralPath $plain -Recurse -File -Filter 'task-queue-supervisor.md' | Where-Object { $_.FullName -match [regex]::Escape($provider) } | Select-Object -First 1
+    if (-not $file) { Fail "no supervisor file written for $provider" }
+    $bytes = [IO.File]::ReadAllBytes($file.FullName)
+    if (@($bytes | Where-Object { $_ -gt 127 }).Count) { Fail "the $provider supervisor definition is not plain ASCII English text" }
+    $hash = (Get-FileHash -LiteralPath $file.FullName).Hash
+    $second = (& pwsh -NoProfile -File $run -InstallAgent -Provider $provider -SecondBrain $fx.brain -Checkout $plain 2>&1 | Out-String)
+    if ($second -notmatch '"state":\s*"exists"' -or (Get-FileHash -LiteralPath $file.FullName).Hash -ne $hash) { Fail "-InstallAgent $provider overwrote or did not report the existing file: $second" }
+}
 'SUCCESS QUEUE-LIVE: snapshot retaken once after a script change, extended profile + confirmer recorded, wider list passed to 3 sessions, order ' + ($order -join ' > ') + ', one local commit per task (' + (($log | Select-Object -Skip 1) -join ' | ') + '); retained ' + $root

@@ -127,14 +127,15 @@ function Get-CurrentBranch { (Invoke-Git @('rev-parse', '--abbrev-ref', 'HEAD'))
 function Test-ProtectedBranch([string]$Name) { $Name -in 'master', 'main', 'HEAD' -or $Name -notmatch '^queue/' }
 
 # --- dossier ---
-if (-not $TrackerPath) {
+# -InstallAgent only writes a file into the checkout: it needs no dossier, so a repository not yet managed by SecondBrain can get the agent first.
+if (-not $TrackerPath -and -not $InstallAgent) {
     $match = @('repos', 'workstation', 'shared') | ForEach-Object { Join-Path $SecondBrain $_ } | Where-Object { Test-Path -LiteralPath $_ } | ForEach-Object { Get-ChildItem -Path $_ -Filter repository.json -Recurse -Depth 2 -ErrorAction SilentlyContinue } |
         Where-Object { $record = Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json; $identity -and (($record.identity -eq $identity) -or ($identity -in @(Get-Property $record 'aliases' @()))) } | Select-Object -First 1
     if (-not $match) { throw (New-SBError 'orchestrate.dossier.missing' @($identity, (Join-Path $SecondBrain 'repos, workstation, shared'))) }
     $TrackerPath = Join-Path $match.DirectoryName 'tracker.json'
 }
-$dossier = Split-Path -Parent $TrackerPath
-$archivePath = Join-Path $dossier 'history\tracker-archive.json'
+$dossier = if ($TrackerPath) { Split-Path -Parent $TrackerPath } else { $null }
+$archivePath = if ($dossier) { Join-Path $dossier 'history\tracker-archive.json' } else { $null }
 
 function Test-ProcessAlive($ProcessId) {
     if (-not $ProcessId) { return $false }
