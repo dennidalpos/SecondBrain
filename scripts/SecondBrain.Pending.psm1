@@ -426,6 +426,30 @@ function New-SBPendingReceiptOperation($Entry,$Request,[string]$State,$Result,$E
     @{path=$Entry.receiptPath;expected='absent';bytes=[Text.Encoding]::UTF8.GetBytes((ConvertTo-SBJson $receipt))}
 }
 
+function Get-SBPendingEntryEvaluation($BrainRoot,$Entry) {
+    # Reads and validates one queued request and plans it: state applied|conflict|invalid with its error code, result and operations.
+    # Failures after the target is resolved, I/O errors and write-denied errors propagate to the caller instead of marking the request invalid.
+    $request=$null;$state='applied';$result=@{};$errorCode=$null;$targetResolved=$false;$ops=@()
+    try{
+        $file=Get-Item -LiteralPath $Entry.path
+        if($file.Length -gt 2MB){throw (New-SBError 'pending.invalid' @('size'))}
+        $request=Read-SBJson $Entry.path $null
+        Assert-SBPendingRequest $request $Entry.id
+        if($request.operation -in @('task.status','task.update')){$targetResolved=$true}
+        $dossier=Resolve-SBPendingDossier $BrainRoot $request.repository
+        $targetResolved=$true
+        $plan=if($request.operation -like 'task.*'){Get-SBPendingTaskPlan $BrainRoot $request $dossier}else{Get-SBPendingFilePlan $request $dossier}
+        $state=$plan.state;$errorCode=$plan.errorCode;$result=$plan.result;$ops=@($plan.ops)
+        if($state -eq 'conflict'){$errorCode='pending.conflict'}
+    }catch [IO.IOException]{throw}
+    catch{
+        if(Test-SBWriteDeniedError $_){throw}
+        if($targetResolved){throw}
+        $state='invalid';$errorCode=$_.Exception.Message
+    }
+    @{request=$request;state=$state;result=$result;errorCode=$errorCode;ops=$ops}
+}
+
 function Invoke-SBPendingWrites {
     [CmdletBinding()]
     param([string]$BrainRoot,$Config,[string]$ConfigPath,[string]$SessionId,[ValidateRange(1,100)][int]$Limit=10,[hashtable]$Diagnostics,[string]$RequestId,[ValidateRange(0,600000)][int]$WaitMs=0,[string]$Repository)
@@ -461,24 +485,8 @@ function Invoke-SBPendingWrites {
             if(Test-Path -LiteralPath $entry.receiptPath){$summary.pending--;continue}
             Assert-SBPlainPath $entry.path
             $sourceLease=[IO.FileStream]::new($entry.path,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
-            $request=$null;$state='applied';$result=@{};$errorCode=$null;$targetResolved=$false
-            try{
-                $file=Get-Item -LiteralPath $entry.path
-                if($file.Length -gt 2MB){throw (New-SBError 'pending.invalid' @('size'))}
-                $request=Read-SBJson $entry.path $null
-                Assert-SBPendingRequest $request $entry.id
-                if($request.operation -in @('task.status','task.update')){$targetResolved=$true}
-                $dossier=Resolve-SBPendingDossier $BrainRoot $request.repository
-                $targetResolved=$true
-                $plan=if($request.operation -like 'task.*'){Get-SBPendingTaskPlan $BrainRoot $request $dossier}else{Get-SBPendingFilePlan $request $dossier}
-                $state=$plan.state;$errorCode=$plan.errorCode;$result=$plan.result;$ops=@($plan.ops)
-                if($state -eq 'conflict'){$errorCode='pending.conflict'}
-            }catch [IO.IOException]{throw}
-            catch{
-                if(Test-SBWriteDeniedError $_){throw}
-                if($targetResolved){throw}
-                $state='invalid';$errorCode=$_.Exception.Message
-            }
+            $evaluation=Get-SBPendingEntryEvaluation $BrainRoot $entry
+            $request=$evaluation.request;$state=$evaluation.state;$result=$evaluation.result;$errorCode=$evaluation.errorCode;$ops=$evaluation.ops
             [IO.Directory]::CreateDirectory((Split-Path $entry.receiptPath))|Out-Null
             $repository=if($request -and $request.ContainsKey('repository')){$request.repository}else{$null}
             $receiptOp=New-SBPendingReceiptOperation $entry $request $state $result $errorCode $Config
