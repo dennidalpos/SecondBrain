@@ -1,15 +1,15 @@
 {
-  "approvedAt": "2026-11-19T01:43:22.3992807+01:00",
-  "authorization": "Owner in chat, 2026-11-19: procedi e applica (approva revision 1.5)",
+  "approvedAt": "2026-11-19T02:07:55.4024703+01:00",
+  "authorization": "Owner in chat, 2026-11-19: Ripristina comando (restore the exact startup command in the global text of revision 1.5 and re-approve)",
   "files": {
-    "direttive/AGENTS.global_ide.md": "AAC0625CACC20F55BE10CE8240420DB5D52897DDB98E33796C3899C464478D57",
+    "direttive/AGENTS.global_ide.md": "BF1230F0D495F6838C89A2E7CAE002840CBC178B808D896A90A8F93357CABEFE",
     "direttive/AGENTS.repo.managed.md": "109FE97569092606D439A807359C1BC502F00ADF8F737E5A6A7ACBC910EA9ACB",
     "direttive/workstation.template.md": "2B4198D3D9F66B2EC4AD159DC7889F6C21AD64C5E025B99005D26122D6E5AEDB"
   },
   "proposal": {
     "path": "direttive/proposals/2026-11-18-revision-1-5",
-    "readmeHash": "8BE9AD2F612CD4E1722FFBF9E026EF116B7396FAEA0C627584248F2B3F85AEC3",
-    "sha256": "CC2C2CB5D854C4AB304D203486C271C54C994FA2F37EA131AFBFA75F2D18238C"
+    "readmeHash": "B10267C700AF3649967A6DF7159E90EE947C98F5C9C85F90E8D82672125744DE",
+    "sha256": "8818FF822242F8913D47DA3D4E971AE432957FAAC152F02B70BA93ADDF9A8388"
   },
   "schemaVersion": 1
 }
