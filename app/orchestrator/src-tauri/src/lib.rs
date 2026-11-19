@@ -983,6 +983,17 @@ pub fn run() {
         }
     }
     tauri::Builder::default()
+        // A second launch (sb runner passes --repo <checkout>) shows the running window and asks it to load that repository (#731).
+        .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+            if let Some(w) = app.get_webview_window("main") {
+                let _ = w.unminimize();
+                let _ = w.show();
+                let _ = w.set_focus();
+            }
+            if let Some(repo) = repo_argument(&argv) {
+                let _ = app.emit("launch-repo", repo);
+            }
+        }))
         .plugin(tauri_plugin_dialog::init())
         .manage(AppState::default())
         .setup(|app| {

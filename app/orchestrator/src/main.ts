@@ -901,6 +901,13 @@ function runIsLive() { return state.run.active || state.run.starting; }
 async function requestQuit() {
   if (runIsLive()) { if (!dialog.open) dialog.showModal(); } else await quitApp();
 }
+// A second launch with --repo focuses this window and arrives here (single-instance plugin, #731).
+listen<string>("launch-repo", async (e) => {
+  if (typeof e.payload !== "string" || !e.payload.trim()) return;
+  input("repo-path").value = e.payload.trim();
+  selectTab("repo");
+  await loadRepository();
+});
 listen<string>("tray-action", async (e) => {
   const action = e.payload;
   if (action === "quit") return requestQuit();
