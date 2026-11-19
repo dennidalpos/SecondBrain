@@ -27,7 +27,7 @@ Add-SBMessages @{
     'para.transaction.duplicate' = @{ en = 'Duplicate destination in the transaction' }
     'para.transaction.changed' = @{ en = 'Content changed: {0}' }
     'para.transaction.backup' = @{ en = 'Transactional backup not verified' }
-    'para.transaction.incomplete' = @{ en = 'Incomplete PARA transaction: restore the pending manifest first' }
+    'para.transaction.incomplete' = @{ en = 'Incomplete dossier transaction: restore the pending manifest first' }
     'para.transaction.marker' = @{ en = 'Transaction marker modified' }
     'para.transaction.interrupted' = @{ en = 'Transaction interrupted; restore with manifest {0}. {1}' }
     'para.manifest.outside' = @{ en = 'Manifest outside the authorized backup root' }

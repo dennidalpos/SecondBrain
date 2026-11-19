@@ -1,7 +1,7 @@
 #requires -Version 7.5
 <#
 .SYNOPSIS
-Checks or restores an interrupted PARA transaction from its manifest.
+Checks or restores an interrupted dossier transaction from its manifest.
 .DESCRIPTION
 Without -Apply, previews the destinations to restore. With -Apply, performs the
 verified restoration (previous hash, payload in the manifest journal) and removes the

@@ -31,7 +31,7 @@ Ordinary sessions record ownership/heartbeat; writer.lock and operation.lock pro
 
 Readers report active-writer or pending-transaction warnings. Their snapshot can be intermediate. Protected writes validate base hashes and preserve recovery data. Never remove locks or incomplete markers.
 
-An interrupted PARA transaction blocks central writes. A different host may recover only after validating the common root/manifest through its own alias. Preview recover.ps1 before separately authorized Apply; later destination edits are refused.
+An interrupted dossier transaction blocks central writes. A different host may recover only after validating the common root/manifest through its own alias. Preview recover.ps1 before separately authorized Apply; later destination edits are refused.
 
 ## Performance and operational limits
 

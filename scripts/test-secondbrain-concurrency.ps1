@@ -1,5 +1,5 @@
 #requires -Version 7.5
-# Concurrent writes (Write-SBFile, tracker -NewTask, trace, access queue, PARA transactions, backups) and edge cases
+# Concurrent writes (Write-SBFile, tracker -NewTask, trace, access queue, dossier transactions, backups) and edge cases
 # (paths beyond 260 characters, Unicode, case differences, locked files). Fixtures under Get-SBTestRoot; no writes to the real .runtime.
 # Fixtures are always retained; results (duration, size, fixture status) remain in this run's esito-concurrency.json.
 $ErrorActionPreference='Stop'

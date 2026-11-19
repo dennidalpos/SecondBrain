@@ -447,7 +447,7 @@ Add-SBMessages @{
     'cmd.sources' = @{ en = 'Checks the authoritative sources registry locally; remote probes and updates are separate options of the script.' }
     'cmd.cleanup' = @{ en = 'Lists the .runtime content by category (preview only). Removal needs a reviewed manifest, -Apply and an explicit authorization.' }
     'cmd.bindings' = @{ en = 'Previews the migration of the repository bindings to the minimal form; -Apply writes it after backing up the configuration. Repeating it changes nothing.' }
-    'cmd.recover' = @{ en = 'Checks an interrupted PARA transaction from its manifest; -Apply restores it. Preview first.' }
+    'cmd.recover' = @{ en = 'Checks an interrupted dossier transaction from its manifest; -Apply restores it. Preview first.' }
     'cmd.directivescheck' = @{ en = 'Checks that the managed directive blocks of repositories and IDEs match the approved texts, without fixing (same engine as sb check). Changes go through sb directives propose.' }
     'cmd.directivespropose' = @{ en = 'Prepares a directive revision as a proposal with preview, version and changelog; approval and distribution stay explicit (approve-revision.ps1 -Preview, then sb sync).' }
     'cmd.promptscheck' = @{ en = 'Validates the prompt catalog and cards and reports drift of the generated indexes. Nothing is written.' }

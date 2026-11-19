@@ -20,12 +20,12 @@ Da usare quando il lavoro richiede un nuovo progetto o risorsa, un'entità cambi
 </decisions>
 
 <procedure>
-1. Struttura: dossier dei repository in `01-projects/<nome>--<hash>` (tipo progetto con `repository.json`, uno per repository, creato solo da SYS03, con `specs/`, `material/`, `data/`; i vecchi dossier di `02-areas/products/` si spostano con `para.ps1 -MigrateToProjects`), progetti a termine in `01-projects/<id>`, aree in `02-areas/<id>`, risorse in `03-resources/<id>`, archivio in `04-archives/{areas,projects,resources}/<id>`. `PARA.md` e `para-index.json` sono viste generate.
-2. Leggi prima: `scripts/para.ps1 -Check` e `-SuggestArchive`.
+1. Struttura: dossier dei repository in `01-projects/<nome>--<hash>` (tipo progetto con `repository.json`, uno per repository, creato solo da SYS03, con `specs/`, `material/`, `data/`; i vecchi dossier di `02-areas/products/` si spostano con `entity.ps1 -MigrateToProjects`), progetti a termine in `01-projects/<id>`, aree in `02-areas/<id>`, risorse in `03-resources/<id>`, archivio in `04-archives/{areas,projects,resources}/<id>`. `PARA.md` e `para-index.json` sono viste generate.
+2. Leggi prima: `scripts/entity.ps1 -Check` e `-SuggestArchive`.
 3. Inserisci: `-NewProject -Id -Title [-Areas] -Objective -Acceptance` (`-Areas` facoltativo: id di dossier repository o aree attivi) o `-NewResource -Id -Title -Objective`. L'identificatore deve essere libero.
 4. Aggiorna: `-SetStatus -EntityId -Status` (progetto `active|completed|cancelled`; area e risorsa `active|retired`); aggiorna `brief.md`, `context.md`, `memory.md` con la regola di sintesi minima.
 5. Archivia solo entità completate, annullate o ritirate, e aree senza progetti attivi collegati: `-Archive -EntityId`. Ripristina con `-Restore -EntityId`.
-6. Dopo ogni scrittura esegui `secondbrain.ps1 -Sync` e `-Check`, e `para.ps1 -Check`.
+6. Dopo ogni scrittura esegui `secondbrain.ps1 -Sync` e `-Check`, e `entity.ps1 -Check`.
 </procedure>
 
 <constraints>
@@ -35,7 +35,7 @@ Da usare quando il lavoro richiede un nuovo progetto o risorsa, un'entità cambi
 </constraints>
 
 <exit_criteria>
-- `para.ps1 -Check` e `secondbrain.ps1 -Check` sono puliti; l'entità compare in `para-index.json` al percorso atteso; nessun residuo nella cartella di origine.
+- `entity.ps1 -Check` e `secondbrain.ps1 -Check` sono puliti; l'entità compare in `para-index.json` al percorso atteso; nessun residuo nella cartella di origine.
 </exit_criteria>
 
 <output_format>

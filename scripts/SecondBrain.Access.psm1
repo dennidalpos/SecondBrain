@@ -24,7 +24,7 @@ Add-SBMessages @{
     'access.station.moved' = @{ en = 'workstationId ''{0}'' already registered with different paths (registered: {1}; current: {2}). Check the move and reconcile with scripts/access.ps1 -Reconcile.' }
     'access.busy' = @{ en = 'SecondBrain busy or coordination unavailable after {0} s. Owner: {1}. Retry later or wait for the owner session to end' }
     'access.pending.who' = @{ en = ' started by {0}@{1} on {2}' }
-    'access.pending' = @{ en = 'Incomplete PARA transaction{0} (manifest: {1}). Recover with scripts/recover.ps1 -ManifestPath <manifest> from any workstation that reaches the manifest; do not remove the marker by hand.' }
+    'access.pending' = @{ en = 'Incomplete dossier transaction{0} (manifest: {1}). Recover with scripts/recover.ps1 -ManifestPath <manifest> from any workstation that reaches the manifest; do not remove the marker by hand.' }
 }
 
 $script:SBWriterGates = @{}

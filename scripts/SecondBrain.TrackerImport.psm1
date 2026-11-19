@@ -81,7 +81,7 @@ function Get-SBTrackerImportArchives([string]$Dir,[string]$Id,[string]$Leaf) {
     foreach($prefix in @('tracker-import-','tracker-migration-')){Join-Path $Dir ('history/'+$prefix+$Id+'/'+$Leaf)}
 }
 
-# Paths the PARA transactions may touch besides dossiers: workstation state files and registered tracker manifests.
+# Paths the dossier transactions may touch besides dossiers: workstation state files and registered tracker manifests.
 # Lives here, not in Para, so that Para does not depend on TrackerImport (no module cycle).
 function Get-SBParaRuntimePaths($Config) {
     $registry=Read-SBJson (Join-Path $Config.coordinationRoot 'workstations.json') @{}

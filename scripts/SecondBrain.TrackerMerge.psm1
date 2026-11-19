@@ -161,7 +161,7 @@ function Read-SBTrackerMergeManifest($Config,[string]$Path) {
     $m
 }
 
-# Applies a previewed plan: backup of the dossier tracker, one PARA transaction for tracker and source archive, journal under backupRoot.
+# Applies a previewed plan: backup of the dossier tracker, one dossier transaction for tracker and source archive, journal under backupRoot.
 # The caller holds the write operation. PlanSha256 is the explicit confirmation of the previewed plan.
 function Invoke-SBTrackerMerge {
     param($Config,[string]$Identity,[string]$SourcePath,[string]$PlanSha256)

@@ -33,7 +33,7 @@ The command words below remain unchanged in every documentation language.
 | `sb sources` | Check the authoritative sources registry |
 | `sb cleanup` | List `.runtime` by category (preview); removal needs a reviewed manifest, `-Apply` and an authorization |
 | `sb bindings` | Preview the migration of the bindings to the minimal form; `-Apply` writes it |
-| `sb recover` | Check an interrupted PARA transaction from its manifest; `-Apply` restores it |
+| `sb recover` | Check an interrupted dossier transaction from its manifest; `-Apply` restores it |
 | `sb directives check` | Check the managed directive blocks against the approved texts |
 | `sb directives propose` | Prepare a directive revision as a proposal; approval and distribution stay explicit |
 | `sb prompts check` | Validate the prompt catalog and cards and report drift of the generated indexes |

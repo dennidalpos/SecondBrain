@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "description": "Scripts and modules that were renamed. scripts/lint-renames.ps1 fails when a live file still cites an old name. Add one entry per rename; never remove an entry.",
+  "historicalPaths": ["CHANGELOG.md", "direttive/proposals/", "history/", "repos/", "config/renamed-scripts.json"],
+  "renames": [
+    { "old": "para.ps1", "new": "entity.ps1", "since": "3.1.0" },
+    { "old": "SecondBrain.Para.psm1", "new": "SecondBrain.Entity.psm1", "since": "3.1.0" }
+  ]
+}
