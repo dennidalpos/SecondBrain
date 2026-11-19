@@ -199,6 +199,8 @@ if('portable' -in $Groups){
     $resolveConfig=Read-SBConfiguration $one.configuration -ReadOnly;$resolveConfig.brainRoot=$brain
     $conflict=Invoke-SBPortableSync $resolveConfig -Check -Repository $identity
     Check (@($conflict.issues|Where-Object kind -eq 'directive-conflict').Count -eq 1) 'a hand-edited managed block is reported as a conflict'
+    $foreignIssue=@($conflict.issues|Where-Object kind -eq 'directive-conflict')[0]
+    Check ($foreignIssue.foreignLines -ge 1 -and $foreignIssue.reason -match 'above the begin marker' -and (Read-SBText $agentsPath) -ceq $editedText) 'the Obliryx case: text inside the block is counted and the move outside is named before any write'
     $previewResolve=Invoke-SBRepositoryBlockResolve $resolveConfig $identity 'AGENTS.md'
     Check ($previewResolve.conflicts -eq 1 -and !$previewResolve.applied -and @($previewResolve.files[0].diff|Where-Object {$_.StartsWith('- ') -and $_.Contains('Riga modificata a mano')}).Count -eq 1 -and (Read-SBText $agentsPath) -ceq $editedText) 'resolution preview shows the diff and writes nothing'
     Reject {Invoke-SBRepositoryBlockResolve $resolveConfig $identity 'AGENTS.md' -Apply} 'resolution requires an explicit choice'
@@ -207,6 +209,15 @@ if('portable' -in $Groups){
     $afterResolve=Read-SBText $agentsPath
     Check ($resolveRun.code -eq 0 -and $resolved.applied -and $resolved.files[0].status -ceq 'resolved' -and $resolved.files[0].previousBlock.Contains('Riga modificata a mano') -and $afterResolve.Contains('Riga modificata a mano') -and
         !@((Invoke-SBPortableSync $resolveConfig -Check -Repository $identity).issues|Where-Object kind -in @('directive-conflict','directive-pending')).Count) 'Preserve restores the generated block and keeps the hand-written content'
+    # #743: a copy of the account instructions at an older revision is reported with its path and the expected revision.
+    $copyDir=Join-Path $repo 'profile-copy';[IO.Directory]::CreateDirectory($copyDir)|Out-Null
+    Put (Join-Path $copyDir 'CLAUDE.md') "Revision 1.3 — 2026-11-13. old text"
+    Put (Join-Path $copyDir 'CURRENT.md') "Revision 1.5 — 2026-11-19. new text"
+    $copyConfig=@{profileCopies=@((Join-Path $copyDir '*.md'))}
+    $copyIssues=@(Get-SBProfileCopyIssues $copyConfig 'Revision 1.5 — 2026-11-19. approved')
+    Check ($copyIssues.Count -eq 1 -and $copyIssues[0].path -like '*CLAUDE.md' -and $copyIssues[0].expectedRevision -ceq '1.5' -and $copyIssues[0].reason.Contains($copyIssues[0].path) -and $copyIssues[0].reason.Contains('1.5')) 'a stale profile copy is reported with its path and the expected revision; a current copy is not'
+    Check (@(Get-SBProfileCopyIssues @{} 'Revision 1.5 — 2026-11-19. approved').Count -eq 0) 'no profileCopies configured: nothing reported'
+    Remove-Item -LiteralPath $copyDir -Recurse -Force
     foreach($leftover in 'AGENTS.md','CLAUDE.md'){Remove-Item -LiteralPath (Join-Path $repo $leftover) -Force}
     $decisionMemory=Join-Path $dossier 'memory.md';$decisionOriginal=Read-SBText $decisionMemory
     Put $decisionMemory ($decisionOriginal+"`n## Decisione old`n<!-- sb:decision id=old state=superseded supersededBy=new -->`nSuperseded detail.`n")

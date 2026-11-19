@@ -136,7 +136,7 @@ test("3 waiting decisions: question from the analysis, pending acceptance, run i
   await page.locator("#q-start").click();
   await page.locator("#run-steps").filter({ hasText: "Read: README.md" }).waitFor({ timeout: 60_000 });
   await shot(page, "03-waiting-run-in-progress");
-  await page.locator("#run-verdict").filter({ hasText: "Finished" }).waitFor({ timeout: 120_000 });
+  await page.locator("#run-verdict").filter({ hasText: "Last run finished" }).waitFor({ timeout: 120_000 });
   await shot(page, "03-waiting-run-finished-acceptance-open");
   await closeApp(app);
 });

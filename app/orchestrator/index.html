@@ -189,6 +189,11 @@
           <thead><tr><th></th><th>#</th><th>ID</th><th>Title</th><th>Priority</th><th></th></tr></thead>
           <tbody id="q-tasks"></tbody>
         </table>
+        <div id="q-pager" class="row pager" hidden>
+          <button id="q-prev" aria-label="Previous page of ready tasks">Previous</button>
+          <span id="q-page" class="muted small" aria-live="polite"></span>
+          <button id="q-nextpage" aria-label="Next page of ready tasks">Next</button>
+        </div>
         <p id="q-empty" class="muted small" hidden>No task ready for autonomous execution.</p>
         <h3>Not runnable autonomously (<span id="q-skipped-count">0</span>)</h3>
         <p class="muted small">Tasks excluded by the runner, with the reason. <strong>Analyze</strong> starts the light model read-only: it proposes multiple-choice questions and the update that makes the task autonomous; the tracker changes only after your confirmation. <span id="q-light"></span></p>

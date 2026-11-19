@@ -306,7 +306,7 @@ test("a queue run is followed live, survives closing the window and is found aga
   await expect(page.locator('.steps button[data-tab="run"]')).toHaveAttribute("aria-selected", "true", { timeout: 60_000 });
   await expect(page.locator("#run-log")).toContainText("found again and reattached");
   await expect(page.locator("#run-steps")).toContainText("Read: README.md");
-  await expect(page.locator("#run-verdict")).toHaveText("Finished", { timeout: 120_000 });
+  await expect(page.locator("#run-verdict")).toHaveText("Last run finished", { timeout: 120_000 });
   await expect(page.locator("#run-results tr").filter({ hasText: "E2E-1" })).toContainText("finished");
   // #613: the process finished, but the task is only in progress: its acceptance is shown as open, apart from the process outcome.
   await expect(page.locator("#run-results tr").filter({ hasText: "E2E-1" }).locator("td").nth(4)).toHaveText("open");
@@ -479,7 +479,7 @@ test("busy buttons ignore a second click; a run stopped by a plan limit waits fo
   await expect.poll(countdown, { timeout: 30_000 }).toBeLessThan(first);
 
   // After the reset the same task runs again and the run closes by itself.
-  await expect(page.locator("#run-verdict")).toHaveText("Finished", { timeout: 240_000 });
+  await expect(page.locator("#run-verdict")).toHaveText("Last run finished", { timeout: 240_000 });
   await expect(page.locator("#run-warning")).toBeHidden();
   await expect(page.locator("#run-last-label")).toHaveText("Last agent signal");
   await expect(page.locator("#run-results tr").filter({ hasText: "E2E-2" }).last()).toContainText("finished");
@@ -502,7 +502,7 @@ test("a run stopped by a plan limit shows its resume point, and the window resum
   await expect(page.locator('.steps button[data-tab="run"]')).toHaveAttribute("aria-selected", "true", { timeout: 60_000 });
 
   // Without -WaitForReset the run stops at the limit and the card shows the resume point runner-status reports.
-  await expect(page.locator("#run-verdict")).toHaveText("Finished", { timeout: 180_000 });
+  await expect(page.locator("#run-verdict")).toHaveText("Last run finished", { timeout: 180_000 });
   await expect(page.locator("#run-counts")).toContainText("stopped: quota");
   // #602: the quota reading shows provider, state (unknown with its reason), source and observation time.
   await expect(page.locator("#run-counts")).toContainText(/quota claude: (unknown \((missing|stale|malformed|unsupported)\)|exhausted|available), source [a-z-]+/);
@@ -524,7 +524,7 @@ test("a run stopped by a plan limit shows its resume point, and the window resum
   expect(calls("start_queue")).toBe(2);
   // #650: the window still shows the stopped run's Finished verdict until it reattaches; wait for the new run folder before asserting the result row.
   await expect.poll(async () => path.basename(((await page.locator("#run-folder").textContent()) ?? "").trim()), { timeout: 120_000, intervals: [1_000] }).not.toBe(runId);
-  await expect(page.locator("#run-verdict")).toHaveText("Finished", { timeout: 240_000 });
+  await expect(page.locator("#run-verdict")).toHaveText("Last run finished", { timeout: 240_000 });
   await expect(page.locator("#run-results tr").filter({ hasText: "E2E-3" }).last()).toContainText("finished", { timeout: 60_000 });
   expect(readTracker().tasks.find((t) => t.id === "E2E-3")?.status).toBe("in_progress");
   // The new run consumed the resume point of the stopped one: its resume.json names the run shown in the card.
@@ -570,7 +570,7 @@ test("a refused power request asks Run anyway or Cancel: Cancel starts nothing, 
   await page.locator("#q-start").click();
   await expect(dialog).toBeVisible({ timeout: 120_000 });
   await dialog.locator('button[data-power="run"]').click();
-  await expect(page.locator("#run-verdict")).toHaveText("Finished", { timeout: 180_000 });
+  await expect(page.locator("#run-verdict")).toHaveText("Last run finished", { timeout: 180_000 });
   expect(calls("start_queue")).toBe(3);
   await expect(page.locator("#run-results tr").filter({ hasText: "E2E-3" }).last()).toContainText("finished");
   expect(readTracker().tasks.find((t) => t.id === "E2E-3")?.status).toBe("in_progress");
@@ -587,7 +587,7 @@ test("run end: the Git preference and the next steps appear, and an action needs
   await expect(page.locator("#q-tasks tr")).not.toHaveCount(0, { timeout: 60_000 });
   await page.locator("#q-tasks tr").first().locator('input[type="checkbox"]').check();
   await page.locator("#q-start").click();
-  await expect(page.locator("#run-verdict")).toHaveText("Finished", { timeout: 180_000 });
+  await expect(page.locator("#run-verdict")).toHaveText("Last run finished", { timeout: 180_000 });
   // The panel appears by itself when the run ends, with the preference and the proposals.
   await expect(page.locator("#run-end-box")).toBeVisible({ timeout: 90_000 });
   await expect(page.locator("#run-end-git")).toContainText("Git and GitHub update", { timeout: 60_000 });
@@ -615,7 +615,7 @@ test("run end: a follow-up task is created only after a preview and a confirmati
   await expect(page.locator("#q-tasks tr")).not.toHaveCount(0, { timeout: 60_000 });
   await page.locator("#q-tasks tr").first().locator('input[type="checkbox"]').check();
   await page.locator("#q-start").click();
-  await expect(page.locator("#run-verdict")).toHaveText("Finished", { timeout: 180_000 });
+  await expect(page.locator("#run-verdict")).toHaveText("Last run finished", { timeout: 180_000 });
   await expect(page.locator("#run-end-box")).toBeVisible({ timeout: 90_000 });
   await expect(page.locator("#run-next-list li")).not.toHaveCount(0, { timeout: 90_000 });
   const before = fs.readFileSync(fixture.tracker, "utf8");

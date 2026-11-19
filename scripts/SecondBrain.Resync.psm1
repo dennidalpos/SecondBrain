@@ -12,7 +12,7 @@ $script:SBResyncRules=@{
     'history-index-pending'=@{safe=$true;action='Run sb sync: the history index is out of date.'}
     'agent-view-pending'=@{safe=$true;action='Run sb sync: the agent memory view is out of date.'}
     'prompt-index-drift'=@{safe=$true;action='Run sb prompts check and regenerate the indexes with build-prompts.ps1.'}
-    'directive-conflict'=@{safe=$false;action='The managed block was edited by hand. Compare it with the approved text, keep or discard your edit in the repository file, then run sb sync.'}
+    'directive-conflict'=@{safe=$false;action='The managed block was edited by hand. Move your text outside the block (above the begin marker or below the end marker) in the repository file, then run sb sync; nothing is written before you do.'}
     'pointer-conflict'=@{safe=$false;action='The pointer block was edited by hand. Fix it in the repository file, then run sb sync.'}
     'ide-conflict'=@{safe=$false;action='An IDE instruction file differs from the approved text. Resolve it in that file, then run sb sync.'}
     'tracker-merge'=@{safe=$false;action='The checkout brings a tracker that diverges from the dossier. Preview with import-tracker.ps1 -Merge, then apply with the owner decisions.'}

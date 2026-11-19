@@ -43,6 +43,8 @@ Add-SBMessages @{
     'portable.issue.mcpconsent' = @{ en = 'A valid observation of the consent prompt for an MCP tool in this session is missing: record it with ide-observation.ps1' }
     'portable.unbind.summary' = @{ en = 'Unbinding {0} repositories and {1} IDE integrations: dossiers and IDE files are kept' }
     'portable.issue.forbidden' = @{ en = 'Forbidden repository present in the active bindings' }
+    'portable.issue.foreigntext' = @{ en = '{0} line(s) written by hand sit inside the managed block of {1}; a sync would replace them. Move them above the begin marker or below the end marker, then run sb sync (secondbrain.ps1 -ResolveBlock shows the diff)' }
+    'portable.issue.profilecopy' = @{ en = 'Account instruction copy {0} is at revision {2}, the approved revision is {1}: replace its text with the approved global text (sb check reports it again until it matches)' }
     'portable.issue.compaction' = @{ en = 'Propose dossier.compact (sb compact): nothing is compacted without confirmation' }
     'portable.issue.decisions' = @{ en = 'Superseded or expired decisions remain in history and are excluded from the agent view. Review their references during dossier.compact.' }
     'portable.issue.closure' = @{ en = 'A task was closed after the last memory.md update: update memory and context with session.close' }
@@ -913,6 +915,25 @@ function Get-SBLineDiff([string[]]$Current,[string[]]$Generated) {
     while($j -lt $m){$lines+='+ '+$Generated[$j];$j++}
     $lines
 }
+# #743: copies of the account instruction text outside the mapped IDE files (for example a session-profile CLAUDE.md) whose revision differs from
+# the approved one. Paths or wildcards come from the workstation configuration key profileCopies; nothing is written.
+function Get-SBProfileCopyIssues($Config,[string]$GlobalText) {
+    $revisionPattern='Revisi(?:on|one) (\d+(?:\.\d+)+)'
+    if($GlobalText -notmatch $revisionPattern){return @()}
+    $expected=$Matches[1]
+    if(!$Config.ContainsKey('profileCopies')){return @()}
+    $paths=@(foreach($pattern in @($Config.profileCopies)){if($pattern){Get-ChildItem -Path ([string]$pattern) -File -ErrorAction SilentlyContinue|ForEach-Object FullName}})|Select-Object -Unique
+    foreach($path in $paths){
+        $observed=if((Read-SBText $path) -match $revisionPattern){$Matches[1]}else{'unknown'}
+        if($observed -ne $expected){@{kind='profile-copy-stale';path=$path;observedRevision=$observed;expectedRevision=$expected;reason=(Get-SBMessage 'portable.issue.profilecopy' @($path,$expected,$observed))}}
+    }
+}
+# Lines of the current managed block that the generator does not produce (text written by hand inside the block). Markers are ignored (#733).
+function Get-SBBlockForeignLines([string]$CurrentBlock,[string]$GeneratedBody) {
+    if([string]::IsNullOrEmpty($CurrentBlock)){return @()}
+    $generated=@(($GeneratedBody.Replace("`r`n","`n")) -split "`n"|ForEach-Object {$_.TrimEnd()})
+    @(($CurrentBlock.Replace("`r`n","`n")) -split "`n"|Where-Object {$_.Trim() -and $_ -notmatch '^<!-- secondbrain:[a-z]+:(begin|end)' -and $_.TrimEnd() -cnotin $generated})
+}
 # Guided resolution of a managed block edited by hand in an opted-in repository file (#484). Preview by default: shows the diff and what each
 # resolution would do. -Apply with -Resolution: Generated restores the generated block; Preserve restores it and keeps the lines added by hand
 # as ordinary text after it. In both cases the previous file is backed up (also when the tracked file has uncommitted changes) and the previous block is returned.
@@ -1084,7 +1105,13 @@ function Invoke-SBPortableSync {
                     $agents=Join-Path $binding.path 'AGENTS.md';$key=[IO.Path]::GetFullPath($agents)+'|repository'
                     if(!$state.managed.ContainsKey($key) -and $binding.managedHash -ne 'absent'){$state.managed[$key]=$binding.managedHash}
                     $result=Set-SBManagedContent $agents (New-SBPortableRepositoryBody (Get-SBApprovedDirectiveRevision $Config.brainRoot) $Config.brainRoot $dir) 'repository' $state.managed $Check $stateBackups -AfterTitle
-                    if($result -eq 'conflict'){$issues+=@{kind='directive-conflict';repository=$binding.identity}}
+                    if($result -eq 'conflict'){
+                        # #733: name the hand-written lines inside the block and how to move them outside, before any sync writes.
+                        $foreign=@();try{$foreign=@(Get-SBBlockForeignLines (Get-SBManagedContent (Read-SBText $agents) 'repository') (New-SBPortableRepositoryBody (Get-SBApprovedDirectiveRevision $Config.brainRoot) $Config.brainRoot $dir))}catch{Write-Verbose $_.Exception.Message}
+                        $conflictIssue=@{kind='directive-conflict';repository=$binding.identity}
+                        if($foreign.Count){$conflictIssue.foreignLines=$foreign.Count;$conflictIssue.reason=(Get-SBMessage 'portable.issue.foreigntext' @($foreign.Count,'AGENTS.md'))}
+                        $issues+=$conflictIssue
+                    }
                     elseif($result -eq 'pending'){$issues+=@{kind='directive-pending';repository=$binding.identity}}
                     elseif($result -eq 'updated'){$changes+='directive:'+ $binding.identity}
                     foreach($pointer in @(Set-SBRepositoryPointers $binding.path $state.managed $Check $stateBackups -Files $repositoryFiles)){
@@ -1102,6 +1129,7 @@ function Invoke-SBPortableSync {
         if($global -and !$Repository){
             $globalPath=Join-Path $stateRoot 'istruzioni-globali.md'
             $globalHash=Get-SBFileHash $globalPath
+            foreach($copyIssue in @(Get-SBProfileCopyIssues $Config $global)){$closureWarnings+=$copyIssue}
             if($globalHash -ne (Get-SBTextHash $global)){
                 if($Check){$issues+=@{kind='global-text-pending'}}else{Write-SBFile $globalPath ([Text.Encoding]::UTF8.GetBytes($global)) $globalHash $stateBackups -Recoverable|Out-Null}
             }
@@ -1183,6 +1211,8 @@ function Invoke-SBPortableSync {
     }finally{Exit-SBOperation $lock}
 }
 Export-ModuleMember -Function @(
+    'Get-SBBlockForeignLines',
+    'Get-SBProfileCopyIssues',
     'ConvertTo-SBMinimalBinding',
     'New-SBPortableConfiguration',
     'Get-SBPortableGlobal',

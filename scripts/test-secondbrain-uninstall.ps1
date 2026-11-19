@@ -15,6 +15,14 @@ $cleaned=Remove-SBUninstallBlocks $mixed
 Assert-Un ($cleaned -match 'User line 1' -and $cleaned -match 'User line 2' -and $cleaned -notmatch 'secondbrain') 'only the managed block is removed'
 Assert-Un (!(Remove-SBUninstallBlocks $block)) 'a file made only of the block becomes empty'
 Assert-Un (!(Get-SBUninstallBlockNames "plain text without markers").Count) 'plain text has no block'
+# MCP entry removal (#736): other servers stay, JSON and TOML.
+$mcpJson='{"theme":"dark","mcpServers":{"secondbrain":{"command":"pwsh"},"other":{"command":"node"}},"projects":{"C:/p":{"mcpServers":{"secondbrain":{"command":"x"},"keep":{"command":"y"}}}}}'
+$cleanJson=Remove-SBMcpEntry $mcpJson 'x.json'|ConvertFrom-Json
+Assert-Un ($cleanJson.theme -ceq 'dark' -and $cleanJson.mcpServers.other.command -ceq 'node' -and !$cleanJson.mcpServers.PSObject.Properties['secondbrain'] -and $cleanJson.projects.'C:/p'.mcpServers.keep.command -ceq 'y' -and !$cleanJson.projects.'C:/p'.mcpServers.PSObject.Properties['secondbrain']) 'JSON: the secondbrain entry goes (also per project), other servers and keys stay'
+Assert-Un ($null -eq (Remove-SBMcpEntry '{"mcpServers":{"other":{}}}' 'x.json')) 'JSON without the entry: nothing to remove'
+$mcpToml="model = `"x`"`n`n[mcp_servers.other]`ncommand = `"node`"`n`n[mcp_servers.secondbrain]`ncommand = `"pwsh`"`n`n[mcp_servers.secondbrain.tools.check_publication]`napproval_mode = `"prompt`"`n`n[profiles.a]`nname = `"a`"`n"
+$cleanToml=Remove-SBMcpEntry $mcpToml 'config.toml'
+Assert-Un ($cleanToml -notmatch 'secondbrain' -and $cleanToml -match '\[mcp_servers\.other\]' -and $cleanToml -match '\[profiles\.a\]' -and $cleanToml -match 'model = ') 'TOML: the server and its tool sections go, the rest stays'
 # Fixture.
 $root=Join-Path (Get-SBTestRoot) ('uninstall-'+[guid]::NewGuid().ToString('N').Substring(0,12))
 $brain=Join-Path $root 'brain';$checkout=Join-Path $root 'checkout';$ideFile=Join-Path $root 'ide/CLAUDE.md'
@@ -50,6 +58,14 @@ $ide=[IO.File]::ReadAllText($ideFile)
 Assert-Un ($ide -match 'Mine first' -and $ide -notmatch 'secondbrain') 'IDE file keeps user text and loses the block'
 Assert-Un ((Get-SBFileHash (Join-Path $checkout '.secondbrain/run-tasks.ps1')) -ceq $hashes[(Join-Path $checkout '.secondbrain/run-tasks.ps1')]) 'an edited launcher is never removed'
 Assert-Un (@(Get-ChildItem -LiteralPath (Join-Path $brain '.runtime/hosts/fixture/backups') -Recurse -File -ErrorAction SilentlyContinue).Count -ge 2) 'backups were written before the changes'
+$mcpFile=Join-Path $root 'ide/mcp.json'
+Put $root 'ide/mcp.json' $mcpJson
+$mcpPreview=Invoke-Un @()
+$mcpData=$mcpPreview.out.Substring($mcpPreview.out.IndexOf('{'))|ConvertFrom-Json
+Assert-Un (@($mcpData.inventory.remove|Where-Object kind -eq 'mcp-entry').Count -eq 1 -and (Get-SBFileHash $mcpFile) -ceq (Get-SBTextHash $mcpJson)) 'preview lists the MCP entry and changes nothing'
+$mcpApply=Invoke-Un @('-Apply','-Only','mcp')
+$mcpAfter=[IO.File]::ReadAllText($mcpFile)|ConvertFrom-Json
+Assert-Un ($mcpApply.code -eq 0 -and $mcpAfter.mcpServers.other.command -ceq 'node' -and !$mcpAfter.mcpServers.PSObject.Properties['secondbrain'] -and @(Get-ChildItem -LiteralPath (Join-Path $brain '.runtime/hosts/fixture/backups') -Recurse -File).Count -ge 3) ('apply removes only the secondbrain MCP entry after a backup: '+$mcpApply.out)
 $denied=Invoke-Un @('-Apply','-Only','data')
 Assert-Un ($denied.code -ne 0) 'data removal is refused without -RemoveData and the authorization text'
 'SUCCESS UNINSTALL: '+$script:unChecks+' checks; retained fixture '+$root

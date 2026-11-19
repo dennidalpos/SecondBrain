@@ -99,7 +99,7 @@ test("Run, Settings and waiting decision", async () => {
   // Run: start one task and capture the finished run.
   await page.locator("#q-tasks tr").filter({ hasText: "E2E-1" }).locator('input[type="checkbox"]').check();
   await page.locator("#q-start").click();
-  await page.locator("#run-verdict").filter({ hasText: "Finished" }).waitFor({ timeout: 180_000 });
+  await page.locator("#run-verdict").filter({ hasText: "Last run finished" }).waitFor({ timeout: 180_000 });
   await shot(page, "orchestrator-run");
   // Settings: show only generic values, never the workstation's own paths.
   await tab(page, "settings");

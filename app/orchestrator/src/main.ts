@@ -78,7 +78,7 @@ const state = {
 
 const WAIT_SOURCE_LABEL: Record<string, string> = { "runner-observation": "reported by the agent", "codex-session": "from the Codex sessions", message: "from the limit message", recheck: "time unknown: checked again" };
 const RUN_VERDICT_LABEL: Record<string, string> = {
-  idle: "Idle", starting: "Starting…", working: "Working", stalled: "Possibly stalled", waiting: "Waiting for the reset", finished: "Finished", orphaned: "Interrupted", none: "Idle",
+  idle: "Idle", starting: "Starting…", working: "Working", stalled: "Possibly stalled", waiting: "Waiting for the reset", finished: "Last run finished", orphaned: "Last run interrupted", none: "Idle",
 };
 const STATUS_LABEL: Record<AgentStatus, string> = { ready: "ready", "not-found": "not installed", "not-responding": "not responding" };
 const ORIGIN_LABEL: Record<string, string> = { path: "", search: "found outside PATH", package: "from the Store package" };
@@ -552,21 +552,34 @@ onBusyClick($("q-analyze-selected"), async () => {
   state.skippedSelected.clear();
   renderSkipped();
 });
+const QUEUE_PAGE_SIZE = 15;
+let queuePage = 0;
 function renderTasks() {
   const order = state.tasks;
+  const pages = Math.max(1, Math.ceil(order.length / QUEUE_PAGE_SIZE));
+  queuePage = Math.min(queuePage, pages - 1);
+  const first = queuePage * QUEUE_PAGE_SIZE;
   $("q-empty").hidden = order.length > 0;
   $("q-count").textContent = order.length ? `${state.selected.size} selected of ${order.length}` : "";
-  $("q-tasks").replaceChildren(...order.map((t, i) => {
+  $("q-pager").hidden = pages < 2;
+  $("q-page").textContent = `Page ${queuePage + 1} of ${pages} (tasks ${first + 1}–${Math.min(order.length, first + QUEUE_PAGE_SIZE)})`;
+  input("q-prev").disabled = queuePage === 0;
+  input("q-nextpage").disabled = queuePage >= pages - 1;
+  $("q-tasks").replaceChildren(...order.slice(first, first + QUEUE_PAGE_SIZE).map((t, k) => {
+    const i = first + k;
     const cb = el("input", { type: "checkbox", checked: state.selected.has(t.id) });
     cb.setAttribute("aria-label", "Select " + t.id);
     cb.addEventListener("change", () => { cb.checked ? state.selected.add(t.id) : state.selected.delete(t.id); $("q-count").textContent = `${state.selected.size} selected of ${order.length}`; });
     const up = el("button", { textContent: "↑", disabled: i === 0, title: "Move up", className: "ghost" });
+    up.setAttribute("aria-label", "Move " + t.id + " up");
     up.addEventListener("click", () => { [order[i - 1], order[i]] = [order[i], order[i - 1]]; renderTasks(); });
     const tr = el("tr");
     [cb, String(t.seq), t.id, t.title, t.priority ?? "—", up].forEach((c) => tr.append(el("td", {}, c)));
     return tr;
   }));
 }
+$("q-prev").addEventListener("click", () => { queuePage = Math.max(0, queuePage - 1); renderTasks(); });
+$("q-nextpage").addEventListener("click", () => { queuePage += 1; renderTasks(); });
 onBusyClick($("q-start"), async () => {
   if (state.run.active || state.run.starting) return selectTab("run");
   // Model, effort and defaults are read again now: the probe at window start can be stale (CLI updated or reconfigured since).

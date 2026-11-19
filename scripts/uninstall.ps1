@@ -8,10 +8,11 @@ Previews by default: lists every item to remove and every item that stays, chang
   repositories  sb offboard for every binding: managed blocks and pointers removed, open tasks in TASKS.md, dossier saved in the backup folder first
   launchers     .secondbrain/run-tasks.ps1 removed only when identical to a SecondBrain template
   ide-blocks    managed blocks removed from IDE and checkout instruction files by their markers; every other line is kept; backups are verified
+  mcp           the secondbrain server entry removed from the client MCP configuration files (JSON and Codex TOML); backup first, other servers stay, result verified
   hooks         client-hooks.ps1 -Uninstall for Claude Code, Codex and Antigravity
   environment   the SECONDBRAIN_HOME user variable
   data          dossiers under repos/ and workstation/; needs -RemoveData and -Authorization "delete dossiers"
-Not removed: the MCP entries of the clients (listed, delete them yourself), shared/, .runtime and the checkout itself.
+Not removed: shared/, .runtime and the checkout itself.
 A scan for remaining markers closes the report.
 .EXAMPLE
 pwsh -NoProfile -File scripts/uninstall.ps1
@@ -21,12 +22,12 @@ pwsh -NoProfile -File scripts/uninstall.ps1 -Apply -Only ide-blocks,launchers
 [CmdletBinding()]
 param(
     [switch]$Apply,
-    [string[]]$Only=@('repositories','launchers','ide-blocks','hooks','environment'),
+    [string[]]$Only=@('repositories','launchers','ide-blocks','mcp','hooks','environment'),
     [switch]$RemoveData,[string]$Authorization,
     [string]$ConfigPath,[string]$SessionId
 )
 $Only=@($Only|ForEach-Object {$_ -split ','}|ForEach-Object {$_.Trim()}|Where-Object {$_})
-$validSteps='repositories','launchers','ide-blocks','hooks','environment','data'
+$validSteps='repositories','launchers','ide-blocks','mcp','hooks','environment','data'
 $badStep=@($Only|Where-Object {$_ -cnotin $validSteps})
 $ErrorActionPreference='Stop'
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
@@ -87,6 +88,17 @@ try{
                 Write-SBFile $file ([Text.UTF8Encoding]::new($false).GetBytes($(if($remaining){$remaining+"`n"}else{''}))) $hash $config.backupRoot -BackupDirty|Out-Null
                 $report.steps+=[ordered]@{step='ide-blocks';target=$file;result='block removed, other text kept'}
             }
+        }
+    }
+    if($Only -contains 'mcp'){
+        foreach($file in @(Get-SBUninstallMcpFiles $ides)){
+            $text=[IO.File]::ReadAllText($file,[Text.UTF8Encoding]::new($false))
+            $updated=Remove-SBMcpEntry $text $file
+            if($null -eq $updated){continue}
+            $hash=Get-SBFileHash $file
+            Write-SBFile $file ([Text.UTF8Encoding]::new($false).GetBytes($updated)) $hash $config.backupRoot -BackupDirty|Out-Null
+            if($null -ne (Remove-SBMcpEntry ([IO.File]::ReadAllText($file)) $file)){throw (New-SBError 'uninstall.mcp.verify' @($file))}
+            $report.steps+=[ordered]@{step='mcp';target=$file;result='secondbrain server entry removed, other servers kept'}
         }
     }
     if($Only -contains 'hooks'){

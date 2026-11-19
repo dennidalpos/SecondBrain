@@ -82,6 +82,8 @@ button.primary { background: var(--accent); border-color: var(--accent); color: 
 button.danger { border-color: var(--danger); color: var(--danger); }
 button.ghost { border-color: transparent; background: none; color: var(--muted); }
 button.ghost:hover:not(:disabled) { color: var(--text); background: var(--surface-2); }
+#tab-queue .next { position: sticky; bottom: 0; z-index: 2; background: var(--surface); }
+.pager { align-items: center; gap: 8px; margin-top: 8px; }
 .next { display: flex; justify-content: flex-end; margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--border); }
 
 .error { color: var(--danger); background: var(--danger-soft); border-radius: 6px; padding: 8px 10px; white-space: pre-wrap; margin: 8px 0; }
@@ -219,7 +221,8 @@ table.registry .reg-row.archived td { color: var(--muted); }
 main:focus { outline: none; }
 .steps button:focus-visible { outline-offset: -2px; background: var(--accent-soft); }
 table.registry .reg-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-button, select { min-height: 24px; }
+button, select, summary { min-height: 24px; }
+table.tasks button { min-width: 24px; }
 input[type="checkbox"], input[type="radio"] { min-width: 24px; min-height: 24px; }
 .steps button[aria-selected="true"] { font-weight: 650; }
 .badge::before { content: "Status: "; font-weight: 400; }

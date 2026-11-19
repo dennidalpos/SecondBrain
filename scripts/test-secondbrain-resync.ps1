@@ -10,7 +10,7 @@ Assert-Rs ($aligned.status -ceq 'aligned' -and $aligned.items.Count -eq 0) 'no f
 $drift=Get-SBResyncPlan -Findings @(@{kind='directive-pending';repository=$id}) -Repository $id
 Assert-Rs ($drift.status -ceq 'safe-to-apply' -and $drift.safeCount -eq 1 -and $drift.items[0].action -match 'sb sync') 'drifted block: safe, names sb sync'
 $edited=Get-SBResyncPlan -Findings @(@{kind='directive-conflict';repository=$id}) -Repository $id
-Assert-Rs ($edited.status -ceq 'needs-decision' -and $edited.items[0].action -match 'repository file' -and $edited.items[0].action -match 'sb sync') 'hand-edited block: conflict, names the repository file and sb sync'
+Assert-Rs ($edited.status -ceq 'needs-decision' -and $edited.items[0].action -match 'repository file' -and $edited.items[0].action -match 'outside the block' -and $edited.items[0].action -match 'sb sync') 'hand-edited block: conflict, names the move outside the block and sb sync'
 $tracker=Get-SBResyncPlan -Findings @(@{kind='tracker-merge';detail='Tracker merge pending for x'}) -Repository $id
 Assert-Rs ($tracker.status -ceq 'needs-decision' -and $tracker.items[0].action -match 'import-tracker.ps1 -Merge' -and $tracker.items[0].detail -match 'pending') 'diverged tracker: conflict, names import-tracker -Merge'
 $moved=Get-SBResyncPlan -Findings @(@{kind='repository-unverified';reason='checkout moved'}) -Repository $id
