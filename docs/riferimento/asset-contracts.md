@@ -127,6 +127,7 @@ Storage: step-scoped decisions live in the workflow run state (§3). Task and du
 Rules:
 
 - A private asset may reference public assets. A public asset never references a private one.
+- Private cards use the same RCTFE layout as shipped cards (`role`, `context`, `task` with at least two numbered steps, `format`, optional `examples`; at most 3,500 characters). The earlier eight-section layout is no longer accepted (#747).
 - Private keys are namespaced `<repo-slug>/<key>` (for example `acme-app/pkg-sign`), so they never collide with or shadow a public code, key or role.
 - Something belongs in the public catalog only when it is generic: no repository names, private paths, account data or internal task IDs. The publication scan (`scripts/publication.ps1`) enforces this for `direttive/`.
 - A private asset is promoted to public as a new public ID, through the catalog's add-card or add-workflow procedure with review. The private original is then retired with an alias to the public one.

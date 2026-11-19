@@ -13,8 +13,9 @@ Add-SBMessages @{
     'private.public.reference' = @{ en = 'Public file {0} references private asset {1}' }
     'private.notfound' = @{ en = 'No private asset {0} for this repository' }
 }
-$script:SBPrivateTags=@('role','context','inputs','decisions','procedure','constraints','exit_criteria','output_format')
-$script:SBPrivateRequired=@('role','context','inputs','procedure','constraints','exit_criteria','output_format')
+# RCTFE (#747): private cards use the layout of the shipped cards (catalog version 2): role, context, task, format, optional examples.
+$script:SBPrivateTags=@('role','context','task','format','examples')
+$script:SBPrivateRequired=@('role','context','task','format')
 
 function Get-SBRepositorySlug([string]$Repository) {
     # Last path segment of the identity, lowercased, reduced to [a-z0-9-]: github.com/acme/App_One -> app-one.
@@ -47,7 +48,7 @@ function Assert-SBPrivateCardBody([string]$Text,[string]$Key,[string]$Summary,[s
     foreach($tag in $script:SBPrivateRequired){
         $m=[regex]::Match($body,'(?ms)^<'+$tag+'>\n(.*?)\n</'+$tag+'>[ \t]*$')
         if(!$m.Success -or !$m.Groups[1].Value.Trim()){throw (New-SBError 'private.invalid' @($Where,'section '+$tag+' missing or empty'))}
-        if($tag -eq 'procedure' -and @([regex]::Matches($m.Groups[1].Value,'(?m)^\d+\. ')).Count -lt 2){throw (New-SBError 'private.invalid' @($Where,'procedure needs at least two numbered steps'))}
+        if($tag -eq 'task' -and @([regex]::Matches($m.Groups[1].Value,'(?m)^\d+\. ')).Count -lt 2){throw (New-SBError 'private.invalid' @($Where,'task needs at least two numbered steps'))}
     }
 }
 

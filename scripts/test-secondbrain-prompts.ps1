@@ -229,7 +229,7 @@ Assert-Prompts (!(@($referenced|Where-Object {$_ -notin @($prompts.code)}).Count
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.PrivateAssets.psm1') -Force
 $privateRoot=Join-Path (Get-SBTestRoot) ('private-assets-'+[guid]::NewGuid().ToString('N').Substring(0,12))
 function Write-PrivateFixture([string]$Relative,[string]$Text){$p=Join-Path $privateRoot $Relative;[IO.Directory]::CreateDirectory((Split-Path $p))|Out-Null;[IO.File]::WriteAllText($p,$Text,[Text.UTF8Encoding]::new($false))}
-function New-PrivateCardText([string]$Key,[string]$Summary){"# $Key — $($Summary.TrimEnd('.'))`n<role>`nRelease operator.`n</role>`n<context>`nSigning of this repository.`n</context>`n<inputs>`n- the package`n</inputs>`n<procedure>`n1. Build.`n2. Sign.`n</procedure>`n<constraints>`n- No publication.`n</constraints>`n<exit_criteria>`n- Signed package.`n</exit_criteria>`n<output_format>`nReport.`n</output_format>`n"}
+function New-PrivateCardText([string]$Key,[string]$Summary){"# $Key — $($Summary.TrimEnd('.'))`n`n<role>`nRelease operator.`n</role>`n`n<context>`nSigning of this repository.`n</context>`n`n<task>`n1. Build.`n2. Sign.`n</task>`n`n<format>`nReport.`n</format>`n"}
 function New-PrivateDossier([string]$Name,[string]$Identity,$Cards,$Flows=@()){
     foreach($sub in 'prompts','workflows'){$dir=Join-Path $privateRoot "repos/$Name/$sub";if(Test-Path -LiteralPath $dir){Remove-Item -LiteralPath $dir -Recurse -Force}}
     Write-PrivateFixture "repos/$Name/repository.json" (ConvertTo-SBJson @{schemaVersion=1;identity=$Identity})
@@ -271,6 +271,16 @@ try{
     # Keys, collisions and references.
     $bad=Join-Path $privateRoot 'repos/acme-app'
     $restore={New-PrivateDossier 'acme-app' 'github.com/acme/acme-app' @($sign,$draft,$wipe) @($flow)}
+    # #747: private cards use the RCTFE layout; the old eight-section layout and a single task step are refused.
+    $legacy=New-PrivateCard 'pmt-a0000001' 'acme-app/pkg-sign'
+    $legacy.text="# acme-app/pkg-sign $([char]0x2014) Sign the release package of this repository`n<role>`nOperator.`n</role>`n<context>`nSigning.`n</context>`n<inputs>`n- package`n</inputs>`n<procedure>`n1. Build.`n2. Sign.`n</procedure>`n<constraints>`n- None.`n</constraints>`n<exit_criteria>`n- Signed.`n</exit_criteria>`n<output_format>`nReport.`n</output_format>`n"
+    New-PrivateDossier 'acme-app' 'github.com/acme/acme-app' @($legacy)
+    Assert-PrivateRefused {Read-SBPrivateAssets -Dossier (Join-Path $privateRoot 'repos/acme-app') -Repository 'github.com/acme/acme-app' -PublicCatalog $catalog} 'private.invalid' '#747: the legacy eight-section layout is refused'
+    $oneStep=New-PrivateCard 'pmt-a0000001' 'acme-app/pkg-sign'
+    $oneStep.text=$oneStep.text.Replace("1. Build.`n2. Sign.","1. Build.")
+    New-PrivateDossier 'acme-app' 'github.com/acme/acme-app' @($oneStep)
+    Assert-PrivateRefused {Read-SBPrivateAssets -Dossier (Join-Path $privateRoot 'repos/acme-app') -Repository 'github.com/acme/acme-app' -PublicCatalog $catalog} 'private.invalid' '#747: a task with one step is refused'
+    & $restore
     New-PrivateDossier 'acme-app' 'github.com/acme/acme-app' @(New-PrivateCard 'pmt-a0000001' 'pkg-sign')
     Assert-PrivateRefused {Read-SBPrivateAssets -Dossier $bad -Repository 'github.com/acme/acme-app' -PublicCatalog $catalog} 'private.invalid' '#589: a key without the repository namespace is refused'
     New-PrivateDossier 'acme-app' 'github.com/acme/acme-app' @(New-PrivateCard 'pmt-a0000001' 'beta/pkg-sign')
