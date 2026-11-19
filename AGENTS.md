@@ -25,17 +25,10 @@ Repository knowledge lives in the SecondBrain dossier; code, guides, and publish
 
 ## Code style
 - PowerShell with `Set-StrictMode`; messages only through keys in `Add-SBMessages` (no `throw` or `Write-Host` with literal text); writes only with `Write-SBFile` and verified backups.
-- New product text is English: messages, help, UI, docs, prompts and diagnostics. Existing `it` message entries, Italian cards and `*.it.md` pages are removed only through the English-only tasks (#580–#586) and the reviewed removal manifest; do not add new Italian text unless a check still requires it.
+- Product text (messages, help, UI, docs, prompts, diagnostics) defaults to English unless the task or the user specifies another language. Existing `it` message entries, Italian cards and `*.it.md` pages are removed only through the English-only tasks (#580–#586) and the reviewed removal manifest; add Italian text only when asked or when a check still requires it. Some folder and file names are still Italian (`direttive/`, parts of `docs/`) until those tasks finish.
 - Prompt assets follow `docs/riferimento/asset-contracts.md`: cards, workflows, agent definitions and user decisions keep immutable IDs; codes and keys are display names, renamed only with a catalog version and an alias and never reused. Scripts, the app, config and directives refer to cards by ID or role, never by code. Add or change cards with the catalog's card procedure (`sb prompt`).
 - Common directives change only through a proposal in `direttive/proposals/`, `scripts/approve-revision.ps1 -Preview` and explicit approval; managed blocks change only through their generators. `VERSION` and `CHANGELOG.md` follow the version rule.
 
 ## Security
 - No secrets, personal paths or account data in the repository; publication scans (`scripts/publication.ps1` or MCP `check_publication`) come before every push.
 - `.runtime` cleanups and migrations (`scripts/cleanup.ps1 -Migrate`, `-Regenerable`) preview by default and need `-Apply` with an explicit `-Authorization`.
-
-## Pull requests
-- One change per purpose, relevant tests run and reported, documentation updated; no commit or push without a specific request.
-
-## Git workflow (push policy)
-
-- The repository owner is an admin and changes are verified locally before any push. When a push is authorized, push directly to `master` and do not open a pull request. This applies only to pushes the user has authorized; it does not authorize committing or pushing on its own. If anything is unclear (failed checks, unexpected remote state, protected-branch rejection), stop and ask.

@@ -2,7 +2,21 @@
 
 Formato [Keep a Changelog](https://keepachangelog.com/it-IT/1.1.0/). La numerazione segue il file `VERSION`. Questo registro cambia solo quando accetti un cambio di versione: vedi [Cambiare versione](docs/uso-quotidiano.md).
 
-> Versione corrente: **3.1.0**, numerazione reimpostata il 2026-11-04 con le funzionalità attuali conservate. Le sezioni seguenti mantengono la cronologia dei rilasci precedenti.
+> Versione corrente: **3.1.1**, numerazione reimpostata il 2026-11-04 con le funzionalità attuali conservate. Le sezioni seguenti mantengono la cronologia dei rilasci precedenti.
+
+## [3.1.1] - 2026-11-19
+
+Directive revision 1.5.
+
+### Changed
+- Common directives (revision 1.5): the portable core comes first and the SecondBrain section applies only when SecondBrain is installed; tools are named by role, so a script rename no longer needs a revision; the product language defaults to English unless the user or the project specifies another; `para.ps1` is now the entity tool.
+- Contestable rules relaxed or scoped: commits and pushes accept a standing permission given for the project; delegation is allowed when asked; Plan-Do-Check-Act is proportional; the changelog is updated only when the project keeps one; the 1,500-character context rule and the prompt-card ID rule leave the common text.
+- Repository `AGENTS.md`: the pull-request and push-policy sections are removed; the language rule defaults to English.
+- Repository template: revision label, maintainer/contributor split, language line.
+
+### Added
+- User files stay the user's: the common text and the workstation block state that instruction files change only inside managed blocks, a hand-edited block or a tracked file with uncommitted changes is a conflict left untouched, and `sb check` runs before `sb sync`.
+- Managed repository block: states that it is generated and that project rules go outside it (task #733).
 
 ## [3.1.0] - 2026-11-19
 
