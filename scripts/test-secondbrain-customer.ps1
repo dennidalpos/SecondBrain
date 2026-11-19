@@ -99,6 +99,14 @@ Assert-Cust ($LASTEXITCODE -eq 0) 'backup without filter still works'
 $archive=[IO.Compression.ZipFile]::OpenRead((Join-Path $root 'full.zip'))
 try{$fullNames=@($archive.Entries|ForEach-Object {$_.FullName});$fullManifest=([IO.StreamReader]::new($archive.GetEntry('manifest.json').Open())).ReadToEnd()|ConvertFrom-Json -AsHashtable}finally{$archive.Dispose()}
 Assert-Cust ((@($fullNames|Where-Object {$_ -like 'repos/c/*'}).Count -gt 0) -and (@($fullNames|Where-Object {$_ -like 'repos/e/*'}).Count -gt 0) -and !$fullManifest.ContainsKey('customer')) 'unfiltered backup keeps every dossier and no customer key'
+# Extracted search steps (#466): target directories, file order, ranking.
+$targets=@(Get-SBSearchTargetDirectories $brain '' '' '')
+Assert-Cust ($targets.Count -ge 1 -and @(Get-SBSearchTargetDirectories $brain 'repos/a' '' 'Acme').Count -eq 1 -and @(Get-SBSearchTargetDirectories $brain 'repos/a' '' 'NoSuchCustomer').Count -eq 0) 'search targets honour dossier and customer scope'
+$searchFiles=@(Get-SBDossierSearchFiles (Join-Path $brain 'repos/a')|ForEach-Object {Split-Path $_ -Leaf})
+Assert-Cust (($searchFiles -join ',') -ceq 'context.md,memory.md,tracker.json') ('search files keep their order: '+($searchFiles -join ','))
+$units=@(@{lines=@('alpha beta');title='One';path='b.md';start=1},@{lines=@('alpha');title='Two';path='a.md';start=1},@{lines=@('none');title='Three';path='c.md';start=1})
+$rankedUnits=@(Get-SBRankedSearchUnits $units @('alpha','beta') 'alpha beta')
+Assert-Cust ($rankedUnits.Count -eq 2 -and $rankedUnits[0].unit.path -ceq 'b.md' -and $rankedUnits[0].score -gt $rankedUnits[1].score) 'ranking puts full term coverage first and drops units without a match'
 # Default of #485: a customer search needs a repository or dossier scope; the global customer search stays refused.
 $knowledge=Join-Path $brain 'scripts/knowledge.ps1'
 $globalCustomer=& pwsh -NoProfile -File $knowledge -ConfigPath $cfg -Search 'shared-term' -Customer 'Acme' 2>&1|Out-String

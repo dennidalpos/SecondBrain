@@ -576,6 +576,73 @@ function Get-SBKnowledgeCategory([string]$Dossier,[string]$FilePath) {
     if($parts.Count -ge 3 -and $parts[0] -cin @('topics','knowledge') -and $parts[1] -cin @('normative','policy','prompt','memoria','informazioni')){return $parts[1]}
     'informazioni'
 }
+# Dossier directories a search covers (#466): one dossier, the dossiers of one repository, or every active repository dossier; the customer filter applies to each.
+function Get-SBSearchTargetDirectories([string]$Root,[string]$Dossier,[string]$Repository,[string]$Customer,$Entities=@()) {
+    if($Dossier){
+        $resolved=[IO.Path]::GetFullPath($Dossier)
+        if(!(Test-Path -LiteralPath $resolved)){$resolved=Resolve-SBParaPath $Root $Dossier}
+        if($Customer){$recordCustomer=[string](Read-SBJson (Join-Path $resolved 'repository.json') @{}).customer;if(!(Test-SBCustomerMatch $recordCustomer $Customer)){return @()}}
+        return @($resolved)
+    }
+    if(!$Entities.Count){$Entities=@(Get-SBParaEntities $Root @())}
+    if($Repository){
+        return @($Entities|Where-Object {(Test-SBRepoDossier $_) -and !$_.archived -and $_.repository -eq $Repository -and (Test-SBCustomerMatch $_.customer $Customer)}|ForEach-Object {Resolve-SBParaPath $Root $_.path})
+    }
+    @($Entities|Where-Object {(Test-SBRepoDossier $_) -and !$_.archived -and (Test-SBCustomerMatch $_.customer $Customer)}|ForEach-Object {Resolve-SBParaPath $Root $_.path})
+}
+# Files of one dossier a search reads, in search order (#466): current files, topics, optional compacted originals, archive and batch reports.
+function Get-SBDossierSearchFiles([string]$Dir,[switch]$IncludeOriginals) {
+    $files=[Collections.Generic.List[string]]::new()
+    foreach($name in @('context.md','memory.md','tracker.json')){
+        $candidate=Join-Path $Dir $name
+        if(Test-Path -LiteralPath $candidate -PathType Leaf){$files.Add($candidate)}
+    }
+    foreach($name in @('topics','knowledge')){
+        $topicRoot=Join-Path $Dir $name
+        if(Test-Path -LiteralPath $topicRoot -PathType Container){
+            Assert-SBPlainPath $topicRoot
+            foreach($topicFile in Get-ChildItem -LiteralPath $topicRoot -File -Recurse -Filter '*.md'){
+                Assert-SBPlainPath $topicFile.FullName;$files.Add($topicFile.FullName)
+            }
+        }
+    }
+    # Compacted originals nearly duplicate current files: search them only with -IncludeOriginals.
+    $compactionDir=Join-Path $Dir 'history/compaction'
+    if($IncludeOriginals -and (Test-Path -LiteralPath $compactionDir -PathType Container)){
+        foreach($item in (Get-ChildItem -LiteralPath $compactionDir -File -Recurse|Sort-Object FullName)){
+            if($item.Extension -in @('.md','.json','.txt')){$files.Add($item.FullName)}
+        }
+    }
+    # Deeper layer: archived tasks and batch reports (always searchable; Offset/Limit available on request).
+    $archiveFile=Join-Path $Dir 'history/tracker-archive.json'
+    if(Test-Path -LiteralPath $archiveFile -PathType Leaf){$files.Add($archiveFile)}
+    $historyDir=Join-Path $Dir 'history'
+    if(Test-Path -LiteralPath $historyDir -PathType Container){
+        foreach($folder in (Get-ChildItem -LiteralPath $historyDir -Directory|Sort-Object Name)){
+            $reportFile=Join-Path $folder.FullName 'report.md'
+            if(Test-Path -LiteralPath $reportFile -PathType Leaf){$files.Add($reportFile)}
+        }
+    }
+    @($files)
+}
+# Relevance ranking of search units (#466): term coverage first, then title, exact phrase and capped frequency; sorted by score, path and start line.
+function Get-SBRankedSearchUnits($Units,[string[]]$Tokens,[string]$Search) {
+    $phrase=$Search.Trim().ToLowerInvariant()
+    $ranked=@()
+    foreach($unit in $Units){
+        $text=($unit.lines -join "`n").ToLowerInvariant();$heading=([string]$unit.title).ToLowerInvariant()
+        $distinct=0;$headingHits=0;$occurrences=0
+        foreach($token in $Tokens){
+            $count=([regex]::Matches($text,[regex]::Escape($token))).Count
+            if($count){$distinct++;$occurrences+=$count}
+            if($heading.Contains($token)){$headingHits++}
+        }
+        if(!$distinct){continue}
+        $score=$distinct*100+$headingHits*25+$(if($text.Contains($phrase)){50}else{0})+[Math]::Min($occurrences,20)
+        $ranked+=@{unit=$unit;score=$score}
+    }
+    @($ranked|Sort-Object @{Expression={$_.score};Descending=$true},@{Expression={$_.unit.path}},@{Expression={$_.unit.start}})
+}
 function Find-SBKnowledge {
     [CmdletBinding()]
     param(
@@ -600,19 +667,7 @@ function Find-SBKnowledge {
     if($Budget -lt 0){$Budget=Get-SBSearchDefaultBudget}
     if($Limit -lt 0){$Limit=Get-SBSearchDefaultLimit}
     $root=[IO.Path]::GetFullPath($BrainRoot)
-    $targetDirs=@()
-    if($Dossier){
-        $resolved=[IO.Path]::GetFullPath($Dossier)
-        if(!(Test-Path -LiteralPath $resolved)){$resolved=Resolve-SBParaPath $root $Dossier}
-        $targetDirs=@($resolved)
-        if($Customer){$recordCustomer=[string](Read-SBJson (Join-Path $resolved 'repository.json') @{}).customer;if(!(Test-SBCustomerMatch $recordCustomer $Customer)){$targetDirs=@()}}
-    }elseif($Repository){
-        if(!$Entities.Count){$Entities=@(Get-SBParaEntities $root @())}
-        $targetDirs=@($Entities|Where-Object {(Test-SBRepoDossier $_) -and !$_.archived -and $_.repository -eq $Repository -and (Test-SBCustomerMatch $_.customer $Customer)}|ForEach-Object {Resolve-SBParaPath $root $_.path})
-    }else{
-        if(!$Entities.Count){$Entities=@(Get-SBParaEntities $root @())}
-        $targetDirs=@($Entities|Where-Object {(Test-SBRepoDossier $_) -and !$_.archived -and (Test-SBCustomerMatch $_.customer $Customer)}|ForEach-Object {Resolve-SBParaPath $root $_.path})
-    }
+    $targetDirs=@(Get-SBSearchTargetDirectories $root $Dossier $Repository $Customer $Entities)
     $extracts=[Collections.Generic.List[object]]::new()
     $candidates=[Collections.Generic.List[object]]::new()
     $totalChars=0
@@ -646,37 +701,7 @@ function Find-SBKnowledge {
     foreach($dir in $targetDirs){
         if(!(Test-Path -LiteralPath $dir -PathType Container)){continue}
         $searchRepository=[string](Read-SBJson (Join-Path $dir 'repository.json') @{}).identity
-        $filesToSearch=[Collections.Generic.List[string]]::new()
-        foreach($name in @('context.md','memory.md','tracker.json')){
-            $candidate=Join-Path $dir $name
-            if(Test-Path -LiteralPath $candidate -PathType Leaf){$filesToSearch.Add($candidate)}
-        }
-        foreach($name in @('topics','knowledge')){
-            $topicRoot=Join-Path $dir $name
-            if(Test-Path -LiteralPath $topicRoot -PathType Container){
-                Assert-SBPlainPath $topicRoot
-                foreach($topicFile in Get-ChildItem -LiteralPath $topicRoot -File -Recurse -Filter '*.md'){
-                    Assert-SBPlainPath $topicFile.FullName;$filesToSearch.Add($topicFile.FullName)
-                }
-            }
-        }
-        # Compacted originals nearly duplicate current files: search them only with -IncludeOriginals.
-        $compactionDir=Join-Path $dir 'history/compaction'
-        if($IncludeOriginals -and (Test-Path -LiteralPath $compactionDir -PathType Container)){
-            foreach($item in (Get-ChildItem -LiteralPath $compactionDir -File -Recurse|Sort-Object FullName)){
-                if($item.Extension -in @('.md','.json','.txt')){$filesToSearch.Add($item.FullName)}
-            }
-        }
-        # Deeper layer: archived tasks and batch reports (always searchable; Offset/Limit available on request).
-        $archiveFile=Join-Path $dir 'history/tracker-archive.json'
-        if(Test-Path -LiteralPath $archiveFile -PathType Leaf){$filesToSearch.Add($archiveFile)}
-        $historyDir=Join-Path $dir 'history'
-        if(Test-Path -LiteralPath $historyDir -PathType Container){
-            foreach($folder in (Get-ChildItem -LiteralPath $historyDir -Directory|Sort-Object Name)){
-                $reportFile=Join-Path $folder.FullName 'report.md'
-                if(Test-Path -LiteralPath $reportFile -PathType Leaf){$filesToSearch.Add($reportFile)}
-            }
-        }
+        $filesToSearch=@(Get-SBDossierSearchFiles $dir -IncludeOriginals:$IncludeOriginals)
         foreach($filePath in $filesToSearch){& $processFile $filePath $dir $searchRepository (Get-SBKnowledgeCategory $dir $filePath)}
     }
     if('prompt' -in $Category){
@@ -688,21 +713,7 @@ function Find-SBKnowledge {
     }
     $ranked=@()
     if($Mode -eq 'Relevance'){
-        $phrase=$Search.Trim().ToLowerInvariant()
-        foreach($unit in $rankUnits){
-            $text=($unit.lines -join "`n").ToLowerInvariant();$heading=([string]$unit.title).ToLowerInvariant()
-            $distinct=0;$headingHits=0;$occurrences=0
-            foreach($token in $tokens){
-                $count=([regex]::Matches($text,[regex]::Escape($token))).Count
-                if($count){$distinct++;$occurrences+=$count}
-                if($heading.Contains($token)){$headingHits++}
-            }
-            if(!$distinct){continue}
-            # Term coverage first, then title, exact phrase and capped frequency.
-            $score=$distinct*100+$headingHits*25+$(if($text.Contains($phrase)){50}else{0})+[Math]::Min($occurrences,20)
-            $ranked+=@{unit=$unit;score=$score}
-        }
-        $ranked=@($ranked|Sort-Object @{Expression={$_.score};Descending=$true},@{Expression={$_.unit.path}},@{Expression={$_.unit.start}})
+        $ranked=@(Get-SBRankedSearchUnits $rankUnits $tokens $Search)
         foreach($entry in $ranked){
             $unit=$entry.unit;$lineNum=$unit.start-1
             foreach($line in $unit.lines){
@@ -1041,6 +1052,9 @@ function Invoke-SBMechanicalTiering {
     $result
 }
 Export-ModuleMember -Function @(
+    'Get-SBSearchTargetDirectories',
+    'Get-SBDossierSearchFiles',
+    'Get-SBRankedSearchUnits',
     'Get-SBRoadmap',
     'ConvertTo-SBRoadmapMarkdown',
     'Remove-SBPrivateText',
