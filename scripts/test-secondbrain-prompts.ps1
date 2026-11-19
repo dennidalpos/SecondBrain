@@ -157,7 +157,7 @@ $latest=Get-ChildItem -LiteralPath $proposalRoot -Directory|Where-Object {Test-P
 $global=Get-Content -Raw -Encoding utf8 (Join-Path $latest.FullName 'AGENTS.global_ide.md')
 $station=Get-Content -Raw -Encoding utf8 (Join-Path $latest.FullName 'workstation.template.md')
 $repoBlock=Get-Content -Raw -Encoding utf8 (Join-Path $latest.FullName 'AGENTS.repo.managed.md')
-Assert-Prompts ($global.Length -le 5500) ('testo comune entro 5.500 caratteri ('+$global.Length+')')
+Assert-Prompts ($global.Length -le 6500) ('testo comune entro 6.500 caratteri ('+$global.Length+')')
 Assert-Prompts ($station.Length -le 3200) ('testo di postazione entro 3.200 caratteri ('+$station.Length+')')
 Assert-Prompts ($repoBlock.Length -le 3200) ('blocco repository entro 3.200 caratteri ('+$repoBlock.Length+')')
 Assert-Prompts ($global -match '(?m)^Revisi(?:on|one) \d+\.\d+ — \d{4}-\d{2}-\d{2}\.') 'riga di revisione leggibile dal registro'

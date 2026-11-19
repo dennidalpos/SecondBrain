@@ -297,6 +297,62 @@ function Add-SBTrackerImportReadiness($Data) {
     $Data
 }
 
+function New-SBTrackerImportManifest($Config,[string]$Identity,[string]$SourcePath,[string]$HistoryPath,[string]$ReviewPath,$Entities,$Area,[string]$Dir) {
+    # First step of a new import: refuse a registered import, validate the undeclared source, its dependencies and the review, and describe the journal in a pending manifest.
+    foreach($priorPath in @(Get-SBTrackerImportPaths $Config $Identity)){
+        if(!(Test-Path -LiteralPath $priorPath)){continue}
+        $registration=Read-SBJson $priorPath $null
+        $prior=Read-SBTrackerManifest $Config $registration.manifest
+        if($prior.phase -ne 'rolled_back'){throw (New-SBError 'trackerimport.import.registered' @($registration.manifest))}
+    }
+    $SourcePath=[IO.Path]::GetFullPath($SourcePath);Assert-SBPlainPath $SourcePath
+    $checkout=Split-Path $SourcePath
+    $source=Resolve-SBTracker -BrainRoot $Config.brainRoot -Identity $Identity -CheckoutPath $checkout -AllowedOwners $Config.allowedOwners -Entities $Entities -AllowUndeclaredImportSource
+    if(!$source.path -or [IO.Path]::GetFullPath($source.path) -ne $SourcePath -or $source.declared){throw (New-SBError 'trackerimport.source.notundeclared')}
+    if($source.source -eq 'repository_undeclared'){
+        $bindings=if($Config.ContainsKey('bindings')){$Config.bindings}else{@()}
+        if((Resolve-SBBoundIdentity $checkout $bindings) -cne $Identity){throw (New-SBError 'trackerimport.checkout.identity')}
+    }
+    $id=(New-SBId);$journal=Join-Path $Config.backupRoot ('tracker-'+$id)
+    $archive=Join-Path $Dir ('history/tracker-import-'+$id)
+    $m=@{schemaVersion=1;kind='tracker-import';id=$id;identity=$Identity;brainRoot=$Config.brainRoot;dossier=$Area.path;phase='pending';lastError=$null;
+        source=@{path=$SourcePath;sha256=Get-SBFileHash $SourcePath;backup=(Join-Path $journal 'source.bin');archive=(Join-Path $archive ([IO.Path]::GetFileName($SourcePath)))};
+        historySource=$null;candidate=(Join-Path $journal 'candidate.json');candidateHash=$null;target=(Join-Path $Dir 'tracker.json');operations=@();review=@();createdAt=(Get-SBNow).ToString('o')}
+    if($m.source.sha256 -eq 'absent'){throw (New-SBError 'trackerimport.original.missing')}
+    if($HistoryPath){
+        $HistoryPath=[IO.Path]::GetFullPath($HistoryPath);Assert-SBPlainPath $HistoryPath
+        if(!$HistoryPath.StartsWith($Config.brainRoot.TrimEnd('\','/')+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase)){throw (New-SBError 'trackerimport.dependencies.outside')}
+        if(!(Test-Path -LiteralPath $HistoryPath -PathType Leaf)){throw (New-SBError 'trackerimport.dependencies.missing')}
+        $m.historySource=@{path=$HistoryPath;sha256=Get-SBFileHash $HistoryPath;backup=(Join-Path $journal 'history.bin');archive=(Join-Path $archive 'dependency-history.md')}
+    }
+    if($ReviewPath){
+        $ReviewPath=[IO.Path]::GetFullPath($ReviewPath);Assert-SBPlainPath $ReviewPath
+        [void](Read-SBTrackerReview $ReviewPath $Identity $m.source.sha256)
+        $m.reviewSource=@{path=$ReviewPath;sha256=Get-SBFileHash $ReviewPath;backup=(Join-Path $journal 'review.bin');archive=(Join-Path $archive 'review.json')}
+    }
+    if(Test-Path -LiteralPath $m.target){throw (New-SBError 'trackerimport.target.existing')}
+    $m
+}
+
+function New-SBTrackerImportCandidateBytes($Config,[string]$Identity,$M) {
+    # 'prepared' phase: convert the archived original into the candidate tracker (dependency history references rewritten, readiness added) and return its JSON bytes.
+    $commit=(Invoke-SBGit (Split-Path $M.source.path) @('rev-parse','HEAD')).output
+    $arguments=@{SourcePath=$M.source.archive;Identity=$Identity;Reference=[IO.Path]::GetRelativePath($Config.brainRoot,$M.source.archive).Replace('\','/');Commit=$commit}
+    if($M.historySource){$arguments.HistoryPath=$M.historySource.archive}
+    if($M.ContainsKey('reviewSource') -and $M.reviewSource){$arguments.ReviewPath=$M.reviewSource.archive}
+    $data=ConvertTo-SBTracker @arguments
+    if($M.historySource){
+        $historyRef=[IO.Path]::GetRelativePath($Config.brainRoot,$M.historySource.archive).Replace('\','/')
+        foreach($task in $data.tasks){
+            foreach($p in $task.provenance){if($p.reference -in @($M.historySource.path,$M.historySource.archive)){$p.reference=$historyRef}}
+            foreach($e in $task.evidence){$e.reference=$e.reference.Replace($M.historySource.path,$historyRef).Replace($M.historySource.archive,$historyRef)}
+        }
+        foreach($h in $data.history){$h.reference=$historyRef}
+    }
+    $data=Add-SBTrackerImportReadiness $data
+    ,[Text.Encoding]::UTF8.GetBytes((ConvertTo-SBJson $data))
+}
+
 function Invoke-SBTrackerImport {
     param($Config,[string]$Identity,[string]$SourcePath,[string]$HistoryPath='',[string]$ReviewPath='',[string]$ManifestPath='',[switch]$Activate,[scriptblock]$AfterPhase)
     $entities=@(Get-SBParaEntities $Config.brainRoot $Config.allowedOwners)
@@ -307,39 +363,8 @@ function Invoke-SBTrackerImport {
     $area=$areas[0];$dir=Resolve-SBParaPath $Config.brainRoot $area.path
     $registryPath=Get-SBTrackerImportPath $Config $Identity
     if(!$ManifestPath){
-        foreach($priorPath in @(Get-SBTrackerImportPaths $Config $Identity)){
-            if(!(Test-Path -LiteralPath $priorPath)){continue}
-            $registration=Read-SBJson $priorPath $null
-            $prior=Read-SBTrackerManifest $Config $registration.manifest
-            if($prior.phase -ne 'rolled_back'){throw (New-SBError 'trackerimport.import.registered' @($registration.manifest))}
-        }
-        $SourcePath=[IO.Path]::GetFullPath($SourcePath);Assert-SBPlainPath $SourcePath
-        $checkout=Split-Path $SourcePath
-        $source=Resolve-SBTracker -BrainRoot $Config.brainRoot -Identity $Identity -CheckoutPath $checkout -AllowedOwners $Config.allowedOwners -Entities $entities -AllowUndeclaredImportSource
-        if(!$source.path -or [IO.Path]::GetFullPath($source.path) -ne $SourcePath -or $source.declared){throw (New-SBError 'trackerimport.source.notundeclared')}
-        if($source.source -eq 'repository_undeclared'){
-            $bindings=if($Config.ContainsKey('bindings')){$Config.bindings}else{@()}
-            if((Resolve-SBBoundIdentity $checkout $bindings) -cne $Identity){throw (New-SBError 'trackerimport.checkout.identity')}
-        }
-        $id=(New-SBId);$journal=Join-Path $Config.backupRoot ('tracker-'+$id)
-        $ManifestPath=Join-Path $journal 'manifest.json'
-        $archive=Join-Path $dir ('history/tracker-import-'+$id)
-        $m=@{schemaVersion=1;kind='tracker-import';id=$id;identity=$Identity;brainRoot=$Config.brainRoot;dossier=$area.path;phase='pending';lastError=$null;
-            source=@{path=$SourcePath;sha256=Get-SBFileHash $SourcePath;backup=(Join-Path $journal 'source.bin');archive=(Join-Path $archive ([IO.Path]::GetFileName($SourcePath)))};
-            historySource=$null;candidate=(Join-Path $journal 'candidate.json');candidateHash=$null;target=(Join-Path $dir 'tracker.json');operations=@();review=@();createdAt=(Get-SBNow).ToString('o')}
-        if($m.source.sha256 -eq 'absent'){throw (New-SBError 'trackerimport.original.missing')}
-        if($HistoryPath){
-            $HistoryPath=[IO.Path]::GetFullPath($HistoryPath);Assert-SBPlainPath $HistoryPath
-            if(!$HistoryPath.StartsWith($Config.brainRoot.TrimEnd('\','/')+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase)){throw (New-SBError 'trackerimport.dependencies.outside')}
-            if(!(Test-Path -LiteralPath $HistoryPath -PathType Leaf)){throw (New-SBError 'trackerimport.dependencies.missing')}
-            $m.historySource=@{path=$HistoryPath;sha256=Get-SBFileHash $HistoryPath;backup=(Join-Path $journal 'history.bin');archive=(Join-Path $archive 'dependency-history.md')}
-        }
-        if($ReviewPath){
-            $ReviewPath=[IO.Path]::GetFullPath($ReviewPath);Assert-SBPlainPath $ReviewPath
-            [void](Read-SBTrackerReview $ReviewPath $Identity $m.source.sha256)
-            $m.reviewSource=@{path=$ReviewPath;sha256=Get-SBFileHash $ReviewPath;backup=(Join-Path $journal 'review.bin');archive=(Join-Path $archive 'review.json')}
-        }
-        if(Test-Path -LiteralPath $m.target){throw (New-SBError 'trackerimport.target.existing')}
+        $m=New-SBTrackerImportManifest $Config $Identity $SourcePath $HistoryPath $ReviewPath $entities $area $dir
+        $ManifestPath=Join-Path (Split-Path $m.candidate) 'manifest.json'
     }
     # All rewritten paths stay within the SecondBrain checkout or backupRoot.
     $expectedTarget=Resolve-SBParaPath $dir 'tracker.json'
@@ -412,21 +437,7 @@ function Invoke-SBTrackerImport {
                 . $write $payload.archive ([IO.File]::ReadAllBytes($payload.backup))
                 if((Get-SBFileHash $payload.archive) -ne $payload.sha256){throw (New-SBError 'trackerimport.copy.notidentical')}
             }
-            $commit=(Invoke-SBGit (Split-Path $m.source.path) @('rev-parse','HEAD')).output
-            $arguments=@{SourcePath=$m.source.archive;Identity=$Identity;Reference=[IO.Path]::GetRelativePath($Config.brainRoot,$m.source.archive).Replace('\','/');Commit=$commit}
-            if($m.historySource){$arguments.HistoryPath=$m.historySource.archive}
-            if($m.ContainsKey('reviewSource') -and $m.reviewSource){$arguments.ReviewPath=$m.reviewSource.archive}
-            $data=ConvertTo-SBTracker @arguments
-            if($m.historySource){
-                $historyRef=[IO.Path]::GetRelativePath($Config.brainRoot,$m.historySource.archive).Replace('\','/')
-                foreach($task in $data.tasks){
-                    foreach($p in $task.provenance){if($p.reference -in @($m.historySource.path,$m.historySource.archive)){$p.reference=$historyRef}}
-                    foreach($e in $task.evidence){$e.reference=$e.reference.Replace($m.historySource.path,$historyRef).Replace($m.historySource.archive,$historyRef)}
-                }
-                foreach($h in $data.history){$h.reference=$historyRef}
-            }
-            $data=Add-SBTrackerImportReadiness $data
-            $bytes=[Text.Encoding]::UTF8.GetBytes((ConvertTo-SBJson $data))
+            $bytes=New-SBTrackerImportCandidateBytes $Config $Identity $m
             [void](Write-SBFile $m.candidate $bytes (Get-SBFileHash $m.candidate) $Config.backupRoot -Recoverable)
             $m.candidateHash=Get-SBHash $bytes
             . $phase 'copied'

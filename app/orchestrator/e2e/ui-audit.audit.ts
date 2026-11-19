@@ -134,7 +134,9 @@ test("3 waiting decisions: question from the analysis, pending acceptance, run i
   // A run in progress with the agent still working: what the owner sees while waiting.
   await page.locator("#q-tasks tr").filter({ hasText: "E2E-1" }).locator('input[type="checkbox"]').check();
   await page.locator("#q-start").click();
-  await page.locator("#run-steps").filter({ hasText: "Read: README.md" }).waitFor({ timeout: 60_000 });
+  // The agent steps sit in a collapsed <details>: wait for the text in the DOM, then open it so the image shows what the owner sees when expanding it.
+  await page.locator("#run-steps").filter({ hasText: "Read: README.md" }).waitFor({ state: "attached", timeout: 60_000 });
+  await page.locator("#run-steps-box > summary").click();
   await shot(page, "03-waiting-run-in-progress");
   await page.locator("#run-verdict").filter({ hasText: "Last run finished" }).waitFor({ timeout: 120_000 });
   await shot(page, "03-waiting-run-finished-acceptance-open");
@@ -144,6 +146,8 @@ test("3 waiting decisions: question from the analysis, pending acceptance, run i
 test("4 errors: unknown repository, unreadable folder", async () => {
   const app = await launch();
   const { page } = app;
+  // Without --repo the first tab is Home; #repo-path is only attached until the repository tab is selected.
+  await tab(page, "repo");
   await page.locator("#repo-path").fill(path.join(path.dirname(fixture.checkout), "does-not-exist"));
   await page.locator("#repo-load").click();
   await page.waitForTimeout(4000);
