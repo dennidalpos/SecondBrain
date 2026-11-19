@@ -395,10 +395,12 @@
         <h3>My prompts</h3>
         <table class="tasks"><thead><tr><th>ID</th><th>Title</th><th>Size</th><th>Created</th><th></th></tr></thead><tbody id="pr-mine"></tbody></table>
         <p id="pr-mine-empty" class="muted small" hidden>No prompt of your own yet: use New prompt, or duplicate a default.</p>
-        <h3>System prompts (read-only)</h3>
-        <table class="tasks"><thead><tr><th>Code</th><th>Summary</th><th></th></tr></thead><tbody id="pr-system"></tbody></table>
-        <h3>Default prompts</h3>
-        <table class="tasks"><thead><tr><th>Code</th><th>Summary</th><th></th></tr></thead><tbody id="pr-default"></tbody></table>
+        <details id="pr-system-box"><summary><strong>System prompts (read-only)</strong> <span id="pr-system-count" class="muted small"></span></summary>
+          <table class="tasks"><thead><tr><th>Code</th><th>Summary</th><th></th></tr></thead><tbody id="pr-system"></tbody></table>
+        </details>
+        <details id="pr-default-box"><summary><strong>Default prompts</strong> <span id="pr-default-count" class="muted small"></span></summary>
+          <table class="tasks"><thead><tr><th>Code</th><th>Summary</th><th></th></tr></thead><tbody id="pr-default"></tbody></table>
+        </details>
       </section>
 
       <section id="tab-settings" class="panel" role="tabpanel" aria-labelledby="tabbtn-settings" hidden>

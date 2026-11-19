@@ -80,8 +80,11 @@ export async function showPrompts() {
   $("pr-state").textContent = "Loading…";
   const [catalog, mine] = await Promise.all([call<Catalog>("read_catalog", {}, "pr-error"), call<UserPromptList>("user_prompts_list", {}, "pr-error")]);
   const all: CatalogPrompt[] = catalog ? catalog.categories.flatMap((c) => c.prompts) : [];
-  catalogRows(all.filter((p) => p.kind === "system"), $("pr-system"));
-  catalogRows(all.filter((p) => p.kind === "user"), $("pr-default"));
+  const system = all.filter((p) => p.kind === "system"), defaults = all.filter((p) => p.kind === "user");
+  catalogRows(system, $("pr-system"));
+  catalogRows(defaults, $("pr-default"));
+  $("pr-system-count").textContent = `(${system.length})`;
+  $("pr-default-count").textContent = `(${defaults.length})`;
   const prompts = mine?.prompts ?? [];
   $("pr-mine").replaceChildren(...prompts.map((p) => {
     const view = el("button", { textContent: "View" });

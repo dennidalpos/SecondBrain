@@ -134,7 +134,7 @@ function renderQuestions(body: HTMLElement, primary: HTMLButtonElement) {
       set.append(el("label", { className: "choice" }, box, el("span", {}, el("strong", {}, o.label + (o.id === a.recommended ? " (recommended)" : "")), el("span", { className: "muted small" }, " — " + o.description))));
     }
     const otherBox = el("input", { type, name, value: "__other", ariaLabel: "Other answer" });
-    const otherText = el("input", { type: "text", placeholder: "Other: write your own answer", className: "other" });
+    const otherText = el("input", { type: "text", placeholder: "Other: write your own answer", ariaLabel: "Other: write your own answer", className: "other" });
     otherText.addEventListener("input", () => { if (otherText.value.trim()) otherBox.checked = true; update(); });
     set.append(el("label", { className: "choice" }, otherBox, otherText));
     set.dataset.questionId = a.questionId ?? name;

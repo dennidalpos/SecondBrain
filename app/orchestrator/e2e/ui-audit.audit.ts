@@ -126,7 +126,8 @@ test("3 waiting decisions: question from the analysis, pending acceptance, run i
   const row = page.locator("#q-skipped tr").filter({ hasText: "E2E-4" });
   await row.waitFor({ timeout: 60_000 });
   await shot(page, "03-waiting-skipped-task-in-queue");
-  await row.locator("button", { hasText: "Analyze" }).click();
+  // A saved analysis from an earlier run (kept per repository identity outside the fixture) turns Analyze into Open and Redo: redo it, so the audit always sees a fresh question.
+  await row.locator("button", { hasText: /^(Analyze|Redo)$/ }).first().click();
   await page.locator("#an-dialog").waitFor({ state: "visible", timeout: 120_000 });
   await shot(page, "03-waiting-decision-question");
   await page.locator("#an-dialog label.choice").first().locator("input").check();
@@ -206,5 +207,33 @@ test("6 historical runs: registry run history", async () => {
   await page.locator('[data-reg-view="tasks"]').click().catch(() => {});
   await page.locator("#reg-rows tr.reg-row").first().click();
   await shot(page, "06-history-task-runs");
+  await closeApp(app);
+});
+
+// #752: the groups G01 left out: Prompts (list and wizard), Workstation, Run after a finished run, Settings with a repository.
+test("7 remaining sections: prompts, workstation, run, settings", async () => {
+  const app = await launch({ repo: fixture.checkout });
+  const { page } = app;
+  await tab(page, "prompts");
+  await page.locator("#pr-system-count").filter({ hasText: /\d+/ }).waitFor({ timeout: 120_000 });
+  await shot(page, "07-prompts-list");
+  await page.locator("#pr-system-box > summary").click();
+  await page.locator("#pr-new").click();
+  await page.locator("#pr-title").fill("Audit prompt");
+  await page.locator("#pr-preview-btn").click();
+  await shot(page, "07-prompts-wizard-incomplete");
+  await page.locator("#pr-wizard-close").click();
+  await page.locator("#pr-system button").first().click();
+  await page.locator("#pr-view-dialog").waitFor({ state: "visible", timeout: 60_000 });
+  await shot(page, "07-prompts-view-card");
+  await page.locator("#pr-view-close").click();
+  await tab(page, "workstation");
+  await page.locator("#ws-summary").waitFor({ timeout: 120_000 });
+  await page.waitForTimeout(5000);
+  await shot(page, "07-workstation");
+  await tab(page, "run");
+  await shot(page, "07-run");
+  await tab(page, "settings");
+  await shot(page, "07-settings-with-repository");
   await closeApp(app);
 });

@@ -805,7 +805,9 @@ test("prompts: the tab lists system prompts read-only, validates the RCTFE wizar
   expect(files().length).toBe(0);
   await page.locator('.steps button[data-tab="prompts"]').click();
   // System prompts are listed with View only; defaults can be viewed and duplicated.
-  await expect(page.locator("#pr-system tr").first()).toBeVisible({ timeout: 60_000 });
+  await expect(page.locator("#pr-system-count")).toHaveText(/\(\d+\)/, { timeout: 60_000 });
+  await page.locator("#pr-system-box > summary").click();
+  await expect(page.locator("#pr-system tr").first()).toBeVisible();
   await expect(page.locator("#pr-system button", { hasText: /delete|duplicate/i })).toHaveCount(0);
   await expect(page.locator("#pr-mine-empty")).toBeVisible();
   // The wizard refuses an incomplete form without calling the script.
