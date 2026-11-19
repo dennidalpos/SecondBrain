@@ -2,6 +2,7 @@
 Set-StrictMode -Version Latest
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Prompts.psm1')
 Add-SBMessages @{
     'skills.client.invalid' = @{ en = 'Unknown client: {0}. Supported: claude-code, codex, antigravity' }
     'skills.scope.invalid' = @{ en = 'Scope must be project or user' }
@@ -89,6 +90,18 @@ function Get-SBSkillProposals($Facts) {
     foreach($p in $list){$p.content=ConvertTo-SBSkillText $p.name $p.description $p.body;$p.Remove('body')}
     @($list)
 }
+function Get-SBPromptSkillProposal([string]$BrainRoot,[string]$Code) {
+    # #500: a proven catalog card exported as a skill: name sb-<code>, the summary as description, the card body (role, context, task, format) as the skill body.
+    $catalog=Read-SBWorkflowCatalog $BrainRoot
+    $prompt=(Resolve-SBWorkflowPrompt $catalog $Code).prompt
+    $card=Read-SBWorkflowPrompt $BrainRoot $prompt $catalog
+    $summary=([string](Get-SBWorkflowField $prompt 'summary')).TrimEnd('.').Replace(': ',' - ')
+    $name='sb-'+([string]$prompt.code).ToLowerInvariant()
+    $description=$summary+'. SecondBrain prompt card '+$prompt.code+': use it when the user asks for this task.'
+    $lines=@($card -split "`n")
+    [ordered]@{name=$name;reason='Prompt card '+$prompt.code+' of the SecondBrain catalog';description=$description
+        content=(ConvertTo-SBSkillText $name $description ("# "+$summary+"`n`n"+(($lines|Select-Object -Skip 1) -join "`n")))}
+}
 function New-SBSkillInstallPlan($Proposals,[string[]]$Select,[string[]]$Clients,[string]$Scope,[string]$CheckoutPath='',[string]$HomeRoot='') {
     if(!@($Select).Count){throw (New-SBError 'skills.select.required')}
     $chosen=@();foreach($name in @($Select)){$m=@($Proposals|Where-Object {$_.name -ceq $name});if($m.Count -ne 1){throw (New-SBError 'skills.select.unknown' @($name))};$chosen+=$m[0]}
@@ -107,4 +120,4 @@ function New-SBSkillInstallPlan($Proposals,[string[]]$Select,[string[]]$Clients,
     }
     @($items)
 }
-Export-ModuleMember -Function Get-SBSkillClients,Get-SBSkillRoot,Get-SBSkillClientInfo,Get-SBProjectFacts,Get-SBSkillProposals,New-SBSkillInstallPlan
+Export-ModuleMember -Function Get-SBSkillClients,Get-SBSkillRoot,Get-SBSkillClientInfo,Get-SBProjectFacts,Get-SBSkillProposals,Get-SBPromptSkillProposal,New-SBSkillInstallPlan

@@ -836,6 +836,21 @@ test("prompts: the tab lists system prompts read-only, validates the RCTFE wizar
   await expect(page.locator("#pr-mine tr")).toHaveCount(1, { timeout: 60_000 });
   await expect(page.locator("#pr-mine")).toContainText("E2E review");
   expect(files().length).toBe(1);
+  // Draft (#753): the light model fills the wizard from a one-line goal; nothing is saved until Preview and Save.
+  await page.locator("#pr-new").click();
+  await page.locator("#pr-draft-btn").click();
+  await expect(page.locator("#pr-wizard-error")).toContainText("goal");
+  await page.locator("#pr-goal").fill("Review a diff before merging");
+  await page.locator("#pr-draft-btn").click();
+  await expect(page.locator("#pr-title")).toHaveValue("Draft review prompt", { timeout: 120_000 });
+  await expect(page.locator("#pr-role")).toHaveValue(/careful code reviewer/);
+  await expect(page.locator("#pr-task")).toHaveValue(/2\. Report the findings/);
+  await expect(page.locator("#pr-save")).toBeDisabled();
+  expect(files().length).toBe(1);
+  await page.locator("#pr-preview-btn").click();
+  await expect(page.locator("#pr-save")).toBeEnabled();
+  await page.locator("#pr-wizard-close").click();
+  expect(files().length).toBe(1);
   // Delete: confirmed, the file is gone.
   page.once("dialog", (d) => void d.accept());
   await page.locator("#pr-mine button", { hasText: "Delete" }).click();

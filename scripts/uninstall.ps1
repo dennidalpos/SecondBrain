@@ -52,17 +52,23 @@ if($Only -contains 'runtime' -and (!$RemoveRuntime -or $RuntimeAuthorization -cn
 
 $instructionFiles=@(Get-SBUninstallInstructionFiles $config $ides)
 $bindings=@($config.bindings)
+# One coordinated write session for the whole run: the child scripts (offboard, client-hooks) join it instead of waiting for the writer lock this process would hold.
+$ownedSession=$null
+if(!$SessionId){$ownedSession=& (Join-Path $PSScriptRoot 'access.ps1') -Start -Mode Write -Client uninstall -ConfigPath $config.configPath|ConvertFrom-Json -AsHashtable;$SessionId=[string]$ownedSession.sessionId}
+# Child scripts take the writer lock themselves (inside this session), so they run while this process holds none.
+$childSession=$SessionId
+if($Only -contains 'repositories'){
+    foreach($binding in $bindings){
+        $arguments=@('-RepositoryIdentity',[string]$binding.identity,'-Apply')
+        if($ConfigPath){$arguments+=@('-ConfigPath',$ConfigPath)}
+        if($childSession){$arguments+=@('-SessionId',$childSession)}
+        if(!$binding.path -or !(Test-Path -LiteralPath $binding.path)){$arguments+='-Force'}
+        & pwsh -NoProfile -File (Join-Path $PSScriptRoot 'offboard.ps1') @arguments | Out-Null
+        $report.steps+=[ordered]@{step='repositories';target=[string]$binding.identity;exitCode=$LASTEXITCODE}
+    }
+}
 $operation=Enter-SBOperation $config $SessionId
 try{
-    if($Only -contains 'repositories'){
-        foreach($binding in $bindings){
-            $arguments=@('-RepositoryIdentity',[string]$binding.identity,'-Apply')
-            if($ConfigPath){$arguments+=@('-ConfigPath',$ConfigPath)}
-            if(!$binding.path -or !(Test-Path -LiteralPath $binding.path)){$arguments+='-Force'}
-            & pwsh -NoProfile -File (Join-Path $PSScriptRoot 'offboard.ps1') @arguments | Out-Null
-            $report.steps+=[ordered]@{step='repositories';target=[string]$binding.identity;exitCode=$LASTEXITCODE}
-        }
-    }
     if($Only -contains 'launchers'){
         $template=Join-Path $PSScriptRoot 'templates/run-tasks.launcher.ps1'
         $known=@('4D4725AEB58EAD7EC4327806BE5F68933A248C04328CF526E0160A9DA73D0879')
@@ -104,15 +110,6 @@ try{
             $report.steps+=[ordered]@{step='mcp';target=$file;result='secondbrain server entry removed, other servers kept'}
         }
     }
-    if($Only -contains 'hooks'){
-        foreach($client in 'claude-code','codex','antigravity'){
-            $arguments=@('-Uninstall','-Client',$client,'-Apply')
-            if($ConfigPath){$arguments+=@('-ConfigPath',$ConfigPath)}
-            if($SessionId){$arguments+=@('-SessionId',$SessionId)}
-            & pwsh -NoProfile -File (Join-Path $PSScriptRoot 'client-hooks.ps1') @arguments | Out-Null
-            $report.steps+=[ordered]@{step='hooks';target=$client;exitCode=$LASTEXITCODE}
-        }
-    }
     if($Only -contains 'environment'){
         [Environment]::SetEnvironmentVariable('SECONDBRAIN_HOME',$null,'User')
         $report.steps+=[ordered]@{step='environment';target='SECONDBRAIN_HOME';result='removed'}
@@ -137,6 +134,19 @@ try{
         }
     }
 }finally{Exit-SBOperation $operation}
+try{
+if($Only -contains 'hooks'){
+    foreach($client in 'claude-code','codex','antigravity'){
+        $arguments=@('-Uninstall','-Client',$client,'-Apply')
+        if($ConfigPath){$arguments+=@('-ConfigPath',$ConfigPath)}
+        if($childSession){$arguments+=@('-SessionId',$childSession)}
+        & pwsh -NoProfile -File (Join-Path $PSScriptRoot 'client-hooks.ps1') @arguments | Out-Null
+        $report.steps+=[ordered]@{step='hooks';target=$client;exitCode=$LASTEXITCODE}
+    }
+}
+}finally{
+    if($ownedSession){& (Join-Path $PSScriptRoot 'access.ps1') -End -SessionId $SessionId -ConfigPath $config.configPath|Out-Null}
+}
 $report.applied=$true
 $report.residue=@(Find-SBUninstallResidue $config $ides)
 # Last: the runtime folder holds the lock, the configuration and every backup this command wrote, so nothing may run after it.

@@ -20,10 +20,10 @@ Decisions to ask the user:
 <task>
 1. List the blocked tasks with the stated reason and check it against the code, the closed tasks and the tools that work now.
 2. Mark each reason as real (physical host, access, user decision), stale (cites closed tasks) or inherited (a qualification reported as a blocker of development).
-3. Ask the user, with the structured multiple-choice tool when the session offers one (in a non-interactive session ask nothing: leave the choice open in the report and release no task), which tasks to make autonomous, in which order and with which permissions; do not guess. Settle the rules of each task now, before releasing it: the permissions, the expected outcome and what the runner must do when the limit remains.
-4. For each chosen task make it self-sufficient: set status todo and execution autonomous with a state reason that names the known limit and the expected outcome; clear an excluded stream; clear `awaiting` (`-Awaiting ''`) only when its wait is stale; the runner takes a task only if status is todo, execution is autonomous, its stream is not final-qualification, on-request or product-coordination, and `awaiting` is empty or structural-completion, so any other wait keeps it out. If the wait is real, do not release the task: keep it blocked with the owner stated.
-5. Where a first test can be reproduced, prepare a synthetic fixture in the Git-ignored work folder and run it with the tools that work.
-6. Verify the tracker projection and run the runner preview of REP15 step 2 (`scripts/runner.ps1 -Mode cli`, which runs `scripts/run-ready-tasks.ps1` without `-Run`: nothing runs and nothing changes): each released task must appear among the selected tasks and not in `skipped`; for a skip reason (`stream:`, `execution:`, `awaiting:`, `status:`) fix the task and repeat. Report the tasks released and startable by REP15, the ones left blocked and why.
+3. Ask the user with the multiple-choice tool (in a non-interactive session ask nothing: leave the choice open in the report and release no task) which tasks to make autonomous, in which order and with which permissions; do not guess. Settle each task's rules before releasing it: permissions, expected outcome and what the runner does when the limit remains.
+4. Make each chosen task self-sufficient: status todo, execution autonomous, a state reason naming the known limit and expected outcome; clear an excluded stream; clear `awaiting` (`-Awaiting ''`) only when its wait is stale; the runner takes only todo, autonomous tasks outside the final-qualification, on-request and product-coordination streams whose `awaiting` is empty or structural-completion. If the wait is real, keep the task blocked with its owner stated.
+5. Where a first test can be reproduced, run it on a synthetic fixture in the Git-ignored work folder.
+6. Verify the tracker projection and run the runner preview of REP15 step 2 (`scripts/runner.ps1 -Mode cli`: nothing runs and nothing changes): each released task must be selected and not in `skipped`; fix any skip reason (`stream:`, `execution:`, `awaiting:`, `status:`) and repeat. Report the tasks released, the ones left blocked and why.
 </task>
 
 <format>
@@ -31,12 +31,12 @@ Released tasks, Still blocked (prerequisite, owner), Reasons rewritten, Fixture 
 
 Constraints:
 - Change only the tasks of the repository being handled, through the coordinated tracker writer.
-- Do not clear a block by hiding a real prerequisite; state the limit in the task instead.
-- A released task must run to its outcome inside its perimeter: its own repository only. Never release a task that needs a write or a task of another repository, or whose rules were not defined here: the runner agent must not need to ask.
+- Never hide a real prerequisite to clear a block; state the limit in the task.
+- A released task runs to its outcome inside its own repository. Never release a task that needs a write or a task of another repository, or whose rules were not defined here: the runner agent must not need to ask.
 - The runner parks a released task that ends still todo as user_required, so a repeating limit is not retried.
 - Removals, commit and push stay explicit decisions of the user.
 
 Exit criteria:
-- Every released task has an autonomous state reason with its limit; every task left blocked names a real prerequisite and its owner.
+- Every released task has an autonomous state reason with its limit; every blocked one names its real prerequisite and owner.
 - The runner preview selects every released task (none in `skipped`), so REP15 can start them.
 </format>

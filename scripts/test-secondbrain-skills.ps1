@@ -39,6 +39,7 @@ try{
     # CLI: analyze is read-only; install previews, then applies with a backup.
     foreach($sub in @('scripts','config')){Copy-Item -LiteralPath (Join-Path $PSScriptRoot ('../'+$sub)) -Destination (Join-Path $brain $sub) -Recurse -Force}
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../VERSION') -Destination (Join-Path $brain 'VERSION')
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../direttive') -Destination (Join-Path $brain 'direttive') -Recurse -Force
     Put $brain 'config/shared.json' (ConvertTo-SBJson @{schemaVersion=1;allowedOwners=@('test');excludedDirectories=@('.git')})
     $runtime=Get-SBLocalRoot $brain 'fixture';$cfg=Join-Path $runtime 'workstation.json'
     Put $brain ([IO.Path]::GetRelativePath($brain,$cfg)) (ConvertTo-SBJson @{schemaVersion=1;mode='portable';workstationId='fixture';runtimeRoot=$runtime;backupRoot=(Join-Path $runtime 'backups');ides=@();bindings=@()})
@@ -66,6 +67,17 @@ try{
     $r=Invoke-Sk @('-Install','-CheckoutPath',$project,'-Select','repo-map','-Client','codex','-Scope','project','-Apply','-Overwrite')
     Assert-Sk ($r.code -eq 0 -and [IO.File]::ReadAllText($edited) -match '^---\nname: repo-map') 'overwrite replaces the file'
     Assert-Sk (@(Get-ChildItem -LiteralPath (Join-Path $runtime 'backups') -Recurse -File -ErrorAction SilentlyContinue).Count -gt 0) 'overwrite kept a backup'
+
+    # #500: a proven catalog card exported as a skill (sb-<code>), with the same preview, backup and conflict rules.
+    $r=Invoke-Sk @('-Install','-CheckoutPath',$project,'-Prompt','REP15','-Client','claude-code','-Scope','project')
+    Assert-Sk ($r.code -eq 0 -and $r.out -match '"skill":\s*"sb-rep15"' -and $r.out -match '"state":\s*"new"' -and !(Test-Path -LiteralPath (Join-Path $project '.claude/skills/sb-rep15'))) ('the card preview writes nothing: '+$r.out)
+    $r=Invoke-Sk @('-Install','-CheckoutPath',$project,'-Prompt','REP15','-Client','claude-code','-Scope','project','-Apply')
+    $cardSkill=Join-Path $project '.claude/skills/sb-rep15/SKILL.md'
+    Assert-Sk ($r.code -eq 0 -and (Test-Path -LiteralPath $cardSkill -PathType Leaf)) ('the card is written as a skill: '+$r.out)
+    $cardText=[IO.File]::ReadAllText($cardSkill)
+    Assert-Sk ($cardText -match '(?s)^---\nname: sb-rep15\ndescription: [^\n]+\n---\n' -and $cardText -match '<role>' -and $cardText -match '<task>' -and $cardText -match '<format>') 'the skill has frontmatter and the role, task and format of the card'
+    $r=Invoke-Sk @('-Install','-CheckoutPath',$project,'-Prompt','NOPE99','-Client','claude-code','-Scope','project')
+    Assert-Sk ($r.code -ne 0) 'an unknown card is refused'
 
     # User scope goes under the given home folder only.
     $r=Invoke-Sk @('-Install','-CheckoutPath',$project,'-Select','review-checklist','-Client','antigravity','-Scope','user','-HomeRoot',$homeDir,'-Apply')

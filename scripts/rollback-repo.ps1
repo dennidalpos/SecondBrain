@@ -213,7 +213,7 @@ try {
     # 4. Update workstation.json and state.json before any deletion: failure here leaves the dossier intact.
     $bindings = @()
     if ($workstationConfig.ContainsKey('bindings')) {
-        $bindings = @($workstationConfig.bindings | Where-Object { $_.identity -ne $resolvedIdentity -and $_.dossier -ne $dossierRelative })
+        $bindings = @($workstationConfig.bindings | Where-Object { $_.identity -ne $resolvedIdentity -and (!$_.PSObject.Properties['dossier'] -or $_.dossier -ne $dossierRelative) })
         $workstationConfig.bindings = $bindings
     }
     $forbidden = @()

@@ -465,6 +465,18 @@ async fn enrich_task(app: AppHandle, repo: String, task_id: String, provider: St
 }
 
 #[tauri::command]
+async fn draft_user_prompt(app: AppHandle, goal: String, provider: String, model: Option<String>, effort: Option<String>) -> Result<Value, String> {
+    // The light model drafts the RCTFE fields of a user prompt from a one-line goal (#753); nothing is saved, the wizard still previews.
+    let goal = goal.trim().to_string();
+    if goal.is_empty() || goal.chars().count() > 600 || goal.lines().count() > 1 {
+        return Err("Write the goal in one line of at most 600 characters.".into());
+    }
+    let mut args = vec!["-Analyze".into(), "-Kind".into(), "prompt-draft".into(), "-Goal".into(), goal];
+    analysis_args(&mut args, &provider, model, effort)?;
+    script(app, "agents.ps1", args).await
+}
+
+#[tauri::command]
 async fn view_task_enrichment(app: AppHandle, repo: String, task_id: String) -> Result<Value, String> {
     // Read-only: the stored proposal of a task, with whether its file still has the recorded hash.
     if !valid_token(&task_id) {
@@ -1091,6 +1103,7 @@ pub fn run() {
             resolve_task_analysis,
             apply_task_analysis,
             enrich_task,
+            draft_user_prompt,
             view_task_enrichment,
             decide_task_enrichment,
             read_registry,

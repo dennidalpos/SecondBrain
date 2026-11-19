@@ -1,6 +1,6 @@
 // Prompts tab (#722): system prompts read-only, default prompts to view and duplicate, the user's own prompts (stored outside Git by
 // user-prompts.ps1) to create with an RCTFE wizard, preview and delete. The scripts stay the final judge of every rule.
-import { $, call, el, errorText, fmtStamp, input, onBusyClick, setError } from "./common";
+import { $, call, el, errorText, fmtStamp, input, onBusyClick, setError, type LightChoice } from "./common";
 import type { Catalog, CatalogPrompt } from "./home";
 
 interface UserPrompt {
@@ -45,6 +45,7 @@ export function localProblems(f: Fields): string[] {
 
 function openWizard(f: Fields) {
   writeFields(f);
+  input("pr-goal").value = "";
   previewed = null;
   $("pr-preview").hidden = true; $("pr-problems").hidden = true; setError("pr-wizard-error", null);
   $("pr-budget").textContent = `Budget: ${BUDGET} characters for the composed prompt.`;
@@ -107,7 +108,10 @@ export async function showPrompts() {
   $("pr-state").textContent = `${prompts.length} of your own, ${all.length} shipped.`;
 }
 
-export function initPrompts() {
+/** The draft of the light model (#753): it fills the wizard and nothing else; the person previews and saves. */
+interface Draft { provider: string; model: string | null; effort: string | null; fields: Omit<Fields, "directive"> }
+
+export function initPrompts(light: () => LightChoice | null) {
   $("pr-refresh").addEventListener("click", () => void showPrompts());
   $("pr-new").addEventListener("click", () => openWizard({ title: "", role: "", context: "", task: "", format: "", directive: "" }));
   $("pr-view-close").addEventListener("click", () => dialog("pr-view-dialog").close());
@@ -117,6 +121,18 @@ export function initPrompts() {
   for (const id of ["pr-title", "pr-role", "pr-context", "pr-task", "pr-format", "pr-directive"]) {
     $(id).addEventListener("input", () => { previewed = null; (document.getElementById("pr-save") as HTMLButtonElement).disabled = true; $("pr-preview").hidden = true; });
   }
+  onBusyClick($("pr-draft-btn"), async () => {
+    const goal = input("pr-goal").value.trim();
+    if (!goal) { setError("pr-wizard-error", "Write the goal of the prompt in one line."); return; }
+    const l = light();
+    if (!l) { setError("pr-wizard-error", "No agent is ready for the draft: detect agents or choose the light model in the settings."); return; }
+    const d = await call<Draft>("draft_user_prompt", { goal, provider: l.provider, model: l.model, effort: l.effort }, "pr-wizard-error");
+    if (!d) return;
+    writeFields({ ...d.fields, directive: area("pr-directive").value });
+    previewed = null; $("pr-preview").hidden = true; $("pr-problems").hidden = true;
+    (document.getElementById("pr-save") as HTMLButtonElement).disabled = true;
+    $("pr-budget").textContent = `Draft by ${l.label}: review the fields, then Preview and Save.`;
+  }, "Drafting…");
   onBusyClick($("pr-preview-btn"), async () => {
     const f = readFields();
     const local = localProblems(f);

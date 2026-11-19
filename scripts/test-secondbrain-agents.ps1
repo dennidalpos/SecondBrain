@@ -282,6 +282,15 @@ switch($env:SB_FAKE_MODE){
         $answer=[ordered]@{taskId='EN-1';summary='Scope and criteria derived from the title';proposal=[ordered]@{description='Validate the fixture schema before writing';acceptance=@('Invalid fixtures are refused';'Valid fixtures are written');stream='other-stream';requires=$null};questions=@()}
         [ordered]@{type='result';is_error=$false;result=($answer|ConvertTo-Json -Compress -Depth 6)}|ConvertTo-Json -Compress -Depth 6
     }
+    # #753: a prompt draft with two numbered steps; then one with a single step.
+    'draft' {
+        $answer=[ordered]@{title='Review a diff';role='You are a careful reviewer.';context='Use before a merge.';task="1. Read the diff.`n2. Report findings.";format='A short list.'}
+        [ordered]@{type='result';is_error=$false;result=($answer|ConvertTo-Json -Compress)}|ConvertTo-Json -Compress
+    }
+    'draftbad' {
+        $answer=[ordered]@{title='Review a diff';role='r';context='c';task='1. Only one step.';format='f'}
+        [ordered]@{type='result';is_error=$false;result=($answer|ConvertTo-Json -Compress)}|ConvertTo-Json -Compress
+    }
     'enrichbad' {
         $answer=[ordered]@{taskId='EN-1';summary='s';proposal=[ordered]@{description='d';acceptance=$null;stream=$null;requires=$null;status='done'};questions=@()}
         [ordered]@{type='result';is_error=$false;result=($answer|ConvertTo-Json -Compress -Depth 6)}|ConvertTo-Json -Compress -Depth 6
@@ -355,5 +364,13 @@ try{
     Assert-Agent (!(Test-Path -LiteralPath (Join-Path $fixture 'enrich-out/bad/proposal.json'))) 'no proposal is stored for an invalid answer'
     $check=Test-SBEnrichmentProposal @{taskId='EN-1';proposal=@{description=$null;acceptance=$null;stream=$null;requires=@('teleport')};questions=@()} @('requires') 'EN-1'
     Assert-Agent (!$check.valid -and (@($check.discarded) -join ',') -ceq 'requires' -and (@($check.errors) -join ',') -ceq 'empty') ('unknown capabilities are discarded and an empty proposal is invalid: '+(ConvertTo-SBJson $check))
+    # #753: the light model drafts RCTFE fields from a goal; the goal is data in the prompt, the fields are validated, nothing is saved.
+    $draftCommon=@{Provider='claude';CheckoutPath=$checkout;BrainRoot=$brain;AgentPath=$oneShotCli;Capabilities=$oneShotCaps;TimeoutSeconds=120}
+    $env:SB_FAKE_MODE='draft';$env:SB_FAKE_LOG=Join-Path $fixture 'oneshot-log/draft';[IO.Directory]::CreateDirectory($env:SB_FAKE_LOG)|Out-Null
+    $d=Invoke-SBPromptDraft @draftCommon -Goal 'Review a diff before merging' -OutputFolder (Join-Path $fixture 'draft-out/ok')
+    $sentDraft=Read-SBText (Join-Path $env:SB_FAKE_LOG 'prompt-1.txt')
+    Assert-Agent ($d.fields.title -ceq 'Review a diff' -and $d.fields.task -match '(?m)^2\. Report findings' -and $sentDraft -match '(?s)<goal>\s*Review a diff before merging\s*</goal>' -and $sentDraft -match '# Output') 'the draft carries the five RCTFE fields and the goal reaches the model between markers'
+    $env:SB_FAKE_MODE='draftbad';$env:SB_FAKE_LOG=Join-Path $fixture 'oneshot-log/draftbad';[IO.Directory]::CreateDirectory($env:SB_FAKE_LOG)|Out-Null
+    Assert-AgentError {Invoke-SBPromptDraft @draftCommon -Goal 'Review a diff' -OutputFolder (Join-Path $fixture 'draft-out/bad')} 'numbered steps' 'a draft with one task step is refused'
 }finally{$env:SB_FAKE_MODE=$savedMode;$env:SB_FAKE_LOG=$savedLog}
 'SUCCESS AGENTS: '+$script:agentChecks+' checks; retained fixture '+$fixture

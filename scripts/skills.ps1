@@ -4,6 +4,7 @@
 Analyzes a project, proposes useful skills and installs the selected ones for Claude Code, Codex and Antigravity.
 .DESCRIPTION
 -Analyze is read-only: it prints the detected facts, the proposed skills with the reason for each, and the skill folders of every client.
+-Install -Prompt <code> exports a proven catalog card (for example REP15) as the skill sb-<code>.
 -Install previews by default and changes nothing. With -Apply it writes <skill>/SKILL.md under the client's folder, project scope (inside the checkout)
 or user scope (inside the home folder), through Write-SBFile with a backup. A skill that already exists with different content is a conflict and is skipped
 unless -Overwrite is given. Folders come from the official documentation (checked 2026-11-15); liveVerified stays false until a session shows the skill loaded.
@@ -18,6 +19,7 @@ param(
     [switch]$Install,
     [string]$CheckoutPath='.',
     [string[]]$Select=@(),
+    [string[]]$Prompt=@(),
     [string[]]$Client=@('claude-code','codex','antigravity'),
     [ValidateSet('project','user')][string]$Scope='project',
     [string]$HomeRoot,
@@ -44,6 +46,9 @@ if (!(Test-Path -LiteralPath $checkout -PathType Container)) { throw (New-SBErro
 
 $facts = Get-SBProjectFacts $checkout
 $proposals = @(Get-SBSkillProposals $facts)
+# -Prompt <code>: catalog cards exported as skills (named sb-<code>), selected together with -Select.
+$Prompt = @($Prompt | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+foreach ($code in $Prompt) { $extra = Get-SBPromptSkillProposal (Get-SBBrainRootPath) $code; $proposals += $extra; if ($Install) { $Select += $extra.name } }
 if ($Analyze) {
     return ConvertTo-SBJson @{
         facts = $facts

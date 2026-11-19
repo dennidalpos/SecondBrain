@@ -63,6 +63,7 @@ h2 { font-size: 18px; margin: 2px 0 10px; }
 h3 { font-size: 13px; margin: 22px 0 8px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
 .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 8px 0; }
 .row input[type="text"] { flex: 1 1 320px; }
+.row > label.grow { flex: 1 1 320px; }
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
 label { display: flex; flex-direction: column; gap: 4px; color: var(--muted); margin: 8px 0; }
 label.inline { flex-direction: row; align-items: center; gap: 6px; margin: 0; white-space: nowrap; }

@@ -23,6 +23,7 @@ Add-SBMessages @{
     'prompts.related.uncited' = @{ en = 'Card {0} cites {1} but does not list it among its related prompts: add the code to related in the catalog' }
     'prompts.reference.dangling' = @{ en = 'Card {0} cites a code that does not exist: {1}; fix the cited code or add the prompt' }
     'prompts.code.unavailable' = @{ en = 'Code not available in the catalog: {0}; list the codes with prompts.ps1 -List -Compact' }
+    'prompts.card.size' = @{ en = 'Card {0} has {1} characters; the limit is 3,500: shorten the card or split it into two cards' }
     'prompts.card.header' = @{ en = 'Card header diverges: {0}; align the card header with the catalog code' }
     'prompts.card.catalogtitle' = @{ en = 'Card title differs from the catalog: {0}; align the card title with the one in catalog.json' }
     'prompts.tag.invalid' = @{ en = 'Card tag missing, duplicated, empty or out of order: {0} in {1}; restore the tags to the template card order, without duplicates or empty tags' }
@@ -298,6 +299,7 @@ function Read-SBWorkflowPrompt([string]$BrainRoot, $Prompt, $Catalog) {
     $outside=[regex]::Replace($body.Substring($lines[0].Length),'(?ms)^<(?<n>[a-z_]+)>\n.*?\n</\k<n>>[ \t]*$','')
     if($outside.Trim()){throw (New-SBError 'prompts.tag.stray' @($code))}
     if(@([regex]::Matches($tags['task'],'(?m)^\d+\. ')).Count -lt 2){throw (New-SBError 'prompts.procedure.invalid' @($code))}
+    if($body.TrimEnd().Length -gt 3500){throw (New-SBError 'prompts.card.size' @($code,$body.TrimEnd().Length))}
     if($body -match '\{\{|\$\{input:'){throw (New-SBError 'prompts.placeholder.unresolved' @($code))}
     $body.TrimEnd()+"`n"
 }

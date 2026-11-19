@@ -429,6 +429,10 @@
     <dialog id="pr-wizard-dialog" class="wide" aria-labelledby="pr-wizard-title">
       <h3 id="pr-wizard-title">New prompt</h3>
       <p class="muted small">Role, Context, Task and Format are required (RCTFE); the directive is optional and closes the context.</p>
+      <div class="row">
+        <label class="grow">Draft from a goal (optional)<input id="pr-goal" type="text" maxlength="600" placeholder="One line: what the prompt is for" /></label>
+        <button id="pr-draft-btn">Draft</button>
+      </div>
       <label>Title<input id="pr-title" type="text" maxlength="120" /></label>
       <label>Role<textarea id="pr-role" rows="2"></textarea></label>
       <label>Context<textarea id="pr-context" rows="4"></textarea></label>

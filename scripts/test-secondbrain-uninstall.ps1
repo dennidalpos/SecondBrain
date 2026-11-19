@@ -80,4 +80,35 @@ Assert-Un ($sharedApply.code -eq 0 -and !(Test-Path -LiteralPath (Join-Path $bra
 $runtimeApply=Invoke-Un @('-Apply','-Only','runtime','-RemoveRuntime','-RuntimeAuthorization','delete runtime and backups')
 $runtimeData=$runtimeApply.out.Substring($runtimeApply.out.IndexOf('{'))|ConvertFrom-Json
 Assert-Un ($runtimeApply.code -eq 0 -and !(Test-Path -LiteralPath (Join-Path $brain '.runtime')) -and @($runtimeData.steps|Where-Object {$_.step -eq 'runtime' -and $_.result -eq 'removed'}).Count -eq 1 -and (Test-Path -LiteralPath (Join-Path $brain 'scripts/uninstall.ps1'))) ('runtime step removes .runtime last and leaves the checkout: '+$runtimeApply.out)
+# #727: the repositories step on a checkout with a real dossier: the checkout returns to a fresh clone plus TASKS.md, no marker remains.
+$root2=Join-Path (Get-SBTestRoot) ('uninstall-full-'+[guid]::NewGuid().ToString('N').Substring(0,12))
+$brain2=Join-Path $root2 'brain';$checkout2=Join-Path $root2 'checkout'
+foreach($sub in @('scripts','config')){Copy-Item -LiteralPath (Join-Path $PSScriptRoot ('../'+$sub)) -Destination (Join-Path $brain2 $sub) -Recurse -Force}
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../VERSION') -Destination (Join-Path $brain2 'VERSION')
+Put $brain2 'config/shared.json' (ConvertTo-SBJson @{schemaVersion=1;allowedOwners=@('test');excludedDirectories=@('.git')})
+$identity2='github.com/test/uninstall-full'
+Put $brain2 'repos/full/repository.json' (ConvertTo-SBJson @{schemaVersion=1;identity=$identity2;tracker=@{location='dossier';path='tracker.json';schemaVersion=1}})
+Put $brain2 'repos/full/entity.json' (ConvertTo-SBJson @{schemaVersion=1;id='dossier-full';kind='project';title='full';status='active'})
+Put $brain2 'repos/full/brief.md' '# full'
+Put $brain2 'repos/full/context.md' '# Context'
+Put $brain2 'repos/full/memory.md' '# Memory'
+Put $brain2 'repos/full/tracker.json' (ConvertTo-SBJson @{schemaVersion=1;repository=$identity2;history=@();tasks=@(@{id='F-1';seq=1;title='Finished work';status='done';priority='P2'},@{id='F-2';seq=2;title='Open work';status='todo';priority='P1'})})
+Put $checkout2 'AGENTS.md' "# Product`n`nOwn text.`n`n<!-- secondbrain:repository:begin -->`nmanaged block`n<!-- secondbrain:repository:end -->`n"
+Put $checkout2 'CLAUDE.md' "<!-- secondbrain:pointer:begin -->`npointer only`n<!-- secondbrain:pointer:end -->`n"
+Put $checkout2 'src/code.txt' 'product code'
+$null=& git -C $checkout2 init -q 2>&1
+$null=& git -C $checkout2 -c user.name=t -c user.email=t@example.invalid add -A 2>&1
+$null=& git -C $checkout2 -c user.name=t -c user.email=t@example.invalid -c commit.gpgsign=false commit -q -m seed 2>&1
+$cfgPath2=Get-SBHostConfigPath $brain2
+Put $brain2 ([IO.Path]::GetRelativePath($brain2,$cfgPath2)) (ConvertTo-SBJson @{schemaVersion=1;mode='portable';workstationId='fixture';runtimeRoot=(Join-Path $brain2 '.runtime/hosts/fixture');backupRoot=(Join-Path $brain2 '.runtime/hosts/fixture/backups');localStateBackupRoot=(Join-Path $brain2 '.runtime/hosts/fixture/state-backups');allowedOwners=@('test');ides=@();bindings=@(@{identity=$identity2;path=$checkout2;status='managed'})})
+$full=& pwsh -NoProfile -File (Join-Path $brain2 'scripts/uninstall.ps1') -ConfigPath $cfgPath2 -Apply -Only repositories,launchers,ide-blocks 2>&1|Out-String
+$fullCode=$LASTEXITCODE
+$fullData=$full.Substring($full.IndexOf('{'))|ConvertFrom-Json
+$gitStatus=@(& git -C $checkout2 status --porcelain 2>&1)
+Assert-Un (@($fullData.steps|Where-Object {$_.step -eq 'repositories' -and $_.exitCode -eq 0}).Count -eq 1) ('the repositories step offboards the binding: '+$full)
+Assert-Un ($fullCode -eq 0 -and @($fullData.residue).Count -eq 0) ('the marker scan finds nothing after the repositories step: '+$full)
+Assert-Un (@($gitStatus|Where-Object {$_ -notmatch 'TASKS\.md$'}).Count -eq 0 -or @($gitStatus|Where-Object {$_ -notmatch 'TASKS\.md$|AGENTS\.md$|CLAUDE\.md$'}).Count -eq 0) ('the checkout differs from the seed only by TASKS.md and the removed blocks: '+($gitStatus -join ' | '))
+$tasksFull=[IO.File]::ReadAllText((Join-Path $checkout2 'TASKS.md'))
+Assert-Un ($tasksFull -match 'Open work' -and $tasksFull -notmatch 'Finished work') 'TASKS.md keeps only the open task'
+Assert-Un (([IO.File]::ReadAllText((Join-Path $checkout2 'AGENTS.md'))) -match 'Own text' -and !(Test-Path -LiteralPath (Join-Path $checkout2 'CLAUDE.md')) -and !(Test-Path -LiteralPath (Join-Path $brain2 'repos/full'))) 'user text kept, pointer-only file and dossier removed'
 'SUCCESS UNINSTALL: '+$script:unChecks+' checks; retained fixture '+$root

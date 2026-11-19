@@ -22,14 +22,15 @@ the agent CLI (light model by default; analysis.directives or analysis.task) in 
 -Authorization <reference> writes the reviewed result to the tracker through knowledge.ps1 -UpdateTaskId (ledger mode analysis).
 -Kind task-enrich -TaskId <id> calls the light model only when the readiness assessment finds gaps: the schema-validated proposal stays
 in proposal.json of a work folder and the task records only extensions.enrichment (path, hash, status proposed); complete tasks never call it.
+-Kind prompt-draft -Goal <one line> -Provider <one> asks the light model for the RCTFE fields of a user prompt (read-only, empty scratch folder, nothing saved).
 Without a mode the script lists the modes and exits 2.
 #>
 [CmdletBinding()]
 param([switch]$Probe,[ValidateSet('claude','codex','gemini')][string[]]$Provider,[switch]$Clients,
     [switch]$Directives,[string]$RepositoryPath,[string]$DirectivesFile,[string]$ProposalPath,
     [ValidatePattern('^$|^[0-9A-Fa-f]{64}$')][string]$ExpectedProposalHash,[string]$Authorization,[switch]$Apply,
-    [switch]$Analyze,[ValidateSet('directives','task','task-enrich','task-enrich-view','task-view','task-resolve','task-apply')][string]$Kind,[string]$Model,[string]$Effort,[switch]$AllowCustomModel,
-    [string]$TaskId,[string]$AnalysisPath,[string]$AnswersFile,[ValidateRange(60,3600)][int]$TimeoutSeconds=600,
+    [switch]$Analyze,[ValidateSet('directives','task','task-enrich','task-enrich-view','prompt-draft','task-view','task-resolve','task-apply')][string]$Kind,[string]$Model,[string]$Effort,[switch]$AllowCustomModel,
+    [string]$TaskId,[string]$Goal,[string]$AnalysisPath,[string]$AnswersFile,[ValidateRange(60,3600)][int]$TimeoutSeconds=600,
     [string]$ConfigPath)
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
@@ -44,6 +45,7 @@ Add-SBMessages @{
     'agents.apply.required' = @{ en = '-Apply needs -ProposalPath, -ExpectedProposalHash and -Authorization of the reviewed proposal' }
     'agents.step.failed' = @{ en = '{0} ended with exit code {1}: {2}' }
     'agents.analysis.provider' = @{ en = '-Analyze needs exactly one -Provider (claude, codex or gemini)' }
+    'agents.analysis.goal' = @{ en = '-Kind prompt-draft needs -Goal: one line of at most 600 characters' }
     'agents.analysis.task' = @{ en = '-Kind task needs -TaskId of the task to analyze' }
     'agents.analysis.path' = @{ en = 'Invalid analysis folder: {0}. Use the analysisPath returned by -Kind task' }
     'agents.analysis.answers' = @{ en = 'Invalid answers in {0}: a JSON array of objects with questionId, question and answer is required' }
@@ -184,9 +186,9 @@ try{
         exit 0
     }
     if($Analyze){
-        $repo=Get-AgentsRepository $RepositoryPath
+        $repo=if($Kind -eq 'prompt-draft'){$null}else{Get-AgentsRepository $RepositoryPath}
         $lang='en'
-        if($Kind -in @('directives','task','task-enrich') -and @($Provider).Count -ne 1){throw (New-SBError 'agents.analysis.provider')}
+        if($Kind -in @('directives','task','task-enrich','prompt-draft') -and @($Provider).Count -ne 1){throw (New-SBError 'agents.analysis.provider')}
         switch($Kind){
             'directives' {
                 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.AgentAnalysis.psm1')
@@ -238,6 +240,20 @@ try{
                     $out.pointer=if($written -and $written.exitCode -eq 5){'deferred'}else{'recorded'}
                     ConvertTo-SBJson $out
                 }finally{Close-AgentsWork $repo $slug}
+                exit 0
+            }
+            'prompt-draft' {
+                # #753: the light model drafts the RCTFE fields of a user prompt from a one-line goal. Read-only, in an empty scratch folder; the
+                # draft goes back to the window, which fills the wizard: nothing is saved here (Preview and Save stay with the person).
+                if(!$Goal -or !$Goal.Trim() -or $Goal.Length -gt 600){throw (New-SBError 'agents.analysis.goal')}
+                Import-Module (Join-Path $PSScriptRoot 'SecondBrain.AgentAnalysis.psm1')
+                $scratch=Join-Path ([IO.Path]::GetTempPath()) ('sb-prompt-draft-'+(New-SBId))
+                [void][IO.Directory]::CreateDirectory($scratch)
+                try{
+                    $agentPath=if($env:SECONDBRAIN_TEST_ROOT -and $env:SB_AGENTS_TEST_AGENT_PATH){$env:SB_AGENTS_TEST_AGENT_PATH}else{$null}
+                    $out=Invoke-SBPromptDraft -Goal $Goal -Provider $Provider[0] -Model $Model -Effort $Effort -CheckoutPath $scratch -BrainRoot $brain -AgentPath $agentPath -TimeoutSeconds $TimeoutSeconds -AllowCustomModel:$AllowCustomModel
+                    ConvertTo-SBJson $out
+                }finally{Remove-Item -LiteralPath $scratch -Recurse -Force -ErrorAction SilentlyContinue}
                 exit 0
             }
             'task-enrich-view' {
