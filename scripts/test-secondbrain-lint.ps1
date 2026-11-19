@@ -29,17 +29,18 @@ $null = & pwsh -NoProfile -File (Join-Path $PSScriptRoot 'lint-renames.ps1') 2>&
 if ($LASTEXITCODE -ne 0) { throw 'FAIL LINT: lint-renames.ps1 found stale references in the repository' }
 Write-Output 'SUCCESS LINT: no stale references to renamed scripts'
 
-# RCTFE card schema (#721, first step): three real cards convert and validate; broken cards are caught.
+# RCTFE card schema (#721): a legacy eight-section card converts and validates, renders to the RCTFE card text, and broken cards are caught.
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.PromptSchema.psm1') -Force
 $rctfeSchema = Join-Path $PSScriptRoot '../config/prompt-card-rctfe.schema.json'
-foreach ($code in 'SYS01', 'AIS01', 'DEV01') {
-    $card = ConvertTo-SBRctfeCard (Get-Content -LiteralPath (Join-Path $PSScriptRoot ('../direttive/prompts/' + $code + '.md')) -Raw)
-    $problems = @(Test-SBRctfeCard $card $rctfeSchema)
-    if ($problems.Count -or $card.code -cne $code -or @($card.task.steps).Count -lt 2) { throw ('FAIL LINT: RCTFE pilot card ' + $code + ' does not validate: ' + ($problems -join ',')) }
-}
-$broken = ConvertTo-SBRctfeCard (Get-Content -LiteralPath (Join-Path $PSScriptRoot '../direttive/prompts/SYS01.md') -Raw)
+$legacy = "# ZZZ01 $([char]0x2014) Sample card`n`n<role>`nA tester.`n</role>`n`n<context>`nUse in tests.`n</context>`n`n<inputs>`n- a thing`n</inputs>`n`n<procedure>`n1. First step.`n2. Second step.`n</procedure>`n`n<constraints>`n- Stay small.`n</constraints>`n`n<exit_criteria>`n- It works.`n</exit_criteria>`n`n<output_format>`nA short report.`n</output_format>`n"
+$card = ConvertTo-SBRctfeCard $legacy 'user'
+$problems = @(Test-SBRctfeCard $card $rctfeSchema)
+if ($problems.Count -or $card.code -cne 'ZZZ01' -or @($card.task.steps).Count -ne 2 -or $card.format -notmatch 'Constraints:' -or $card.format -notmatch 'Exit criteria:') { throw ('FAIL LINT: RCTFE legacy conversion does not validate: ' + ($problems -join ',')) }
+$cardText = ConvertTo-SBRctfeCardText $card
+if ($cardText -notmatch '(?m)^<task>$' -or $cardText -notmatch '(?m)^1\. First step\.$' -or $cardText -match '<procedure>|<inputs>') { throw 'FAIL LINT: RCTFE card text is not in the new layout' }
+$broken = ConvertTo-SBRctfeCard $legacy 'user'
 $broken.description = 'x' * 121
 $broken.task.steps = @('only one')
 $brokenProblems = @(Test-SBRctfeCard $broken $rctfeSchema)
 if ('schema' -notin $brokenProblems -or 'description' -notin $brokenProblems -or 'steps' -notin $brokenProblems) { throw ('FAIL LINT: a broken RCTFE card was not reported: ' + ($brokenProblems -join ',')) }
-Write-Output 'SUCCESS LINT: RCTFE schema validates three pilot cards and rejects a broken one'
+Write-Output 'SUCCESS LINT: RCTFE schema converts and validates a legacy card, renders the new layout and rejects a broken one'

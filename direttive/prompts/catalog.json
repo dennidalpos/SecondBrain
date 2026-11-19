@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "catalogVersion": 1,
+  "catalogVersion": 2,
   "categories": [
     {
       "id": "understand",
@@ -92,6 +92,7 @@
     {
       "id": "pmt-ccbf18b8",
       "code": "AUD01",
+      "kind": "user",
       "category": "review",
       "summary": "Run a full repository audit with a single report, optionally exported.",
       "target": "repository",
@@ -115,6 +116,7 @@
     {
       "id": "pmt-4a9a4b4f",
       "code": "AUD02",
+      "kind": "user",
       "category": "review",
       "summary": "Measure the repository with reproducible metrics and find hotspots.",
       "target": "repository",
@@ -131,6 +133,7 @@
     {
       "id": "pmt-c692cc23",
       "code": "AUD03",
+      "kind": "user",
       "category": "review",
       "summary": "Audit architecture and technical debt not yet tracked.",
       "target": "repository",
@@ -148,6 +151,7 @@
     {
       "id": "pmt-7dc63766",
       "code": "AUD04",
+      "kind": "user",
       "category": "review",
       "summary": "Audit dependencies: outdated, vulnerable and unused.",
       "target": "repository",
@@ -166,6 +170,7 @@
     {
       "id": "pmt-6b494996",
       "code": "AUD07",
+      "kind": "user",
       "category": "security",
       "summary": "Audit the CI/CD pipeline and supply chain",
       "target": "repository",
@@ -184,6 +189,7 @@
     {
       "id": "pmt-a709a792",
       "code": "COM01",
+      "kind": "user",
       "role": "repo.explore",
       "category": "understand",
       "summary": "Explore the repository and identify main components and commands.",
@@ -202,6 +208,7 @@
     {
       "id": "pmt-e0fd59da",
       "code": "COM02",
+      "kind": "user",
       "category": "understand",
       "summary": "Trace a flow and its dependencies through the code.",
       "target": "repository",
@@ -218,6 +225,7 @@
     {
       "id": "pmt-25c97d58",
       "code": "COM03",
+      "kind": "user",
       "category": "understand",
       "summary": "Find official sources that fit the technical problem.",
       "target": "repository",
@@ -233,6 +241,7 @@
     {
       "id": "pmt-179b9acc",
       "code": "COM04",
+      "kind": "user",
       "category": "understand",
       "summary": "Assess the impact, risks and dependencies of a change.",
       "target": "repository",
@@ -250,6 +259,7 @@
     {
       "id": "pmt-1839927a",
       "code": "COM05",
+      "kind": "user",
       "category": "understand",
       "summary": "Analyze logs and incidents to find the root cause, without changing code.",
       "target": "repository",
@@ -267,6 +277,7 @@
     {
       "id": "pmt-fe04425a",
       "code": "COM06",
+      "kind": "user",
       "category": "understand",
       "summary": "Explain code or a concept to someone new to the project",
       "target": "repository",
@@ -284,6 +295,7 @@
     {
       "id": "pmt-32e3cf59",
       "code": "DAT01",
+      "kind": "user",
       "category": "data",
       "summary": "Migrate schema and data with verifiable comparison and recovery.",
       "target": "repository",
@@ -301,6 +313,7 @@
     {
       "id": "pmt-3ddd1df9",
       "code": "DAT02",
+      "kind": "user",
       "category": "data",
       "summary": "Build imports and transformations that preserve the originals.",
       "target": "repository",
@@ -317,6 +330,7 @@
     {
       "id": "pmt-6b7b0e8d",
       "code": "DAT03",
+      "kind": "user",
       "category": "data",
       "summary": "Integrate API services with error handling and request retries.",
       "target": "repository",
@@ -333,6 +347,7 @@
     {
       "id": "pmt-6b6c2ade",
       "code": "DAT04",
+      "kind": "user",
       "category": "data",
       "summary": "Optimize database queries and indexes",
       "target": "repository",
@@ -349,6 +364,7 @@
     {
       "id": "pmt-83df1685",
       "code": "DEV01",
+      "kind": "user",
       "category": "develop",
       "summary": "Implement a feature with relevant checks.",
       "target": "repository",
@@ -367,6 +383,7 @@
     {
       "id": "pmt-25ac264e",
       "code": "DEV02",
+      "kind": "user",
       "category": "develop",
       "summary": "Triage a defect report, reproduce it and fix its cause.",
       "target": "repository",
@@ -386,6 +403,7 @@
     {
       "id": "pmt-2b07a693",
       "code": "DEV03",
+      "kind": "user",
       "category": "develop",
       "summary": "Refactor code preserving contracts: targeted, phased or periodic.",
       "target": "repository",
@@ -407,6 +425,7 @@
     {
       "id": "pmt-e2405036",
       "code": "DEV04",
+      "kind": "user",
       "category": "develop",
       "summary": "Update dependencies checking compatibility and regressions.",
       "target": "repository",
@@ -424,6 +443,7 @@
     {
       "id": "pmt-22863973",
       "code": "DEV05",
+      "kind": "user",
       "category": "develop",
       "summary": "Migrate code or a framework to a defined target.",
       "target": "repository",
@@ -442,6 +462,7 @@
     {
       "id": "pmt-f3082c1b",
       "code": "DEV06",
+      "kind": "user",
       "category": "develop",
       "summary": "Configure and run linters, formatters and static analysis.",
       "target": "repository",
@@ -458,6 +479,7 @@
     {
       "id": "pmt-0715c64b",
       "code": "DEV12",
+      "kind": "user",
       "category": "ai",
       "summary": "Build or review an LLM feature with evaluations",
       "target": "repository",
@@ -475,6 +497,7 @@
     {
       "id": "pmt-07430e8c",
       "code": "DOC01",
+      "kind": "user",
       "category": "docs",
       "summary": "Write guides and READMEs consistent with the real product.",
       "target": "repository",
@@ -493,6 +516,7 @@
     {
       "id": "pmt-6e82e3a9",
       "code": "DOC02",
+      "kind": "user",
       "category": "docs",
       "summary": "Document APIs and contracts from the implementation.",
       "target": "repository",
@@ -509,6 +533,7 @@
     {
       "id": "pmt-75786fd6",
       "code": "DOC03",
+      "kind": "user",
       "category": "docs",
       "summary": "Capture real screenshots and prepare public assets.",
       "target": "repository",
@@ -526,6 +551,7 @@
     {
       "id": "pmt-4b88488d",
       "code": "DOC04",
+      "kind": "user",
       "category": "docs",
       "summary": "Write or update an operational runbook",
       "target": "repository",
@@ -543,6 +569,7 @@
     {
       "id": "pmt-d586ebc5",
       "code": "DOC05",
+      "kind": "user",
       "category": "docs",
       "summary": "Create diagrams, posters, infographics and social or site flows from real code",
       "target": "repository",
@@ -562,6 +589,7 @@
     {
       "id": "pmt-e9de72a0",
       "code": "DOC06",
+      "kind": "user",
       "role": "analysis.directives",
       "category": "docs",
       "summary": "Survey a repository and propose its specific agent directives",
@@ -579,6 +607,7 @@
     {
       "id": "pmt-adb9bfc0",
       "code": "GOV02",
+      "kind": "user",
       "category": "security",
       "summary": "Verify licenses and compatibility and keep the CREDITS register up to date.",
       "target": "repository",
@@ -594,6 +623,7 @@
     {
       "id": "pmt-33216f62",
       "code": "INT01",
+      "kind": "user",
       "category": "interface",
       "summary": "Assess usability, consistency and states of user flows.",
       "target": "repository",
@@ -610,6 +640,7 @@
     {
       "id": "pmt-db55c30d",
       "code": "INT02",
+      "kind": "user",
       "category": "interface",
       "summary": "Implement an interface following requirements and references.",
       "target": "repository",
@@ -628,6 +659,7 @@
     {
       "id": "pmt-2ea0c993",
       "code": "INT03",
+      "kind": "user",
       "category": "interface",
       "summary": "Verify accessibility and keyboard and assistive-technology use.",
       "target": "repository",
@@ -644,6 +676,7 @@
     {
       "id": "pmt-805ca095",
       "code": "INT04",
+      "kind": "user",
       "category": "interface",
       "summary": "Verify internationalization of strings, formats and translations.",
       "target": "repository",
@@ -661,6 +694,7 @@
     {
       "id": "pmt-f3614e6a",
       "code": "INT05",
+      "kind": "user",
       "category": "interface",
       "summary": "Write or review interface copy and error messages",
       "target": "repository",
@@ -678,6 +712,7 @@
     {
       "id": "pmt-f02db9d0",
       "code": "MEM01",
+      "kind": "user",
       "category": "backlog",
       "summary": "Align local instructions, context, memory and tracker.",
       "target": "repository",
@@ -697,6 +732,7 @@
     {
       "id": "pmt-64dfa49f",
       "code": "MEM02",
+      "kind": "user",
       "category": "backlog",
       "summary": "Migrate design and tasks into the SecondBrain dossier.",
       "target": "repository",
@@ -714,6 +750,7 @@
     {
       "id": "pmt-76604e4a",
       "code": "MEM03",
+      "kind": "user",
       "role": "session.close",
       "category": "backlog",
       "summary": "Close the session: memories, tracker, handoff and commit and push request.",
@@ -734,6 +771,7 @@
     {
       "id": "pmt-4e1b7c52",
       "code": "MEM05",
+      "kind": "user",
       "category": "knowledge",
       "summary": "Create, update and archive projects, areas and resources of the central PARA.",
       "target": "central",
@@ -752,6 +790,7 @@
     {
       "id": "pmt-821f7dec",
       "code": "MEM06",
+      "kind": "user",
       "role": "context.startup",
       "category": "backlog",
       "summary": "Read memory, context and tracker of the current repository and list its tasks.",
@@ -772,6 +811,7 @@
     {
       "id": "pmt-d0c0d000",
       "code": "MEM07",
+      "kind": "user",
       "role": "session.resume",
       "category": "backlog",
       "summary": "Resume work stopped by a usage limit, importing it from another account",
@@ -792,6 +832,7 @@
     {
       "id": "pmt-5916b85a",
       "code": "MEM08",
+      "kind": "user",
       "role": "session.start",
       "category": "backlog",
       "summary": "Start a session: context, repository state, alignment and next tasks",
@@ -815,6 +856,7 @@
     {
       "id": "pmt-039a5879",
       "code": "MEM09",
+      "kind": "user",
       "role": "session.stop",
       "category": "backlog",
       "summary": "Stop the agent, save the session and hand it over to another IDE or account",
@@ -834,6 +876,7 @@
     {
       "id": "pmt-a5c78cc6",
       "code": "OPS01",
+      "kind": "user",
       "category": "operations",
       "summary": "Prepare and verify distributable packages and artifacts.",
       "target": "repository",
@@ -851,6 +894,7 @@
     {
       "id": "pmt-ce00f261",
       "code": "OPS02",
+      "kind": "user",
       "category": "operations",
       "summary": "Configure pipelines, containers and infrastructure as code.",
       "target": "repository",
@@ -868,6 +912,7 @@
     {
       "id": "pmt-c2785b9c",
       "code": "OPS03",
+      "kind": "user",
       "category": "operations",
       "summary": "Add logs, metrics and diagnostics useful for the problem.",
       "target": "repository",
@@ -886,6 +931,7 @@
     {
       "id": "pmt-0618969e",
       "code": "OPS04",
+      "kind": "user",
       "category": "operations",
       "summary": "Prepare release notes and delivery checks.",
       "target": "repository",
@@ -903,6 +949,7 @@
     {
       "id": "pmt-3e3728b6",
       "code": "OPS05",
+      "kind": "user",
       "category": "git",
       "summary": "Prepare commits and pull requests with verified scope, message and checks.",
       "target": "repository",
@@ -920,6 +967,7 @@
     {
       "id": "pmt-b377d5f0",
       "code": "OPS06",
+      "kind": "user",
       "category": "operations",
       "summary": "Prepare a release hotfix and rollback with verification and communication.",
       "target": "repository",
@@ -940,6 +988,7 @@
     {
       "id": "pmt-28f4fbf5",
       "code": "OPS07",
+      "kind": "user",
       "category": "operations",
       "summary": "Write a blameless incident postmortem",
       "target": "repository",
@@ -957,6 +1006,7 @@
     {
       "id": "pmt-98071f85",
       "code": "PRG01",
+      "kind": "user",
       "category": "design",
       "summary": "Turn a request into requirements and acceptance criteria.",
       "target": "repository",
@@ -973,6 +1023,7 @@
     {
       "id": "pmt-3e0ad55e",
       "code": "PRG02",
+      "kind": "user",
       "category": "design",
       "summary": "Compare architectural options and justify a decision.",
       "target": "repository",
@@ -991,6 +1042,7 @@
     {
       "id": "pmt-83764c0d",
       "code": "PRG03",
+      "kind": "user",
       "category": "design",
       "summary": "Design API contracts, data models and compatibility.",
       "target": "repository",
@@ -1007,6 +1059,7 @@
     {
       "id": "pmt-8541aed1",
       "code": "PRG04",
+      "kind": "user",
       "category": "design",
       "summary": "Prepare a phased plan with dependencies, checks and rollback.",
       "target": "repository",
@@ -1027,6 +1080,7 @@
     {
       "id": "pmt-884419a5",
       "code": "PRG05",
+      "kind": "user",
       "category": "design",
       "summary": "Scaffold new modules with structure, configuration and tests.",
       "target": "repository",
@@ -1043,6 +1097,7 @@
     {
       "id": "pmt-c61c598b",
       "code": "PRG07",
+      "kind": "user",
       "category": "design",
       "summary": "Record an architecture decision (ADR)",
       "target": "repository",
@@ -1060,6 +1115,7 @@
     {
       "id": "pmt-4cc383ba",
       "code": "REP01",
+      "kind": "user",
       "role": "task.work",
       "category": "backlog",
       "summary": "Complete the next ready task of the open repository.",
@@ -1081,6 +1137,7 @@
     {
       "id": "pmt-40772e6e",
       "code": "REP04",
+      "kind": "user",
       "category": "git",
       "summary": "Remove leftovers and unused code; align .gitignore and .gitkeep.",
       "target": "repository",
@@ -1098,6 +1155,7 @@
     {
       "id": "pmt-cc2c5f5a",
       "code": "REP08",
+      "kind": "user",
       "category": "backlog",
       "summary": "Inspect the repo and find leftover tasks against the real code.",
       "target": "repository",
@@ -1115,6 +1173,7 @@
     {
       "id": "pmt-fe68329a",
       "code": "REP11",
+      "kind": "user",
       "category": "git",
       "summary": "Report an error as GitHub issues in the form format, after confirmation.",
       "target": "repository",
@@ -1133,6 +1192,7 @@
     {
       "id": "pmt-fabd3439",
       "code": "REP12",
+      "kind": "user",
       "category": "git",
       "summary": "Consolidate branches with a --no-ff merge and delete the integrated ones.",
       "target": "repository",
@@ -1149,6 +1209,7 @@
     {
       "id": "pmt-3e2e75f6",
       "code": "REP13",
+      "kind": "user",
       "category": "git",
       "summary": "Align the GitHub page, community files and security, after confirmation.",
       "target": "repository",
@@ -1167,6 +1228,7 @@
     {
       "id": "pmt-f8dd6843",
       "code": "REP14",
+      "kind": "user",
       "category": "git",
       "summary": "Triage open issues and pull requests",
       "target": "repository",
@@ -1184,6 +1246,7 @@
     {
       "id": "pmt-802ff569",
       "code": "REP15",
+      "kind": "user",
       "role": "runner.choice",
       "category": "backlog",
       "summary": "Run ready autonomous tasks with the runner, monitor and record the outcome",
@@ -1204,6 +1267,7 @@
     {
       "id": "pmt-876bccc6",
       "code": "REP16",
+      "kind": "user",
       "category": "backlog",
       "summary": "Unblock blocked tasks: verify the real reason, then make them autonomous",
       "target": "repository",
@@ -1221,6 +1285,7 @@
     {
       "id": "pmt-c1e1e70c",
       "code": "REP17",
+      "kind": "user",
       "category": "backlog",
       "summary": "Reorder the tracker, archive done tasks and put qualifications after development",
       "target": "repository",
@@ -1238,6 +1303,7 @@
     {
       "id": "pmt-cca5cbfd",
       "code": "REP18",
+      "kind": "user",
       "role": "analysis.task",
       "category": "backlog",
       "summary": "Analyze a non-runnable task and ask what makes it autonomous",
@@ -1255,6 +1321,7 @@
     {
       "id": "pmt-27896824",
       "code": "SEC01",
+      "kind": "user",
       "category": "review",
       "summary": "Review changes or code for correctness, security and maintainability.",
       "target": "repository",
@@ -1273,6 +1340,7 @@
     {
       "id": "pmt-deb7d01a",
       "code": "SEC02",
+      "kind": "user",
       "category": "security",
       "summary": "Analyze threats, trust boundaries and abuse scenarios.",
       "target": "repository",
@@ -1289,6 +1357,7 @@
     {
       "id": "pmt-b4cb6659",
       "code": "SEC03",
+      "kind": "user",
       "category": "security",
       "summary": "Fix vulnerabilities and strengthen the affected defenses.",
       "target": "repository",
@@ -1309,6 +1378,7 @@
     {
       "id": "pmt-73fb4547",
       "code": "SEC04",
+      "kind": "user",
       "category": "security",
       "summary": "Find exposed credentials and verify input validation.",
       "target": "repository",
@@ -1327,6 +1397,7 @@
     {
       "id": "pmt-24189cb6",
       "code": "SEC05",
+      "kind": "user",
       "category": "security",
       "summary": "Verify personal data isolation and compliance with GDPR and policies.",
       "target": "repository",
@@ -1344,6 +1415,7 @@
     {
       "id": "pmt-c356eede",
       "code": "SEC06",
+      "kind": "user",
       "category": "security",
       "summary": "Harden repository configuration, CI, containers and access.",
       "target": "repository",
@@ -1362,6 +1434,7 @@
     {
       "id": "pmt-058c474f",
       "code": "SEC07",
+      "kind": "user",
       "role": "publication.check",
       "category": "security",
       "summary": "Check for sensitive data before publishing, locally and on the remote",
@@ -1383,6 +1456,7 @@
     {
       "id": "pmt-7fc91f08",
       "code": "SEC09",
+      "kind": "user",
       "category": "security",
       "summary": "Wipe remote GitHub history and artifacts after a data exposure.",
       "target": "repository",
@@ -1400,6 +1474,7 @@
     {
       "id": "pmt-26817a61",
       "code": "SYS01",
+      "kind": "system",
       "role": "directives.sync",
       "category": "system",
       "summary": "Check the IDEs; map, register accounts or realign on request.",
@@ -1420,6 +1495,7 @@
     {
       "id": "pmt-5b593404",
       "code": "SYS02",
+      "kind": "system",
       "category": "knowledge",
       "summary": "Check authoritative sources; acquire or update on request.",
       "target": "central",
@@ -1437,6 +1513,7 @@
     {
       "id": "pmt-5f9f93e0",
       "code": "SYS03",
+      "kind": "system",
       "role": "workstation.activate",
       "category": "system",
       "summary": "Activate SecondBrain after discovery and asset selection.",
@@ -1458,6 +1535,7 @@
     {
       "id": "pmt-677a10ab",
       "code": "SYS04",
+      "kind": "system",
       "role": "workstation.check",
       "category": "system",
       "summary": "Check or align the workstation's already managed assets.",
@@ -1478,6 +1556,7 @@
     {
       "id": "pmt-77d7bf7a",
       "code": "SYS05",
+      "kind": "system",
       "role": "dossier.compact",
       "category": "knowledge",
       "summary": "Compact the dossier preserving originals, facts and TOC.",
@@ -1496,6 +1575,7 @@
     {
       "id": "pmt-e498353a",
       "code": "SYS09",
+      "kind": "system",
       "category": "maintenance",
       "summary": "Run the deterministic compressed backup and verify the SHA-256 digests.",
       "target": "central",
@@ -1512,6 +1592,7 @@
     {
       "id": "pmt-b98acaaa",
       "code": "SYS10",
+      "kind": "system",
       "category": "system",
       "summary": "Roll back and decommission a repository, returning its data for privacy.",
       "target": "central",
@@ -1530,6 +1611,7 @@
     {
       "id": "pmt-364616bb",
       "code": "SYS11",
+      "kind": "system",
       "role": "library.edit",
       "category": "knowledge",
       "summary": "Add, change or remove a prompt of the centralized catalog.",
@@ -1548,6 +1630,7 @@
     {
       "id": "pmt-29b3278f",
       "code": "SYS13",
+      "kind": "system",
       "role": "lifecycle.greenfield.remove",
       "category": "backlog",
       "summary": "Set or remove the greenfield lock (versions, changelog, migrations, aliases).",
@@ -1566,6 +1649,7 @@
     {
       "id": "pmt-2d3c1d51",
       "code": "SYS15",
+      "kind": "system",
       "category": "system",
       "summary": "Install the SecondBrain MCP server in the IDEs and verify the handshake.",
       "target": "central",
@@ -1583,6 +1667,7 @@
     {
       "id": "pmt-9ef61b3d",
       "code": "SYS16",
+      "kind": "system",
       "category": "knowledge",
       "summary": "Update a skill from authoritative sources and verify the diff.",
       "target": "central",
@@ -1598,6 +1683,7 @@
     {
       "id": "pmt-a17c3e52",
       "code": "SYS17",
+      "kind": "system",
       "role": "workstation.setup",
       "category": "system",
       "summary": "Guide the first-run setup of SecondBrain, IDE, agent, directives and MCP.",
@@ -1617,6 +1703,7 @@
     {
       "id": "pmt-3d7b91c4",
       "code": "SYS18",
+      "kind": "system",
       "role": "project.skills",
       "category": "system",
       "summary": "Analyze a project, propose skills and install the selected ones",
@@ -1634,6 +1721,7 @@
     {
       "id": "pmt-08bff671",
       "code": "TST01",
+      "kind": "user",
       "category": "test",
       "summary": "Add unit and integration tests for the relevant risks.",
       "target": "repository",
@@ -1651,6 +1739,7 @@
     {
       "id": "pmt-286c3225",
       "code": "TST02",
+      "kind": "user",
       "category": "test",
       "summary": "Cover user journeys with end-to-end tests.",
       "target": "repository",
@@ -1667,6 +1756,7 @@
     {
       "id": "pmt-91021b67",
       "code": "TST03",
+      "kind": "user",
       "category": "test",
       "summary": "Find and fix flaky or non-deterministic tests.",
       "target": "repository",
@@ -1683,6 +1773,7 @@
     {
       "id": "pmt-bd98736f",
       "code": "TST04",
+      "kind": "user",
       "role": "test.diagnose",
       "category": "test",
       "summary": "Diagnose and fix build and test failures in CI.",
@@ -1701,6 +1792,7 @@
     {
       "id": "pmt-ef96dea5",
       "code": "TST05",
+      "kind": "user",
       "category": "test",
       "summary": "Verify real behavior against the requirements.",
       "target": "repository",
@@ -1717,6 +1809,7 @@
     {
       "id": "pmt-9de57e24",
       "code": "TST06",
+      "kind": "user",
       "category": "test",
       "summary": "Audit or optimize performance and resources, measuring before and after.",
       "target": "repository",
@@ -1735,6 +1828,7 @@
     {
       "id": "pmt-37c695fe",
       "code": "TST07",
+      "kind": "user",
       "category": "test",
       "summary": "Set up a test harness with isolated fixtures and safe cleanup.",
       "target": "repository",
@@ -1752,6 +1846,7 @@
     {
       "id": "pmt-de5f1d8d",
       "code": "TST08",
+      "kind": "user",
       "category": "test",
       "summary": "Review test quality and find coverage gaps",
       "target": "repository",
@@ -1769,6 +1864,7 @@
     {
       "id": "pmt-ca497b4e",
       "code": "WEB01",
+      "kind": "user",
       "category": "web",
       "summary": "Define the requirements, audience and success criteria of a site or app",
       "target": "repository",
@@ -1785,6 +1881,7 @@
     {
       "id": "pmt-68ab97c9",
       "code": "WEB02",
+      "kind": "user",
       "category": "web",
       "summary": "Choose the stack, hosting and architecture of a site or app with trade-offs",
       "target": "repository",
@@ -1803,6 +1900,7 @@
     {
       "id": "pmt-203f2c25",
       "code": "WEB03",
+      "kind": "user",
       "category": "web",
       "summary": "Design information architecture, user flows, content and a small design system",
       "target": "repository",
@@ -1820,6 +1918,7 @@
     {
       "id": "pmt-1ea75934",
       "code": "WEB04",
+      "kind": "user",
       "category": "web",
       "summary": "Scaffold the project and build a first working vertical slice",
       "target": "repository",
@@ -1837,6 +1936,7 @@
     {
       "id": "pmt-9deb1414",
       "code": "WEB05",
+      "kind": "user",
       "category": "web",
       "summary": "Develop the remaining features in phases with tests and accessibility checks",
       "target": "repository",
@@ -1855,6 +1955,7 @@
     {
       "id": "pmt-019f989e",
       "code": "WEB06",
+      "kind": "user",
       "category": "web",
       "summary": "Prepare release, hosting, monitoring, backups and handover of a site or app",
       "target": "repository",
@@ -1874,6 +1975,7 @@
     {
       "id": "pmt-9e1ebedb",
       "code": "AIS01",
+      "kind": "user",
       "category": "ai",
       "summary": "Assess company AI use cases, data readiness and feasibility, then rank them",
       "target": "repository",
@@ -1890,6 +1992,7 @@
     {
       "id": "pmt-45641386",
       "code": "AIS02",
+      "kind": "user",
       "category": "ai",
       "summary": "Design a local inference system: models, hardware, serving, scaling and limits",
       "target": "repository",
@@ -1907,6 +2010,7 @@
     {
       "id": "pmt-692f03a1",
       "code": "AIS03",
+      "kind": "user",
       "category": "ai",
       "summary": "Connect inference to business applications and production systems safely",
       "target": "repository",
@@ -1924,6 +2028,7 @@
     {
       "id": "pmt-22aecc7c",
       "code": "AIS04",
+      "kind": "user",
       "category": "ai",
       "summary": "Build a local-AI chatbot to embed in an existing website",
       "target": "repository",
@@ -1943,6 +2048,7 @@
     {
       "id": "pmt-61a987a2",
       "code": "AIS05",
+      "kind": "user",
       "category": "ai",
       "summary": "Design retrieval (RAG) over company documents with access control and evals",
       "target": "repository",
@@ -1959,6 +2065,7 @@
     {
       "id": "pmt-866ddd80",
       "code": "AIS06",
+      "kind": "user",
       "category": "ai",
       "summary": "Evaluate, monitor and operate an AI system in production",
       "target": "repository",
@@ -1977,6 +2084,7 @@
     {
       "id": "pmt-df63e53f",
       "code": "AIS07",
+      "kind": "user",
       "category": "ai",
       "summary": "Assess AI privacy, security and compliance (GDPR, AI Act, prompt injection)",
       "target": "repository",
@@ -1994,6 +2102,7 @@
     {
       "id": "pmt-6c6771d0",
       "code": "AIS08",
+      "kind": "user",
       "category": "ai",
       "summary": "Estimate cost, ROI and an adoption and training plan for company AI",
       "target": "repository",
@@ -2010,6 +2119,7 @@
     {
       "id": "pmt-9f755f33",
       "code": "AIS09",
+      "kind": "user",
       "category": "ai",
       "summary": "Automate a business process with AI agents, tools and human review",
       "target": "repository",
@@ -2027,6 +2137,7 @@
     {
       "id": "pmt-8bc4e0db",
       "code": "COM07",
+      "kind": "user",
       "category": "understand",
       "summary": "Analyze the repository and propose authoritative skills for the project",
       "target": "repository",
@@ -2044,6 +2155,7 @@
     {
       "id": "pmt-1c621902",
       "code": "COM08",
+      "kind": "user",
       "category": "understand",
       "summary": "Analyze project intent, limits, production fit and known alternatives",
       "target": "repository",
@@ -2062,6 +2174,7 @@
     {
       "id": "pmt-5dfba80d",
       "code": "WEB07",
+      "kind": "user",
       "category": "web",
       "summary": "Harden a website: headers, TLS, forms, admin, dependencies and abuse limits",
       "target": "repository",
@@ -2080,6 +2193,7 @@
     {
       "id": "pmt-f7a96c3d",
       "code": "WEB08",
+      "kind": "user",
       "category": "web",
       "summary": "Verify and update site indexing: sitemap, robots, webmaster tools, schema",
       "target": "repository",
@@ -2098,6 +2212,7 @@
     {
       "id": "pmt-f1fdcecb",
       "code": "WEB09",
+      "kind": "user",
       "category": "web",
       "summary": "Control AI crawlers and bots: robots rules, verification, rate limits, logs",
       "target": "repository",
@@ -2116,6 +2231,7 @@
     {
       "id": "pmt-511dd7da",
       "code": "MNT01",
+      "kind": "user",
       "category": "maintenance",
       "summary": "Plan a SecondBrain maintenance round and choose the routines to run",
       "target": "central",
@@ -2136,6 +2252,7 @@
     {
       "id": "pmt-1456d6b9",
       "code": "MNT02",
+      "kind": "user",
       "category": "maintenance",
       "summary": "Health check: directives, IDEs, prompts, tests and publication scan",
       "target": "central",
@@ -2155,6 +2272,7 @@
     {
       "id": "pmt-36e8d784",
       "code": "MNT03",
+      "kind": "user",
       "category": "maintenance",
       "summary": "Tidy the dossier: archive done tasks, compact, reorder and sync",
       "target": "central",
@@ -2175,6 +2293,7 @@
     {
       "id": "pmt-03822742",
       "code": "MNT04",
+      "kind": "user",
       "category": "maintenance",
       "summary": "Verify backups with a real restore test and report coverage gaps",
       "target": "central",
@@ -2191,6 +2310,7 @@
     {
       "id": "pmt-ba610991",
       "code": "MNT05",
+      "kind": "user",
       "category": "maintenance",
       "summary": "Review .runtime and clean up in preview; apply only with authorization",
       "target": "central",
@@ -2208,6 +2328,7 @@
     {
       "id": "pmt-0fdd6f29",
       "code": "MNT06",
+      "kind": "user",
       "category": "maintenance",
       "summary": "Refresh authoritative sources, skills and tool versions and verify the diff",
       "target": "central",
@@ -2226,6 +2347,7 @@
     {
       "id": "pmt-fd98d7ce",
       "code": "MNT07",
+      "kind": "user",
       "category": "knowledge",
       "summary": "Prepare a directive revision: proposal, preview, version, changelog, checks",
       "target": "central",
@@ -2245,6 +2367,7 @@
     {
       "id": "pmt-a76062d2",
       "code": "SYS19",
+      "kind": "system",
       "role": "tasks.reconcile",
       "category": "backlog",
       "summary": "Reconcile conflicting or invalid queued writes and orphan receipts.",

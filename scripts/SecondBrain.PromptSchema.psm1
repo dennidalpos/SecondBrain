@@ -23,7 +23,8 @@ function ConvertTo-SBRctfeCard([string]$Body,[ValidateSet('system','user')][stri
     if($tags.Contains('inputs')){$contextParts+="Inputs:`n"+$tags['inputs']}
     if($tags.Contains('decisions')){$contextParts+="Decisions to ask the user:`n"+$tags['decisions']}
     $formatParts=@()
-    foreach($name in 'output_format','constraints','exit_criteria'){if($tags.Contains($name)){$formatParts+=$tags[$name]}}
+    $formatLabels=[ordered]@{output_format='';constraints="Constraints:`n";exit_criteria="Exit criteria:`n"}
+    foreach($name in $formatLabels.Keys){if($tags.Contains($name)){$formatParts+=$formatLabels[$name]+$tags[$name]}}
     $title=$header.Groups['title'].Value.Trim().TrimEnd('.')
     [ordered]@{
         schemaVersion=1
@@ -36,7 +37,15 @@ function ConvertTo-SBRctfeCard([string]$Body,[ValidateSet('system','user')][stri
         format=(($formatParts|Where-Object {$_}) -join "`n`n")
     }
 }
-# Problems of a card against the RCTFE rules; empty when the card is valid. Rules beyond the JSON schema: 3,500-character budget.
+# Card file text of an RCTFE card: header, then role, context, task (numbered steps; the plan is the header title), format and optional examples.
+function ConvertTo-SBRctfeCardText($Card) {
+    $i=0
+    $steps=@(@($Card.task.steps)|ForEach-Object {$i++;"$i. $_"})
+    $parts=@("# $($Card.code) $([char]0x2014) $($Card.task.plan)",'',"<role>`n$($Card.role)`n</role>",'',"<context>`n$($Card.context)`n</context>",'',"<task>`n$($steps -join "`n")`n</task>",'',"<format>`n$($Card.format)`n</format>")
+    if($Card.Contains('examples') -and @($Card.examples).Count){$parts+=@('',"<examples>`n$(@($Card.examples) -join "`n`n")`n</examples>")}
+    ($parts -join "`n")+"`n"
+}
+# Problems of a card against the RCTFE rules; empty when the card is valid. Rules beyond the JSON schema: 4,500-character budget.
 function Test-SBRctfeCard($Card,[string]$SchemaFile) {
     $problems=@()
     $json=$Card|ConvertTo-Json -Depth 6
@@ -46,9 +55,9 @@ function Test-SBRctfeCard($Card,[string]$SchemaFile) {
         if(!$valid){$problems+='schema'}
     }
     $size=([string]$Card.role).Length+([string]$Card.context).Length+([string]$Card.format).Length+(@($Card.task.steps)|ForEach-Object {([string]$_).Length+3}|Measure-Object -Sum).Sum
-    if($size -gt 3500){$problems+="size:$size"}
+    if($size -gt 4500){$problems+="size:$size"}
     if(([string]$Card.description).Length -gt 120){$problems+='description'}
     if(@($Card.task.steps).Count -lt 2){$problems+='steps'}
     $problems
 }
-Export-ModuleMember -Function ConvertTo-SBRctfeCard,Test-SBRctfeCard,Get-SBLegacyCardTags
+Export-ModuleMember -Function ConvertTo-SBRctfeCard,ConvertTo-SBRctfeCardText,Test-SBRctfeCard,Get-SBLegacyCardTags

@@ -2,7 +2,18 @@
 
 Formato [Keep a Changelog](https://keepachangelog.com/it-IT/1.1.0/). La numerazione segue il file `VERSION`. Questo registro cambia solo quando accetti un cambio di versione: vedi [Cambiare versione](docs/uso-quotidiano.md).
 
-> Versione corrente: **3.1.1**, numerazione reimpostata il 2026-11-04 con le funzionalità attuali conservate. Le sezioni seguenti mantengono la cronologia dei rilasci precedenti.
+> Versione corrente: **3.2.0**, numerazione reimpostata il 2026-11-04 con le funzionalità attuali conservate. Le sezioni seguenti mantengono la cronologia dei rilasci precedenti.
+
+## [3.2.0] - 2026-11-19
+
+### Changed
+- Prompt cards (catalog version 2): all 123 cards use the RCTFE layout (role, context, task with numbered steps, format with constraints and exit criteria, optional examples) instead of the eight-section layout. Inputs and the choices to ask the user moved into the context. The size budget is 4,500 characters.
+- Composed prompts follow the same order (role, context, task with the objective and the steps, format) and carry `kind` on the `prompt` element.
+- The catalog entry gains `kind` (`system` for the SYS group, `user` for the rest); `catalogVersion` is any integer from 1 in the catalog schema.
+- Private dossier cards keep their own layout.
+
+### Removed
+- The CO-STAR mapping comment of the composer.
 
 ## [3.1.1] - 2026-11-19
 

@@ -59,7 +59,7 @@ One outcome, one mode, one target. A parameter may select the object, never the 
 | `output` | object | `{kind: text\|report\|object, schema?}`. `schema` is a `config/` path and is required for `surface: app`. |
 | `file` | path | `<code>.md` in the owning catalog. |
 
-Card body: the sections `role`, `context`, `inputs`, `decisions`, `procedure`, `constraints`, `exit_criteria` and `output_format`, in that order, at most 3,500 characters. Cards cite other cards only by role or through a workflow. `related` is derived from workflows and is not kept by hand.
+Card body: the sections `role`, `context`, `task`, `format` and optionally `examples`, in that order (RCTFE, catalog version 2), at most 4,500 characters; the catalog entry carries `kind` (`system` or `user`). Cards cite other cards only by role or through a workflow. `related` is derived from workflows and is not kept by hand.
 
 Enforcement: composition refuses to put a `read` or `verify` card into a write session, and the app refuses to start one (P11). `destructive` cards always ask for confirmation before the first destructive step.
 

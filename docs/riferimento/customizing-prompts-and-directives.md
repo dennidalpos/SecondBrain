@@ -6,7 +6,7 @@ Prompt cards, common instructions, deployment and live client loading have separ
 
 ## Prompt catalog
 
-Cards live under direttive/prompts/<CODE>.md, in English. Each active card has stable code/immutable ID, catalog metadata and XML-tagged role, context, inputs, procedure, constraints, exit_criteria and output_format. Include decisions only when meaningful choices are needed.
+Cards live under direttive/prompts/<CODE>.md, in English. Each active card has stable code/immutable ID, catalog metadata and XML-tagged role, context, task (numbered steps), format and, optionally, examples (the RCTFE layout, see prompt-card-rctfe.md). Put the choices to ask the user in the context.
 
 Composition joins the objective, verified repository/project context, card, operating rules and next steps. It does not execute a task or grant permissions. Category/mode describe the workflow; read-only audits do not mutate trackers.
 

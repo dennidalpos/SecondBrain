@@ -21,18 +21,17 @@ See the generated [catalog](../direttive/prompts/README.md). Memory and central 
 
 ## Card structure
 
+Cards follow the RCTFE layout (catalog version 2): one task per card, a one-line description of at most 120 characters (the catalog `summary`), and a `kind` in the catalog: `system` (read-only cards SecondBrain itself needs, the SYS group) or `user`.
+
 | XML tag | Content |
 |---|---|
 | `role` | The agent's responsibility |
-| `context` | When to use the card and its scope |
-| `inputs` | Required evidence |
-| `decisions` | Material choices to ask the user, where needed |
-| `procedure` | Ordered steps |
-| `constraints` | Boundaries and prohibited actions |
-| `exit_criteria` | Verifiable completion conditions |
-| `output_format` | Required report |
+| `context` | When to use the card and its scope, the inputs it needs and the choices to ask the user |
+| `task` | Ordered, numbered steps (the card title is the plan) |
+| `format` | The required report, then `Constraints:` and `Exit criteria:` |
+| `examples` | Optional worked examples |
 
-Composition combines the objective, repository context and card in XML with `task`, `context`, `operating_rules` and `next_steps`. The card organizes the task; it does not grant permissions. A read-only audit proposes changes without applying them. Write workflows remain subject to the user's authorization and current IDE mode.
+Composition combines the objective, repository context and card in XML with `role`, `context`, `task` (the objective, then the card steps), `format`, `operating_rules` and `next_steps`. Private cards of a dossier keep their own layout and are not rewritten. The card organizes the task; it does not grant permissions. A read-only audit proposes changes without applying them. Write workflows remain subject to the user's authorization and current IDE mode.
 
 `sb prompt show` shows the source card. Prompt texts and messages are English; the `-Language` option, `SECONDBRAIN_LANG` and the MCP `language` argument were removed in 3.0. The indexes are generated, not edited by hand.
 

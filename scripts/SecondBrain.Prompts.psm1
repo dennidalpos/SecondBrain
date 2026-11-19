@@ -49,9 +49,9 @@ Add-SBMessages @{
     'prompts.central.noswitch' = @{ en = 'Central prompt: open SecondBrain; no implicit repository switch. Alternatively, from SecondBrain: secondbrain.ps1 -Sync -Repository {0}' }
 }
 
-# Card layout: title line, then XML-style tags in a fixed order. `decisions` is optional.
-$script:SBWorkflowTagOrder=@('role','context','inputs','decisions','procedure','constraints','exit_criteria','output_format')
-$script:SBWorkflowTagRequired=@('role','context','inputs','procedure','constraints','exit_criteria','output_format')
+# Card layout (RCTFE, #721): title line, then XML-style tags in a fixed order: role, context, task (numbered steps), format, optional examples.
+$script:SBWorkflowTagOrder=@('role','context','task','format','examples')
+$script:SBWorkflowTagRequired=@('role','context','task','format')
 
 # Known UTF-8 decoded as OEM/Windows-1252 signatures, not a ban on non-ASCII text.
 function Assert-SBWorkflowEncoding([string]$Text,[string]$Path) {
@@ -82,6 +82,7 @@ function Read-SBWorkflowCatalog([string]$BrainRoot, [switch]$ValidateBodies, [sw
         if(!$prompt.ContainsKey('surface')){$prompt.surface='chat'}
         if(!$prompt.ContainsKey('destructive')){$prompt.destructive=$false}
         if(!$prompt.ContainsKey('related')){$prompt.related=@()}
+        if(!$prompt.ContainsKey('kind')){$prompt.kind='user'}
         if($prompt.ContainsKey('role')){
             if($roles.ContainsKey($prompt.role)){throw (New-SBError 'prompts.role.conflict' @($prompt.role))}
             $roles[$prompt.role]=$prompt.id
@@ -296,8 +297,7 @@ function Read-SBWorkflowPrompt([string]$BrainRoot, $Prompt, $Catalog) {
     foreach($name in $opened){if(!$tags.Contains($name) -or !$tags[$name]){throw (New-SBError 'prompts.tag.invalid' @($name,$code))}}
     $outside=[regex]::Replace($body.Substring($lines[0].Length),'(?ms)^<(?<n>[a-z_]+)>\n.*?\n</\k<n>>[ \t]*$','')
     if($outside.Trim()){throw (New-SBError 'prompts.tag.stray' @($code))}
-    if(@([regex]::Matches($tags['procedure'],'(?m)^\d+\. ')).Count -lt 2){throw (New-SBError 'prompts.procedure.invalid' @($code))}
-    if($tags.Contains('decisions') -and $tags['decisions'] -notmatch '(?m)^- '){throw (New-SBError 'prompts.section.nodecisions' @('decisions',$code))}
+    if(@([regex]::Matches($tags['task'],'(?m)^\d+\. ')).Count -lt 2){throw (New-SBError 'prompts.procedure.invalid' @($code))}
     if($body -match '\{\{|\$\{input:'){throw (New-SBError 'prompts.placeholder.unresolved' @($code))}
     $body.TrimEnd()+"`n"
 }
@@ -833,7 +833,7 @@ function Get-SBWorkflowNextProposals([string]$BrainRoot,$Catalog,$Prompt,$Contex
     @{prompts=@($prompts|Select-Object -First 4);tasks=@($tasks|Select-Object -First 4)}
 }
 
-# Composed prompt: one XML-structured document. Mapping to CO-STAR: task=Objective, context=Context, role=Audience+Style, constraints=Style+Tone, output_format=Response.
+# Composed prompt: one XML-structured document in the RCTFE order: role, context (card context plus the repository context), task (the objective, then the card's numbered steps), format, optional examples.
 function New-SBWorkflowComposition([string]$BrainRoot,$Catalog,$Prompt,$Context,[string]$Objective,[switch]$Standalone,[string]$Degraded) {
     if(!$Standalone -and $Prompt.target -eq 'central' -and (@($Context.repositories).Count -ne 1 -or [IO.Path]::GetFullPath($Context.repositories[0].checkout) -ne [IO.Path]::GetFullPath($BrainRoot))){
         $suggested=if(@($Context.repositories).Count -eq 1 -and $Context.repositories[0].identity){[string]$Context.repositories[0].identity}else{'<identity>'}
@@ -842,8 +842,8 @@ function New-SBWorkflowComposition([string]$BrainRoot,$Catalog,$Prompt,$Context,
     $body=Read-SBWorkflowPrompt $BrainRoot $Prompt $Catalog
     $tags=Get-SBWorkflowTags $body
     $T=Get-SBWorkflowText $Prompt
-    $lines=@(('<prompt code="'+$Prompt.code+'" id="'+$Prompt.id+'" mode="'+$Prompt.mode+'" target="'+$Prompt.target+'" language="en">'),
-        '<task>',$(if($Objective){$Objective}else{$T.requestDefault}),'</task>',
+    $lines=@(('<prompt code="'+$Prompt.code+'" id="'+$Prompt.id+'" kind="'+$Prompt.kind+'" mode="'+$Prompt.mode+'" target="'+$Prompt.target+'" language="en">'),
+        '<role>',$tags['role'],'</role>',
         '<context>',(Get-SBWorkflowField $Prompt 'summary'),'',$tags['context'],'',$T.localNote)
     # Reduced mode: a repository without onboarding is composed without a dossier and the missing functions are stated, not failed.
     if($Degraded){$lines+=@('','<degraded>',$Degraded,'</degraded>')}
@@ -856,7 +856,8 @@ function New-SBWorkflowComposition([string]$BrainRoot,$Catalog,$Prompt,$Context,
     if($Context.sourceRegistry){$lines+=$T.sourceRegistry+$Context.sourceRegistry}
     if($Context.project){$lines+=@('',($T.project+$Context.project.id),$T.brief,(ConvertTo-Json -InputObject (Read-SBText $Context.project.brief) -Compress))}
     $lines+='</context>'
-    foreach($name in @('role','inputs','decisions','procedure','constraints','exit_criteria','output_format')){
+    $lines+=@('<task>',$(if($Objective){$Objective}else{$T.requestDefault}),'',$tags['task'],'</task>')
+    foreach($name in @('format','examples')){
         if($tags.Contains($name)){$lines+=@(('<'+$name+'>'),$tags[$name],('</'+$name+'>'))}
     }
     $brainClosing=($Prompt.mode -eq 'write' -and (Get-SBWorkflowPrefix $Prompt) -in @('MEM','SYS'))

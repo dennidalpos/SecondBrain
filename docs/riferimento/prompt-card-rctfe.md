@@ -10,6 +10,6 @@ A prompt card is described by five parts: **R**ole, **C**ontext, **T**ask (a one
 | Format and constraints | `output_format`, `constraints`, `exit_criteria` |
 | Examples | none yet (optional) |
 
-Card fields: `code`, `kind` (`system`: read-only, needed by SecondBrain; `user`), `description` (one line, at most 120 characters), optional `chain` of prompt IDs. The 3,500-character budget applies to role, context, steps and format together.
+Card fields: `code`, `kind` (`system`: read-only, needed by SecondBrain, the SYS group; `user`), `description` (one line, at most 120 characters; in the catalog it is the `summary`), optional `chain` of prompt IDs (the catalog `related`). The 4,500-character budget applies to role, context, steps and format together. In the card file the plan is the header title and `<task>` holds the numbered steps; `format` lists the report, then `Constraints:` and `Exit criteria:`.
 
-Status: the schema, converter and validator exist and are covered by `scripts/test-secondbrain-lint.ps1` on three real cards (SYS01, AIS01, DEV01). The live catalog and the 123 cards are not rewritten: that needs the catalog version bump (a released data format), the merge of duplicate cards and the system/user classification, which are decisions for the owner. The Prompts tab (#722) follows once the schema is fixed.
+Status: all 123 cards are in this layout (catalog version 2, `kind` per prompt). `scripts/test-secondbrain-prompts.ps1` validates every card, `scripts/test-secondbrain-lint.ps1` covers the converter. Duplicate cards are not merged: a candidate report awaits the owner's confirmation. Private dossier cards keep the legacy layout. The Prompts tab (#722) follows.

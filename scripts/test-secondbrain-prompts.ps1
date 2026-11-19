@@ -27,13 +27,29 @@ foreach($p in $prompts){
     $en=Join-Path $brain ('direttive/prompts/'+$p.code+'.md')
     if(!(Test-Path -LiteralPath $en)){Assert-Prompts $false ($p.code+': scheda presente')}
     $enText=Get-Content -Raw -LiteralPath $en
-    foreach($tag in 'role','context','inputs','procedure','constraints','exit_criteria','output_format'){
+    foreach($tag in 'role','context','task','format'){
         if($enText -notmatch "(?m)^<$tag>\s*$"){Assert-Prompts $false ($p.code+': tag '+$tag)}
     }
     if($enText.Length -gt 6500){Assert-Prompts $false ($p.code+': scheda oltre 6.500 caratteri ('+$enText.Length+')')}
     if($enText -match '\bask_question\b'){Assert-Prompts $false ($p.code+': nome di tool non standard')}
 }
 Assert-Prompts $true 'ogni scheda ha i tag obbligatori, dimensione contenuta e nessun nome di tool non standard'
+# RCTFE (#721): every shipped card converts back to a valid card, kind separates system (SYS) from user prompts, one catalog version, no CO-STAR wording.
+Import-Module (Join-Path $brain 'scripts/SecondBrain.PromptSchema.psm1') -Force
+$rctfeSchema=Join-Path $brain 'config/prompt-card-rctfe.schema.json'
+$rctfeBad=@()
+foreach($p in $prompts){
+    $cardText=(Get-Content -Raw -LiteralPath (Join-Path $brain ('direttive/prompts/'+$p.file))).Replace("`r`n","`n").Replace('<task>','<procedure>').Replace('</task>','</procedure>').Replace('<format>','<output_format>').Replace('</format>','</output_format>')
+    $card=ConvertTo-SBRctfeCard $cardText $p.kind
+    $card.description=$p.summary.TrimEnd('.')
+    $found=@(Test-SBRctfeCard $card $rctfeSchema)
+    if($found.Count -or $p.summary.Length -gt 120){$rctfeBad+=($p.code+': '+($found -join ','))}
+}
+Assert-Prompts (!$rctfeBad.Count) ('ogni scheda rispetta lo schema RCTFE: '+($rctfeBad -join '; '))
+Assert-Prompts ($catalog.catalogVersion -ge 2) 'catalogo alla versione 2 (schede RCTFE)'
+Assert-Prompts (@($prompts|Where-Object {$_.kind -notin 'system','user'}).Count -eq 0 -and @($prompts|Where-Object {($_.code -like 'SYS*') -ne ($_.kind -eq 'system')}).Count -eq 0) 'kind: system solo per le schede SYS, user per le altre'
+$costar=@(Get-ChildItem -LiteralPath (Join-Path $brain 'scripts'),(Join-Path $brain 'docs'),(Join-Path $brain 'direttive') -Recurse -File -Include *.ps1,*.psm1,*.md -ErrorAction SilentlyContinue|Where-Object {$_.FullName -notmatch '[\\/]proposals[\\/]' -and $_.Name -ne 'test-secondbrain-prompts.ps1' -and (Select-String -LiteralPath $_.FullName -Pattern 'CO-STAR' -Quiet)})
+Assert-Prompts (!$costar.Count) ('nessun riferimento a CO-STAR in script e documenti: '+(($costar|ForEach-Object Name) -join ', '))
 # Every related code exists; every category is used.
 $ids=@($prompts.id)
 Assert-Prompts (!(@($prompts|ForEach-Object {$_.related}|Where-Object {$_ -notin $ids}).Count)) 'related punta a ID esistenti'
@@ -87,7 +103,7 @@ $readPrompt=$prompts|Where-Object {$_.mode -eq 'read'}|Select-Object -First 1
 $writePrompt=$prompts|Where-Object {$_.mode -eq 'write' -and $_.code -notmatch '^(MEM|SYS)'}|Select-Object -First 1
 $objective='Obiettivo di prova 4242'
 $readOut=New-SBWorkflowComposition $brain $catalog $readPrompt $ctx $objective -Standalone
-Assert-Prompts ($readOut -match '(?s)<prompt code="'+$readPrompt.code+'".*<task>\s*'+[regex]::Escape($objective)+'\s*</task>.*<role>.*<procedure>.*<exit_criteria>.*<output_format>.*</prompt>') 'composizione XML con obiettivo, ruolo, procedura, criteri e formato'
+Assert-Prompts ($readOut -match '(?s)<prompt code="'+$readPrompt.code+'".*<role>.*<context>.*<task>\s*'+[regex]::Escape($objective)+'.*</task>.*<format>.*</format>.*</prompt>') 'composizione XML RCTFE con ruolo, contesto, compito con obiettivo e formato'
 $writeOut=New-SBWorkflowComposition $brain $catalog $writePrompt $ctx '' -Standalone
 Assert-Prompts ($writeOut -ne $readOut -and $writeOut -match '<operating_rules>') 'regole operative presenti anche in scrittura'
 $closingRead=([regex]::Match($readOut,'(?s)<operating_rules>(.*?)</operating_rules>')).Groups[1].Value
