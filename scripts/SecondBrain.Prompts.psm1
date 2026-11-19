@@ -887,7 +887,7 @@ function ConvertTo-SBWorkflowCatalogData($Catalog, [string]$Category) {
             id=$item.id;group=$item.group;title=(Get-SBWorkflowCategoryTitle $item)
             prompts=@($members|ForEach-Object {
                 [ordered]@{
-                    id=$_.id;code=$_.code;summary=(Get-SBWorkflowField $_ 'summary');scope=$_.scope;mode=$_.mode
+                    id=$_.id;code=$_.code;kind=$_.kind;summary=(Get-SBWorkflowField $_ 'summary');scope=$_.scope;mode=$_.mode
                     destructive=[bool]$_.destructive;pack=$_.pack;surface=$_.surface
                     role=$(if($_.ContainsKey('role')){$_.role}else{$null})
                     requires=(Get-SBWorkflowField $_ 'requires');example=(Get-SBWorkflowField $_ 'example')

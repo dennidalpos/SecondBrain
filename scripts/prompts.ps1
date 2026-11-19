@@ -13,6 +13,8 @@ pwsh -NoProfile -File scripts/prompts.ps1 -List -Json
 .EXAMPLE
 pwsh -NoProfile -File scripts/prompts.ps1 -Json
 .EXAMPLE
+pwsh -NoProfile -File scripts/prompts.ps1 -Show -Prompt TST04 -Json
+.EXAMPLE
 pwsh -NoProfile -File scripts/prompts.ps1 -Show -Prompt TST04
 .EXAMPLE
 pwsh -NoProfile -File scripts/prompts.ps1 -Compose -Prompt TST04 -Objective 'Diagnostica il job Windows'
@@ -22,7 +24,7 @@ param(
     [Parameter(ParameterSetName='Home')][switch]$Start,
     [Parameter(ParameterSetName='List')][switch]$List,
     [Parameter(ParameterSetName='List')][switch]$Compact,
-    [Parameter(ParameterSetName='Home')][Parameter(ParameterSetName='List')][switch]$Json,
+    [Parameter(ParameterSetName='Home')][Parameter(ParameterSetName='List')][Parameter(ParameterSetName='Show')][switch]$Json,
     [Parameter(Mandatory,ParameterSetName='Show')][switch]$Show,
     [Parameter(Mandatory,ParameterSetName='Compose')][switch]$Compose,
     [Parameter(Mandatory,ParameterSetName='Context')][switch]$Context,
@@ -90,8 +92,13 @@ try {
         if($resolution.warning){Write-Warning $resolution.warning}
         $selected=@($resolution.prompt)
         $showBody=Read-SBWorkflowPrompt $brain $selected[0] $catalog
-        Format-SBWorkflowCard $selected[0] $showBody
-        $showBody
+        if($Json){
+            # Prompts tab (#722): one public card as JSON, English text.
+            ConvertTo-SBJson ([ordered]@{schema='secondbrain.prompts.card';schemaVersion=1;id=$selected[0].id;code=$selected[0].code;kind=$selected[0].kind;summary=(Get-SBWorkflowField $selected[0] 'summary');text=$showBody})
+        } else {
+            Format-SBWorkflowCard $selected[0] $showBody
+            $showBody
+        }
     } else {
         if(!$ConfigPath -and $Compose -and (Resolve-SBWorkflowPrompt $catalog $Prompt).prompt.role -ceq 'workstation.activate'){
             $selected=@((Resolve-SBWorkflowPrompt $catalog $Prompt).prompt)

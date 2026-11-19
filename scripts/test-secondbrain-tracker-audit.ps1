@@ -113,7 +113,7 @@ try {
         Reject-Audit {Invoke-SBTrackerImport -Config $f.config -ManifestPath $manifest -Activate} 'assenza senza rimozione registrata rifiutata'
         $f=New-AuditFixture 'source-journal-removal';Put-Audit $f.source '{"tasks":[]}'
         $source=$f.source
-        $interrupt={param($phase) if($phase -eq 'references_updated'){Set-SBWriteGuard {if(!(Test-Path -LiteralPath $source)){throw 'interruzione dopo rimozione'}}.GetNewClosure()}}.GetNewClosure()
+        $interrupt={param($phase) if($phase -eq 'references_updated'){$guardPath=$source;Set-SBWriteGuard ({if(!(Test-Path -LiteralPath $guardPath)){throw 'interruzione dopo rimozione'}}.GetNewClosure())}}.GetNewClosure()
         try{Reject-Audit {Invoke-SBTrackerImport -Config $f.config -Identity $f.identity -SourcePath $source -Activate -AfterPhase $interrupt} 'interruzione fra rimozione e salvataggio fase'}finally{Set-SBWriteGuard $null}
         $manifest=(Read-SBJson (Get-SBTrackerImportPath $f.config $f.identity) $null).manifest
         [void](Invoke-SBTrackerImport -Config $f.config -ManifestPath $manifest -Activate)

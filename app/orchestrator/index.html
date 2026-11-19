@@ -28,6 +28,7 @@
       <button role="tab" id="tabbtn-run" aria-controls="tab-run" data-tab="run">Run</button>
       <button role="tab" id="tabbtn-registry" aria-controls="tab-registry" data-tab="registry">Registry</button>
       <button role="tab" id="tabbtn-tracker" aria-controls="tab-tracker" data-tab="tracker">Tracker</button>
+      <button role="tab" id="tabbtn-prompts" aria-controls="tab-prompts" data-tab="prompts">Prompts</button>
       <span class="spacer"></span>
       <button role="tab" id="tabbtn-settings" aria-controls="tab-settings" data-tab="settings" class="settings-tab">Settings</button>
     </nav>
@@ -381,6 +382,25 @@
         <div class="row"><button id="trk-prev">← Previous</button><button id="trk-next">Next →</button></div>
       </section>
 
+      <section id="tab-prompts" class="panel" role="tabpanel" aria-labelledby="tabbtn-prompts" hidden>
+        <h2>Prompts</h2>
+        <p class="muted">System prompts are read-only. Default prompts can be viewed and duplicated. Your own prompts are stored on this workstation outside Git (.runtime/user-prompts) and can be deleted.</p>
+        <div class="row">
+          <button id="pr-new" class="primary">New prompt</button>
+          <span class="spacer"></span>
+          <span id="pr-state" class="muted small"></span>
+          <button id="pr-refresh">Refresh</button>
+        </div>
+        <p id="pr-error" class="error" hidden></p>
+        <h3>My prompts</h3>
+        <table class="tasks"><thead><tr><th>ID</th><th>Title</th><th>Size</th><th>Created</th><th></th></tr></thead><tbody id="pr-mine"></tbody></table>
+        <p id="pr-mine-empty" class="muted small" hidden>No prompt of your own yet: use New prompt, or duplicate a default.</p>
+        <h3>System prompts (read-only)</h3>
+        <table class="tasks"><thead><tr><th>Code</th><th>Summary</th><th></th></tr></thead><tbody id="pr-system"></tbody></table>
+        <h3>Default prompts</h3>
+        <table class="tasks"><thead><tr><th>Code</th><th>Summary</th><th></th></tr></thead><tbody id="pr-default"></tbody></table>
+      </section>
+
       <section id="tab-settings" class="panel" role="tabpanel" aria-labelledby="tabbtn-settings" hidden>
         <h2>Settings</h2>
         <label>SecondBrain root <input id="s-home" type="text" /></label>
@@ -399,6 +419,26 @@
       </section>
     </main>
 
+    <dialog id="pr-view-dialog" class="wide" aria-labelledby="pr-view-title">
+      <h3 id="pr-view-title">Prompt</h3>
+      <pre id="pr-view-text" class="prompt-text" tabindex="0"></pre>
+      <div class="dialog-actions"><button id="pr-view-duplicate">Duplicate</button><button id="pr-view-close">Close</button></div>
+    </dialog>
+    <dialog id="pr-wizard-dialog" class="wide" aria-labelledby="pr-wizard-title">
+      <h3 id="pr-wizard-title">New prompt</h3>
+      <p class="muted small">Role, Context, Task and Format are required (RCTFE); the directive is optional and closes the context.</p>
+      <label>Title<input id="pr-title" type="text" maxlength="120" /></label>
+      <label>Role<textarea id="pr-role" rows="2"></textarea></label>
+      <label>Context<textarea id="pr-context" rows="4"></textarea></label>
+      <label>Task (numbered steps)<textarea id="pr-task" rows="5" placeholder="1. ...&#10;2. ..."></textarea></label>
+      <label>Format<textarea id="pr-format" rows="3"></textarea></label>
+      <label>Directive (optional)<textarea id="pr-directive" rows="2"></textarea></label>
+      <p id="pr-budget" class="muted small" role="status"></p>
+      <p id="pr-problems" class="error" hidden></p>
+      <pre id="pr-preview" class="prompt-text" hidden tabindex="0"></pre>
+      <p id="pr-wizard-error" class="error" hidden></p>
+      <div class="dialog-actions"><button id="pr-preview-btn">Preview</button><button id="pr-save" class="primary" disabled>Save</button><button id="pr-wizard-close">Cancel</button></div>
+    </dialog>
     <dialog id="close-dialog" aria-labelledby="close-title">
       <h2 id="close-title">A queue is running</h2>
       <p>Quitting leaves the runner working; when you reopen the app, it is found again and reattached. Closing the window only hides it to the tray. What do you want to do?</p>

@@ -787,6 +787,51 @@ test("tracker: the agent wizard validates each step, previews the definition and
 
 // #598: one screenshot of every tab on the synthetic fixture, taken only when SB_E2E_SHOTS names an output folder. Everything that can show a
 // local path (inputs, monospace values, definition lists, the recent list) is masked, so the images hold synthetic task data only.
+test("prompts: the tab lists system prompts read-only, validates the RCTFE wizard, previews the composed prompt, saves and deletes a user prompt (#722)", async () => {
+  const app = await launch({ repo: fixture.checkout });
+  const { page } = app;
+  const store = path.join(fixture.brain, ".runtime", "user-prompts");
+  const files = () => (fs.existsSync(store) ? fs.readdirSync(store, { recursive: true }).filter((f) => String(f).endsWith(".json")) : []);
+  expect(files().length).toBe(0);
+  await page.locator('.steps button[data-tab="prompts"]').click();
+  // System prompts are listed with View only; defaults can be viewed and duplicated.
+  await expect(page.locator("#pr-system tr").first()).toBeVisible({ timeout: 60_000 });
+  await expect(page.locator("#pr-system button", { hasText: /delete|duplicate/i })).toHaveCount(0);
+  await expect(page.locator("#pr-mine-empty")).toBeVisible();
+  // The wizard refuses an incomplete form without calling the script.
+  await page.locator("#pr-new").click();
+  await page.locator("#pr-title").fill("E2E review");
+  await page.locator("#pr-preview-btn").click();
+  await expect(page.locator("#pr-problems")).toContainText("Role is empty");
+  await expect(page.locator("#pr-save")).toBeDisabled();
+  await page.locator("#pr-role").fill("You are a careful reviewer.");
+  await page.locator("#pr-context").fill("Use before a merge.");
+  await page.locator("#pr-task").fill("1. Read the diff.");
+  await page.locator("#pr-format").fill("A list of findings.");
+  await page.locator("#pr-directive").fill("Keep it short.");
+  await page.locator("#pr-preview-btn").click();
+  await expect(page.locator("#pr-problems")).toContainText("two numbered steps");
+  await page.locator("#pr-task").fill("1. Read the diff.\n2. Report findings.");
+  await page.locator("#pr-preview-btn").click();
+  await expect(page.locator("#pr-preview")).toContainText("Directive: Keep it short.");
+  await expect(page.locator("#pr-budget")).toContainText("of 3500 characters");
+  await expect(page.locator("#pr-save")).toBeEnabled();
+  // An edit after the preview invalidates it.
+  await page.locator("#pr-format").fill("A short list of findings.");
+  await expect(page.locator("#pr-save")).toBeDisabled();
+  await page.locator("#pr-preview-btn").click();
+  await page.locator("#pr-save").click();
+  await expect(page.locator("#pr-mine tr")).toHaveCount(1, { timeout: 60_000 });
+  await expect(page.locator("#pr-mine")).toContainText("E2E review");
+  expect(files().length).toBe(1);
+  // Delete: confirmed, the file is gone.
+  page.once("dialog", (d) => void d.accept());
+  await page.locator("#pr-mine button", { hasText: "Delete" }).click();
+  await expect(page.locator("#pr-mine tr")).toHaveCount(0, { timeout: 60_000 });
+  expect(files().length).toBe(0);
+  await closeApp(app);
+});
+
 test("screenshots of every tab with synthetic data (only with SB_E2E_SHOTS)", async () => {
   const out = process.env.SB_E2E_SHOTS;
   test.skip(!out, "SB_E2E_SHOTS not set");

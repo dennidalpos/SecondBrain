@@ -81,6 +81,8 @@ The header always shows the loaded repository, its tracker and the run badge. St
 ![Run step after a finished fixture run: status, elapsed time, progress, the outcome table and the run folder under the fixture host ID ws-0123456789abcdef](assets/orchestrator-run.png)
 ![Settings step: SecondBrain root and PowerShell 7 executable fields with generic placeholder paths and the light model selectors](assets/orchestrator-settings.png)
 
+6. **Prompts.** Lists the system prompts (read-only), the default prompts (view and duplicate) and your own prompts, which live on this workstation outside Git in `.runtime/user-prompts` and can be deleted. **New prompt** opens a wizard with the RCTFE fields (role, context, task with numbered steps, format) and an optional directive; Preview shows the composed prompt and its size against the 3,500-character budget, and Save sends exactly what was previewed. Drafting a card with the light model is not part of this tab yet.
+
 Screenshots: real release binary (app v0.1.0, SecondBrain 2.17.0, captured 2026-11-16, Queue and Tracker recaptured 2026-11-17) driven by `app/orchestrator/e2e/ui-audit.audit.ts` on the synthetic fixture of `scripts/test-orchestrator-fixture.ps1`; the agent is the fixture's fake Claude Code (reported as 2.1.0) and the task titles are fixture text. The last three (waiting decision, Run, Settings; captured 2026-11-17 by `app/orchestrator/e2e/docs-screenshots.audit.ts`) need care because the run folder contains the workstation ID (`hosts/ws-...`, derived from the machine name and user SID) and Settings holds the workstation's own paths. The app is unchanged and the capture script handles it: before each shot every `ws-<16 hex>` in the page is replaced by the fixture ID `ws-0123456789abcdef` and the capture fails if a real one is left, and the Settings fields are filled with generic placeholder values. The images therefore show those values, not the ones of the machine that took them.
 
 **Closing the window during a run** asks what to do: leave it running and close, stop after the task and close, abort now and close, or cancel. A run left running keeps working; when the app is opened again on that repository it finds the run through `status.json`, reattaches, replays the agent's steps and follows it to the end. The runner refuses a second run on the same repository while the first is alive, from the app or from the command line.
@@ -95,7 +97,12 @@ The Home tab reads three documents; nothing is written. Each Tauri command runs 
 
 | Command | Script | Schema |
 |---|---|---|
-| `read_catalog` | `prompts.ps1 -List -Json` (`-Category` narrows it) | `secondbrain.prompts.catalog` v1: `categories[]` with `id`, `group`, `title`, `prompts[]` (`id`, `code`, `summary`, `scope`, `mode`, `destructive`, `pack`, `surface`, `role`, `requires`, `example`); public cards, English text |
+| `read_catalog` | `prompts.ps1 -List -Json` (`-Category` narrows it) | `secondbrain.prompts.catalog` v1: `categories[]` with `id`, `group`, `title`, `prompts[]` (`id`, `code`, `kind` (`system` or `user`), `summary`, `scope`, `mode`, `destructive`, `pack`, `surface`, `role`, `requires`, `example`); public cards, English text |
+| `read_prompt_card` | `prompts.ps1 -Show -Json -Prompt <code>` | `secondbrain.prompts.card` v1: `id`, `code`, `kind`, `summary`, `text` (the card body) |
+| `user_prompts_list` | `user-prompts.ps1 -List` | `secondbrain.user-prompts` v1: `budget` (3,500), `root`, `prompts[]` (`id`, `title`, `created`, `fields`, `text`, `characters`); stored per user in `.runtime/user-prompts`, outside Git |
+| `user_prompt_preview` | `user-prompts.ps1 -Preview` with the RCTFE fields | `valid`, `problems[]`, `characters`, `budget`, `text`; writes nothing |
+| `user_prompt_create` | `user-prompts.ps1 -Create` | the saved record; refuses an invalid or over-budget prompt |
+| `user_prompt_delete` | `user-prompts.ps1 -Delete -Id <pmt-id>` | `deleted` |
 | `read_workflows` | `prompts.ps1 -Json [-RepositoryPath <path>]` | `secondbrain.prompts.home` v1: `state` (`activated`, `hostId`, `repositories`, `ides`, `repository`), `nextStep`, `chain[]` |
 | `read_setup_status` | `setup-status.ps1 -ExitZero` | setup status: `activated`, `recommended[]`, feature entries; `-ExitZero` keeps "recommendations pending" from being an error exit |
 

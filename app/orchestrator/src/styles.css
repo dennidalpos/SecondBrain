@@ -251,3 +251,7 @@ table.tasks tr.run-selected td:first-child { box-shadow: inset 3px 0 0 var(--acc
   .steps button[aria-selected="true"] { border-bottom-color: Highlight; }
   .badge, .tag { border: 1px solid CanvasText; }
 }
+
+.prompt-text { white-space: pre-wrap; max-height: 50vh; overflow: auto; background: var(--bg, transparent); border: 1px solid var(--border); border-radius: 8px; padding: 10px; font-size: 0.85rem; }
+#pr-wizard-dialog label { display: flex; flex-direction: column; gap: 4px; margin: 8px 0; font-size: 0.9rem; }
+#pr-wizard-dialog textarea, #pr-wizard-dialog input { font: inherit; width: 100%; box-sizing: border-box; }

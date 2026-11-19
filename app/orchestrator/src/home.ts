@@ -8,7 +8,7 @@ export interface WorkflowHome {
   state: { activated: boolean; hostId: string; repositories: number; ides: number; repository: { path: string; identity: string | null; managed: boolean; location: string } | null };
   nextStep: string; chain: string[];
 }
-export interface CatalogPrompt { id: string; code: string; summary: string; scope: string; mode: string; destructive: boolean; pack: string; surface: string; role: string | null; requires: string; example: string }
+export interface CatalogPrompt { id: string; code: string; kind: "system" | "user"; summary: string; scope: string; mode: string; destructive: boolean; pack: string; surface: string; role: string | null; requires: string; example: string }
 export interface Catalog {
   schema: "secondbrain.prompts.catalog"; schemaVersion: 1;
   categories: { id: string; group: string; title: string; prompts: CatalogPrompt[] }[];

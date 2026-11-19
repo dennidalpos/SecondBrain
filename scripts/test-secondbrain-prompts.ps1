@@ -48,6 +48,9 @@ foreach($p in $prompts){
 Assert-Prompts (!$rctfeBad.Count) ('ogni scheda rispetta lo schema RCTFE: '+($rctfeBad -join '; '))
 Assert-Prompts ($catalog.catalogVersion -ge 2) 'catalogo alla versione 2 (schede RCTFE)'
 Assert-Prompts (@($prompts|Where-Object {$_.kind -notin 'system','user'}).Count -eq 0 -and @($prompts|Where-Object {($_.code -like 'SYS*') -ne ($_.kind -eq 'system')}).Count -eq 0) 'kind: system solo per le schede SYS, user per le altre'
+$catalogJson=ConvertFrom-Json -InputObject (ConvertTo-SBJson (ConvertTo-SBWorkflowCatalogData $catalog $null)) -AsHashtable
+$jsonPrompts=@($catalogJson.categories|ForEach-Object {$_.prompts})
+Assert-Prompts ($jsonPrompts.Count -eq $prompts.Count -and @($jsonPrompts|Where-Object {$_.kind -notin 'system','user'}).Count -eq 0 -and @($jsonPrompts|Where-Object {($_.code -like 'SYS*') -ne ($_.kind -eq 'system')}).Count -eq 0) '#748: the app catalog JSON carries kind for every prompt'
 $costar=@(Get-ChildItem -LiteralPath (Join-Path $brain 'scripts'),(Join-Path $brain 'docs'),(Join-Path $brain 'direttive') -Recurse -File -Include *.ps1,*.psm1,*.md -ErrorAction SilentlyContinue|Where-Object {$_.FullName -notmatch '[\\/]proposals[\\/]' -and $_.Name -ne 'test-secondbrain-prompts.ps1' -and (Select-String -LiteralPath $_.FullName -Pattern 'CO-STAR' -Quiet)})
 Assert-Prompts (!$costar.Count) ('nessun riferimento a CO-STAR in script e documenti: '+(($costar|ForEach-Object Name) -join ', '))
 # Every related code exists; every category is used.

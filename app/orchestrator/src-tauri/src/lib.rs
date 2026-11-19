@@ -174,6 +174,56 @@ async fn read_catalog(app: AppHandle) -> Result<Value, String> {
 }
 
 #[tauri::command]
+async fn read_prompt_card(app: AppHandle, code: String) -> Result<Value, String> {
+    // One public card as JSON (prompts.ps1 -Show -Json, schema secondbrain.prompts.card v1).
+    if !code.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') || code.is_empty() || code.len() > 16 {
+        return Err("Invalid prompt code.".to_string());
+    }
+    script(app, "prompts.ps1", vec!["-Show".into(), "-Json".into(), "-Prompt".into(), code]).await
+}
+
+#[tauri::command]
+async fn user_prompts_list(app: AppHandle) -> Result<Value, String> {
+    // The user's own prompts (user-prompts.ps1 -List, outside Git in .runtime/user-prompts).
+    script(app, "user-prompts.ps1", vec!["-List".into()]).await
+}
+
+fn user_prompt_args(mode: &str, fields: &Value) -> Result<Vec<String>, String> {
+    let mut args: Vec<String> = vec![mode.into()];
+    for (flag, key) in [("-Title", "title"), ("-Role", "role"), ("-Context", "context"), ("-Task", "task"), ("-Format", "format"), ("-Directive", "directive")] {
+        let text = fields.get(key).and_then(Value::as_str).unwrap_or("");
+        if text.len() > 20_000 {
+            return Err(format!("The {key} text is too long."));
+        }
+        if key == "directive" && text.trim().is_empty() {
+            continue;
+        }
+        args.push(flag.into());
+        args.push(text.to_string());
+    }
+    Ok(args)
+}
+
+#[tauri::command]
+async fn user_prompt_preview(app: AppHandle, fields: Value) -> Result<Value, String> {
+    // Validates the RCTFE fields and returns the composed prompt with its size (user-prompts.ps1 -Preview); writes nothing.
+    script(app, "user-prompts.ps1", user_prompt_args("-Preview", &fields)?).await
+}
+
+#[tauri::command]
+async fn user_prompt_create(app: AppHandle, fields: Value) -> Result<Value, String> {
+    script(app, "user-prompts.ps1", user_prompt_args("-Create", &fields)?).await
+}
+
+#[tauri::command]
+async fn user_prompt_delete(app: AppHandle, id: String) -> Result<Value, String> {
+    if id.len() != 12 || !id.starts_with("pmt-") || !id[4..].chars().all(|c| matches!(c, '0'..='9' | 'a'..='f')) {
+        return Err("Invalid prompt ID.".to_string());
+    }
+    script(app, "user-prompts.ps1", vec!["-Delete".into(), "-Id".into(), id]).await
+}
+
+#[tauri::command]
 async fn read_workflows(app: AppHandle, path: Option<String>) -> Result<Value, String> {
     // Workstation state, next step and start chain as JSON (prompts.ps1 -Json, schema secondbrain.prompts.home v1).
     let mut args: Vec<String> = vec!["-Json".into()];
@@ -1018,6 +1068,11 @@ pub fn run() {
             probe_agents,
             resolve_repository,
             read_catalog,
+            read_prompt_card,
+            user_prompts_list,
+            user_prompt_preview,
+            user_prompt_create,
+            user_prompt_delete,
             read_workflows,
             read_setup_status,
             list_tasks,

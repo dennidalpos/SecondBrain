@@ -6,6 +6,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { open } from "@tauri-apps/plugin-dialog";
 import { $, busy, call, el, fmtDuration, onBusyClick, input, option, select, setError, since, baseName, type AgentCaps, type AgentStatus, type LightChoice, type Source } from "./common";
 import { initRegistry, showRegistry } from "./registry";
+import { initPrompts, showPrompts } from "./prompts";
 import { refreshHomeStatus } from "./home";
 import { initWorkstation, refreshWorkstation } from "./workstation";
 import { initTracker, showRunEndNextSteps, showTracker } from "./tracker";
@@ -112,6 +113,7 @@ function selectTab(name: string) {
   renderNoRepoNote();
   if (name === "registry") showRegistry();
   if (name === "tracker") showTracker();
+  if (name === "prompts") void showPrompts();
   if (name === "workstation") void refreshWorkstation();
 }
 // G04 (#631): sections are reachable directly; step-by-step navigation exists only inside the wizards. The selected repository
@@ -925,6 +927,7 @@ async function start() {
     if (state.launch.rootError) setError("repo-error", state.launch.rootError);
   }
   initRegistry(() => state.repo);
+  initPrompts();
   initTracker();
   initWorkstation(() => state.identity ?? "");
   initAnalysis({ repo: () => state.repo, identity: () => state.identity, light: currentLight, onChange: () => { renderSkipped(); } });
