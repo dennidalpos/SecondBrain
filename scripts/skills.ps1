@@ -4,7 +4,7 @@
 Analyzes a project, proposes useful skills and installs the selected ones for Claude Code, Codex and Antigravity.
 .DESCRIPTION
 -Analyze is read-only: it prints the detected facts, the proposed skills with the reason for each, and the skill folders of every client.
--Install -Prompt <code> exports a proven catalog card (for example REP15) as the skill sb-<code>.
+-Install -Prompt <code> exports a proven catalog card as the skill sb-<code>.
 -Install previews by default and changes nothing. With -Apply it writes <skill>/SKILL.md under the client's folder, project scope (inside the checkout)
 or user scope (inside the home folder), through Write-SBFile with a backup. A skill that already exists with different content is a conflict and is skipped
 unless -Overwrite is given. Folders come from the official documentation (checked 2026-11-15); liveVerified stays false until a session shows the skill loaded.
