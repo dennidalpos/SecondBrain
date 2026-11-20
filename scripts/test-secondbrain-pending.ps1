@@ -345,6 +345,21 @@ try {
     Assert-Pending ($withdrawn.code -eq 0 -and @((Read-SBJson $decisionsPath $null).decisions|Where-Object id -eq $withdrawId)[0].status -eq 'withdrawn' -and $lateAnswer.code -eq 2) '#588: a withdrawn decision stays withdrawn and cannot be answered'
     Assert-Pending ((Read-SBText $decisionsPath)|Test-Json -Schema $decisionSchema) '#588: the final decisions.json still validates against the schema'
 
+    # #769: authoritative-sources.json only as a whole file.save validated against the schema, repository identity and areaId.
+    Put-Pending (Join-Path $brain 'config/source-applicability.schema.json') (Read-SBText (Join-Path $PSScriptRoot '../config/source-applicability.schema.json'))
+    $mapPath=Join-Path $dossier 'authoritative-sources.json'
+    $goodMap=@{schemaVersion=1;areaId='pending-area';repository=$identity;assessedAt=[DateTimeOffset]::UtcNow.ToString('o');assessment='Fixture';sources=@(@{sourceId='missing';versionId=$null;applicability='unassessed';rationale='Fixture';implementation='unverified';requirements=@();evidence=@();tasks=@()});census=@{status='complete';reference='fixture'};residualTasks=@()}
+    $mapSave=New-SBPendingWrite -BrainRoot $brain -Repository $identity -Operation file.save -Arguments @{relativePath='authoritative-sources.json';content=(ConvertTo-SBJson $goodMap)} -Expected @{hash='absent'} -Config $cfg
+    $mapResult=Complete-SBPendingSubmission $mapSave $cfg
+    Assert-Pending ($mapResult.state -eq 'applied' -and (Read-SBJson $mapPath $null).areaId -ceq 'pending-area') '#769: a valid source applicability map is applied through the pending channel'
+    foreach($case in @(@{name='foreign areaId';edit={$_.areaId='other-area'}},@{name='foreign repository';edit={$_.repository='github.com/test/other'}},@{name='schema violation';edit={$_.applicability='x'}})){
+        $bad=ConvertTo-SBJson $goodMap|ConvertFrom-Json -AsHashtable;$bad|ForEach-Object $case.edit
+        $refused=$false;try{[void](New-SBPendingWrite -BrainRoot $brain -Repository $identity -Operation file.save -Arguments @{relativePath='authoritative-sources.json';content=(ConvertTo-SBJson $bad)} -Expected @{hash=(Get-SBFileHash $mapPath)} -Config $cfg)}catch{$refused=$true}
+        Assert-Pending ($refused -and (Read-SBJson $mapPath $null).areaId -ceq 'pending-area') ('#769: a source map with a '+$case.name+' is refused')
+    }
+    $mapAppend=$false;try{[void](New-SBPendingWrite -BrainRoot $brain -Repository $identity -Operation file.append -Arguments @{relativePath='authoritative-sources.json';content='x'} -Config $cfg)}catch{$mapAppend=$true}
+    Assert-Pending $mapAppend '#769: authoritative-sources.json accepts only a whole file.save'
+
     $saved=New-SBPendingWrite -BrainRoot $brain -Repository $identity -Operation file.save -Arguments @{relativePath='context.md';content='Queued replacement'} -Expected @{hash=(Get-SBFileHash (Join-Path $dossier 'context.md'))} -Config $cfg
     Put-Pending (Join-Path $dossier 'context.md') 'Other agent context'
     $fileConflict=Complete-SBPendingSubmission $saved $cfg

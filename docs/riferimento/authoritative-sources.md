@@ -12,6 +12,8 @@ acceptedVersion requires a verified review.json with reviewer/date, fingerprint,
 
 Dossier authoritative-sources.json follows source-applicability.schema.json. Applicability and implementation have separate states; a lexical citation proves neither. Inventories preserve locations/hashes/coverage and exclude secrets, dependencies, history and snapshots.
 
+Agent write channel (#769): an agent saves the map only as a whole `file.save` of `authoritative-sources.json` through the pending-write channel (MCP `submit_dossier_write` or `knowledge.ps1`), with the expected hash (`absent` for a new file). The content is validated at submission and again when applied: it must satisfy `config/source-applicability.schema.json`, its `repository` must equal the request repository and its `areaId` the id of that repository's active dossier. A map that fails is refused at submission or gets an `invalid` receipt and is never written; `file.append` is refused. The other allowed paths (`context.md`, `memory.md`, `decisions.json`, history reports) are unchanged.
+
 Registry profiles are advisory. New common instructions still require concrete text approval, hashes, Sync and SYS01.
 
 ## Commands and writes

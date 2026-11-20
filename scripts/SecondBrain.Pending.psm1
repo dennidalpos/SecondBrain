@@ -60,7 +60,8 @@ function Resolve-SBPendingDossier([string]$BrainRoot,[string]$Repository) {
 function Assert-SBPendingFile([string]$RelativePath) {
     # Generated views, arbitrary attachments, configuration and PARA metadata are excluded.
     # decisions.json (#588) is written only as a whole file.save from decisions.ps1 and validated again when applied.
-    if($RelativePath -cnotmatch '^(?:context\.md|memory\.md|decisions\.json|history/[a-zA-Z0-9][a-zA-Z0-9_-]*/report\.md)$'){
+    # authoritative-sources.json (#769) is written only as a whole file.save validated against its schema and the dossier identity.
+    if($RelativePath -cnotmatch '^(?:context\.md|memory\.md|decisions\.json|authoritative-sources\.json|history/[a-zA-Z0-9][a-zA-Z0-9_-]*/report\.md)$'){
         throw (New-SBError 'pending.invalid' @('relativePath'))
     }
 }
@@ -113,6 +114,7 @@ function Assert-SBPendingRequest($Request,[string]$Id) {
         Assert-SBPendingFile $Request.arguments.relativePath
         if($Request.arguments.content -isnot [string]){throw (New-SBError 'pending.invalid' @('content'))}
         if($Request.arguments.relativePath -ceq 'decisions.json' -and $Request.operation -ne 'file.save'){throw (New-SBError 'pending.invalid' @('decisions.json accepts only file.save'))}
+        if($Request.arguments.relativePath -ceq 'authoritative-sources.json' -and $Request.operation -ne 'file.save'){throw (New-SBError 'pending.invalid' @('authoritative-sources.json accepts only file.save'))}
         if($Request.operation -eq 'file.save' -and (!$Request.expected.ContainsKey('hash') -or $Request.expected.hash -notmatch '^(?:absent|[A-Fa-f0-9]{64})$')){throw (New-SBError 'pending.invalid' @('expected hash'))}
     }
     if($Request.operation -in @('task.status','task.update')){
@@ -200,6 +202,10 @@ function New-SBPendingWrite {
     $request=@{schemaVersion=1;id=$RequestId;repository=$Repository;operation=$Operation;arguments=$Arguments;expected=$Expected;createdAt=(Get-SBNow).ToString('o');origin=@{computer=[Environment]::MachineName;user=[Security.Principal.WindowsIdentity]::GetCurrent().Name;workstationId=$Config.workstationId;sessionId=$SessionId;client=$(if($session){$session.client}else{'knowledge CLI/API'})}}
     $request.sha256=Get-SBPendingHash $request
     Assert-SBPendingRequest $request $request.id
+    if($Operation -eq 'file.save' -and $Arguments.relativePath -ceq 'authoritative-sources.json'){
+        $sourceError=Test-SBPendingSourceMapContent $BrainRoot $request
+        if($sourceError){throw (New-SBError 'pending.invalid' @($sourceError))}
+    }
     # A batch (#595) validates every candidate together under the lock, once, instead of once per item here.
     if($Operation -eq 'task.update' -and !$NoCandidateCheck){
         try {
@@ -392,7 +398,19 @@ function Test-SBPendingDecisionContent($Request) {
     try{Assert-SBDecisionData ([string]$Request.arguments.content|ConvertFrom-Json -AsHashtable) $Request.repository;$true}
     catch{$script:SBPendingDecisionError=$_.Exception.Message;$false}
 }
-function Get-SBPendingFilePlan($Request,[string]$Dossier) {
+function Test-SBPendingSourceMapContent([string]$BrainRoot,$Request) {
+    # authoritative-sources.json (#769): schema, repository identity and areaId of the request's dossier; returns the reason or $null.
+    if($Request.operation -ne 'file.save'){return 'authoritative-sources.json accepts only file.save'}
+    $content=[string]$Request.arguments.content
+    $schema=Join-Path $BrainRoot 'config/source-applicability.schema.json'
+    if(!(Test-Json -Json $content -SchemaFile $schema -ErrorAction SilentlyContinue)){return 'schema config/source-applicability.schema.json'}
+    $map=$content|ConvertFrom-Json -AsHashtable
+    if($map.repository -cne $Request.repository){return 'repository identity'}
+    $areas=@(Get-SBParaEntities $BrainRoot @()|Where-Object {(Test-SBRepoDossier $_) -and !$_.archived -and $_.status -eq 'active' -and $_.repository -ceq $Request.repository})
+    if($areas.Count -ne 1 -or $map.areaId -cne $areas[0].id){return 'areaId'}
+    $null
+}
+function Get-SBPendingFilePlan($Request,[string]$Dossier,[string]$BrainRoot) {
     # Plans a file.* request: state applied|conflict, operations (file, memory view, history index) and result keys.
     $state='applied';$result=@{};$ops=@()
     $path=Resolve-SBParaPath $Dossier $Request.arguments.relativePath
@@ -401,6 +419,9 @@ function Get-SBPendingFilePlan($Request,[string]$Dossier) {
     elseif($Request.arguments.relativePath -eq 'decisions.json' -and !(Test-SBPendingDecisionContent $Request)){
         # A decision file that breaks the contract is terminal: never applied, discardable with -DiscardPending.
         return @{state='invalid';errorCode=$script:SBPendingDecisionError;result=@{};ops=@()}
+    }
+    elseif($Request.arguments.relativePath -eq 'authoritative-sources.json' -and ($sourceError=Test-SBPendingSourceMapContent $BrainRoot $Request)){
+        return @{state='invalid';errorCode=(Get-SBMessage 'pending.invalid' @($sourceError));result=@{};ops=@()}
     }
     else{
         $text=[string]$Request.arguments.content
@@ -438,7 +459,7 @@ function Get-SBPendingEntryEvaluation($BrainRoot,$Entry) {
         if($request.operation -in @('task.status','task.update')){$targetResolved=$true}
         $dossier=Resolve-SBPendingDossier $BrainRoot $request.repository
         $targetResolved=$true
-        $plan=if($request.operation -like 'task.*'){Get-SBPendingTaskPlan $BrainRoot $request $dossier}else{Get-SBPendingFilePlan $request $dossier}
+        $plan=if($request.operation -like 'task.*'){Get-SBPendingTaskPlan $BrainRoot $request $dossier}else{Get-SBPendingFilePlan $request $dossier $BrainRoot}
         $state=$plan.state;$errorCode=$plan.errorCode;$result=$plan.result;$ops=@($plan.ops)
         if($state -eq 'conflict'){$errorCode='pending.conflict'}
     }catch [IO.IOException]{throw}
