@@ -1,6 +1,6 @@
 # Repository instructions for <Name>
 
-Revision 1.5 — 2026-11-19. Record project-specific rules here, outside the managed SecondBrain block (a sync replaces everything inside it). SecondBrain manages the common directives separately.
+Revision 1.6 — 2026-11-20. Record project-specific rules here, outside the managed SecondBrain block (a sync replaces everything inside it). SecondBrain manages the common directives separately.
 
 Use verified information and omit sections that do not apply.
 

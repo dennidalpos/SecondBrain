@@ -1,6 +1,6 @@
 # Common principles for development agents
 
-Revision 1.5 — 2026-11-19. These principles apply across projects. Project choices belong in the project's own directives.
+Revision 1.6 — 2026-11-20. These principles apply across projects. Project choices belong in the project's own directives.
 
 ## Principles
 
@@ -46,4 +46,5 @@ Applies when SecondBrain is installed (SECONDBRAIN_HOME is set or the repository
 - First load: scripts/knowledge.ps1 -Startup or MCP get_startup_context (slim, 25,000 characters); this entry point stays exact so the context loads without files in the repository. Request further detail only when the task needs it.
 - Agents write to SecondBrain only through its scripts or MCP write tools; never edit repos, workstation, shared, or .runtime by hand, and never edit inside a `<!-- secondbrain:… -->` block. Product builds, caches, and evidence stay in the product's Git-ignored folders; SecondBrain work folders come from the work tool's init mode.
 - Procedures load on request from `sb` commands (sb activate, sb check, sb compact, sb stop). Find a tool by its role through `sb prompt` or the checkout's scripts folder; file names can change.
+- Tasks: Every task you create or update must run unattended. For an autonomous task, ask the user for what `needsInfo` or the readiness result reports missing (files in scope, checks to run, acceptance, inputs, decisions) with the client's structured question tool; skip it only when the user says otherwise, then set `execution` to `user_required`.
 - Closing: update the tracker and move completed tasks to history in the same transaction. Add a memory entry only for a new durable decision, on one line ("Decision: … — Reason: …"); never log task progress. In context.md replace the current state instead of extending it, keeping each section short. Then run `sb sync` and `sb check`; use `sb compact` for semantic rewrites.

@@ -23,4 +23,16 @@ $gap=Get-SBTaskReadiness $noAcceptance @() $null
 Assert-Rd (!$gap.ready -and @($gap.missing) -contains 'acceptance') 'a task without acceptance is still not ready'
 $decision=Get-SBTaskReadiness (New-Task @{decision='dec-12345678'}) @() $null
 Assert-Rd (!$decision.ready -and @($decision.missing) -contains 'decisions') 'an open user decision still blocks'
+# Self-sufficiency for the unattended queue: an autonomous task lists what the agent must still ask the user for; a task the user marked otherwise is exempt.
+function Add-Readiness($Task){$Task.extensions.readiness=(Get-SBTaskReadiness $Task @() $null);$Task}
+$needsPlain=@(Get-SBTaskInfoNeeds (Add-Readiness (New-Task)))
+Assert-Rd (($needsPlain -contains 'files') -and ($needsPlain -contains 'checks') -and $needsPlain.Count -eq 2) 'an autonomous task without files and checks must ask for both'
+$needsFull=@(Get-SBTaskInfoNeeds (Add-Readiness (New-Task @{files=@('a');checks=@('b')})))
+Assert-Rd ($needsFull.Count -eq 0) 'a self-sufficient task asks for nothing'
+$gapTask=New-Task @{files=@('a');checks=@('b')};$gapTask.acceptance=@()
+Assert-Rd (@(Get-SBTaskInfoNeeds (Add-Readiness $gapTask)) -contains 'acceptance:acceptance') 'a blocking gap is reported as check:code'
+$userTask=New-Task;$userTask.execution='user_required'
+Assert-Rd (@(Get-SBTaskInfoNeeds (Add-Readiness $userTask)).Count -eq 0) 'a task the user marked user_required is exempt'
+$doneTask=New-Task;$doneTask.status='done'
+Assert-Rd (@(Get-SBTaskInfoNeeds (Add-Readiness $doneTask)).Count -eq 0) 'a closed task asks for nothing'
 'SUCCESS READINESS: '+$script:rdChecks+' checks'

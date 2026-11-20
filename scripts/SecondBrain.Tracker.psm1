@@ -807,6 +807,18 @@ function Set-SBTaskReadiness($Task,$Tasks,[string]$Dossier,[string]$Repository) 
     $Task.extensions.readiness
 }
 
+# Self-sufficiency for the unattended queue: an autonomous open task must carry everything the runner needs. Returns the stable codes of what is still
+# missing (blocking checks as "check:code", advisory items as "files" and "checks") so the agent that creates or updates the task asks the user for them
+# before relying on the task. A task the user marked user_required or unspecified is exempt: the user decided it is not for the runner.
+function Get-SBTaskInfoNeeds($Task) {
+    $field={param($o,[string]$n) if($o -is [Collections.IDictionary]){if($o.Contains($n)){$o[$n]}else{$null}}elseif($null -ne $o -and $o.PSObject.Properties[$n]){$o.$n}else{$null}}
+    if([string](& $field $Task 'execution') -cne 'autonomous' -or [string](& $field $Task 'status') -in @('done','cancelled')){return @()}
+    $readiness=& $field (& $field $Task 'extensions') 'readiness'
+    if(!$readiness){return @()}
+    $needs=foreach($check in @(& $field $readiness 'checks'|Where-Object {$_ -and !(& $field $_ 'passed')})){foreach($code in @(& $field $check 'missing')){([string](& $field $check 'check'))+':'+$code}}
+    @(@($needs)+@(& $field $readiness 'advisory'|Where-Object {$_})|Where-Object {$_})
+}
+
 # Create a task with the next sequential number (never reused) and a "#NNN - " title.
 # Requires an already numbered tracker: run Invoke-SBTrackerRenumber first for historical trackers.
 function New-SBTrackerTaskEntry {
@@ -871,7 +883,7 @@ function New-SBTrackerTaskEntry {
     if($null -eq $next.extensions){$next.extensions=@{}}
     $next.extensions.lastSeq=$seq
     $saved=Save-SBTrackerData $target $next $BackupRoot -WhatIf:$WhatIf -LedgerRecords @(New-SBTaskRunRecord -Task $task -Executor $Executor -Created)
-    $saved+@{taskId=$Id;seq=$seq;title=$task.title}
+    $saved+@{taskId=$Id;seq=$seq;title=$task.title;needsInfo=@(Get-SBTaskInfoNeeds $task)}
 }
 
 # Retrospective chronological numbering: archive and active tracker; date from the ID (yyyyMMdd) or inherited from the previous task.
@@ -1052,7 +1064,7 @@ function Update-SBTrackerTask {
     $archive=Read-SBTrackerArchive $target.path $target.identity
     $edit=Edit-SBTrackerTaskFields $target $archive $TaskId $fields $Executor
     $saved=Save-SBTrackerData $target $target.data $BackupRoot -WhatIf:$WhatIf -Archive $archive -LedgerRecords @($edit.record)
-    $result=$saved+@{taskId=$edit.taskId;status=$edit.status}
+    $result=$saved+@{taskId=$edit.taskId;status=$edit.status;needsInfo=@($edit.needsInfo)}
     if($edit.closing){$result.closureAdvice=Get-SBClosureAdvice (Split-Path $target.path)}
     $result
 }
@@ -1189,7 +1201,7 @@ function Edit-SBTrackerTaskFields($Target,$Archive,[string]$TaskId,[hashtable]$F
     }
     # A reviewed analysis that rewrites the task records itself even when status and execution stay the same.
     if(!$record -and ($Fields.ContainsKey('Decisions') -or $Fields.ContainsKey('Acceptance'))){$record=New-SBTaskRunRecord -Task $task -Executor $Executor -Created;$record.event='analysis'}
-    @{taskId=$TaskId;status=$task.status;closing=$closing;record=$record}
+    @{taskId=$TaskId;status=$task.status;closing=$closing;record=$record;needsInfo=@(Get-SBTaskInfoNeeds $task)}
 }
 function Invoke-SBTrackerTaskBatch {
     # #595: several task updates on one tracker read, one graph validation and one transaction (tracker, archive, ledger and -ExtraOperations).
@@ -1311,6 +1323,7 @@ Export-ModuleMember -Function @(
     'New-SBTrackerTaskEntry',
     'Get-SBTaskReadiness',
     'Set-SBTaskReadiness',
+    'Get-SBTaskInfoNeeds',
     'Invoke-SBTrackerRenumber',
     'Get-SBTrackerHistoryMessages',
     'Invoke-SBTrackerHistoryMigration',

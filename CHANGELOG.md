@@ -2,7 +2,13 @@
 
 Formato [Keep a Changelog](https://keepachangelog.com/it-IT/1.1.0/). La numerazione segue il file `VERSION`. Questo registro cambia solo quando accetti un cambio di versione: vedi [Cambiare versione](docs/uso-quotidiano.md).
 
-> Versione corrente: **3.2.0**, numerazione reimpostata il 2026-11-04 con le funzionalità attuali conservate. Le sezioni seguenti mantengono la cronologia dei rilasci precedenti.
+> Versione corrente: **3.3.0**, numerazione reimpostata il 2026-11-04 con le funzionalità attuali conservate. Le sezioni seguenti mantengono la cronologia dei rilasci precedenti.
+
+## [3.3.0] - 2026-11-20
+
+### Added
+- Common directives revision 1.6: every task created or updated in SecondBrain must be self-sufficient for the unattended runner; the agent asks the user for what is missing unless the user says otherwise.
+- `Get-SBTaskInfoNeeds`: creation and update of an autonomous task return `needsInfo` (blocking readiness gaps plus `files` and `checks`), and `knowledge.ps1 -NewTask` and `-UpdateTaskId` print it on stderr. Tasks marked `user_required` or `unspecified` are exempt.
 
 ## [3.2.0] - 2026-11-19
 

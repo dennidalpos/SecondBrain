@@ -73,6 +73,7 @@ Add-SBMessages @{
     'knowledgecli.mechanical.candidate' = @{ en = '-Mechanical builds its own plan: do not combine it with -CandidatePath' }
     'knowledgecli.autocompact.notice' = @{ en = 'Task closed: {0} dossier section(s) moved to the history tier ({1} -> {2} characters, nothing deleted; originals in history/compaction). Opt out with -NoAutoCompact or SECONDBRAIN_AUTO_COMPACT=0' }
     'knowledgecli.autocompact.failed' = @{ en = 'Automatic tiering skipped: {0}' }
+    'knowledgecli.task.needsinfo' = @{ en = 'Task {0} is autonomous but not self-sufficient for the unattended runner. Ask the user for: {1}. Skip only if the user said otherwise, or set execution user_required.' }
 }
 $brain=(Get-SBBrainRootPath);$lock=$null
 try{
@@ -334,6 +335,9 @@ try{
         $result=Get-SBGlobalTaskPage -BrainRoot $brain -Offset $Offset -Limit $pageLimit -ReadyOnly:$ReadyOnly
     }
     else{$result=@(Get-SBGlobalTasks -BrainRoot $brain -Repository (& $resolveWorking) -ReadyOnly:$ReadyOnly)}
+    if(($NewTask -or $UpdateTaskId) -and $result -is [Collections.IDictionary] -and $result.Contains('needsInfo') -and @($result.needsInfo).Count){
+        [Console]::Error.WriteLine((Get-SBMessage 'knowledgecli.task.needsinfo' @([string]$result.taskId,(@($result.needsInfo) -join ', '))))
+    }
     # Search and task lists use compact JSON (no indentation): fewer characters in the agent's context.
     if($Roadmap -and $Format -eq 'Markdown'){ConvertTo-SBRoadmapMarkdown $result}
     elseif($Search -or $All){(ConvertTo-SBStableValue $result|ConvertTo-Json -Depth 40 -Compress)}else{ConvertTo-SBJson $result}

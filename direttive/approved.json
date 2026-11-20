@@ -1,15 +1,15 @@
 {
-  "approvedAt": "2026-11-19T02:07:55.4024703+01:00",
-  "authorization": "Owner in chat, 2026-11-19: Ripristina comando (restore the exact startup command in the global text of revision 1.5 and re-approve)",
+  "approvedAt": "2026-11-20T17:35:29.3754533+01:00",
+  "authorization": "Owner in chat, 2026-11-20: Approvo 1.6 (self-sufficient tasks for the unattended runner)",
   "files": {
-    "direttive/AGENTS.global_ide.md": "BF1230F0D495F6838C89A2E7CAE002840CBC178B808D896A90A8F93357CABEFE",
-    "direttive/AGENTS.repo.managed.md": "109FE97569092606D439A807359C1BC502F00ADF8F737E5A6A7ACBC910EA9ACB",
+    "direttive/AGENTS.global_ide.md": "0A70848B8CBBE1939BDB240F37280AB3594914B41E4152F8543A554F04FEF0FF",
+    "direttive/AGENTS.repo.managed.md": "03E91474A68AB03784B6B86B686A537B06105B04ACB3115A7F57B6626B1C5DE7",
     "direttive/workstation.template.md": "2B4198D3D9F66B2EC4AD159DC7889F6C21AD64C5E025B99005D26122D6E5AEDB"
   },
   "proposal": {
-    "path": "direttive/proposals/2026-11-18-revision-1-5",
-    "readmeHash": "B10267C700AF3649967A6DF7159E90EE947C98F5C9C85F90E8D82672125744DE",
-    "sha256": "8818FF822242F8913D47DA3D4E971AE432957FAAC152F02B70BA93ADDF9A8388"
+    "path": "direttive/proposals/2026-11-20-task-self-sufficiency",
+    "readmeHash": "57B5F29BF9254F6F8BFE3442A7665452CE09F11B527E651D91F6A06638165B99",
+    "sha256": "CF8B1A692BE2F9D47DB0602E4EEA148DA6923C789602406C92486A2FD88DAC74"
   },
   "schemaVersion": 1
 }

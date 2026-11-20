@@ -380,7 +380,7 @@ function Get-SBPendingTaskPlan([string]$BrainRoot,$Request,[string]$Dossier) {
     if($state -eq 'applied' -and !$noop){
         $ops+=@{path=$target.path;expected=$before;bytes=[Text.Encoding]::UTF8.GetBytes((ConvertTo-SBJson $candidate.data))}
         $ops+=@($candidate.extraOperations)
-        foreach($key in @('taskId','status','seq','title','closureAdvice')){if($candidate.ContainsKey($key)){$result[$key]=$candidate[$key]}}
+        foreach($key in @('taskId','status','seq','title','closureAdvice','needsInfo')){if($candidate.ContainsKey($key)){$result[$key]=$candidate[$key]}}
     }
     @{state=$state;errorCode=$errorCode;result=$result;ops=$ops}
 }

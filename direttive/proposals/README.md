@@ -8,7 +8,8 @@ After the user's explicit approval, change the sources, review the diff, update 
 
 | Proposal | Label | State |
 |---|---|---|
-| `2026-11-18-revision-1-5` | 1.5 | approved, active text (portable core, role-based references, user-file safety, English default) |
+| `2026-11-20-task-self-sufficiency` | 1.6 | approved, active text (tasks must be self-sufficient for the unattended runner) |
+| `2026-11-18-revision-1-5` | 1.5 | superseded by 1.6 (portable core, role-based references, user-file safety, English default) |
 
 The proposal that holds the active text is the one named in `direttive/approved.json` (field `proposal.path`).
 
