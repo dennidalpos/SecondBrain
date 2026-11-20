@@ -84,6 +84,7 @@ test("1 first run: no repository, no recent entries", async () => {
   fs.mkdirSync(fixture.configDir, { recursive: true });
   fs.writeFileSync(path.join(fixture.configDir, "settings.json"), JSON.stringify({ secondbrainHome: "", pwshPath: "", recentRepos: [] }));
   const app = await launch();
+  await tab(app.page, "repo");
   await shot(app.page, "01-first-run-repository");
   await tab(app.page, "settings");
   await shot(app.page, "01-first-run-settings");

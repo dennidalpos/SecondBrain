@@ -728,6 +728,41 @@
       "sha256": "553EAF9EC513C77B9BFC9984E6D92FBC03183ABABF52155B620C11E8C8B25F00"
     },
     {
+      "gitBlob": "7207697b7a6a1a63c8091038fcc8a0793747107b",
+      "path": "docs/assets/orchestrator-directives.png",
+      "reason": "Reviewed 2026-11-20: screenshot of the real orchestrator binary (app 0.1.0, SecondBrain 3.3.0) recaptured on the synthetic fixture with English text only; viewed in full, only the neutral D:\\sb-work path and a test identity, the fake Claude Code shown as version 2.1.0; no host ID, user name, email or token.",
+      "reviewed": true,
+      "sha256": "8DF15B0EC72D845738A6E70331F532B7D40079A5C9A672BA3C9D90AB9FD67DF0"
+    },
+    {
+      "gitBlob": "9f81a200dd8c1b663585e672d077f1091643689e",
+      "path": "docs/assets/orchestrator-queue.png",
+      "reason": "Reviewed 2026-11-20: screenshot of the real orchestrator binary (app 0.1.0, SecondBrain 3.3.0) recaptured on the synthetic fixture with English text only; viewed in full, only the neutral D:\\sb-work path and a test identity, the fake Claude Code shown as version 2.1.0; no host ID, user name, email or token.",
+      "reviewed": true,
+      "sha256": "A0C9D524DFAF7A5CE148ED97A34858E399DCE8AF99ED64438807FF2CAA153B8D"
+    },
+    {
+      "gitBlob": "188117ca7925175d53fadd21b58427638876a636",
+      "path": "docs/assets/orchestrator-registry.png",
+      "reason": "Reviewed 2026-11-20: screenshot of the real orchestrator binary (app 0.1.0, SecondBrain 3.3.0) recaptured on the synthetic fixture with English text only; viewed in full, only the neutral D:\\sb-work path and a test identity, the fake Claude Code shown as version 2.1.0; no host ID, user name, email or token.",
+      "reviewed": true,
+      "sha256": "3454FC6CC1D667432CD8E022167BE22A1FAF82C08B8106BCC33DFCE9DD3BD6C6"
+    },
+    {
+      "gitBlob": "f8221adda5af54705ab2636020a38d70e26e1d70",
+      "path": "docs/assets/orchestrator-repository.png",
+      "reason": "Reviewed 2026-11-20: screenshot of the real orchestrator binary (app 0.1.0, SecondBrain 3.3.0) recaptured on the synthetic fixture with English text only; viewed in full, only the neutral D:\\sb-work path and a test identity, the fake Claude Code shown as version 2.1.0; no host ID, user name, email or token.",
+      "reviewed": true,
+      "sha256": "3906C2374B521D5C0B306B52CFD29D73A0EC300B094670909EC4D38DA2F4A16D"
+    },
+    {
+      "gitBlob": "5c6badeea81cf37c19c65b3cf6082fa74c7fae2a",
+      "path": "docs/assets/orchestrator-tracker.png",
+      "reason": "Reviewed 2026-11-20: screenshot of the real orchestrator binary (app 0.1.0, SecondBrain 3.3.0) recaptured on the synthetic fixture with English text only; viewed in full, only the neutral D:\\sb-work path and a test identity, the fake Claude Code shown as version 2.1.0; no host ID, user name, email or token.",
+      "reviewed": true,
+      "sha256": "559D92089B7170E7B0A53C2ECF82A2823D711887DE6026CFB89ABAA67C1D9573"
+    },
+    {
       "gitBlob": "6d641cabf24cbd80f78b8149a9ce7ad72af3ff9d",
       "path": "docs/assets/orchestrator-decision.png",
       "reason": "Reviewed 2026-11-17: screenshot of the real orchestrator binary (app 0.1.0, SecondBrain 2.17.0) on the synthetic fixture, waiting-decision dialog of the analysis of a task that cannot run alone; synthetic task and fixture question; only neutral D:\\sb-shots paths and a test identity, no real host ID, user name, email or token; viewed in full.",
