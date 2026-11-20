@@ -61,7 +61,7 @@ There are no archive folders: an inactive entity keeps its place and has a statu
 
 A repository dossier contains `index.md`, `context.md`, `memory.md`, `repository.json` and its declared tracker. Resolve it by repository identity, not the folder name. A declared dossier tracker is authoritative; a missing or invalid tracker is an error, not permission to use another file.
 
-Durable decisions use `Decisione: … — Motivo: …` in memory. Keep only verified, useful changes in context and memory. Read the essential startup package first, then request relevant task details and historical evidence. Slim defaults to 25,000 characters for the first load; characters are not tokens. See [loading and maintenance](riferimento/runtime-maintenance.md).
+Durable decisions use `Decision: … — Reason: …` in memory (the Italian `Decisione: … — Motivo: …` form in older entries is still read). Keep only verified, useful changes in context and memory. Read the essential startup package first, then request relevant task details and historical evidence. Slim defaults to 25,000 characters for the first load; characters are not tokens. See [loading and maintenance](riferimento/runtime-maintenance.md).
 
 ## One entry point: `sb`
 

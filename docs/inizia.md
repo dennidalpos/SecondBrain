@@ -107,7 +107,7 @@ On a clean machine, after cloning, ask your agent for `sb setup` (prompt SYS17).
 
 ## Skills for your agents
 
-Ask your agent for `sb skills` (prompt SYS18) in a project. It runs `scripts/skills.ps1 -Analyze` (read-only), proposes only skills that the project's facts justify (detected check commands, layout, changelog, CI), and installs the ones you select for Claude Code, Codex or Antigravity, at project scope (inside the checkout, shareable through Git) or user scope (all your projects). Install previews first; `-Apply` writes `<skill>/SKILL.md` with a backup, and a skill you edited is a conflict that is skipped unless you pass `-Overwrite`.
+Ask your agent for `sb skills` (prompt SYS18) in a project. It runs `scripts/skills.ps1 -Analyze` (read-only), proposes only skills that the project's facts justify (detected check commands, layout, changelog, CI), and installs the ones you select for Claude Code, Codex or Antigravity, at project scope (inside the checkout, shareable through Git) or user scope (all your projects). Install previews first; `-Apply` writes `<skill>/SKILL.md` with a backup, and a skill you edited is a conflict that is skipped unless you pass `-Overwrite`. `-Install -Prompt <code>` (for example `-Prompt REP15`) exports a catalog card as the skill `sb-<code>`.
 
 | Agent | Project folder | User folder | Source (checked 2026-11-15) |
 |---|---|---|---|

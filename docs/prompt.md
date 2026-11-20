@@ -89,7 +89,7 @@ Use SYS11 to add or change a prompt:
 sb prompt SYS11: add a database migration prompt
 ~~~
 
-Maintain both language cards and the catalog, then run:
+Maintain the English card and the catalog, then run:
 
 ~~~powershell
 pwsh -NoProfile -File scripts/build-prompts.ps1 -Check
