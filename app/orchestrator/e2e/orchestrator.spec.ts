@@ -501,7 +501,9 @@ test("a run stopped by a plan limit shows its resume point, and the window resum
   test.setTimeout(420_000);
   // A fresh limit for this scenario: the fake agent hits it once more (the marker of the previous scenario is its own fixture state).
   fs.rmSync(path.join(path.dirname(fixture.brain), "agent-limit.mark"), { force: true });
-  const app = await launch({ repo: fixture.checkout, limitSeconds: 5 });
+  // The reset must come well after the stopped runner has exited: the window keeps its run handle until the process ends (about 3 s after
+  // the stop), and a Resume click inside that gap is refused with "A queue started from this window is already running" before any process starts.
+  const app = await launch({ repo: fixture.checkout, limitSeconds: 20 });
   const { page } = app;
   await expect(page.locator("#q-tasks tr").filter({ hasText: "E2E-3" })).toHaveCount(1, { timeout: 60_000 });
   await expect(page.locator("#q-agents label.agent").filter({ hasText: "Claude Code" }).locator("input")).toBeChecked();
