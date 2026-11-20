@@ -451,6 +451,11 @@ try {
     }
     $newTask=Invoke-PendingCli 'knowledge.ps1' @('-CheckoutPath',$checkout,'-NewTask','Queued task','-Acceptance','Fixture criterion','-Provenance','history/seed/report.md')
     Assert-Pending ($newTask.code -eq 0 -and $newTask.data.applied -and $newTask.data.seq -eq 3) 'new tasks retain authoritative numbering and provenance'
+    # Stream, files and checks given at creation reach the task and leave nothing for needsInfo.
+    $selfNew=Invoke-PendingCli 'knowledge.ps1' @('-CheckoutPath',$checkout,'-NewTask','Self sufficient task','-Description','Change the fixture only.','-Acceptance','Fixture criterion','-Provenance','history/seed/report.md','-Stream','runner','-Files','scripts/a.ps1;scripts/b.ps1','-Checks','scripts/test-secondbrain.ps1 -Quick')
+    $selfTrackerTask=@((Read-SBJson (Join-Path $dossier 'tracker.json') $null).tasks|Where-Object seq -eq ($newTask.data.seq+1))
+    Assert-Pending ($selfNew.code -eq 0 -and $selfNew.data.applied -and !@($selfNew.data.needsInfo).Count) 'a task created with stream, files and checks returns an empty needsInfo'
+    Assert-Pending ($selfTrackerTask.Count -eq 1 -and $selfTrackerTask[0].extensions.stream -ceq 'runner' -and (@($selfTrackerTask[0].extensions.files) -join '|') -ceq 'scripts/a.ps1|scripts/b.ps1' -and (@($selfTrackerTask[0].extensions.checks) -join '|') -ceq 'scripts/test-secondbrain.ps1 -Quick') '-NewTask stores extensions.stream, files and checks'
     foreach($bad in @(@('-TaskId','S'),@('-TaskId','bad id!'),@('-Priority','B'))){
         $badCli=Invoke-PendingCli 'knowledge.ps1' (@('-CheckoutPath',$checkout,'-NewTask','Rejected task','-Acceptance','Fixture criterion','-Provenance','history/seed/report.md')+$bad)
         Assert-Pending ($badCli.code -ne 0) ('new task rejects '+($bad -join ' '))

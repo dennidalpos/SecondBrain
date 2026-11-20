@@ -35,4 +35,18 @@ $userTask=New-Task;$userTask.execution='user_required'
 Assert-Rd (@(Get-SBTaskInfoNeeds (Add-Readiness $userTask)).Count -eq 0) 'a task the user marked user_required is exempt'
 $doneTask=New-Task;$doneTask.status='done'
 Assert-Rd (@(Get-SBTaskInfoNeeds (Add-Readiness $doneTask)).Count -eq 0) 'a closed task asks for nothing'
+# Creation with stream, files and checks (#770): the stored extensions make the new task self-sufficient.
+$createRoot=Join-Path ([IO.Path]::GetTempPath()) ('sb-readiness-'+[Guid]::NewGuid().ToString('N'))
+try{
+    $createId='local:'+('a'*32)
+    $createBrain=Join-Path $createRoot 'brain';$createDossier=Join-Path $createBrain 'repos/r1'
+    New-Item -ItemType Directory -Force -Path (Join-Path $createDossier 'history') | Out-Null
+    [IO.File]::WriteAllText((Join-Path $createDossier 'source.md'),'source')
+    $createTracker=Join-Path $createDossier 'tracker.json'
+    [IO.File]::WriteAllText($createTracker,('{"schemaVersion":1,"repository":"'+$createId+'","updatedAt":"2026-11-20T00:00:00Z","tasks":[],"history":[],"extensions":{"lastSeq":0}}'))
+    $created=New-SBTrackerTaskEntry -BrainRoot $createBrain -Identity $createId -Path $createTracker -WorkingRepository $createId -Title 'Self sufficient creation' -Description 'Change the fixture only.' -Acceptance @('It works') -ProvenanceReference 'source.md' -Stream 'runner' -Files @('scripts/a.ps1') -Checks @('scripts/test-secondbrain.ps1 -Quick') -BackupRoot (Join-Path $createRoot 'backup')
+    Assert-Rd (!@($created.needsInfo).Count) 'a task created with stream, files and checks returns an empty needsInfo'
+    $stored=@((Get-Content -Raw $createTracker|ConvertFrom-Json -AsHashtable).tasks)[0]
+    Assert-Rd ($stored.extensions.stream -ceq 'runner' -and @($stored.extensions.files) -contains 'scripts/a.ps1' -and @($stored.extensions.checks) -contains 'scripts/test-secondbrain.ps1 -Quick') 'creation stores extensions.stream, files and checks'
+}finally{Remove-Item -LiteralPath $createRoot -Recurse -Force -ErrorAction SilentlyContinue}
 'SUCCESS READINESS: '+$script:rdChecks+' checks'

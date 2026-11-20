@@ -840,10 +840,20 @@ function New-SBTrackerTaskEntry {
         [hashtable]$Extensions=@{},
         [AllowEmptyCollection()][AllowEmptyString()][string[]]$Requires=@(),
         [string]$FollowUpOf,
+        [string]$Stream,
+        [AllowEmptyCollection()][AllowEmptyString()][string[]]$Files=@(),
+        [AllowEmptyCollection()][AllowEmptyString()][string[]]$Checks=@(),
         [string]$BackupRoot,
         [switch]$WhatIf,
         $Executor
     )
+    # Stream, files in scope and checks to run are stored as extensions so the task is self-sufficient at creation.
+    $Extensions=@{}+$Extensions
+    if($Stream -and $Stream.Trim()){$Extensions.stream=$Stream.Trim()}
+    $filesList=@($Files|Where-Object {$_ -and $_.Trim()}|ForEach-Object {$_.Trim()})
+    $checksList=@($Checks|Where-Object {$_ -and $_.Trim()}|ForEach-Object {$_.Trim()})
+    if($filesList.Count){$Extensions.files=$filesList}
+    if($checksList.Count){$Extensions.checks=$checksList}
     if($Priority -cnotin @('P0','P1','P2','P3','P4')){throw (New-SBError 'tracker.priority.invalid')}
     if($Id -and $Id -cnotmatch '^[A-Za-z0-9][A-Za-z0-9._-]{2,79}$'){throw (New-SBError 'tracker.id.invalid' @($Id))}
     if($Title -notmatch '\p{L}'){throw (New-SBError 'tracker.title.invalid')}

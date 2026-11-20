@@ -29,11 +29,12 @@ param([Parameter(ParameterSetName='Tasks')][switch]$Tasks,[Parameter(ParameterSe
     [Parameter(ParameterSetName='Registry')][ValidateSet('include','exclude','only')][string]$Archived='include',[Parameter(ParameterSetName='Registry')][string]$Filter,
     [Parameter(ParameterSetName='Registry')][ValidateRange(0,[int]::MaxValue)][int]$Page=0,[Parameter(ParameterSetName='Registry')][ValidateRange(0,500)][int]$PageSize=50,
     [Parameter(Mandatory,ParameterSetName='BackfillTaskRuns')][switch]$BackfillTaskRuns,
-    [Parameter(ParameterSetName='TaskUpdate')][AllowEmptyString()][string]$Stream,
+    [Parameter(ParameterSetName='TaskNew')][Parameter(ParameterSetName='TaskUpdate')][AllowEmptyString()][string]$Stream,
     [Parameter(ParameterSetName='TaskUpdate')][AllowEmptyString()][string]$Awaiting,
     [Parameter(ParameterSetName='TaskUpdate')][AllowEmptyString()][string]$Decision,
     [Parameter(ParameterSetName='TaskNew')][Parameter(ParameterSetName='TaskUpdate')][AllowEmptyCollection()][AllowEmptyString()][string[]]$Requires,
     [Parameter(Mandatory,ParameterSetName='TaskNew')][string]$Provenance,[Parameter(ParameterSetName='TaskNew')][string]$ProvenancePointer,[Parameter(ParameterSetName='TaskNew')][string]$FollowUpOf,
+    [Parameter(ParameterSetName='TaskNew')][string[]]$Files,[Parameter(ParameterSetName='TaskNew')][string[]]$Checks,
     [Parameter(Mandatory,ParameterSetName='Renumber')][switch]$RenumberTasks,
     [Parameter(Mandatory,ParameterSetName='HistoryMigration')][switch]$MigrateHistoryMessages,
     [Parameter(Mandatory,ParameterSetName='HistoryMessages')][switch]$HistoryMessages,
@@ -315,6 +316,12 @@ try{
             if($repoId -cne $working){throw (New-SBError 'tracker.write.foreign' @($repoId,$working))}
             $arguments=@{Title=$NewTask;Id=$TaskId;Description=$Description;Priority=$Priority;Execution=$Execution;DependsOn=$DependsOn;Acceptance=$Acceptance;ProvenanceReference=$Provenance;ProvenancePointer=$ProvenancePointer}
             if($FollowUpOf){$arguments.FollowUpOf=$FollowUpOf}
+            if($Stream){$arguments.Stream=$Stream}
+            # Same ';' splitting as criteria: pwsh -File passes a list as one string.
+            $filesList=@($Files|ForEach-Object{$_ -split ';'}|ForEach-Object{$_.Trim()}|Where-Object{$_})
+            if($filesList.Count){$arguments.Files=$filesList}
+            $checksList=@($Checks|ForEach-Object{$_ -split ';'}|ForEach-Object{$_.Trim()}|Where-Object{$_})
+            if($checksList.Count){$arguments.Checks=$checksList}
             if($PSBoundParameters.ContainsKey('Requires')){
                 $required=ConvertTo-SBTaskRequires $Requires
                 if($required.Count){$arguments.Requires=@($required)}
