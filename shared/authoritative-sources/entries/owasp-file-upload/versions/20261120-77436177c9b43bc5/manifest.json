@@ -1,0 +1,32 @@
+{
+  "acquiredAt": "2026-11-20T18:09:42.9753582+00:00",
+  "artifacts": [
+    {
+      "contentHash": "78FAC058141B731232625B00CEE87A89A5FA7A85E580B7C8EC266795F9536E7D",
+      "contentType": "text/plain; charset=utf-8",
+      "endpointId": "canonical",
+      "path": "originals/File_Upload_Cheat_Sheet.md",
+      "sha256": "78FAC058141B731232625B00CEE87A89A5FA7A85E580B7C8EC266795F9536E7D",
+      "url": "https://raw.githubusercontent.com/OWASP/CheatSheetSeries/master/cheatsheets/File_Upload_Cheat_Sheet.md"
+    }
+  ],
+  "configurationHash": "948D60DE3A913E1B95BC157F77490EA37595611ACA16CE9CD048E5FC647EEC40",
+  "edition": "Edizione da qualificare; eventuale snapshot identificato da manifest e hash",
+  "fingerprint": "77436177C9B43BC55BC336463DD2FC73E1378FEAE2F35918B85991F0957936C4",
+  "language": "en",
+  "publicationDate": null,
+  "schemaVersion": 1,
+  "sourceId": "owasp-file-upload",
+  "transcription": {
+    "diagnostics": {
+      "code": "sources.reason.converter-unavailable",
+      "message": "Converter unavailable",
+      "reason": "converter-unavailable",
+      "status": "unavailable"
+    },
+    "path": null,
+    "sha256": null,
+    "status": "unavailable"
+  },
+  "versionId": "20261120-77436177c9b43bc5"
+}

@@ -1,5 +1,5 @@
 {
-  "fileCount": 171,
+  "fileCount": 173,
   "files": [
     {
       "bytes": 371,
@@ -12,9 +12,9 @@
       "sha256": "79111AA25D249719BB78DE518F1E0B74E649738FD0EAF9B8473C07E35ECE0B9E"
     },
     {
-      "bytes": 16685,
+      "bytes": 16893,
       "path": "catalog.json",
-      "sha256": "097F3380C93212C054039B97992833EA3A44A20C21250DC814A31722B79D1F70"
+      "sha256": "9FED85CFD2B77B5873D679338CCB4F0E8277B7FC87141C9FF116D1F2C34924FE"
     },
     {
       "bytes": 87002,
@@ -52,9 +52,9 @@
       "sha256": "12EA09B94FFCB36AA84891ECD72B1B80931CDE8DBD880E46402F30A53D2300CF"
     },
     {
-      "bytes": 1751,
+      "bytes": 1839,
       "path": "entries/ec-ai-framework/metadata.json",
-      "sha256": "F8D76504C62ED75C0DCD3293FC3526741C4208B45DF1A6B8C51CA021B0DB25E2"
+      "sha256": "9003D37E2946DDC436C2C55794781C3C1D8254D0B912A6C6A6BF5E46E88DCA84"
     },
     {
       "bytes": 263,
@@ -120,6 +120,11 @@
       "bytes": 30664,
       "path": "entries/ec-ai-framework/versions/20261108-b0c5ea0a77cfa07f/transcript.md",
       "sha256": "40271EAABD40424107056406B35063381DEEBD3F5D4EE47E268606CA81938FE8"
+    },
+    {
+      "bytes": 1172,
+      "path": "entries/ec-ai-framework/versions/20261120-8c079e5615e8e86f/manifest.json",
+      "sha256": "B1DF519F3164963C1F9FA71EAA8F60062400D00DBCC2F38BF6105C562473CB19"
     },
     {
       "bytes": 735,
@@ -717,9 +722,9 @@
       "sha256": "AE1C6E8B4000C4604080B5A80E1E8218C7BDAEB38EC390F1ABB92D7C3A72BD04"
     },
     {
-      "bytes": 1587,
+      "bytes": 1675,
       "path": "entries/owasp-file-upload/metadata.json",
-      "sha256": "948D60DE3A913E1B95BC157F77490EA37595611ACA16CE9CD048E5FC647EEC40"
+      "sha256": "0550AE942E4B870CE669AB97A088B394165107428971B95E734DC21EE6290F08"
     },
     {
       "bytes": 251,
@@ -745,6 +750,11 @@
       "bytes": 15615,
       "path": "entries/owasp-file-upload/versions/20261027-af7d03c7c740eee2/transcript.verified.md",
       "sha256": "B47EA011A0ABC69F33FF74EC4348253B293DD723326FE5B136C8F7763C5F874B"
+    },
+    {
+      "bytes": 1221,
+      "path": "entries/owasp-file-upload/versions/20261120-77436177c9b43bc5/manifest.json",
+      "sha256": "D38BDA8710D0CF3988A4764E958E14523062157E3F48BFE7D2142978731CDD1E"
     },
     {
       "bytes": 1731,
@@ -832,9 +842,9 @@
       "sha256": "E4D85BEFBDB9D7A2A540E039B1BBAC4D12937FFC87D5F9AAE4F340E7021F7FE1"
     },
     {
-      "bytes": 25784,
+      "bytes": 44101,
       "path": "normative-queue.json",
-      "sha256": "0AE32E012CC998C2AAE9CD20EDE6BBE4A8CF11EB80938BE1D97D736CDFB60F34"
+      "sha256": "674E18DF58EB16597247676195123A0F90E1C1C888B82A929CA47BB1F79E0215"
     },
     {
       "bytes": 1790,

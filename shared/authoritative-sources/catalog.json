@@ -53,7 +53,7 @@
       ],
       "id": "ec-ai-framework",
       "kind": "guideline",
-      "metadataSha256": "F8D76504C62ED75C0DCD3293FC3526741C4208B45DF1A6B8C51CA021B0DB25E2",
+      "metadataSha256": "9003D37E2946DDC436C2C55794781C3C1D8254D0B912A6C6A6BF5E46E88DCA84",
       "path": "entries/ec-ai-framework/metadata.json",
       "title": "AI Act - quadro e calendario della Commissione europea",
       "versions": [
@@ -68,6 +68,10 @@
         {
           "id": "20261108-b0c5ea0a77cfa07f",
           "reviewStatus": "verified"
+        },
+        {
+          "id": "20261120-8c079e5615e8e86f",
+          "reviewStatus": "candidate"
         }
       ]
     },
@@ -484,13 +488,17 @@
       ],
       "id": "owasp-file-upload",
       "kind": "guideline",
-      "metadataSha256": "948D60DE3A913E1B95BC157F77490EA37595611ACA16CE9CD048E5FC647EEC40",
+      "metadataSha256": "0550AE942E4B870CE669AB97A088B394165107428971B95E734DC21EE6290F08",
       "path": "entries/owasp-file-upload/metadata.json",
       "title": "OWASP File Upload Cheat Sheet",
       "versions": [
         {
           "id": "20261027-af7d03c7c740eee2",
           "reviewStatus": "verified"
+        },
+        {
+          "id": "20261120-77436177c9b43bc5",
+          "reviewStatus": "candidate"
         }
       ]
     },
