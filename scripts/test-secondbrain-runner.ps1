@@ -142,7 +142,7 @@ switch($Mode){
     'noop' {[Console]::Out.Write((@{type='result';is_error=$false;result='no progress'}|ConvertTo-Json -Compress));exit 0}
     # #612: the agent records a ready, autonomous, top-priority follow-up through its own session, then marks its task in progress.
     'followup' {
-        & pwsh -NoProfile -File (Join-Path $env:SB_RUNNER_FAKE_BRAIN 'scripts/knowledge.ps1') -ConfigPath $env:SB_RUNNER_FAKE_CONFIG -CheckoutPath (Get-Location).Path -NewTask ('Follow-up of '+$id) -Acceptance 'Follow-up acceptance' -Provenance 'history/seed/report.md' -ProvenancePointer '#seed' -Execution autonomous -Priority P0 2>&1|Out-Null
+        & pwsh -NoProfile -File (Join-Path $env:SB_RUNNER_FAKE_BRAIN 'scripts/knowledge.ps1') -ConfigPath $env:SB_RUNNER_FAKE_CONFIG -CheckoutPath (Get-Location).Path -NewTask ('Follow-up of '+$id) -Description 'Follow-up recorded by the fake agent.' -Stream 'maintenance' -Acceptance 'Follow-up acceptance' -Provenance 'history/seed/report.md' -ProvenancePointer '#seed' -Execution autonomous -Priority P0 2>&1|Out-Null
         if($LASTEXITCODE){[Console]::Error.WriteLine('new task failed');exit 5}
         Set-FakeInProgress 'Fake agent followup'
         [Console]::Out.Write((@{type='result';is_error=$false;result='follow-up recorded'}|ConvertTo-Json -Compress));exit 0
