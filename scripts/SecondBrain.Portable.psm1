@@ -94,7 +94,10 @@ Add-SBMessages @{
     'portable.prompt.alias' = @{ en = 'Account id or pseudonym for {0} (letters, digits, . _ -; never an email){1}' }
     'portable.issue.pendingconflict' = @{ en = 'Queued writes need reconciliation: run sb reconcile tasks (plan first, then -Apply and -Decide)' }
     'portable.issue.aliasmissing' = @{ en = 'No account alias registered: re-run Setup with -IdeAccount "{0}|<account id or pseudonym>"' }
-    'portable.path.filetype.alt' = @{ en = 'Alternative path allowed only for file-type IDEs: {0}' }
+    'portable.issue.adoptide' = @{ en = 'Managed-block state for {0} is stale: -AdoptIde "{0}" records the current block as the baseline, then Sync rewrites it with the approved text (backup first). Compare the block with the approved text before applying.' }
+    'portable.issue.adoptide.unknown' = @{ en = 'No registered IDE named "{0}" has a global block to adopt: check the name with -Setup -Status' }
+    'portable.issue.claudeconfigdir' = @{ en = 'Claude Code instructions are registered at {0}, not at the permanent file {1}: CLAUDE_CONFIG_DIR points away from it. Unset it or re-run Setup from a session without the override' }
+    'portable.path.filetype.alt' =@{ en = 'Alternative path allowed only for file-type IDEs: {0}' }
     'portable.observed.manual' = @{ en = 'Observed revision and hash are recorded only for manual surfaces: {0}' }
     'portable.observed.pair' = @{ en = 'revision (e.g. 1.0) and SHA-256 hash must be given together: {0}' }
     'portable.selection.empty' = @{ en = 'No repository or IDE selected: give -Select, -Ides, -AllIdes or -Interactive' }
@@ -666,6 +669,8 @@ function Invoke-SBSetup {
         if(!$approvals[$asset.id]){throw (New-SBError 'portable.block.unapproved' @($asset.path))}
     }
     $result.selected=[ordered]@{repositories=@($chosen|ForEach-Object {$_.name});ides=@($chosenIdes|ForEach-Object {$_.name})}
+    $setupWarnings=@(foreach($chosenIde in $chosenIdes){$context=Get-SBIDEContext ([string]$chosenIde.name);if($context){$text=Get-SBClaudeConfigDirWarning ([string]$chosenIde.name) ([string]$context.instructions);if($text){@{kind='claude-config-dir-override';ide=$chosenIde.name;reason=$text}}}})
+    if($setupWarnings.Count){$result.warnings=$setupWarnings}
     $targetsByName=$script:SBPortableMcpTargets
     if(!$McpTargets.Count){
         $McpTargets=@($chosenIdes|ForEach-Object {$targetsByName[$_.name]}|Where-Object {$_}|Sort-Object -Unique)
@@ -1001,8 +1006,16 @@ function Invoke-SBRepositoryBlockResolve {
         @{schemaVersion=1;repository=[string]$binding.identity;path=[string]$binding.path;applied=$changed;resolution=$Resolution;files=$items;conflicts=@($items|Where-Object {$_.status -in @('conflict')}).Count}
     }finally{Exit-SBOperation $lock}
 }
+function Get-SBClaudeConfigDirWarning([string]$Name,[string]$InstructionsPath) {
+    # Discovery follows CLAUDE_CONFIG_DIR: a per-session override registers that session's CLAUDE.md instead of ~/.claude/CLAUDE.md.
+    if($Name -notmatch '^Claude Code' -or !$InstructionsPath -or !$env:USERPROFILE){return $null}
+    $permanent=[IO.Path]::GetFullPath((Join-Path $env:USERPROFILE '.claude/CLAUDE.md'))
+    $registered=[IO.Path]::GetFullPath($InstructionsPath)
+    if($registered -ieq $permanent){return $null}
+    Get-SBMessage 'portable.issue.claudeconfigdir' @($registered,$permanent)
+}
 function Invoke-SBPortableSync {
-    param($Config,[switch]$Check,[string]$SessionId,[string]$ObservationPath,[string]$Repository)
+    param($Config,[switch]$Check,[string]$SessionId,[string]$ObservationPath,[string]$Repository,[string]$AdoptIde)
     $lock=Enter-SBOperation $Config $SessionId -ReadOnly:$Check
     try{
         # -Repository limits checks to that repository: no other repositories' data or results; the result declares coverage.
@@ -1133,6 +1146,7 @@ function Invoke-SBPortableSync {
             if($globalHash -ne (Get-SBTextHash $global)){
                 if($Check){$issues+=@{kind='global-text-pending'}}else{Write-SBFile $globalPath ([Text.Encoding]::UTF8.GetBytes($global)) $globalHash $stateBackups -Recoverable|Out-Null}
             }
+            if($AdoptIde -and !@($Config.ides|Where-Object {$_.name -ceq $AdoptIde}).Count){throw (New-SBError 'portable.issue.adoptide.unknown' @($AdoptIde))}
             if(!$state.ContainsKey('ideContext')){$state.ideContext=@{}}
             foreach($ide in $Config.ides){
                 # Profile, configuration root or configuration folders changed since activation: instructions may no longer be loaded.
@@ -1165,6 +1179,16 @@ function Invoke-SBPortableSync {
                     if((Get-SBFileHash $ide.instructions) -ne $ide.sha256){$issues+=@{kind='ide-conflict';ide=$ide.name};continue}
                     $block=Get-SBManagedContent ((Read-SBText $ide.instructions) -replace "`r`n","`n") 'global'
                     if($null -eq $block){$issues+=@{kind='ide-adoption-required';ide=$ide.name};continue};$state.managed[$key]=Get-SBTextHash $block
+                }
+                $configDirWarning=Get-SBClaudeConfigDirWarning $ide.name $ide.instructions
+                if($configDirWarning){$closureWarnings+=@{kind='claude-config-dir-override';ide=$ide.name;reason=$configDirWarning}}
+                # Sanctioned adoption (#780): the file was replaced outside SecondBrain and its state hash is stale; the block on disk becomes the baseline, never a silent reset.
+                if($AdoptIde -and $ide.name -ceq $AdoptIde -and $state.managed.ContainsKey($key) -and (Get-SBFileHash $ide.instructions) -ne 'absent'){
+                    $currentBlock=Get-SBManagedContent ((Read-SBText $ide.instructions) -replace "`r`n","`n") 'global'
+                    if($null -ne $currentBlock -and $state.managed[$key] -ne (Get-SBTextHash $currentBlock) -and $currentBlock -cne $global.Trim()){
+                        if($Check){$closureWarnings+=@{kind='ide-adopt-preview';ide=$ide.name;previousStateHash=[string]$state.managed[$key];currentBlockHash=(Get-SBTextHash $currentBlock);reason=(Get-SBMessage 'portable.issue.adoptide' @($ide.name))}}
+                        else{$state.managed[$key]=Get-SBTextHash $currentBlock;$changes+='ide-adopted:'+$ide.name}
+                    }
                 }
                 $result=Set-SBManagedContent $ide.instructions $global.Trim() 'global' $state.managed $Check $stateBackups -InstallBackupRoot (Join-Path $stateRoot 'install-backups')
                 if($result -in @('conflict','pending')){$issues+=@{kind=('ide-'+$result);ide=$ide.name}}

@@ -429,6 +429,29 @@ if('portable' -in $Groups){
             Put $evidence 'Modified evidence'
             $check=Invoke-SBPortableSync -Config $observationConfig -Check -ObservationPath $observationPath
             Check ('mcp-consent-unverified' -in (@($check.issues)+@($check.environment)).kind) 'MCP consent cannot be verified with changed evidence'
+            # #780: an IDE global file replaced outside SecondBrain leaves a stale state hash; -AdoptIde previews the adoption in Check, touches nothing and rejects unknown names.
+            $adoptFile=Join-Path $fixture 'adopt/AGENTS.md'
+            Put $adoptFile ("<!-- secondbrain:global:begin -->`nforeign body`n<!-- secondbrain:global:end -->`n")
+            $adoptConfig=Read-SBConfiguration -BrainRoot $brain -ReadOnly
+            $adoptConfig.ides=@(@{id='fixture-adopt';name='Fixture adopt';mode='file';instructions=$adoptFile;sha256=(Get-SBFileHash $adoptFile)})
+            $adoptStateRoot=if($adoptConfig.ContainsKey('localStateRoot')){$adoptConfig.localStateRoot}else{$adoptConfig.runtimeRoot}
+            $adoptStatePath=Join-Path $adoptStateRoot 'state.json'
+            $adoptStateBefore=if([IO.File]::Exists($adoptStatePath)){[IO.File]::ReadAllText($adoptStatePath)}else{$null}
+            try{
+                $adoptState=if($adoptStateBefore){ConvertFrom-Json $adoptStateBefore -AsHashtable}else{@{schemaVersion=1;managed=@{};dossierMap=@{}}}
+                if(!$adoptState.ContainsKey('managed')){$adoptState.managed=@{}}
+                $adoptState.managed[[IO.Path]::GetFullPath($adoptFile)+'|global']=('0'*64)
+                Put $adoptStatePath (ConvertTo-SBJson $adoptState)
+                $adoptBeforeHash=Get-SBFileHash $adoptFile
+                $plain=Invoke-SBPortableSync -Config $adoptConfig -Check
+                Check ('ide-conflict' -in @($plain.issues).kind) 'a stale managed-block state is reported as ide-conflict'
+                $adoptPreview=Invoke-SBPortableSync -Config $adoptConfig -Check -AdoptIde 'Fixture adopt'
+                $previewWarning=@($adoptPreview.warnings|Where-Object {$_.kind -eq 'ide-adopt-preview'})
+                Check ($previewWarning.Count -eq 1 -and $previewWarning[0].previousStateHash -ceq ('0'*64) -and (Get-SBFileHash $adoptFile) -ceq $adoptBeforeHash) '-AdoptIde previews both hashes in Check without touching the file'
+                Check ($null -ne (try{Invoke-SBPortableSync -Config $adoptConfig -Check -AdoptIde 'No such IDE';$null}catch{$_})) '-AdoptIde rejects an IDE name that is not registered'
+            }finally{
+                if($null -ne $adoptStateBefore){Put $adoptStatePath $adoptStateBefore}elseif([IO.File]::Exists($adoptStatePath)){[IO.File]::Delete($adoptStatePath)}
+            }
             $legacyConfig=$repeat.activation.configuration
             $legacyHash=Get-SBFileHash $legacyConfig
             $env:SECONDBRAIN_STATE_ROOT=Join-Path $fixture 'external-state'

@@ -12,6 +12,7 @@ Reads (-Check) take no blocking locks: an active writer or pending transaction a
 -Setup -Unbind <repo|path|ideId|ideName>[,..]: unbinds managed repositories and IDE integrations with proposal, confirmation (-Yes or -Interactive) and preview, like activation; -Apply applies it. Dossiers and IDE files are not deleted.
 -Setup -SetupProfile Solo: one person, local checkout, no shared root and no share ACLs (rejects -TeamRoot and a checkout on a network drive). -Setup -SetupProfile Studio -TeamRoot <UNC>: shared authoritative root, workstation state local (SECONDBRAIN_STATE_ROOT), access by the share's ACLs. The result reports profile, sharedRoot, acl and state.
 Repository files: a newly activated repository gets AGENTS.md (managed block) and the CLAUDE.md/GEMINI.md pointers, created when absent; text outside the managed blocks is kept. -Setup -RepositoryFiles AGENTS.md[,CLAUDE.md,GEMINI.md] chooses the files, none opts out; a repeated activation keeps the earlier choice and Sync manages only the chosen files.
+-Check|-Sync -AdoptIde <ide name>: when an IDE global file was replaced outside SecondBrain and its managed-block state is stale (ide-conflict), -Check previews the adoption (warning ide-adopt-preview with both hashes) and -Sync records the block on disk as the baseline, then rewrites it with the approved text; the file is backed up first.
 -ResolveBlock <repo|path> [-File <name>]: preview of a managed block edited by hand (diff); -Resolution Generated|Preserve -ApplyResolve restores the generated block keeping the previous content (backup, previousBlock, or the lines added by hand with Preserve).
 Portable operations and contracts: docs/riferimento/portable-brain.md.
 .EXAMPLE
@@ -77,6 +78,7 @@ param(
     [Parameter(ParameterSetName='Setup')][switch]$Status,
     [Parameter(ParameterSetName='Setup')][string[]]$Unbind=@(),
     [Parameter(ParameterSetName='Check')][Parameter(ParameterSetName='Sync')][string]$Repository,
+    [Parameter(ParameterSetName='Check')][Parameter(ParameterSetName='Sync')][string]$AdoptIde,
     [string]$ConfigPath,[string]$ObservationPath,
     [string]$SessionId,
     [ValidateRange(0,600)][int]$WaitSeconds
@@ -211,7 +213,7 @@ try {
     }
     $config = Read-SBConfiguration $ConfigPath -ReadOnly:(!$Sync)
     # #474: -Check is a pure read; pending writes are integrated only by knowledge.ps1 -FlushPending.
-    $result = Invoke-SBPortableSync -Config $config -Check:(!$Sync) -SessionId $SessionId -ObservationPath $ObservationPath -Repository $Repository
+    $result = Invoke-SBPortableSync -Config $config -Check:(!$Sync) -SessionId $SessionId -ObservationPath $ObservationPath -Repository $Repository -AdoptIde $AdoptIde
     ConvertTo-SBJson $result
     if (!$result.aligned) { exit 1 }
     exit 0

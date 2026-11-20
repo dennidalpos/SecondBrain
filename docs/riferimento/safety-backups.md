@@ -55,7 +55,7 @@ It does not include external IDE configuration/product instructions and has no a
 
 ## Conflicts and removal
 
-ide-adoption-required needs deliberate adoption review; ide-conflict needs rediscovery/profile verification; managed-block conflict needs comparison with deployment state and backup. Do not delete blocks or reset files merely to force Sync.
+ide-adoption-required needs deliberate adoption review; ide-conflict needs rediscovery/profile verification; managed-block conflict needs comparison with deployment state and backup. Do not delete blocks or reset files merely to force Sync. When an IDE global file was replaced outside SecondBrain and its state hash is stale, `secondbrain.ps1 -Check -AdoptIde "<ide name>"` previews the adoption (warning `ide-adopt-preview`, both hashes) and `-Sync -AdoptIde "<ide name>"` records the block on disk as the baseline and rewrites it with the approved text, after a backup. Check and Setup warn (`claude-config-dir-override`) when CLAUDE_CONFIG_DIR makes discovery register a session CLAUDE.md instead of `~/.claude/CLAUDE.md`.
 
 No blanket uninstaller exists. Preview selected Unbind, then separately review managed-block/MCP/hook/environment removal. Back up knowledge before an explicitly authorized clone removal. Unbinding and destructive repository rollback are different workflows.
 
