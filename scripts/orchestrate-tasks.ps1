@@ -13,6 +13,7 @@ Default is a preview (selection and prompts, nothing runs). Switches:
   -ConfirmExtendedTools   required before -PermissionMode, -AllowedTools or -DisallowedTools differ from the defaults; recorded in status.json.
   -OnlyIds                restrict the selection to these task ids (comma separated).
   -HealthChecks           comma list of tracker,tasks,quick,check run after each task (default all four).
+  -WorkerReport           the worker only reports its outcome (an SB-RESULT line); the host validates it and does all the bookkeeping. Default for codex and gemini (sandboxed workers cannot reach the workstation configuration or the tracker).
   -AllowNoPowerRequest    run even when the Windows power request (no idle sleep) is refused.
 Per task: tree must be clean (except when resuming the interrupted task), mark in_progress, run the session (prompt on stdin, timeout),
 read the outcome, reopen a done task without evidence, park a todo task that produced nothing as user_required, commit the changed paths
@@ -54,6 +55,7 @@ param(
     [ValidatePattern('^(tracker|tasks|quick|check)(,(tracker|tasks|quick|check))*$')][string]$HealthChecks = 'tracker,tasks,quick,check',
     [switch]$ConfirmExtendedTools,
     [switch]$AllowNoPowerRequest,
+    [switch]$WorkerReport,
     [switch]$IncludeExcluded,
     [switch]$Run,
     [switch]$Status,
@@ -86,6 +88,7 @@ Import-Module (Join-Path $moduleRoot 'SecondBrain.Messages.psm1')
 Import-Module (Join-Path $moduleRoot 'SecondBrain.AgentAdapters.psm1')
 Import-Module (Join-Path $moduleRoot 'SecondBrain.RunnerStatus.psm1')
 Import-Module (Join-Path $moduleRoot 'SecondBrain.Host.psm1')
+Import-Module (Join-Path $moduleRoot 'SecondBrain.Access.psm1')
 Add-SBMessages @{
     'orchestrate.checkout.missing' = @{ en = 'Not inside a Git checkout; pass -Checkout' }
     'orchestrate.brain.missing' = @{ en = 'SecondBrain not found; set SECONDBRAIN_HOME or pass -SecondBrain' }
@@ -102,6 +105,7 @@ Add-SBMessages @{
     'orchestrate.alive' = @{ en = 'An orchestrator run is already active (pid {0}, work folder {1}); use -Status or -Stop' }
     'orchestrate.power.refused' = @{ en = 'The power request was not acquired ({0}): the computer could sleep during the run. Run again with -AllowNoPowerRequest to run without this protection' }
     'orchestrate.run.none' = @{ en = 'No orchestrator run found for {0}' }
+    'orchestrate.bookkeeping.target' = @{ en = 'Bookkeeping target not resolved, no agent was started: {0}' }
     'orchestrate.agent.exists' = @{ en = 'Agent definition already exists, not overwritten: {0}' }
 }
 if (-not $SecondBrain) { throw (New-SBError 'orchestrate.brain.missing') }
@@ -288,8 +292,9 @@ if ($Run -and -not $Pinned) {
     if ($ConfirmExtendedTools) { $forward.ConfirmExtendedTools = $true }
     if ($AllowNoPowerRequest) { $forward.AllowNoPowerRequest = $true }
     if ($extended) { $forward.ExtendedProfile = $true }
+    if ($WorkerReport) { $forward.WorkerReport = $true }
     & $copy @forward
-    return
+    exit $LASTEXITCODE
 }
 
 $eventsFile = Join-Path $WorkDir 'events.jsonl'
@@ -297,7 +302,7 @@ $statusFile = Join-Path $WorkDir 'status.json'
 $stopFile = Join-Path $WorkDir 'stop.flag'
 $noticeFile = Join-Path $WorkDir 'NOTICE.txt'
 $state = [ordered]@{ kind = 'orchestrate-tasks'; checkout = $Checkout; phase = 'starting'; pid = $PID; startedAt = (Get-SBNow -Local).ToString('o'); provider = $Provider; model = $Model; effort = $Effort; branch = $null
-    current = $null; currentId = $null; done = @(); failed = @(); parked = @(); skipped = @(); waitingUntil = $null; quotaObserved = $null; power = $null; authorization = $null; notice = $null; updatedAt = $null }
+    current = $null; currentId = $null; done = @(); failed = @(); parked = @(); skipped = @(); waitingUntil = $null; quotaObserved = $null; power = $null; authorization = $null; notice = $null; result = $null; exitCode = $null; updatedAt = $null }
 $resumeId = $null
 if ($resume) {
     foreach ($name in 'done', 'failed', 'parked', 'skipped') { $state[$name] = @(Get-Property $resume $name @()) }
@@ -328,6 +333,43 @@ function Invoke-Knowledge([string[]]$KArgs) {
     Push-Location $Checkout
     try { $text = & pwsh -NoProfile -File (Join-Path $scriptsDir 'knowledge.ps1') @KArgs 2>&1 | Out-String; [pscustomobject]@{ Code = $LASTEXITCODE; Text = $text } }
     finally { Pop-Location }
+}
+
+# A bookkeeping write counts only when the tracker reports it applied; a rejection is an event and, for a transition the run depends on, fatal.
+$script:fatal = $false
+function Update-Task([string]$What, [string[]]$KArgs) {
+    $r = Invoke-Knowledge $KArgs
+    $applied = ($r.Code -eq 0 -and $r.Text -match '"state":\s*"applied"')
+    if (-not $applied) { Write-Event 'bookkeeping-rejected' "$What rejected (exit $($r.Code)): $(($r.Text.Trim() -split "`n")[0])" }
+    $applied
+}
+# Preflight: the checkout must resolve (as knowledge.ps1 does, linked worktrees included) to the identity of the dossier the queue reads.
+function Test-BookkeepingTarget {
+    try {
+        $record = Read-Json (Join-Path $dossier 'repository.json')
+        $config = Read-SBConfiguration $null -ReadOnly
+        $bound = Resolve-SBWorkingRepository $Checkout @($config.bindings)
+    }
+    catch { return "checkout not resolvable ($($_.Exception.Message))" }
+    if (-not $bound) { return 'the checkout has no repository identity' }
+    if ($bound -cne [string]$record.identity) { return "the checkout resolves to '$bound' but the queue reads the dossier of '$($record.identity)'" }
+    $read = Invoke-Knowledge @('-Tasks')
+    if ($read.Code -ne 0) { return "knowledge.ps1 -Tasks exit $($read.Code): $(($read.Text.Trim() -split "`n")[0])" }
+    ''
+}
+# Worker report (sandboxed workers): the last SB-RESULT line of the final output, validated against the task before the host records anything.
+function Get-WorkerReport($task, [string]$Text) {
+    $line = @($Text -split "`r?`n" | Where-Object { $_ -match '^\s*SB-RESULT:\s*\{' } | Select-Object -Last 1)
+    if (-not $line.Count) { return $null }
+    try { $r = ($line[0] -replace '^\s*SB-RESULT:\s*', '') | ConvertFrom-Json -Depth 5 } catch { return $null }
+    if ([string](Get-Property $r 'taskId') -cne $task.id) { return $null }
+    $status = [string](Get-Property $r 'status')
+    if ($status -notin 'done', 'todo', 'blocked') { return $null }
+    $evidence = @(@(foreach ($e in @(Get-Property $r 'evidence' @())) {
+        $ref = [string](Get-Property $e 'reference'); $out = [string](Get-Property $e 'outcome')
+        if ($ref -and $ref.Length -le 200 -and $ref -notmatch '[|\r\n]|(^|[\\/])\.\.([\\/]|$)|^[A-Za-z]:|^[\\/]' -and $out -in 'passed', 'failed', 'partial', 'unverified') { "$ref|$out" }
+    }) | Select-Object -First 10)
+    [pscustomobject]@{ Status = $status; Evidence = $evidence; Reason = ([string](Get-Property $r 'reason') -replace '\s+', ' ').Trim() }
 }
 
 # --- tracker (read only) ---
@@ -394,6 +436,7 @@ function Get-Queue {
     @($queue | Sort-Object @{ e = { if ($resumeId -and $_.id -eq $resumeId) { 0 } else { 1 } } }, @{ e = { if (Test-SelfEditing $_) { 1 } else { 0 } } }, { [string]$_.priority }, { [int]$_.seq })
 }
 
+$useWorkerReport = [bool]($WorkerReport -or $Provider -in 'codex', 'gemini')
 function New-Prompt($task, [bool]$Resuming = $false) {
     $acceptance = (@($task.acceptance) | ForEach-Object { "- $_" }) -join "`n"
     $deps = (@(Get-Property $task 'dependencies' @()) | ForEach-Object { $_.id }) -join ', '
@@ -401,6 +444,24 @@ function New-Prompt($task, [bool]$Resuming = $false) {
     $scopeFiles = @(@(Get-Property $ext 'files' @()) | Where-Object { $_ -and ([string]$_).Trim() } | ForEach-Object { "- $(([string]$_).Trim())" }) -join "`n"
     $scopeChecks = @(@(Get-Property $ext 'checks' @()) | Where-Object { $_ -and ([string]$_).Trim() } | ForEach-Object { "- $(([string]$_).Trim())" }) -join "`n"
     $scopeText = (@(if ($scopeFiles) { "Files in scope (stay inside them unless the task proves otherwise):`n$scopeFiles`n" }; if ($scopeChecks) { "Checks to run before closing (record each result as evidence):`n$scopeChecks`n" }) -join "`n")
+    $procedure3 = if ($useWorkerReport) {
+@"
+3. You have no access to the dossier, the tracker or the workstation configuration: do not try to write them. Report the outcome in your final message with ONE last line, exactly:
+   SB-RESULT: {"taskId":"$($task.id)","status":"done|todo|blocked","evidence":[{"reference":"<repository-relative file or check>","outcome":"passed|failed|partial|unverified"}],"reason":"<what is missing or what the user must do>"}
+   - status done only when every criterion is really met; todo when work remains; blocked when the task needs the user (say what in reason).
+   - one evidence entry per satisfied criterion, up to 10; the reference has no '|' and is a relative path.
+The host validates the line and records the transition and the evidence; it also records the run itself and runs the health check after you finish.
+"@
+    } else {
+@"
+3. Record the outcome in the dossier ONLY through SecondBrain (knowledge.ps1 run from the checkout, or the SecondBrain MCP write tools), never by editing tracker.json or other dossier files by hand:
+   - evidence for each satisfied criterion: knowledge.ps1 -UpdateTaskId $($task.id) -Evidence "<reference>|<outcome>"
+   - -Status done only when every criterion is really met; otherwise leave the status, and say what is missing with -StateReason.
+   - if the task needs the user (a decision, an action only they can do), set -Execution user_required with -StateReason saying what.
+   - add a memory line only for a new durable decision.
+The orchestrator also records the run itself (output log, commit) as evidence and runs the health check after you finish.
+"@
+    }
     $resumeNote = if ($Resuming) { "`nRESUME: a previous session on this task was cut. The working tree holds its partial work: inspect it with git status and git diff, continue from it, and never reset, clean or stash.`n" } else { '' }
     @"
 You are executing ONE tracker task in a fresh session for the repository at $Checkout. Do only this task.
@@ -417,12 +478,7 @@ $scopeText
 Procedure:
 1. Read AGENTS.md and load the startup context (MCP get_startup_context, or knowledge.ps1 -Startup run from the checkout). Follow the repository directives.
 2. Do the work. Run the project checks that are relevant to what you changed, and no others.
-3. Record the outcome in the dossier ONLY through SecondBrain (knowledge.ps1 run from the checkout, or the SecondBrain MCP write tools), never by editing tracker.json or other dossier files by hand:
-   - evidence for each satisfied criterion: knowledge.ps1 -UpdateTaskId $($task.id) -Evidence "<reference>|<outcome>"
-   - -Status done only when every criterion is really met; otherwise leave the status, and say what is missing with -StateReason.
-   - if the task needs the user (a decision, an action only they can do), set -Execution user_required with -StateReason saying what.
-   - add a memory line only for a new durable decision.
-The orchestrator also records the run itself (output log, commit) as evidence and runs the health check after you finish.
+$procedure3
 Forbidden: git commit, push, tag, reset, clean, rebase, deleting files or branches, publishing anything. The orchestrator commits your changes after you finish; leave them in the working tree.
 Finish with at most 10 lines: outcome, evidence references, what is left, any blocker.
 "@
@@ -449,12 +505,13 @@ function ConvertTo-ResetTime($Value) {
     try { [DateTimeOffset]$Value } catch { $null }
 }
 function Read-Outcome([string]$OutFile, $Process) {
-    $o = [ordered]@{ result = $null; isError = $false; quota = $false; resetAt = $null; text = ''; observation = $null }
+    $o = [ordered]@{ result = $null; isError = $false; quota = $false; resetAt = $null; text = ''; final = ''; observation = $null }
     if ($Provider -ne 'claude') {
         $limit = Get-SBAgentLimitState -Provider $Provider -Output $Process.output -ErrorOutput $Process.error -ExitCode $Process.exitCode
         if ($limit -and $limit.state -eq 'quota') { $o.quota = $true; $o.resetAt = ConvertTo-ResetTime $limit.resetAt; $o.observation = New-QuotaObservation 'exhausted' $o.resetAt }
         $o.isError = ($null -ne $Process.exitCode -and $Process.exitCode -ne 0)
         $o.text = [string](Get-SBAgentFinalOutput $Process.output)
+        $o.final = $o.text
         if ($o.text.Length -gt 600) { $o.text = $o.text.Substring($o.text.Length - 600) }
         return [pscustomobject]$o
     }
@@ -480,6 +537,7 @@ function Read-Outcome([string]$OutFile, $Process) {
             $o.result = $j
             $o.isError = [bool](Get-Property $j 'is_error' $false)
             $o.text = [string](Get-Property $j 'result' '')
+            $o.final = $o.text
         }
     }
     if ($o.isError -and $o.text -match "(?i)hit your limit|reached your|out of usage|limit reached") {
@@ -649,12 +707,18 @@ if ($ScriptsSnapshot) { Write-Event 'snapshot' "Bookkeeping and health checks ru
 else { Write-Event 'snapshot' 'No snapshot (resumed or started without one): the live scripts are used and only the SHA-256 manifest guards them' }
 Get-HealthBaseline
 $script:waitBudgetHours = $MaxWaitHours
+$preflight = Test-BookkeepingTarget
+if ($preflight) {
+    $script:fatal = $true
+    Write-Notice (Get-SBMessage 'orchestrate.bookkeeping.target' @($preflight))
+    $state.failed += 'bookkeeping-target'
+}
 $consecutiveFailures = 0
 $executed = 0
 Write-Event 'run' "Run on branch $($state.branch) with $Provider$(if ($resume) { ' (resuming a cut run)' })"
 Write-State 'running'
 try {
-    while ($true) {
+    while (-not $script:fatal) {
         if (Test-Stop) { Write-Event 'stop' 'stop.flag found'; break }
         if ($MaxTasks -gt 0 -and $executed -ge $MaxTasks) { Write-Event 'stop' 'MaxTasks reached'; break }
         if ($consecutiveFailures -ge 3) { Write-Notice 'Three consecutive failures'; break }
@@ -676,7 +740,10 @@ try {
         $resumeId = $null
         $state.current = "#$($task.seq) $($task.id)"; $state.currentId = $task.id; Write-State 'running'
         Write-Event 'start' "#$($task.seq) $($task.title)"
-        [void](Invoke-Knowledge @('-UpdateTaskId', $task.id, '-Status', 'in_progress', '-StateReason', 'Started by orchestrate-tasks.ps1'))
+        if (-not (Update-Task "#$($task.seq) start (in_progress)" @('-UpdateTaskId', $task.id, '-Status', 'in_progress', '-StateReason', 'Started by orchestrate-tasks.ps1'))) {
+            $script:fatal = $true; $state.failed += "bookkeeping-#$($task.seq)"
+            Write-Notice "Start of #$($task.seq) was rejected by the tracker; no agent was started"; break
+        }
         $attempt = Invoke-AgentTask $task $resuming
         if ($attempt.Outcome.observation) { $state.quotaObserved = $attempt.Outcome.observation; Write-State '' }
         if ($attempt.Outcome.quota) {
@@ -691,23 +758,42 @@ try {
         if (-not $ok) {
             $consecutiveFailures++; $state.failed += $task.id
             Write-Event 'failed' "#$($task.seq) exit $($attempt.ExitCode) timeout=$($attempt.TimedOut): $($attempt.Outcome.text)"
-            [void](Invoke-Knowledge @('-UpdateTaskId', $task.id, '-Status', 'todo', '-StateReason', "orchestrate-tasks.ps1: session failed (exit $($attempt.ExitCode), timeout $($attempt.TimedOut)); retry or inspect $($attempt.OutFile)"))
+            if (-not (Update-Task "#$($task.seq) status todo after a failed session" @('-UpdateTaskId', $task.id, '-Status', 'todo', '-StateReason', "orchestrate-tasks.ps1: session failed (exit $($attempt.ExitCode), timeout $($attempt.TimedOut)); retry or inspect $($attempt.OutFile)"))) { $script:fatal = $true; $state.failed += "bookkeeping-#$($task.seq)" }
         }
         else {
             $consecutiveFailures = 0
+            if ($useWorkerReport) {
+                # The sandboxed worker could not write the dossier: the host records what it reported, for this task only.
+                $report = Get-WorkerReport $task $attempt.Outcome.final
+                if (-not $report) { Write-Event 'worker-report' "#$($task.seq) no valid SB-RESULT line; the task is handled as ended without an outcome" }
+                else {
+                    Write-Event 'worker-report' "#$($task.seq) worker reported $($report.Status) with $(@($report.Evidence).Count) evidence entr(ies)"
+                    foreach ($item in $report.Evidence) { if (-not (Update-Task "#$($task.seq) worker evidence" @('-UpdateTaskId', $task.id, '-Evidence', $item))) { $script:fatal = $true } }
+                    $reason = if ($report.Reason) { "Worker report: $($report.Reason)" } else { 'Worker report' }
+                    if ($report.Status -eq 'done' -and @($report.Evidence | Where-Object { $_ -match '\|passed$' }).Count) {
+                        if (-not (Update-Task "#$($task.seq) status done" @('-UpdateTaskId', $task.id, '-Status', 'done', '-StateReason', $reason))) { $script:fatal = $true }
+                    }
+                    elseif ($report.Status -eq 'blocked') {
+                        if (-not (Update-Task "#$($task.seq) user_required" @('-UpdateTaskId', $task.id, '-Execution', 'user_required', '-Status', 'todo', '-StateReason', $reason))) { $script:fatal = $true }
+                    }
+                    elseif ($report.Reason) { [void](Update-Task "#$($task.seq) state reason" @('-UpdateTaskId', $task.id, '-StateReason', $reason)) }
+                }
+                $after = Get-Task $task.id
+            }
             $evidenceCount = @(Get-Property $after 'evidence' @()).Count
             if ($after.status -eq 'done' -and $evidenceCount -eq 0) {
-                [void](Invoke-Knowledge @('-UpdateTaskId', $task.id, '-Status', 'in_progress', '-StateReason', 'Reopened: closed as done without evidence'))
-                Write-Event 'reopened' "#$($task.seq) closed without evidence"
+                if (Update-Task "#$($task.seq) reopen" @('-UpdateTaskId', $task.id, '-Status', 'in_progress', '-StateReason', 'Reopened: closed as done without evidence')) { Write-Event 'reopened' "#$($task.seq) closed without evidence" } else { $script:fatal = $true }
             }
             elseif ($after.status -in 'todo', 'in_progress' -and $after.execution -eq 'autonomous') {
-                [void](Invoke-Knowledge @('-UpdateTaskId', $task.id, '-Execution', 'user_required', '-Status', 'todo', '-StateReason', 'Parked: the session ended without closing the task or naming a blocker'))
-                $state.parked += $task.id
-                Write-Event 'parked' "#$($task.seq) parked as user_required"
+                if (Update-Task "#$($task.seq) park (user_required)" @('-UpdateTaskId', $task.id, '-Execution', 'user_required', '-Status', 'todo', '-StateReason', 'Parked: the session ended without closing the task or naming a blocker')) {
+                    $state.parked += $task.id
+                    Write-Event 'parked' "#$($task.seq) parked as user_required"
+                }
+                else { $script:fatal = $true }
             }
             elseif ($after.status -eq 'done') { $state.done += $task.id }
             else {
-                if ($after.status -eq 'in_progress') { [void](Invoke-Knowledge @('-UpdateTaskId', $task.id, '-Status', 'todo')) }
+                if ($after.status -eq 'in_progress' -and -not (Update-Task "#$($task.seq) status todo" @('-UpdateTaskId', $task.id, '-Status', 'todo'))) { $script:fatal = $true }
                 $state.parked += $task.id
                 Write-Event 'parked' "#$($task.seq) left for the user (status $($after.status), execution $($after.execution))"
             }
@@ -732,13 +818,14 @@ try {
         if ($summary.Length -gt 300) { $summary = $summary.Substring(0, 300) }
         # The tracker accepts only reference|outcome with outcome passed, failed, partial or unverified; the text stays in the event.
         $outcomeWord = if (-not $ok) { 'failed' } elseif ($after.status -eq 'done') { 'passed' } else { 'unverified' }
-        $recorded = Invoke-Knowledge @('-UpdateTaskId', $task.id, '-Evidence', "$reference|$outcomeWord")
-        if ($recorded.Code -eq 0 -and $recorded.Text -match '"state":\s*"applied"') { Write-Event 'evidence' "#$($task.seq) run evidence recorded in the tracker ($outcomeWord)" @{ summary = $summary } }
-        else { Write-Event 'evidence' "#$($task.seq) run evidence not accepted by the tracker: $(($recorded.Text.Trim() -split "`n")[0]); see $reference" @{ summary = $summary } }
+        if (Update-Task "#$($task.seq) run evidence" @('-UpdateTaskId', $task.id, '-Evidence', "$reference|$outcomeWord")) { Write-Event 'evidence' "#$($task.seq) run evidence recorded in the tracker ($outcomeWord)" @{ summary = $summary } }
+        else { $script:fatal = $true; Write-Event 'evidence' "#$($task.seq) run evidence not accepted by the tracker; see $reference" @{ summary = $summary } }
         $state.current = $null; $state.currentId = $null
         Update-ScriptsSnapshot "by #$($task.seq)"
+        if ($script:fatal) { $state.failed += "bookkeeping-#$($task.seq)"; Write-Notice "A bookkeeping write for #$($task.seq) was rejected by the tracker (see the bookkeeping-rejected events); the run stops"; break }
         $health = Test-Health "after #$($task.seq)"
         if (-not $health.Ok) {
+            $script:fatal = $true
             Write-Event 'health' "Health check failed after #$($task.seq)" $health.Problems
             Write-Notice "Health check failed after #$($task.seq): $($health.Problems -join '; ')"
             $state.failed += "health-#$($task.seq)"
@@ -749,12 +836,16 @@ try {
     }
 }
 catch {
+    $script:fatal = $true
     Write-Notice "Unexpected error: $($_.Exception.Message)"
     throw
 }
 finally {
     [void](Exit-SBRunnerPowerRequest)
     $state.current = $null
+    $state.result = if ($script:fatal) { 'failed' } else { 'completed' }
+    $state.exitCode = if ($script:fatal) { 1 } else { 0 }
     Write-State 'finished'
-    Write-Event 'summary' "done=$(@($state.done).Count) failed=$(@($state.failed).Count) parked=$(@($state.parked).Count) skipped=$(@($state.skipped).Count)"
+    Write-Event 'summary' "result=$($state.result) done=$(@($state.done).Count) failed=$(@($state.failed).Count) parked=$(@($state.parked).Count) skipped=$(@($state.skipped).Count)"
 }
+exit $state.exitCode

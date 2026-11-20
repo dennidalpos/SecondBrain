@@ -1259,6 +1259,21 @@ function Resolve-SBBoundIdentity([string]$Checkout,$Bindings=@()) {
     $matches=@($Bindings|Where-Object {$null -ne $_ -and [IO.Path]::GetFullPath($_.path) -eq $root})
     if($matches.Count -gt 1){throw (New-SBError 'core.checkout.ambiguous')}
     if($matches.Count -eq 1){if((Get-SBBindingRemoteIdentity $matches[0]) -cne $remote){throw (New-SBError 'core.origin.changed')};return $matches[0].identity}
+    # A linked worktree has no binding of its own: it inherits the binding of the checkout that owns the same shared Git directory,
+    # only when the origin is the one that binding was activated with. Several candidates are ambiguous; unrelated clones stay unbound.
+    $common=Invoke-SBGit $root @('rev-parse','--path-format=absolute','--git-common-dir')
+    $gitDir=Invoke-SBGit $root @('rev-parse','--absolute-git-dir')
+    if($remote -and $common.code -eq 0 -and $gitDir.code -eq 0 -and $common.output -and (Resolve-SBRealPath $common.output) -ine (Resolve-SBRealPath $gitDir.output)){
+        $shared=@(foreach($binding in @($Bindings|Where-Object {$null -ne $_})){
+            if(!(Test-Path -LiteralPath $binding.path -PathType Container)){continue}
+            $parent=Invoke-SBGit ([IO.Path]::GetFullPath($binding.path)) @('rev-parse','--path-format=absolute','--git-common-dir')
+            if($parent.code -ne 0 -or !$parent.output -or (Resolve-SBRealPath $parent.output) -ine (Resolve-SBRealPath $common.output)){continue}
+            if((Get-SBBindingStatus $binding) -ne 'managed' -or (Get-SBBindingRemoteIdentity $binding) -cne $remote){continue}
+            $binding
+        })
+        if($shared.Count -gt 1){throw (New-SBError 'core.checkout.ambiguous')}
+        if($shared.Count -eq 1){return $shared[0].identity}
+    }
     $remote
 }
 function Resolve-SBWorkingRepository([string]$Path='',$Bindings=@()) {
