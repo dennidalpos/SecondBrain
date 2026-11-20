@@ -448,7 +448,9 @@ if('portable' -in $Groups){
                 $adoptPreview=Invoke-SBPortableSync -Config $adoptConfig -Check -AdoptIde 'Fixture adopt'
                 $previewWarning=@($adoptPreview.warnings|Where-Object {$_.kind -eq 'ide-adopt-preview'})
                 Check ($previewWarning.Count -eq 1 -and $previewWarning[0].previousStateHash -ceq ('0'*64) -and (Get-SBFileHash $adoptFile) -ceq $adoptBeforeHash) '-AdoptIde previews both hashes in Check without touching the file'
-                Check ($null -ne (try{Invoke-SBPortableSync -Config $adoptConfig -Check -AdoptIde 'No such IDE';$null}catch{$_})) '-AdoptIde rejects an IDE name that is not registered'
+                $unknownAdopt=$null
+                try{[void](Invoke-SBPortableSync -Config $adoptConfig -Check -AdoptIde 'No such IDE')}catch{$unknownAdopt=$_}
+                Check ($null -ne $unknownAdopt -and $unknownAdopt.Exception.Message -match 'No registered IDE named') '-AdoptIde rejects an IDE name that is not registered'
             }finally{
                 if($null -ne $adoptStateBefore){Put $adoptStatePath $adoptStateBefore}elseif([IO.File]::Exists($adoptStatePath)){[IO.File]::Delete($adoptStatePath)}
             }
