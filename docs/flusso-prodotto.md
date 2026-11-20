@@ -2,6 +2,17 @@
 
 Use chat conventions or the same PowerShell scripts. Run central scripts from the SecondBrain checkout and identify the product checkout explicitly when needed.
 
+~~~mermaid
+flowchart LR
+    A[Activate] --> B[Sync]
+    B --> C[Load context]
+    C --> D[Choose ready work]
+    D --> E[Implement]
+    E --> F[Publication check]
+    F --> G[Close work]
+    G -.->|only when necessary| H[Compact]
+~~~
+
 | Step | Chat | CLI or action |
 |---|---|---|
 | Activate once per workstation | `sb activate` | `scripts/secondbrain.ps1 -Setup -Interactive` |

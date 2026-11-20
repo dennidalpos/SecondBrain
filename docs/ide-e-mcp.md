@@ -2,6 +2,14 @@
 
 SecondBrain distributes approved instructions and can configure a local stdio MCP connection. Configuration support does not prove that an IDE loaded those instructions or that every profile has been qualified.
 
+~~~mermaid
+flowchart LR
+    C[Agent client] -->|stdio, no network port| S[mcp-server.ps1]
+    S -->|read-only tools| K[Project dossier]
+    S -->|submit_dossier_write| R{Local approval receipt}
+    R -->|approved| K
+~~~
+
 ## Instruction and configuration targets
 
 | Target | Configuration scope |
