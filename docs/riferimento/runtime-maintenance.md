@@ -15,7 +15,7 @@ For a workstation with existing state, `cleanup.ps1 -Migrate -LocalState` lists 
 | Category | Treatment |
 |---|---|
 | protected | Active configuration, coordination, state and recovery gates |
-| evidence / report | Non-reproducible proof/provenance; no automatic expiry |
+| evidence / report | Non-reproducible proof/provenance; no automatic expiry; archived into the dossier history 30 days after closing, on authorized request |
 | backup | Recovery originals, metadata and transaction records |
 | working | Session-owned temporary development work |
 | regenerable | Re-creatable outputs; still require an authorized cleanup |
@@ -36,7 +36,15 @@ New work uses hosts/<id>/repos/<repo>/<category>/<yyyyMMdd>-<slug> with work/evi
 
 For SecondBrain work folders, initialize with work.ps1 Repository/Category/Slug/Init/Task/SessionId; Close marks the manifest closed. At the end of a capture or test run, copy the reviewed output (for example images into `docs/assets`), close the folder, then tear it down with `work.ps1 -Repository <id> -Remove -Path <folder>`: it previews by default, refuses any path outside this repository's `.runtime` work folders or without a `MANIFEST.json`, refuses a folder that is still open, and `-Apply` removes the whole folder. A plan without Init/Run creates nothing. Normal access Start/End belongs in one try/finally script; pass the same SessionId to CLIs.
 
-Manifests bind host/user/client/session/task, status and expiry. Fixture/tmp default to 7 days; work receives a 30-day expiry from closure. Evidence/report do not expire automatically. This is not a scheduled deletion service.
+Manifests bind host/user/client/session/task, status and expiry. Fixture/tmp default to 7 days; work receives a 30-day expiry from closure. Evidence/report are never removed automatically. This is not a scheduled deletion service.
+
+**No product cache in `.runtime` (#414).** `work.ps1 -Run` exports a single variable, `SECONDBRAIN_WORK_ROOT`. It never sets `TEMP`, `TMP` or any tool cache or build-output variable, so product caches and builds stay in the OS and product folders; the runtime suite asserts this.
+
+**Archive of closed evidence and reports (#414).** Closed `evidence` and `report` folders whose manifest `closed` date is older than 30 days are archived into the dossier history, never deleted outright. `cleanup.ps1 -ArchiveEvidence [-Repository <id>] [-DossierPath <dossier>] [-OlderThanDays 30]` previews the eligible folders (open, recent, reparse-point, invalid-manifest and already-archived folders are skipped with a reason code). `-Apply` requires `-Authorization` quoting the user's request: it copies each folder to `<dossier>/history/runtime-archive/<category>/<name>`, verifies every file hash, and only then removes the original from `.runtime`; a failed copy leaves the original in place. A journal is written to `.runtime/cleanup/archive-*.json`. Without `-Authorization`, nothing is copied or removed.
+
+~~~powershell
+pwsh -NoProfile -File scripts/cleanup.ps1 -ArchiveEvidence
+~~~
 
 Regenerable selects only hosts/<current-host>/repos/<repo>/fixture|tmp/<yyyyMMdd>-<slug> folders with a readable schema-1 MANIFEST.json matching the path, current Windows user and computer. Status must be closed and expires must be a valid yyyy-MM-dd strictly before the local current date: the expiry day is retained. The latest KeepFixtures folders (default five) per repository and category are retained, ordered by directory last-write time descending, then path ascending. Open, migrated, unexpired, foreign-owned and invalid/missing-manifest folders are excluded with stable reason codes and localized explanations. Missing current identity yields no targets.
 

@@ -380,4 +380,39 @@ try{
     $env:USERPROFILE=$originalProfile
     $env:SECONDBRAIN_STATE_ROOT=$originalStateRoot
 }
+# #414: work.ps1 -Run exports only the work root; no product build, cache or TEMP/TMP path under .runtime.
+foreach($envPlan in @((Get-SBWorkEnvironment -BrainRoot $cliBrain -HostId $cliHost -Repository 'github.com/o/demo' -Category 'tmp' -Slug 'build'),(Get-SBWorkEnvironment $cliBrain $cliHost 'github.com/o/demo' 'root' 'default'))){
+    Assert-Runtime (@($envPlan.environment.Keys).Count -eq 1 -and @($envPlan.environment.Keys)[0] -ceq 'SECONDBRAIN_WORK_ROOT') 'work environment exports only SECONDBRAIN_WORK_ROOT'
+    Assert-Runtime (!@($envPlan.environment.Keys|Where-Object {$_ -match '^(TEMP|TMP|TMPDIR|npm_config_cache|CARGO_HOME|CARGO_TARGET_DIR|PIP_CACHE_DIR|NUGET_PACKAGES|XDG_CACHE_HOME|GRADLE_USER_HOME)$'})) 'work environment exports no TEMP/TMP or product cache variable'
+    Assert-Runtime (!@($envPlan.environment.Values|Where-Object {$_ -ne $envPlan.root}).Count) 'work environment value is the work root only'
+}
+$workScript=Read-SBText (Join-Path $PSScriptRoot 'work.ps1')
+Assert-Runtime ($workScript -notmatch '\$start\.Environment\[(''|")(TEMP|TMP)') 'work.ps1 -Run never sets TEMP/TMP'
+# #414: closed evidence and report folders older than 30 days are archived into the dossier history only with Authorization.
+$archiveRepo='github.com/o/demo';$archiveSegment=Get-SBRuntimeRepoSegment $archiveRepo
+$archiveDossier=Join-Path $cliBrain 'repos/demo'
+[IO.Directory]::CreateDirectory($archiveDossier)|Out-Null
+function New-ArchiveFolder([string]$Category,[string]$Name,[string]$Closed,[string]$Status='closed'){
+    $path=Join-Path $cliHostRoot ('repos/'+$archiveSegment+'/'+$Category+'/'+$Name)
+    $record=@{schemaVersion=1;category=$Category;name=$Name;hostId=$cliHost;repository=$archiveSegment;status=$Status;created=$Closed}
+    if($Closed -and $Status -ceq 'closed'){$record.closed=$Closed}
+    Write-RuntimeFixture (Join-Path $path 'MANIFEST.json') (ConvertTo-SBJson $record)
+    Write-RuntimeFixture (Join-Path $path 'proof/out.txt') ('proof '+$Name)
+    $path
+}
+$oldEvidence=New-ArchiveFolder 'evidence' '20200101-old-proof' '2020-01-01'
+$oldReport=New-ArchiveFolder 'report' '20200102-old-report' '2020-01-02'
+$freshEvidence=New-ArchiveFolder 'evidence' '20261101-fresh' (Get-Date).AddDays(-5).ToString('yyyy-MM-dd')
+$openEvidence=New-ArchiveFolder 'evidence' '20200103-open' '2020-01-03' 'open'
+$archiveArgs=@('-NoProfile','-File',(Join-Path $cliScripts 'cleanup.ps1'),'-ConfigPath',$cliConfig,'-ArchiveEvidence','-Repository',$archiveRepo,'-DossierPath',$archiveDossier)
+$archivePreview=((& pwsh @archiveArgs)-join [Environment]::NewLine)|ConvertFrom-Json
+Assert-Runtime ($LASTEXITCODE -eq 0 -and !$archivePreview.applied -and $archivePreview.olderThanDays -eq 30 -and $archivePreview.targets.Count -eq 2) 'archive preview lists the two closed folders older than 30 days'
+Assert-Runtime ((@($archivePreview.skipped|Where-Object reasonCode -ceq 'within-retention-window').Count -eq 1) -and (@($archivePreview.skipped|Where-Object reasonCode -ceq 'not-closed').Count -eq 1)) 'archive preview skips recent and open folders with a reason'
+Assert-Runtime ((Test-Path -LiteralPath $oldEvidence) -and (Test-Path -LiteralPath $oldReport) -and !(Test-Path -LiteralPath (Join-Path $archiveDossier 'history'))) 'archive preview moves and creates nothing'
+$null=@(& pwsh @archiveArgs -Apply 2>&1)
+Assert-Runtime ($LASTEXITCODE -ne 0 -and (Test-Path -LiteralPath $oldEvidence) -and (Test-Path -LiteralPath $oldReport) -and !(Test-Path -LiteralPath (Join-Path $archiveDossier 'history'))) 'archive Apply without Authorization deletes and copies nothing'
+$archiveApplied=((& pwsh @archiveArgs -Apply -Authorization 'Task 414 synthetic archive of old evidence')-join [Environment]::NewLine)|ConvertFrom-Json
+Assert-Runtime ($LASTEXITCODE -eq 0 -and $archiveApplied.applied -and $archiveApplied.archived.Count -eq 2 -and !(Test-Path -LiteralPath $oldEvidence) -and !(Test-Path -LiteralPath $oldReport)) 'archive Apply with Authorization removes the originals'
+Assert-Runtime ((Read-SBText (Join-Path $archiveDossier 'history/runtime-archive/evidence/20200101-old-proof/proof/out.txt')) -ceq 'proof 20200101-old-proof' -and (Test-Path -LiteralPath (Join-Path $archiveDossier 'history/runtime-archive/report/20200102-old-report/MANIFEST.json'))) 'archived copies are in the dossier history with identical content'
+Assert-Runtime ((Test-Path -LiteralPath $freshEvidence) -and (Test-Path -LiteralPath $openEvidence)) 'recent and open folders are kept'
 "SUCCESS RUNTIME: $script:runtimeChecks checks"

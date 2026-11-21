@@ -25,6 +25,8 @@ backup/* into backups/*, root *.log into logs/. Rename on the same volume only (
 -ListInstallBackups lists verified pairs for untracked user-profile files after InstallBackupDays (default 7). It is review only.
 -Leftovers (#732) applies the retention rule to top-level .runtime leftovers: pub*.out, t<number>-*.out and smoke-<hex>, older than -OlderThanDays (default 14, by the newest file inside).
 Without -Apply it only lists them; with -Apply and -Authorization it removes exactly the listed ones (refuses pending transactions and active sessions, skips reparse points) and writes a journal in .runtime/cleanup.
+-ArchiveEvidence (#414) previews closed evidence and report folders of -Repository whose MANIFEST closed date is older than -OlderThanDays (default 30); with -Apply and -Authorization it copies each into
+<dossier>/history/runtime-archive/<category>/<name> (-DossierPath overrides the resolved dossier), verifies every file hash and only then removes the original. Nothing is removed without Authorization.
 -TestOutput (#740) applies a reviewed retention rule to the regenerable test output in .runtime/tests: the folders beyond the latest -KeepFixtures (default 5) and older than -OlderThanDays (default 14)
 that no tracked file mentions. The preview lists each with size, files and references, the skipped ones with the reason and .runtime/compaction for review only (never selected). With -Apply and
 -Authorization it removes exactly the listed folders (refuses pending transactions and active sessions, skips reparse points, rechecks eligibility before each removal) and writes a journal in .runtime/cleanup.
@@ -38,7 +40,7 @@ junctions/symlinks; rechecks eligibility and content hashes before each removal,
 No backup (recreated with the owning suite/command), but records a .runtime/cleanup journal with entries, sizes, outcomes and recovery instructions.
 #>
 [CmdletBinding()]
-param([string]$ConfigPath,[string]$SessionId,[switch]$Apply,[string]$ManifestPath,[string]$Authorization,[switch]$ListStageRecords,[switch]$ListRuntime,[switch]$ProposeRuntime,[switch]$RuntimeReport,[switch]$CheckRuntime,[string]$ReportPath,[switch]$Regenerable,[switch]$Leftovers,[switch]$TestOutput,[switch]$Migrate,[switch]$LocalState,[switch]$ListInstallBackups,[ValidateRange(1,3650)][int]$InstallBackupDays=7,[string]$Repository='github.com/dennidalpos/secondbrain',[ValidateRange(0,1000)][int]$KeepFixtures=5,[ValidateRange(0,10080)][int]$MinAgeMinutes=10,[string]$ProposalPath,[ValidateRange(1,3650)][int]$OlderThanDays=90)
+param([string]$ConfigPath,[string]$SessionId,[switch]$Apply,[string]$ManifestPath,[string]$Authorization,[switch]$ListStageRecords,[switch]$ListRuntime,[switch]$ProposeRuntime,[switch]$RuntimeReport,[switch]$CheckRuntime,[string]$ReportPath,[switch]$Regenerable,[switch]$Leftovers,[switch]$TestOutput,[switch]$ArchiveEvidence,[string]$DossierPath,[switch]$Migrate,[switch]$LocalState,[switch]$ListInstallBackups,[ValidateRange(1,3650)][int]$InstallBackupDays=7,[string]$Repository='github.com/dennidalpos/secondbrain',[ValidateRange(0,1000)][int]$KeepFixtures=5,[ValidateRange(0,10080)][int]$MinAgeMinutes=10,[string]$ProposalPath,[ValidateRange(1,3650)][int]$OlderThanDays=90)
 $ErrorActionPreference='Stop'
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Access.psm1') -Force
@@ -53,7 +55,9 @@ Add-SBMessages @{
     'cleanup.proposal.json' = @{ en = 'The proposal is saved to a new .json file' }
     'cleanup.manifest.required' = @{ en = 'Cleanup requires an explicit local manifest; no selection by age or name' }
     'cleanup.manifest.unreviewed' = @{ en = 'Manifest not reviewed or references not verified' }
-    'cleanup.apply.authorization' = @{ en = 'Apply requires Authorization referencing the user''s explicit request' }
+    'cleanup.archive.hash' = @{ en = 'Archived copy differs from the original: {0}' }
+    'cleanup.archive.dossier' =@{ en = 'The dossier path must be inside the brain checkout' }
+    'cleanup.apply.authorization' =@{ en = 'Apply requires Authorization referencing the user''s explicit request' }
     'cleanup.data.protected' = @{ en = 'Active operational data protected' }
     'cleanup.manifest.content' = @{ en = 'Content missing, duplicated or modified in the manifest' }
     'cleanup.transaction.pending' = @{ en = 'Pending transaction: cleanup suspended' }
@@ -139,6 +143,73 @@ try {
         if($result.failed.Count){$summary.status='partial'}
         ConvertTo-SBJson $summary
         exit $(if($result.failed.Count){1}else{0})
+    }
+    if($ArchiveEvidence){
+        if($Regenerable -or $Migrate -or $Leftovers -or $TestOutput -or $ManifestPath -or $ListStageRecords -or $ListRuntime -or $ProposeRuntime -or $RuntimeReport -or $CheckRuntime){throw (New-SBError 'cleanup.regenerable.exclusive')}
+        $days=if($PSBoundParameters.ContainsKey('OlderThanDays')){$OlderThanDays}else{30}
+        $brainFull=[IO.Path]::GetFullPath($config.brainRoot).TrimEnd('\','/')
+        if(!$DossierPath){
+            Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Entity.psm1')
+            Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Knowledge.psm1')
+            $DossierPath=Resolve-SBWorkingDossier $config.brainRoot $Repository
+        }
+        $dossierFull=[IO.Path]::GetFullPath($(if([IO.Path]::IsPathRooted($DossierPath)){$DossierPath}else{Join-Path $brainFull $DossierPath})).TrimEnd('\','/')
+        if(!$dossierFull.StartsWith($brainFull+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase)){throw (New-SBError 'cleanup.archive.dossier')}
+        $archiveRoot=Join-Path $dossierFull 'history/runtime-archive'
+        $repoRoot=Join-Path $config.runtimeRoot ('repos/'+(Get-SBRuntimeRepoSegment $Repository))
+        $limitDate=(Get-Date).Date.AddDays(-$days)
+        $getArchivePlan={
+            $targets=@();$skipped=[Collections.Generic.List[object]]::new()
+            foreach($category in @('evidence','report')){
+                $categoryRoot=Join-Path $repoRoot $category
+                if(!(Test-Path -LiteralPath $categoryRoot -PathType Container)){continue}
+                foreach($folder in @(Get-ChildItem -LiteralPath $categoryRoot -Directory -Force)){
+                    $skip={param($code)$skipped.Add(@{path=$folder.FullName;category=$category;reasonCode=$code})}
+                    if($folder.Attributes -band [IO.FileAttributes]::ReparsePoint){& $skip 'reparse-point';continue}
+                    if(@(Get-ChildItem -LiteralPath $folder.FullName -Recurse -Force|Where-Object {$_.Attributes -band [IO.FileAttributes]::ReparsePoint}).Count){& $skip 'contains-reparse-point';continue}
+                    $manifest=try{Read-SBJson (Join-Path $folder.FullName 'MANIFEST.json') $null}catch{$null}
+                    if($manifest -isnot [Collections.IDictionary] -or $manifest.schemaVersion -ne 1 -or $manifest.category -cne $category -or $manifest.name -cne $folder.Name){& $skip 'manifest-invalid';continue}
+                    if($manifest.status -cne 'closed' -or $manifest.closed -cnotmatch '^\d{4}-\d{2}-\d{2}$'){& $skip 'not-closed';continue}
+                    if([datetime]::ParseExact($manifest.closed,'yyyy-MM-dd',[Globalization.CultureInfo]::InvariantCulture) -ge $limitDate){& $skip 'within-retention-window';continue}
+                    $destination=Join-Path (Join-Path $archiveRoot $category) $folder.Name
+                    if(Test-Path -LiteralPath $destination){& $skip 'archive-exists';continue}
+                    $files=@(Get-ChildItem -LiteralPath $folder.FullName -Recurse -Force -File)
+                    $targets+=@{path=$folder.FullName;category=$category;name=$folder.Name;closed=$manifest.closed;destination=$destination;files=$files.Count;bytes=[int64](@($files|ForEach-Object {$_.Length})|Measure-Object -Sum).Sum}
+                }
+            }
+            @{targets=$targets;skipped=$skipped}
+        }
+        $plan=& $getArchivePlan
+        $summary=@{applied=$false;scope='runtime-archive-evidence-report';olderThanDays=$days;repository=$Repository;archiveRoot=$archiveRoot;targets=@($plan.targets);skipped=@($plan.skipped)}
+        if(!$Apply){$summary.note='Preview: nothing copied or removed. With -Apply and -Authorization each listed folder is copied into the dossier history, verified by hash, and only then removed from .runtime.';ConvertTo-SBJson $summary;exit 0}
+        if(!$Authorization){throw (New-SBError 'cleanup.apply.authorization')}
+        if(Test-Path -LiteralPath (Get-SBTransactionMarkerPath $config.brainRoot)){throw (New-SBError 'cleanup.transaction.pending')}
+        $busy=@(Get-SBAccessStatus $config|Where-Object {$_ -is [Collections.IDictionary] -and $_.ContainsKey('sessionId') -and $_.sessionId -ne $operation.ownerSessionId -and $_.status -in @('active','unverified')})
+        if($busy.Count){throw (New-SBError 'cleanup.sessions.active' @($busy.Count))}
+        $registryDir=Join-Path $config.brainRoot '.runtime/cleanup';[IO.Directory]::CreateDirectory($registryDir)|Out-Null
+        $registryPath=Join-Path $registryDir ('archive-'+(Get-SBNow -Local).ToString('yyyyMMddTHHmmss')+'.json')
+        $current=@((& $getArchivePlan).targets|ForEach-Object {$_.path})
+        $archived=@();$failures=@()
+        foreach($target in $plan.targets){
+            if($target.path -cnotin $current){$failures+=@{name=$target.name;error='no longer eligible'};continue}
+            try{
+                $source=[IO.Path]::GetFullPath($target.path)
+                foreach($file in @(Get-ChildItem -LiteralPath $source -Recurse -Force -File)){
+                    $relative=[IO.Path]::GetRelativePath($source,$file.FullName)
+                    $copy=Join-Path $target.destination $relative
+                    [IO.Directory]::CreateDirectory((Split-Path $copy -Parent))|Out-Null
+                    [IO.File]::Copy($file.FullName,$copy,$false)
+                    if((Get-SBFileHash $copy) -cne (Get-SBFileHash $file.FullName)){throw (New-SBError 'cleanup.archive.hash' @($relative))}
+                }
+                Remove-SBRuntimeTree $source $config.brainRoot
+                $archived+=$target
+            }catch{$failures+=@{name=$target.name;error=$_.Exception.Message}}
+        }
+        $record=@{schemaVersion=1;executedAt=(Get-SBNow -Local).ToString('o');authorization=$Authorization;scope='runtime-archive-evidence-report';olderThanDays=$days;items=@($archived);failed=@($failures);status=$(if($failures.Count){'partial'}else{'completed'});recovery='Archived folders are in the dossier history under runtime-archive; a failed copy leaves the original in .runtime.'}
+        [IO.File]::WriteAllText($registryPath,(ConvertTo-SBJson $record),[Text.UTF8Encoding]::new($false))
+        $summary.applied=[bool]($archived.Count -gt 0 -and !$failures.Count);$summary.archived=@($archived);$summary.failed=@($failures);$summary.registry=$registryPath;$summary.authorization=$Authorization
+        ConvertTo-SBJson $summary
+        exit $(if($failures.Count){1}else{0})
     }
     if($Leftovers){
         if($Regenerable -or $Migrate -or $ManifestPath -or $ListStageRecords -or $ListRuntime -or $ProposeRuntime -or $RuntimeReport -or $CheckRuntime){throw (New-SBError 'cleanup.regenerable.exclusive')}
