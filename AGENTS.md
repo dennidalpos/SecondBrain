@@ -1,7 +1,7 @@
 # Repository instructions: SecondBrain
 
 <!-- secondbrain:repository:begin -->
-Common directives applied: revision **1.6** — 2026-11-20. <!-- secondbrain:source global=0A70848B8CBBE1939BDB240F37280AB3594914B41E4152F8543A554F04FEF0FF workstation=2B4198D3D9F66B2EC4AD159DC7889F6C21AD64C5E025B99005D26122D6E5AEDB -->
+Common directives applied: revision **1.6** — 2026-11-20. <!-- secondbrain:source global=0A70848B8CBBE1939BDB240F37280AB3594914B41E4152F8543A554F04FEF0FF workstation=FE4E7619B750B3784AA2F282061DDD82BBD00B3871E7D35739DD217E297D7A4F -->
 ## SecondBrain
 
 Repository knowledge lives in the SecondBrain dossier; code, guides, and publishable assets stay here. This block is generated: write project rules outside it, because a sync replaces everything inside.
