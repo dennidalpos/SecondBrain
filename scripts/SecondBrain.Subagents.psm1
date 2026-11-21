@@ -17,7 +17,7 @@ $script:SBSubagentReadTools=@('get_startup_context','get_ready_tasks','get_task'
 $script:SBSubagentWriteTools=@('preview_dossier_write','submit_dossier_write')
 $script:SBSubagentSpecialTools=@('check_publication')
 $script:SBSubagentFields=@('schemaVersion','name','description','role','context','permissions')
-# Schema 2 (docs/riferimento/asset-contracts.md section 4): identity, revisioning, composable cards, output contract and delegation bounds.
+# Schema 2 (docs/reference/asset-contracts.md section 4): identity, revisioning, composable cards, output contract and delegation bounds.
 $script:SBSubagentFields2=@('schemaVersion','id','name','revision','status','description','role','context','permissions','cards','output','bounds','replacedBy','model')
 $script:SBSubagentOptional2=@('cards','replacedBy','model')
 $script:SBSubagentProviders=@('any','claude','codex','gemini')
@@ -105,7 +105,7 @@ function Test-SBSubagentDefinition($Definition) {
     $true
 }
 
-# Card references resolve against the public catalog (direttive/prompts/catalog.json): by pmt- ID, or by role on exactly one active card.
+# Card references resolve against the public catalog (directives/prompts/catalog.json): by pmt- ID, or by role on exactly one active card.
 # Draft and retired cards are not composable; a card above the definition's effective mode is an error.
 function Resolve-SBSubagentCards($Definition,$Catalog) {
     $fail={param($why) throw (New-SBError 'subagent.invalid' @($why))}
@@ -130,7 +130,7 @@ function Resolve-SBSubagentCards($Definition,$Catalog) {
 }
 
 function Read-SBSubagentCatalog([string]$BrainRoot) {
-    $path=Join-Path $BrainRoot 'direttive/prompts/catalog.json'
+    $path=Join-Path $BrainRoot 'directives/prompts/catalog.json'
     if(!(Test-Path -LiteralPath $path -PathType Leaf)){return $null}
     (Read-SBText $path)|ConvertFrom-Json -AsHashtable -ErrorAction Stop
 }
@@ -192,7 +192,7 @@ function Resolve-SBSubagentPermissions($Definition,$Parent) {
       writeAuthorization='parent-reviewed-mcp-write';inherited=$true}
 }
 
-# Native client formats (sources: docs/riferimento/source-provenance-3-0.md, checked 2026-11-16). Every definition field a client cannot
+# Native client formats (sources: docs/reference/source-provenance-3-0.md, checked 2026-11-16). Every definition field a client cannot
 # represent is listed under `unsupported` instead of being dropped silently; `enforcement` separates what the client itself enforces
 # (a tool allowlist) from what is only declared (text the model may ignore, or a restriction the parent session owns).
 $script:SBSubagentNativeClients=@{

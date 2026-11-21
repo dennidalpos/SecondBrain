@@ -27,7 +27,7 @@ try {
     Assert-SBPlainPath $readme
     $readmeHash=Get-SBFileHash $readme
     if($readmeHash -eq 'absent'){throw (New-SBError 'approve.readme.missing')}
-    $approvalPath=Join-Path $brain 'direttive/approved.json'
+    $approvalPath=Join-Path $brain 'directives/approved.json'
     $beforeApproval=Get-SBFileHash $approvalPath
     $previous=Read-SBJson $approvalPath @{}
     $privatePath=Resolve-SBParaPath $brain '.runtime/directive-approvals.json'
@@ -39,7 +39,7 @@ try {
     if($previous.ContainsKey('files')){foreach($key in $previous.files.Keys){$files[$key]=$previous.files[$key]}}
     $sources=[ordered]@{}
     foreach($name in @('AGENTS.global_ide.md','workstation.template.md','AGENTS.repo.managed.md')){
-        $sources['direttive/'+$name]=Join-Path $ProposalPath $name
+        $sources['directives/'+$name]=Join-Path $ProposalPath $name
     }
     foreach($area in Get-SBParaEntities $brain @()|Where-Object {(Test-SBRepoDossier $_) -and $_.repository -and !$_.archived}){
         $relative=$area.path.Replace('\','/')+'/AGENTS.managed.md'
@@ -55,8 +55,8 @@ try {
         $bytes=[IO.File]::ReadAllBytes($source)
         $hash=Get-SBHash $bytes
         $text=[Text.UTF8Encoding]::new($false,$true).GetString($bytes).TrimStart([char]0xFEFF)
-        if($relative -notin @('direttive/AGENTS.global_ide.md','direttive/workstation.template.md') -and $text -match '(?im)<!--\s*secondbrain:|(?<![A-Za-z0-9+.-])[A-Z]:[\\/]|(?<![\w/])/(?:Users|home)/|\{\{'){throw (New-SBError 'approve.proposal.portable' @($relative))}
-        if($relative.StartsWith('direttive/')){$files[$relative]=$hash;$commonSupplied=$true}
+        if($relative -notin @('directives/AGENTS.global_ide.md','directives/workstation.template.md') -and $text -match '(?im)<!--\s*secondbrain:|(?<![A-Za-z0-9+.-])[A-Z]:[\\/]|(?<![\w/])/(?:Users|home)/|\{\{'){throw (New-SBError 'approve.proposal.portable' @($relative))}
+        if($relative.StartsWith('directives/')){$files[$relative]=$hash;$commonSupplied=$true}
         else{$private.files[$relative]=$hash;$privateSupplied=$true}
         $hashes[$relative]=@{before=$oldHash;after=$hash}
         if($oldHash -ne $hash){
@@ -65,7 +65,7 @@ try {
         }
     }
     if(!$hashes.Count){throw (New-SBError 'approve.proposal.text' @($ProposalPath))}
-    foreach($relative in @('direttive/AGENTS.global_ide.md','direttive/workstation.template.md')){
+    foreach($relative in @('directives/AGENTS.global_ide.md','directives/workstation.template.md')){
         if(!$files.ContainsKey($relative) -or (!$hashes.ContainsKey($relative) -and $files[$relative] -cne (Get-SBFileHash (Join-Path $brain $relative)))){throw (New-SBError 'approve.source.missing' @($relative))}
     }
     $proposalHash=Get-SBTextHash (ConvertTo-SBJson @{readme=$readmeHash;files=$hashes;approval=$beforeApproval;privateApproval=$privateHash})
@@ -73,7 +73,7 @@ try {
     if(!$Authorization.Trim() -or $ExpectedProposalHash -ine $proposalHash){throw (New-SBError 'approve.proposal.review')}
     $proposal=@{readmeHash=$readmeHash;sha256=$proposalHash}
     $relativeProposal=[IO.Path]::GetRelativePath($brain,$ProposalPath).Replace('\','/')
-    if($relativeProposal.StartsWith('direttive/proposals/')){$proposal.path=$relativeProposal}
+    if($relativeProposal.StartsWith('directives/proposals/')){$proposal.path=$relativeProposal}
     if($commonSupplied){
         $approval=@{schemaVersion=1;approvedAt=(Get-SBNow -Local).ToString('o');authorization=$Authorization;files=$files;proposal=$proposal}
         $ops+=@{path=$approvalPath;expected=$beforeApproval;bytes=[Text.Encoding]::UTF8.GetBytes((ConvertTo-SBJson $approval))}

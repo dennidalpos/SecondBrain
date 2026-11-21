@@ -3,11 +3,11 @@ function Assert-SBTestGitEnvironment {
     if (!$IsWindows) { return }
     $value = & git config --type=bool --get core.longpaths 2>$null
     if ($LASTEXITCODE -ne 0 -or $value -cne 'true') {
-        throw 'Git fixture prerequisite: core.longpaths must be true. Use test-secondbrain.ps1 or Enter-SBTestGitEnvironment for a standalone suite; see docs/riferimento/runtime-maintenance.md.'
+        throw 'Git fixture prerequisite: core.longpaths must be true. Use test-secondbrain.ps1 or Enter-SBTestGitEnvironment for a standalone suite; see docs/reference/runtime-maintenance.md.'
     }
     $fileValue = & git config --global --includes --type=bool --get core.longpaths 2>$null
     if ($LASTEXITCODE -ne 0 -or $fileValue -cne 'true') {
-        throw 'Git fixture prerequisite: the process global config must enable longpaths before command overrides. Use Enter-SBTestGitEnvironment; see docs/riferimento/runtime-maintenance.md.'
+        throw 'Git fixture prerequisite: the process global config must enable longpaths before command overrides. Use Enter-SBTestGitEnvironment; see docs/reference/runtime-maintenance.md.'
     }
 }
 function Enter-SBTestGitEnvironment {

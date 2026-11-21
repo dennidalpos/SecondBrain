@@ -6,7 +6,7 @@ $f5Brain=Join-Path $f5Root 'brain';$f5Repo=Join-Path $f5Root 'checkout';$f5Id='g
 $f5Dossier=Join-Path $f5Brain 'repos/F5'
 foreach($dir in @((Join-Path $f5Brain scripts),$f5Repo)){[void][IO.Directory]::CreateDirectory($dir)}
 Get-ChildItem -LiteralPath (Join-Path $brain scripts) -File|Copy-Item -Destination (Join-Path $f5Brain scripts)
-foreach($path in 'config/shared.json','config/tracker.schema.json','direttive/approved.json','direttive/AGENTS.global_ide.md','direttive/workstation.template.md','VERSION'){
+foreach($path in 'config/shared.json','config/tracker.schema.json','directives/approved.json','directives/AGENTS.global_ide.md','directives/workstation.template.md','VERSION'){
     Put (Join-Path $f5Brain $path) (Read-SBText (Join-Path $brain $path))
 }
 Put (Join-Path $f5Dossier entity.json) (ConvertTo-SBJson @{schemaVersion=1;id='f5-area';kind='area';title='F5';status='active'})

@@ -11,7 +11,7 @@ Top-level folders (detected, may be incomplete):
 - `.github/`
 - `app/`
 - `config/`
-- `direttive/`
+- `directives/`
 - `docs/`
 - `repos/` (one dossier per managed repository; contents ignored by Git)
 - `scripts/`

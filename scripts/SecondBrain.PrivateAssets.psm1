@@ -171,7 +171,7 @@ function Get-SBPrivateAssetDossiers([string]$BrainRoot) {
 
 function Test-SBPrivateAssets {
     # Validates every dossier's private assets against the public catalog and each other, then checks that no public file
-    # (direttive/: catalogs, cards, workflows, agent templates, directives) cites a private ID or key. Throws on the first error.
+    # (directives/: catalogs, cards, workflows, agent templates, directives) cites a private ID or key. Throws on the first error.
     param([string]$BrainRoot,$PublicCatalog)
     $taken=@{};$sets=@()
     foreach($entry in @(Get-SBPrivateAssetDossiers $BrainRoot)){
@@ -203,7 +203,7 @@ function Get-SBPrivateAssetTokens([string]$BrainRoot) {
 
 function Find-SBPrivateReferences([string]$BrainRoot,[string[]]$Tokens) {
     if(!@($Tokens).Count){return @()}
-    $root=Join-Path $BrainRoot 'direttive'
+    $root=Join-Path $BrainRoot 'directives'
     if(!(Test-Path -LiteralPath $root -PathType Container)){return @()}
     $hits=@()
     # Historical proposals are excluded (asset contracts section 7, rule 8).

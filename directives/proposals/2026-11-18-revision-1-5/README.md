@@ -43,4 +43,4 @@ Origin: task #728 (`para.ps1` became `entity.ps1` after the flat layout), the cr
 
 ## Next step
 
-Owner review with `scripts/approve-revision.ps1 -ProposalPath direttive/proposals/2026-11-18-revision-1-5 -Preview`, then explicit approval. After approval: `sb sync`, then update the account instruction texts (claude.ai manual text and any profile copy) to the same wording and register the observation receipt (tasks #639, #703, #250).
+Owner review with `scripts/approve-revision.ps1 -ProposalPath directives/proposals/2026-11-18-revision-1-5 -Preview`, then explicit approval. After approval: `sb sync`, then update the account instruction texts (claude.ai manual text and any profile copy) to the same wording and register the observation receipt (tasks #639, #703, #250).

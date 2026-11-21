@@ -1,6 +1,6 @@
 # Installation and operations guide
 
-This guide connects installation, everyday commands, environment settings and recovery. Start with [getting started](inizia.md); use the [technical reference](riferimento/operations.md) for detailed procedures.
+This guide connects installation, everyday commands, environment settings and recovery. Start with [getting started](getting-started.md); use the [technical reference](reference/operations.md) for detailed procedures.
 
 ## Install and activate
 
@@ -37,7 +37,7 @@ pwsh -NoProfile -File scripts/publication.ps1 -RepositoryPath C:/Projects/MyProd
 
 The product path is explicit so the scripts resolve the correct identity and dossier. `-All` opts into the read-only global task projection. Task writes require the working repository and its declared tracker; never use another tracker as fallback.
 
-Chat commands such as `sb prompt`, `sb check`, `sb sync` and `sb compact` are conventions, not installed executables. The [per-repository flow](flusso-prodotto.md) maps them to scripts.
+Chat commands such as `sb prompt`, `sb check`, `sb sync` and `sb compact` are conventions, not installed executables. The [per-repository flow](product-flow.md) maps them to scripts.
 
 ## Environment
 
@@ -62,10 +62,10 @@ Knowledge reads avoid blocking locks and never process queued writes. Writers se
 
 Longer writes use Start/End in the same script with try/finally and pass SessionId to the invoked CLIs. Initialize work folders for SecondBrain activities with `work.ps1 -Category <category> -Slug <slug> -Init` and a manifest. Product agents verify tool-specific output paths in Git-ignored folders of their own checkout.
 
-Clean tracked files are recoverable by recorded Git commit/blob; local files use verified backups. Dirty tracked files are protected from overwrite. See [safe writes](riferimento/safety-backups.md) and [recovery](riferimento/recovery.md).
+Clean tracked files are recoverable by recorded Git commit/blob; local files use verified backups. Dirty tracked files are protected from overwrite. See [safe writes](reference/safety-backups.md) and [recovery](reference/recovery.md).
 
 ## Lifecycle and limits
 
 Greenfield state is declared in dossier `repository.json`; Check reports incompatible version/changelog/schema changes. Changing lifecycle is a separate SYS13 decision.
 
-Dossiers, backups and evidence are not covered by a Git push. Account login is manual. Product builds/tests belong to product agents. Shared-brain and SMB behavior requires its own real-host qualification. See [portable configuration](riferimento/portable-brain.md), [shared brain](riferimento/shared-brain.md) and [runtime maintenance](riferimento/runtime-maintenance.md).
+Dossiers, backups and evidence are not covered by a Git push. Account login is manual. Product builds/tests belong to product agents. Shared-brain and SMB behavior requires its own real-host qualification. See [portable configuration](reference/portable-brain.md), [shared brain](reference/shared-brain.md) and [runtime maintenance](reference/runtime-maintenance.md).

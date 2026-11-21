@@ -135,8 +135,8 @@ function New-SBPortableConfiguration([string]$BrainRoot,[string]$WorkstationId=(
 function Get-SBPortableGlobal([string]$BrainRoot) {
     $revision=Get-SBApprovedDirectiveRevision $BrainRoot
     if(!$revision -or [version]$revision.version -lt [version]'1.0'){throw (New-SBError 'portable.directives.unapproved')}
-    $common=Read-SBText (Join-Path $BrainRoot 'direttive/AGENTS.global_ide.md')
-    $integration=Read-SBText (Join-Path $BrainRoot 'direttive/workstation.template.md')
+    $common=Read-SBText (Join-Path $BrainRoot 'directives/AGENTS.global_ide.md')
+    $integration=Read-SBText (Join-Path $BrainRoot 'directives/workstation.template.md')
     $text=$common.Trim()+"`n`n"+$integration.Trim()+"`n"
     if($text -match '(?i)(?<![A-Za-z0-9+.-])[A-Z]:[\\/]|(?<![\w/])/(?:Users|home)/|\{\{'){throw (New-SBError 'portable.directives.nonportable')}
     $text
@@ -150,7 +150,7 @@ function New-SBPortableRepositoryBody($Revision,[string]$BrainRoot,[string]$Doss
       'Carica il contesto iniziale con scripts/knowledge.ps1 -Startup (o lo strumento MCP get_startup_context): indice, contesto sintetico, memoria essenziale e proiezione task pertinente; approfondimenti e storico soltanto quando servono.',
       'Memorie private, tracker interni, backup e output operativi risiedono in SecondBrain. Conserva qui codice, guide e asset pubblicabili.',
       'Le direttive non autorizzano commit, push, cancellazioni di artefatti o task applicativi impliciti.') -join "`n"
-    $source=Join-Path $BrainRoot 'direttive/AGENTS.repo.managed.md'
+    $source=Join-Path $BrainRoot 'directives/AGENTS.repo.managed.md'
     $body=if([IO.File]::Exists($source)){Read-SBText $source}else{$fallback}
     if($Dossier){
         $extra=Join-Path $Dossier 'AGENTS.managed.md'
@@ -898,7 +898,7 @@ function Get-SBGreenfieldViolations($Config,$Binding,[string]$Dossier) {
     if($record.ContainsKey('aliases') -and @($record.aliases).Count){$found+='alias di compatibilita in repository.json'}
     foreach($registry in @(Get-SBTrackerImportPaths $Config ([string]$Binding.identity))){if(Test-Path -LiteralPath $registry -PathType Leaf){$found+='importazione o migrazione di schema del tracker registrata';break}}
     if(Test-SBSamePath $Binding.path $Config.brainRoot){
-        $catalog=Read-SBJson (Join-Path $Config.brainRoot 'direttive/prompts/catalog.json') @{}
+        $catalog=Read-SBJson (Join-Path $Config.brainRoot 'directives/prompts/catalog.json') @{}
         if($catalog.ContainsKey('deprecations')){$found+='deprecations nel catalogo prompt'}
     }
     $found

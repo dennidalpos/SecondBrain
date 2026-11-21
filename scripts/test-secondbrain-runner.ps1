@@ -47,11 +47,11 @@ try {
     Put-Runner (Join-Path $brain 'config/shared.json') (ConvertTo-SBJson @{schemaVersion=1;allowedOwners=@('test');excludedDirectories=@('.git')})
     Put-Runner (Join-Path $brain 'config/tracker.schema.json') (Read-SBText (Join-Path $PSScriptRoot '../config/tracker.schema.json'))
     Put-Runner (Join-Path $brain 'config/agent-models.json') (Read-SBText (Join-Path $PSScriptRoot '../config/agent-models.json'))
-    Put-Runner (Join-Path $brain 'direttive/AGENTS.global_ide.md') '# Synthetic directives'
-    Put-Runner (Join-Path $brain 'direttive/workstation.template.md') '<!-- secondbrain:tracker-contract:1 -->'
+    Put-Runner (Join-Path $brain 'directives/AGENTS.global_ide.md') '# Synthetic directives'
+    Put-Runner (Join-Path $brain 'directives/workstation.template.md') '<!-- secondbrain:tracker-contract:1 -->'
     $approval=@{authorization='isolated runner fixture';files=@{}}
-    foreach($file in @('AGENTS.global_ide.md','workstation.template.md')){$approval.files['direttive/'+$file]=Get-SBFileHash (Join-Path $brain ('direttive/'+$file))}
-    Put-Runner (Join-Path $brain 'direttive/approved.json') (ConvertTo-SBJson $approval)
+    foreach($file in @('AGENTS.global_ide.md','workstation.template.md')){$approval.files['directives/'+$file]=Get-SBFileHash (Join-Path $brain ('directives/'+$file))}
+    Put-Runner (Join-Path $brain 'directives/approved.json') (ConvertTo-SBJson $approval)
     Put-Runner (Join-Path $dossier 'entity.json') (ConvertTo-SBJson @{schemaVersion=1;id='runner-area';kind='area';title='Runner';status='active'})
     Put-Runner (Join-Path $dossier 'repository.json') (ConvertTo-SBJson @{schemaVersion=1;identity=$identity;tracker=@{location='dossier';path='tracker.json';schemaVersion=1}})
     Put-Runner (Join-Path $dossier 'context.md') "# Context`n"

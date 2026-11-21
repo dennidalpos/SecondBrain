@@ -87,7 +87,7 @@ function Get-AgentsDirectiveBlocks($Repo){
     # block and AGENTS.md outside the managed blocks; plus the dossier-specific text and the repository block composed from it.
     Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Portable.psm1')
     $global=try{Get-SBPortableGlobal $brain}catch{''}
-    $commonPath=Join-Path $brain 'direttive/AGENTS.repo.managed.md'
+    $commonPath=Join-Path $brain 'directives/AGENTS.repo.managed.md'
     $common=if(Test-Path -LiteralPath $commonPath -PathType Leaf){(Read-SBText $commonPath).Trim()}else{''}
     $agentsFile=[string]$Repo.agents
     $agentsText=if($agentsFile -and (Test-Path -LiteralPath $agentsFile -PathType Leaf)){Read-SBText $agentsFile}else{''}

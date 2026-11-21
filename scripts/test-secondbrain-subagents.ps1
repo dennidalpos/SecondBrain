@@ -22,7 +22,7 @@ function Save-Def($def,[string]$file){
 }
 $readParent=@{tools=@((Get-SBSubagentTools).read);write=$false}
 # Shipped presets (#624): 24 definitions validate against schema 2 and each declares sources, boundaries, tools, writes and output.
-$presetFiles=@(Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot '../direttive/agents/presets') -Filter '*.json' -File)
+$presetFiles=@(Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot '../directives/agents/presets') -Filter '*.json' -File)
 Assert-Sub ($presetFiles.Count -eq 24) 'exactly 24 presets ship'
 $presetIds=@{}
 foreach($file in $presetFiles){
@@ -37,7 +37,7 @@ foreach($file in $presetFiles){
     Assert-Sub ($pd.status -ceq 'active' -and $pd.bounds.depth -eq 1 -and $pd.output.kind -cin @('text','report')) ('preset status, depth and output: '+$file.Name)
 }
 # Fixture evaluations (#625): every preset has one synthetic scenario; the definition must fit it (static evaluation, no live client).
-$evalFile=Join-Path $PSScriptRoot '../direttive/agents/evaluations/fixtures.json'
+$evalFile=Join-Path $PSScriptRoot '../directives/agents/evaluations/fixtures.json'
 $evalDoc=Get-Content -LiteralPath $evalFile -Raw|ConvertFrom-Json
 $evals=@($evalDoc.evaluations)
 Assert-Sub ($evals.Count -eq $presetFiles.Count) 'one fixture evaluation per preset'

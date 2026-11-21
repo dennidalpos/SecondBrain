@@ -20,15 +20,15 @@ function Copy-SetupCatalog([string]$Root){
     Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Prompts.psm1')
     $source=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
     Put (Join-Path $Root 'config/prompt-catalog.schema.json') (Read-SBText (Join-Path $source 'config/prompt-catalog.schema.json'))
-    $catalog=Read-SBJson (Join-Path $source 'direttive/prompts/catalog.json') @{}
+    $catalog=Read-SBJson (Join-Path $source 'directives/prompts/catalog.json') @{}
     $catalog.prompts=@($catalog.prompts|Where-Object code -in 'SYS03','SYS04')
     $catalog.categories=@($catalog.categories|Where-Object id -in @($catalog.prompts.category))
     foreach($prompt in $catalog.prompts){
         $prompt.related=@($catalog.prompts|Where-Object id -ne $prompt.id|ForEach-Object id)
-        $file=Join-Path 'direttive/prompts' $prompt.file
+        $file=Join-Path 'directives/prompts' $prompt.file
         Put (Join-Path $Root $file) (Read-SBText (Join-Path $source $file))
     }
-    Put (Join-Path $Root 'direttive/prompts/catalog.json') (ConvertTo-SBJson $catalog)
+    Put (Join-Path $Root 'directives/prompts/catalog.json') (ConvertTo-SBJson $catalog)
     $index=New-SBWorkflowIndex $Root
     Put (Join-Path $Root $index.path) $index.text
 }
@@ -40,11 +40,11 @@ Get-ChildItem -LiteralPath $PSScriptRoot -File|Where-Object {$_.Name -notlike 't
 Put (Join-Path $brain 'VERSION') '1.0.0'
 Put (Join-Path $brain 'config/shared.json') (ConvertTo-SBJson @{schemaVersion=1;allowedOwners=@('test');excludedDirectories=@('.git')})
 Put (Join-Path $brain 'config/tracker.schema.json') (Read-SBText (Join-Path $PSScriptRoot '../config/tracker.schema.json'))
-Put (Join-Path $brain 'direttive/AGENTS.global_ide.md') "# Synthetic`nRevisione 1.0 — 2026-11-04."
-Put (Join-Path $brain 'direttive/workstation.template.md') '<!-- secondbrain:tracker-contract:1 -->'
+Put (Join-Path $brain 'directives/AGENTS.global_ide.md') "# Synthetic`nRevisione 1.0 — 2026-11-04."
+Put (Join-Path $brain 'directives/workstation.template.md') '<!-- secondbrain:tracker-contract:1 -->'
 $approval=@{authorization='synthetic test fixture';files=@{}}
-foreach($name in @('AGENTS.global_ide.md','workstation.template.md')){$approval.files['direttive/'+$name]=Get-SBFileHash (Join-Path $brain ('direttive/'+$name))}
-Put (Join-Path $brain 'direttive/approved.json') (ConvertTo-SBJson $approval)
+foreach($name in @('AGENTS.global_ide.md','workstation.template.md')){$approval.files['directives/'+$name]=Get-SBFileHash (Join-Path $brain ('directives/'+$name))}
+Put (Join-Path $brain 'directives/approved.json') (ConvertTo-SBJson $approval)
 Put (Join-Path $dossier 'entity.json') (ConvertTo-SBJson @{schemaVersion=1;id='essential-area';kind='area';title='Essential';status='active'})
 Put (Join-Path $dossier 'repository.json') (ConvertTo-SBJson @{schemaVersion=1;identity=$identity;tracker=@{location='dossier';path='tracker.json';schemaVersion=1}})
 Put (Join-Path $dossier 'context.md') "# Context`n`n## Stato corrente`nSynthetic current state.`n`n## Vincoli`nKeep bytes.`n`n## Problemi aperti`nT-1.`n`n## Prossimo passo`nT-1.`n"
@@ -121,7 +121,7 @@ if('portable' -in $Groups){
     }
     $preflight=& $portableModule {param($root) Test-SBSetupPreflight $root} $brain
     Check (@($preflight|Where-Object name -eq 'git')[0].ok) 'installed Git satisfies real preflight'
-    $approved=Join-Path $brain 'direttive/workstation.template.md'
+    $approved=Join-Path $brain 'directives/workstation.template.md'
     $original=Read-SBText $approved;Put $approved 'unapproved'
     Check (!(Test-SBApproval $brain)) 'changed directives cannot be distributed'
     Put $approved $original
@@ -247,7 +247,7 @@ if('portable' -in $Groups){
         Check ($LASTEXITCODE -eq 0 -and $proposal.changes.Count -eq 2 -and !(Test-Path (Join-Path $dossier 'AGENTS.managed.md'))) 'directive preview reports both changes without applying them'
         & pwsh -NoProfile -File $approvalScript -ProposalPath $candidate -ConfigPath $configPath -ExpectedProposalHash $proposal.proposalHash -Authorization 'synthetic proposal' | Out-Null
         Check ($LASTEXITCODE -eq 0 -and (Test-SBApproval $brain)) 'reviewed directive hashes are applied together'
-        $publicApproval=Read-SBJson (Join-Path $brain 'direttive/approved.json') @{}
+        $publicApproval=Read-SBJson (Join-Path $brain 'directives/approved.json') @{}
         $privateApproval=Read-SBJson (Join-Path $brain '.runtime/directive-approvals.json') @{}
         Check (@($publicApproval.files.Keys|Where-Object {$_ -like 'workstation/*'}).Count -eq 0 -and $privateApproval.files.ContainsKey($relative.Replace('\','/')+'/AGENTS.managed.md')) 'dossier directive approvals remain outside the public manifest'
         $generated=& $portableModule {param($root,$dir) New-SBPortableRepositoryBody (Get-SBApprovedDirectiveRevision $root) $root $dir} $brain $dossier
@@ -348,9 +348,9 @@ if('portable' -in $Groups){
                     }finally{$env:SECONDBRAIN_STATE_ROOT=$oldState}
                     Check ($LASTEXITCODE -eq 2 -and $missingState.Contains('requires SECONDBRAIN_STATE_ROOT') -and ![IO.Directory]::Exists((Join-Path $personalRoot '.runtime'))) 'team activation refuses to keep workstation state on the share'
                     foreach($file in 'AGENTS.global_ide.md','workstation.template.md'){
-                        Put (Join-Path $personalRoot ('direttive/'+$file)) (Read-SBText (Join-Path $brain ('direttive/'+$file)))
+                        Put (Join-Path $personalRoot ('directives/'+$file)) (Read-SBText (Join-Path $brain ('directives/'+$file)))
                     }
-                    Put (Join-Path $personalRoot 'direttive/approved.json') (ConvertTo-SBJson $approval)
+                    Put (Join-Path $personalRoot 'directives/approved.json') (ConvertTo-SBJson $approval)
                     foreach($file in 'VERSION','config/tracker.schema.json','config/prompt-catalog.schema.json','scripts/mcp-server.ps1'){
                         Put (Join-Path $personalRoot $file) (Read-SBText (Join-Path $brain $file))
                     }

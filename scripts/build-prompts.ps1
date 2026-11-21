@@ -1,7 +1,7 @@
 #requires -Version 7.5
 <#
 .SYNOPSIS
-Validates the catalog and prompt cards; generates direttive/prompts/README.md.
+Validates the catalog and prompt cards; generates directives/prompts/README.md.
 .DESCRIPTION
 -Check verifies without writing: exit 0 when aligned, 1 when regeneration is required.
 The prompt catalog lives in the SecondBrain root. Use -SessionId in Write sessions.

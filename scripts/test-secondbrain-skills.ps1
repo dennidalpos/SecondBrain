@@ -39,7 +39,7 @@ try{
     # CLI: analyze is read-only; install previews, then applies with a backup.
     foreach($sub in @('scripts','config')){Copy-Item -LiteralPath (Join-Path $PSScriptRoot ('../'+$sub)) -Destination (Join-Path $brain $sub) -Recurse -Force}
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../VERSION') -Destination (Join-Path $brain 'VERSION')
-    Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../direttive') -Destination (Join-Path $brain 'direttive') -Recurse -Force
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../directives') -Destination (Join-Path $brain 'directives') -Recurse -Force
     Put $brain 'config/shared.json' (ConvertTo-SBJson @{schemaVersion=1;allowedOwners=@('test');excludedDirectories=@('.git')})
     $runtime=Get-SBLocalRoot $brain 'fixture';$cfg=Join-Path $runtime 'workstation.json'
     Put $brain ([IO.Path]::GetRelativePath($brain,$cfg)) (ConvertTo-SBJson @{schemaVersion=1;mode='portable';workstationId='fixture';runtimeRoot=$runtime;backupRoot=(Join-Path $runtime 'backups');ides=@();bindings=@()})

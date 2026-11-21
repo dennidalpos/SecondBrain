@@ -19,12 +19,12 @@ Assert-Prompts ($prompts.Count -ge 80) ('catalogo unico con '+$prompts.Count+' p
 Assert-Prompts (@($prompts.code|Select-Object -Unique).Count -eq $prompts.Count) 'codici univoci'
 Assert-Prompts (@($prompts.id|Select-Object -Unique).Count -eq $prompts.Count) 'ID univoci'
 Assert-Prompts (!(@($prompts|Where-Object {$_.id -notmatch '^pmt-[0-9a-f]{8}$'}).Count)) 'ID nel formato pmt-xxxxxxxx'
-$raw=Get-Content -Raw -LiteralPath (Join-Path $brain 'direttive/prompts/catalog.json')
+$raw=Get-Content -Raw -LiteralPath (Join-Path $brain 'directives/prompts/catalog.json')
 foreach($legacy in 'pack','deprecations','aliases','supersededBy','next','references','status'){Assert-Prompts ($raw -notmatch ('"'+$legacy+'"\s*:')) "il catalogo non contiene la chiave $legacy"}
-Assert-Prompts (!(Test-Path -LiteralPath (Join-Path $brain 'direttive/prompts/en'))) 'nessuna cartella en/ legacy'
-Assert-Prompts (!(Get-ChildItem -LiteralPath (Join-Path $brain 'direttive/prompts') -Filter 'README.maintenance*')) 'nessun README.maintenance legacy'
+Assert-Prompts (!(Test-Path -LiteralPath (Join-Path $brain 'directives/prompts/en'))) 'nessuna cartella en/ legacy'
+Assert-Prompts (!(Get-ChildItem -LiteralPath (Join-Path $brain 'directives/prompts') -Filter 'README.maintenance*')) 'nessun README.maintenance legacy'
 foreach($p in $prompts){
-    $en=Join-Path $brain ('direttive/prompts/'+$p.code+'.md')
+    $en=Join-Path $brain ('directives/prompts/'+$p.code+'.md')
     if(!(Test-Path -LiteralPath $en)){Assert-Prompts $false ($p.code+': scheda presente')}
     $enText=Get-Content -Raw -LiteralPath $en
     foreach($tag in 'role','context','task','format'){
@@ -39,7 +39,7 @@ Import-Module (Join-Path $brain 'scripts/SecondBrain.PromptSchema.psm1') -Force
 $rctfeSchema=Join-Path $brain 'config/prompt-card-rctfe.schema.json'
 $rctfeBad=@()
 foreach($p in $prompts){
-    $cardText=(Get-Content -Raw -LiteralPath (Join-Path $brain ('direttive/prompts/'+$p.file))).Replace("`r`n","`n").Replace('<task>','<procedure>').Replace('</task>','</procedure>').Replace('<format>','<output_format>').Replace('</format>','</output_format>')
+    $cardText=(Get-Content -Raw -LiteralPath (Join-Path $brain ('directives/prompts/'+$p.file))).Replace("`r`n","`n").Replace('<task>','<procedure>').Replace('</task>','</procedure>').Replace('<format>','<output_format>').Replace('</format>','</output_format>')
     $card=ConvertTo-SBRctfeCard $cardText $p.kind
     $card.description=$p.summary.TrimEnd('.')
     $found=@(Test-SBRctfeCard $card $rctfeSchema)
@@ -51,7 +51,7 @@ Assert-Prompts (@($prompts|Where-Object {$_.kind -notin 'system','user'}).Count 
 $catalogJson=ConvertFrom-Json -InputObject (ConvertTo-SBJson (ConvertTo-SBWorkflowCatalogData $catalog $null)) -AsHashtable
 $jsonPrompts=@($catalogJson.categories|ForEach-Object {$_.prompts})
 Assert-Prompts ($jsonPrompts.Count -eq $prompts.Count -and @($jsonPrompts|Where-Object {$_.kind -notin 'system','user'}).Count -eq 0 -and @($jsonPrompts|Where-Object {($_.code -like 'SYS*') -ne ($_.kind -eq 'system')}).Count -eq 0) '#748: the app catalog JSON carries kind for every prompt'
-$costar=@(Get-ChildItem -LiteralPath (Join-Path $brain 'scripts'),(Join-Path $brain 'docs'),(Join-Path $brain 'direttive') -Recurse -File -Include *.ps1,*.psm1,*.md -ErrorAction SilentlyContinue|Where-Object {$_.FullName -notmatch '[\\/]proposals[\\/]' -and $_.Name -ne 'test-secondbrain-prompts.ps1' -and (Select-String -LiteralPath $_.FullName -Pattern 'CO-STAR' -Quiet)})
+$costar=@(Get-ChildItem -LiteralPath (Join-Path $brain 'scripts'),(Join-Path $brain 'docs'),(Join-Path $brain 'directives') -Recurse -File -Include *.ps1,*.psm1,*.md -ErrorAction SilentlyContinue|Where-Object {$_.FullName -notmatch '[\\/]proposals[\\/]' -and $_.Name -ne 'test-secondbrain-prompts.ps1' -and (Select-String -LiteralPath $_.FullName -Pattern 'CO-STAR' -Quiet)})
 Assert-Prompts (!$costar.Count) ('nessun riferimento a CO-STAR in script e documenti: '+(($costar|ForEach-Object Name) -join ', '))
 # Every related code exists; every category is used.
 $ids=@($prompts.id)
@@ -66,17 +66,17 @@ foreach($category in $catalog.categories){
 # Perimeter: a repository prompt works on the repository it runs from; the only cross-repository reads are declared allowlists (REP16).
 foreach($p in @($prompts|Where-Object {$_.target -eq 'repository' -and $_.code -ne 'REP16'})){
     foreach($relative in @($p.file)){
-        $body=Get-Content -Raw -LiteralPath (Join-Path $brain ('direttive/prompts/'+$relative))
+        $body=Get-Content -Raw -LiteralPath (Join-Path $brain ('directives/prompts/'+$relative))
         Assert-Prompts ($body -notmatch '(?i)para-index|para\.ps1|-AllDossiers|\.runtime|central maintenance|manutenzione centrale') ($p.code+' ('+$relative+'): nessun riferimento oltre il repository corrente')
     }
 }
 # Related: a code cited in a card must be listed among its related prompts, and cited codes must exist.
 $relatedRoot=Join-Path (Get-SBTestRoot) ('fixture-'+(Get-Date -Format 'yyyyMMdd')+'-related-'+[guid]::NewGuid().ToString('N').Substring(0,8))
-foreach($folder in 'direttive/prompts','config'){[void][IO.Directory]::CreateDirectory((Join-Path $relatedRoot $folder))}
-Copy-Item -LiteralPath (Join-Path $brain 'direttive/prompts') -Destination (Join-Path $relatedRoot 'direttive') -Recurse -Force
+foreach($folder in 'directives/prompts','config'){[void][IO.Directory]::CreateDirectory((Join-Path $relatedRoot $folder))}
+Copy-Item -LiteralPath (Join-Path $brain 'directives/prompts') -Destination (Join-Path $relatedRoot 'directives') -Recurse -Force
 Copy-Item -LiteralPath (Join-Path $brain 'config/prompt-catalog.schema.json') -Destination (Join-Path $relatedRoot 'config/prompt-catalog.schema.json') -Force
 Assert-Prompts ($null -ne (Read-SBWorkflowCatalog $relatedRoot -ValidateBodies -ValidateReferences)) 'related: copia di prova valida'
-$relatedCatalogPath=Join-Path $relatedRoot 'direttive/prompts/catalog.json'
+$relatedCatalogPath=Join-Path $relatedRoot 'directives/prompts/catalog.json'
 $relatedCatalog=Read-SBJson $relatedCatalogPath @{}
 $victim=@($relatedCatalog.prompts|Where-Object {$_.code -eq 'AUD01'})[0]
 $victim.related=@($victim.related|Select-Object -First 1)
@@ -84,8 +84,8 @@ $victim.related=@($victim.related|Select-Object -First 1)
 $uncited=$false
 try{[void](Read-SBWorkflowCatalog $relatedRoot -ValidateBodies -ValidateReferences)}catch{$uncited=Test-SBError $_ 'prompts.related.uncited'}
 Assert-Prompts $uncited 'related: codice citato ma non elencato respinto'
-Copy-Item -LiteralPath (Join-Path $brain 'direttive/prompts/catalog.json') -Destination $relatedCatalogPath -Force
-$danglingCard=Join-Path $relatedRoot 'direttive/prompts/DEV01.md'
+Copy-Item -LiteralPath (Join-Path $brain 'directives/prompts/catalog.json') -Destination $relatedCatalogPath -Force
+$danglingCard=Join-Path $relatedRoot 'directives/prompts/DEV01.md'
 [IO.File]::WriteAllText($danglingCard,(([IO.File]::ReadAllText($danglingCard)).Replace("`n</context>"," See DEV99.`n</context>")),[Text.UTF8Encoding]::new($false))
 $dangling=$false
 try{[void](Read-SBWorkflowCatalog $relatedRoot -ValidateBodies -ValidateReferences)}catch{$dangling=Test-SBError $_ 'prompts.reference.dangling'}
@@ -140,8 +140,8 @@ $personalBackup=@(Get-ChildItem -LiteralPath $pointerBackup -Filter '*.bin'|Wher
 Assert-Prompts ($personalBackup.Count -eq 1) 'puntatore misto mantiene una copia esatta delle istruzioni personali'
 # Encoding guard: exercise both read boundaries, including corruption in a body beyond its title.
 $encodingRoot=Join-Path $pointerRoot 'encoding'
-$encodingCatalog=Join-Path $encodingRoot 'direttive/prompts/catalog.json'
-$encodingCard=Join-Path $encodingRoot ('direttive/prompts/'+$readPrompt.file)
+$encodingCatalog=Join-Path $encodingRoot 'directives/prompts/catalog.json'
+$encodingCard=Join-Path $encodingRoot ('directives/prompts/'+$readPrompt.file)
 $encodingBackup=Join-Path $pointerRoot 'encoding-backups'
 $validUnicode='Usabilità, può, receção, cessação, … — • ⚠ 🔭 ├── 中文'
 & (Get-Module SecondBrain.Prompts) {param($Text) Assert-SBWorkflowEncoding $Text 'valid-unicode'} $validUnicode
@@ -171,7 +171,7 @@ foreach($bad in $badSequences){
 $drift=Get-SBWorkflowDrift $brain
 Assert-Prompts (!@($drift).Count) 'indici generati allineati al catalogo'
 # Directives: the newest proposal (candidate or active text) respects structure, size and consistency with the prompt registry.
-$proposalRoot=Join-Path $brain 'direttive/proposals'
+$proposalRoot=Join-Path $brain 'directives/proposals'
 $latest=Get-ChildItem -LiteralPath $proposalRoot -Directory|Where-Object {Test-Path -LiteralPath (Join-Path $_.FullName 'AGENTS.global_ide.md')}|Sort-Object Name|Select-Object -Last 1
 $global=Get-Content -Raw -Encoding utf8 (Join-Path $latest.FullName 'AGENTS.global_ide.md')
 $station=Get-Content -Raw -Encoding utf8 (Join-Path $latest.FullName 'workstation.template.md')
@@ -248,7 +248,7 @@ function New-PrivateCard([string]$Id,[string]$Key,[string]$Mode='write',[bool]$D
 function Assert-PrivateRefused([scriptblock]$Action,[string]$Code,[string]$Message){$refused=$false;try{& $Action|Out-Null}catch{$refused=(Test-SBError $_ $Code)};Assert-Prompts $refused $Message}
 try{
     $publicId=[string]$prompts[0].id
-    Write-PrivateFixture 'direttive/prompts/catalog.json' '{"schemaVersion":1}'
+    Write-PrivateFixture 'directives/prompts/catalog.json' '{"schemaVersion":1}'
     $sign=New-PrivateCard 'pmt-a0000001' 'acme-app/pkg-sign' 'write' $false 'active' @($publicId)
     $draft=New-PrivateCard 'pmt-a0000002' 'acme-app/pkg-draft' 'read' $false 'draft'
     $wipe=New-PrivateCard 'pmt-a0000003' 'acme-app/pkg-wipe' 'write' $true
@@ -301,11 +301,11 @@ try{
     Assert-PrivateRefused {Read-SBPrivateAssets -Dossier $bad -Repository 'github.com/acme/acme-app' -PublicCatalog $catalog} 'private.invalid' '#589: workflow nesting deeper than 2 is refused'
     & $restore
     # Public files never cite a private asset.
-    Write-PrivateFixture 'direttive/prompts/SYS99.md' 'See acme-app/pkg-sign for the signing steps.'
+    Write-PrivateFixture 'directives/prompts/SYS99.md' 'See acme-app/pkg-sign for the signing steps.'
     Assert-PrivateRefused {Test-SBPrivateAssets -BrainRoot $privateRoot -PublicCatalog $catalog} 'private.public.reference' '#589: a public card citing a private key is refused'
     Assert-Prompts (@(Get-SBPrivateAssetTokens $privateRoot) -contains 'acme-app/pkg-sign' -and @(Find-SBPrivateReferences $privateRoot @('acme-app/pkg-sign')).Count -eq 1) '#589: the publication scan tokens include private keys and find the public reference'
-    Write-PrivateFixture 'direttive/proposals/old/proposal.md' 'Historical mention of pmt-a0000001.'
-    Remove-Item -LiteralPath (Join-Path $privateRoot 'direttive/prompts/SYS99.md') -Force
+    Write-PrivateFixture 'directives/proposals/old/proposal.md' 'Historical mention of pmt-a0000001.'
+    Remove-Item -LiteralPath (Join-Path $privateRoot 'directives/prompts/SYS99.md') -Force
     Assert-Prompts ((Test-SBPrivateAssets -BrainRoot $privateRoot -PublicCatalog $catalog).publicReferences -eq 0) '#589: historical proposals are excluded from the public reference rule'
 }finally{
     if($env:SECONDBRAIN_TEST_KEEP -ne '1' -and (Test-Path -LiteralPath $privateRoot)){Remove-Item -LiteralPath $privateRoot -Recurse -Force}
@@ -320,7 +320,7 @@ function New-S2Card([string]$Id,[string]$Code,$Extra=@{}){
 }
 function Write-S2Catalog($Cards,[int]$Version=2){
     $cat=[ordered]@{schemaVersion=$Version;catalogVersion=$Version;categories=@(@{id='understand';group='repository';title='Understanding'});prompts=@($Cards)}
-    Write-S2 'direttive/prompts/catalog.json' (ConvertTo-SBJson $cat)
+    Write-S2 'directives/prompts/catalog.json' (ConvertTo-SBJson $cat)
 }
 function Assert-S2Refused([scriptblock]$Action,[string]$Code,[string]$Message){$refused=$false;try{& $Action|Out-Null}catch{$refused=(Test-SBError $_ $Code)};Assert-Prompts $refused $Message}
 $flowHead='{"schemaVersion":1,"id":"wfl-c0000001","key":"wf-core","title":"Core flow","revision":1,"status":"active","steps":['
@@ -351,25 +351,25 @@ try{
     Write-S2Catalog @($a,$b)
     $c2=Read-SBWorkflowCatalog $s2Root
     Assert-Prompts (@((Read-SBPromptAliases $s2Root $c2).aliases).Count -eq 0) '#566: a missing alias table is empty'
-    Write-S2 'direttive/prompts/aliases.json' '{"schemaVersion":1,"aliases":[{"code":"OLD01","status":"renamed","ids":["pmt-b0000001"]},{"code":"OLD02","status":"split","ids":["pmt-b0000001","pmt-b0000002"]},{"code":"OLD03","status":"retired"}]}'
+    Write-S2 'directives/prompts/aliases.json' '{"schemaVersion":1,"aliases":[{"code":"OLD01","status":"renamed","ids":["pmt-b0000001"]},{"code":"OLD02","status":"split","ids":["pmt-b0000001","pmt-b0000002"]},{"code":"OLD03","status":"retired"}]}'
     Assert-Prompts (@((Read-SBPromptAliases $s2Root $c2).aliases).Count -eq 3) '#566: a valid alias table loads'
-    Write-S2 'direttive/prompts/aliases.json' '{"schemaVersion":1,"aliases":[{"code":"AAA01","status":"renamed","ids":["pmt-b0000002"]}]}'
+    Write-S2 'directives/prompts/aliases.json' '{"schemaVersion":1,"aliases":[{"code":"AAA01","status":"renamed","ids":["pmt-b0000002"]}]}'
     Assert-S2Refused {Read-SBPromptAliases $s2Root $c2} 'prompts.alias.invalid' '#566: an alias never reuses an active code'
-    Write-S2 'direttive/prompts/aliases.json' '{"schemaVersion":1,"aliases":[{"code":"OLD01","status":"renamed","ids":["pmt-ffffffff"]}]}'
+    Write-S2 'directives/prompts/aliases.json' '{"schemaVersion":1,"aliases":[{"code":"OLD01","status":"renamed","ids":["pmt-ffffffff"]}]}'
     Assert-S2Refused {Read-SBPromptAliases $s2Root $c2} 'prompts.alias.invalid' '#566: an alias target must exist'
-    Write-S2 'direttive/prompts/aliases.json' '{"schemaVersion":1,"aliases":[{"code":"OLD01","status":"split","ids":["pmt-b0000001"]}]}'
+    Write-S2 'directives/prompts/aliases.json' '{"schemaVersion":1,"aliases":[{"code":"OLD01","status":"split","ids":["pmt-b0000001"]}]}'
     Assert-S2Refused {Read-SBPromptAliases $s2Root $c2} 'prompts.alias.invalid' '#566: a split needs at least two successors'
-    Write-S2 'direttive/prompts/workflows/core.json' (($flowHead -replace '"status":"active",','"status":"active","pack":"site",')+'{"step":"first","ref":"pmt-b0000001","kind":"required","gate":"auto"},{"step":"pick","ref":"pmt-b0000001","kind":"choice","gate":"confirm","choices":["pmt-b0000001","pmt-b0000002"]}]}')
+    Write-S2 'directives/prompts/workflows/core.json' (($flowHead -replace '"status":"active",','"status":"active","pack":"site",')+'{"step":"first","ref":"pmt-b0000001","kind":"required","gate":"auto"},{"step":"pick","ref":"pmt-b0000001","kind":"choice","gate":"confirm","choices":["pmt-b0000001","pmt-b0000002"]}]}')
     Assert-Prompts (@(Read-SBPromptWorkflows $s2Root $c2).Count -eq 1) '#566: a valid workflow loads'
-    Write-S2 'direttive/prompts/aliases.json' '{"schemaVersion":1,"aliases":[{"code":"OLD01","status":"workflow","workflow":"wfl-c0000001"}]}'
+    Write-S2 'directives/prompts/aliases.json' '{"schemaVersion":1,"aliases":[{"code":"OLD01","status":"workflow","workflow":"wfl-c0000001"}]}'
     Assert-Prompts (@((Read-SBPromptAliases $s2Root $c2 @(Read-SBPromptWorkflows $s2Root $c2)).aliases).Count -eq 1) '#566: an alias can point to a workflow'
-    Write-S2 'direttive/prompts/workflows/core.json' ($flowHead+'{"step":"first","ref":"pmt-b0000009","kind":"required","gate":"auto"}]}')
+    Write-S2 'directives/prompts/workflows/core.json' ($flowHead+'{"step":"first","ref":"pmt-b0000009","kind":"required","gate":"auto"}]}')
     Assert-S2Refused {Read-SBPromptWorkflows $s2Root $c2} 'prompts.workflow.step' '#566: a workflow step must cite an existing card'
-    Write-S2 'direttive/prompts/workflows/core.json' ($flowHead+'{"step":"first","ref":"pmt-b0000002","kind":"required","gate":"auto"}]}')
+    Write-S2 'directives/prompts/workflows/core.json' ($flowHead+'{"step":"first","ref":"pmt-b0000002","kind":"required","gate":"auto"}]}')
     Assert-S2Refused {Read-SBPromptWorkflows $s2Root $c2} 'prompts.workflow.pack' '#566: a core workflow cannot use a site card'
-    Write-S2 'direttive/prompts/workflows/core.json' ($flowHead+'{"step":"first","ref":"pmt-b0000001","kind":"required","gate":"auto"},{"step":"first","ref":"pmt-b0000001","kind":"optional","gate":"auto"}]}')
+    Write-S2 'directives/prompts/workflows/core.json' ($flowHead+'{"step":"first","ref":"pmt-b0000001","kind":"required","gate":"auto"},{"step":"first","ref":"pmt-b0000001","kind":"optional","gate":"auto"}]}')
     Assert-S2Refused {Read-SBPromptWorkflows $s2Root $c2} 'prompts.workflow.invalid' '#566: duplicate step names are refused'
-    Write-S2 'direttive/prompts/workflows/core.json' (($flowHead+'{"step":"first","ref":"pmt-b0000001","kind":"required","gate":"auto"}]}') -replace '"wf-core"','"core"')
+    Write-S2 'directives/prompts/workflows/core.json' (($flowHead+'{"step":"first","ref":"pmt-b0000001","kind":"required","gate":"auto"}]}') -replace '"wf-core"','"core"')
     Assert-S2Refused {Read-SBPromptWorkflows $s2Root $c2} 'prompts.workflow.invalid' '#566: a workflow key must start with wf-'
 }finally{
     if($env:SECONDBRAIN_TEST_KEEP -ne '1' -and (Test-Path -LiteralPath $s2Root)){Remove-Item -LiteralPath $s2Root -Recurse -Force}
@@ -379,9 +379,9 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.PromptMigration.psm1') -Forc
 $migRoot=Join-Path (Get-SBTestRoot) ('migration-'+[guid]::NewGuid().ToString('N').Substring(0,12))
 try{
     [IO.Directory]::CreateDirectory((Join-Path $migRoot 'config'))|Out-Null
-    Copy-Item -LiteralPath (Join-Path $brain 'direttive') -Destination (Join-Path $migRoot 'direttive') -Recurse
+    Copy-Item -LiteralPath (Join-Path $brain 'directives') -Destination (Join-Path $migRoot 'directives') -Recurse
     Copy-Item -Path (Join-Path $brain 'config/prompt-*.json') -Destination (Join-Path $migRoot 'config')
-    $migCatalogPath=Join-Path $migRoot 'direttive/prompts/catalog.json'
+    $migCatalogPath=Join-Path $migRoot 'directives/prompts/catalog.json'
     $migRaw=Read-SBText $migCatalogPath
     Assert-Prompts ((ConvertTo-SBPromptJson (ConvertFrom-Json -InputObject $migRaw -AsHashtable))+"`n" -ceq $migRaw.Replace("`r`n","`n")) '#568: the catalog serializer round-trips the catalog byte for byte'
     $plan=Get-SBPromptMigrationPlan $migRoot
@@ -423,7 +423,7 @@ try{
     Assert-Prompts (@($aliases.aliases).Count -eq 121 -and $flowAliases.Count -eq 4) ('#568: aliases.json has 121 entries and the 4 retired orchestration codes resolve to a workflow (found '+@($aliases.aliases).Count+' and '+$flowAliases.Count+')')
     Assert-Prompts ($aliases.aliases|Where-Object {$_.code -eq 'AIS01'}|ForEach-Object {$_.status -eq 'renamed' -and $_.ids[0] -eq $before['AIS01']}) '#568: an old code resolves to the same card ID'
     foreach($row in $plan.rows|Where-Object action -eq 'rename'){
-        if(!(Test-Path -LiteralPath (Join-Path $migRoot ('direttive/prompts/'+$row.newCode+'.md'))) -or (Test-Path -LiteralPath (Join-Path $migRoot ('direttive/prompts/'+$row.oldCode+'.md')))){Assert-Prompts $false ('#568: card files moved for '+$row.oldCode)}
+        if(!(Test-Path -LiteralPath (Join-Path $migRoot ('directives/prompts/'+$row.newCode+'.md'))) -or (Test-Path -LiteralPath (Join-Path $migRoot ('directives/prompts/'+$row.oldCode+'.md')))){Assert-Prompts $false ('#568: card files moved for '+$row.oldCode)}
     }
     Assert-Prompts $true '#568: every renamed card has its new file and no old file'
     $again=Get-SBPromptMigrationPlan $migRoot
@@ -439,9 +439,9 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.PromptLifecycle.psm1') -Forc
 $lcRoot=Join-Path (Get-SBTestRoot) ('lifecycle-'+[guid]::NewGuid().ToString('N').Substring(0,12))
 try{
     [IO.Directory]::CreateDirectory((Join-Path $lcRoot 'config'))|Out-Null
-    Copy-Item -LiteralPath (Join-Path $brain 'direttive') -Destination (Join-Path $lcRoot 'direttive') -Recurse
+    Copy-Item -LiteralPath (Join-Path $brain 'directives') -Destination (Join-Path $lcRoot 'directives') -Recurse
     Copy-Item -Path (Join-Path $brain 'config/prompt-*.json') -Destination (Join-Path $lcRoot 'config')
-    $lcCatalogPath=Join-Path $lcRoot 'direttive/prompts/catalog.json'
+    $lcCatalogPath=Join-Path $lcRoot 'directives/prompts/catalog.json'
     $lcRaw=Read-SBText $lcCatalogPath
     $lcWrite={param($path,$text) [IO.Directory]::CreateDirectory((Split-Path $path -Parent))|Out-Null;[IO.File]::WriteAllText($path,$text,[Text.UTF8Encoding]::new($false))}
     $lcRemove={param($path) Remove-Item -LiteralPath $path}
@@ -455,7 +455,7 @@ try{
     Assert-Prompts (!(Get-SBPromptLifecyclePlan $lcRoot 'retire' @{Code=$withRole.code}).valid) '#615: retiring a card that holds a role is refused'
     # Add: preview validates, then applies; the code is never reused afterwards.
     $addBody=Join-Path $lcRoot 'new-en.md'
-    $template=(Read-SBText (Join-Path $lcRoot ('direttive/prompts/'+$first.file))).Replace("`r`n","`n")
+    $template=(Read-SBText (Join-Path $lcRoot ('directives/prompts/'+$first.file))).Replace("`r`n","`n")
     # Bodies cite no other cards, so the new card needs no related entries beyond the required one.
     $uncited={param($text) [regex]::Replace($text.Replace("`r`n","`n"),'\b[A-Z]{3}\d{2}\b','the card')}
     [IO.File]::WriteAllText($addBody,(& $uncited $template),[Text.UTF8Encoding]::new($false))
@@ -509,14 +509,14 @@ try{
     $reuse=Get-SBPromptLifecyclePlan $lcRoot 'duplicate' @{Code='ZZZ91';NewCode='ZZZ92'}
     Assert-Prompts (!$reuse.valid -and ($reuse.errors -join ' ') -match 'never reused') '#615: a retired code is never reused'
     # A workflow step blocks retirement and is named.
-    $flowDir=Join-Path $lcRoot 'direttive/prompts/workflows'; [IO.Directory]::CreateDirectory($flowDir)|Out-Null
+    $flowDir=Join-Path $lcRoot 'directives/prompts/workflows'; [IO.Directory]::CreateDirectory($flowDir)|Out-Null
     [IO.File]::WriteAllText((Join-Path $flowDir 'lifecycle.json'),('{"schemaVersion":1,"id":"wfl-00000615","key":"wf-lifecycle","title":"Lifecycle","revision":1,"status":"active","steps":[{"step":"only","ref":"'+$edited.id+'","kind":"required","gate":"auto"}]}'),[Text.UTF8Encoding]::new($false))
     # The workflow cites the card; related lists still name it too, so remove those with a related edit first.
     $flowRefusal=Get-SBPromptLifecyclePlan $lcRoot 'retire' @{Code='ZZZ91'}
     Assert-Prompts (!$flowRefusal.valid -and ($flowRefusal.errors -join ' ') -match 'workflow wf-lifecycle \(step only\)') '#615: retiring a card used by a workflow is refused and names the workflow step'
     $deprecatedBefore=Get-SBPromptLifecyclePlan $lcRoot 'deprecate' @{Code='ZZZ91';Reason='Planned removal.'}
     Assert-Prompts ($deprecatedBefore.valid -and ($deprecatedBefore.notes -join ' ') -match 'wf-lifecycle') '#615: deprecating a card used by a workflow succeeds and lists the workflow as a note'
-    Assert-Prompts ((Read-SBText $lcCatalogPath) -cne $lcRaw -and (Read-SBText (Join-Path $brain 'direttive/prompts/catalog.json')) -ceq $lcRaw) '#615: only the copy changed, never the real catalog'
+    Assert-Prompts ((Read-SBText $lcCatalogPath) -cne $lcRaw -and (Read-SBText (Join-Path $brain 'directives/prompts/catalog.json')) -ceq $lcRaw) '#615: only the copy changed, never the real catalog'
 }finally{
     if($env:SECONDBRAIN_TEST_KEEP -ne '1' -and (Test-Path -LiteralPath $lcRoot)){Remove-Item -LiteralPath $lcRoot -Recurse -Force}
 }

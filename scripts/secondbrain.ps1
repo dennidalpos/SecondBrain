@@ -14,7 +14,7 @@ Reads (-Check) take no blocking locks: an active writer or pending transaction a
 Repository files: a newly activated repository gets AGENTS.md (managed block) and the CLAUDE.md/GEMINI.md pointers, created when absent; text outside the managed blocks is kept. -Setup -RepositoryFiles AGENTS.md[,CLAUDE.md,GEMINI.md] chooses the files, none opts out; a repeated activation keeps the earlier choice and Sync manages only the chosen files.
 -Check|-Sync -AdoptIde <ide name>: when an IDE global file was replaced outside SecondBrain and its managed-block state is stale (ide-conflict), -Check previews the adoption (warning ide-adopt-preview with both hashes) and -Sync records the block on disk as the baseline, then rewrites it with the approved text; the file is backed up first.
 -ResolveBlock <repo|path> [-File <name>]: preview of a managed block edited by hand (diff); -Resolution Generated|Preserve -ApplyResolve restores the generated block keeping the previous content (backup, previousBlock, or the lines added by hand with Preserve).
-Portable operations and contracts: docs/riferimento/portable-brain.md.
+Portable operations and contracts: docs/reference/portable-brain.md.
 .EXAMPLE
 pwsh -NoProfile -File scripts/secondbrain.ps1 -Check
 pwsh -NoProfile -File scripts/secondbrain.ps1 -Sync

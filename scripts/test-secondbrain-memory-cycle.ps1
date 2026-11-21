@@ -12,7 +12,7 @@ function Assert-Cycle($Condition,[string]$Message){if(!$Condition){throw ('FAIL 
 function Reject-Cycle([scriptblock]$Action,[string]$Message){$rejected=$false;try{& $Action|Out-Null}catch{$rejected=$true};Assert-Cycle $rejected $Message}
 $root=Join-Path (Get-SBTestRoot) ('memcycle-'+[guid]::NewGuid().ToString('N'))
 $brain=Join-Path $root 'brain';$repo='github.com/acme/one';$d=Join-Path $brain 'repos/one';$backups=Join-Path $brain '.runtime/backups'
-foreach($folder in @($d,(Join-Path $brain 'repos/two'),(Join-Path $brain 'direttive'),(Join-Path $brain 'config'))){[void][IO.Directory]::CreateDirectory($folder)}
+foreach($folder in @($d,(Join-Path $brain 'repos/two'),(Join-Path $brain 'directives'),(Join-Path $brain 'config'))){[void][IO.Directory]::CreateDirectory($folder)}
 foreach($name in @('one','two')){
     $dir=Join-Path $brain ('repos/'+$name)
     [IO.File]::WriteAllText((Join-Path $dir 'brief.md'),('# '+$name))
@@ -22,9 +22,9 @@ foreach($name in @('one','two')){
     [IO.File]::WriteAllText((Join-Path $dir 'memory.md'),"# Memoria`n## Decisioni`n- Decisione: mantenere tutti i dati — Motivo: recupero.`n")
     [IO.File]::WriteAllText((Join-Path $dir 'tracker.json'),(ConvertTo-SBJson @{schemaVersion=1;repository=('github.com/acme/'+$name);updatedAt='2026-11-05T00:00:00Z';tasks=@();history=@();extensions=@{}}))
 }
-Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../direttive/approved.json') -Destination (Join-Path $brain 'direttive/approved.json')
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../directives/approved.json') -Destination (Join-Path $brain 'directives/approved.json')
 foreach($name in @('AGENTS.global_ide.md','workstation.template.md','AGENTS.repo.managed.md')){
-    Copy-Item -LiteralPath (Join-Path $PSScriptRoot ('../direttive/'+$name)) -Destination (Join-Path $brain ('direttive/'+$name))
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot ('../directives/'+$name)) -Destination (Join-Path $brain ('directives/'+$name))
 }
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../config/tracker.schema.json') -Destination (Join-Path $brain 'config/tracker.schema.json')
 [IO.File]::WriteAllText((Join-Path $brain 'config/shared.json'),(ConvertTo-SBJson @{schemaVersion=1;allowedOwners=@('acme');excludedDirectories=@('.git')}))

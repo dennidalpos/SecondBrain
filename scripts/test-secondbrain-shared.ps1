@@ -19,11 +19,11 @@ function Put([string]$rel,[string]$text){$p=Join-Path $brain $rel;[IO.Directory]
 foreach($sub in @('scripts','config')){Copy-Item -LiteralPath (Join-Path $PSScriptRoot ('../'+$sub)) -Destination (Join-Path $brain $sub) -Recurse -Force}
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../VERSION') -Destination (Join-Path $brain 'VERSION')
 Put 'config/shared.json' (ConvertTo-SBJson @{schemaVersion=1;allowedOwners=@('test');excludedDirectories=@('.git');lockWaitSeconds=60})
-Put 'direttive/AGENTS.global_ide.md' "# Synthetic`nRevisione 1.0 - 2026-11-04."
-Put 'direttive/workstation.template.md' '<!-- secondbrain:tracker-contract:1 -->'
+Put 'directives/AGENTS.global_ide.md' "# Synthetic`nRevisione 1.0 - 2026-11-04."
+Put 'directives/workstation.template.md' '<!-- secondbrain:tracker-contract:1 -->'
 $approval=@{authorization='synthetic test fixture';files=@{}}
-foreach($name in @('AGENTS.global_ide.md','workstation.template.md')){$approval.files['direttive/'+$name]=Get-SBFileHash (Join-Path $brain ('direttive/'+$name))}
-Put 'direttive/approved.json' (ConvertTo-SBJson $approval)
+foreach($name in @('AGENTS.global_ide.md','workstation.template.md')){$approval.files['directives/'+$name]=Get-SBFileHash (Join-Path $brain ('directives/'+$name))}
+Put 'directives/approved.json' (ConvertTo-SBJson $approval)
 # One authoritative dossier shared by both identities.
 $dossier='repos/shared'
 Put "$dossier/repository.json" (ConvertTo-SBJson @{schemaVersion=1;identity=$identity;tracker=@{location='dossier';path='tracker.json';schemaVersion=1}})

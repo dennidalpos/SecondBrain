@@ -659,7 +659,7 @@ function Find-SBKnowledge {
         [ValidateRange(0,[int]::MaxValue)][int]$Offset=0,
         [ValidateRange(-1,[int]::MaxValue)][int]$Limit=-1,
         [switch]$IncludeOriginals,
-        # Index by category: memoria (memory.md), informazioni (context, tracker, reports), normative/policy (topics|knowledge/<category>/), prompt (direttive/prompts, only when requested).
+        # Index by category: memoria (memory.md), informazioni (context, tracker, reports), normative/policy (topics|knowledge/<category>/), prompt (directives/prompts, only when requested).
         [ValidateSet('normative','policy','informazioni','prompt','memoria')][string[]]$Category=@(),
         # Revision returned by a previous identical search: when nothing searched changed, no extract is repeated.
         [string]$PreviousRevision=''
@@ -705,7 +705,7 @@ function Find-SBKnowledge {
         foreach($filePath in $filesToSearch){& $processFile $filePath $dir $searchRepository (Get-SBKnowledgeCategory $dir $filePath)}
     }
     if('prompt' -in $Category){
-        $promptDir=Join-Path $root 'direttive/prompts'
+        $promptDir=Join-Path $root 'directives/prompts'
         if(Test-Path -LiteralPath $promptDir -PathType Container){
             Assert-SBPlainPath $promptDir
             foreach($promptFile in (Get-ChildItem -LiteralPath $promptDir -File -Filter '*.md'|Where-Object Name -ne 'README.md'|Sort-Object Name)){& $processFile $promptFile.FullName $root '' 'prompt'}

@@ -18,7 +18,7 @@ Add-SBMessages @{
     'analysis.limit' = @{ en = '{0} limit during the analysis ({1}): {2}' }
     'analysis.agent.failed' = @{ en = 'Analysis failed with {0} ({1}, exit {2}): {3}' }
     'analysis.output.invalid' = @{ en = '{0} answer does not match the schema after {1} attempts: {2}. Retry or pick a more capable model' }
-    'analysis.card.missing' = @{ en = 'Prompt card {0} not found in direttive/prompts' }
+    'analysis.card.missing' = @{ en = 'Prompt card {0} not found in directives/prompts' }
 }
 $script:SBAnalysisKinds=@{directives=@{card='analysis.directives';schema='directives.schema.json'};task=@{card='analysis.task';schema='task.schema.json'}}
 function Get-SBAnalysisSchemaPath([string]$BrainRoot,[ValidateSet('directives','task')][string]$Kind) {
@@ -40,7 +40,7 @@ function Get-SBLightModel([string]$BrainRoot,[string]$Provider) {
 function Get-SBPromptCardText([string]$BrainRoot,[string]$Key) {
     $Code=$Key
     try{$Code=(Resolve-SBWorkflowPrompt (Read-SBWorkflowCatalog $BrainRoot) $Key).prompt.code}catch{throw (New-SBError 'analysis.card.missing' @($Key))}
-    $path=Join-Path $BrainRoot ('direttive/prompts/'+$Code+'.md')
+    $path=Join-Path $BrainRoot ('directives/prompts/'+$Code+'.md')
     if(!(Test-Path -LiteralPath $path -PathType Leaf)){throw (New-SBError 'analysis.card.missing' @($Code))}
     (Read-SBText $path).Trim()
 }

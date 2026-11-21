@@ -1,12 +1,12 @@
 #requires -Version 7.5
 Set-StrictMode -Version Latest
-# Prompt library migration (plan P4): applies direttive/prompts/migration-map.json to the catalog. The plan is computed from the current
+# Prompt library migration (plan P4): applies directives/prompts/migration-map.json to the catalog. The plan is computed from the current
 # state, so it is a preview by itself and a second run finds nothing to change. Writing goes through callbacks supplied by the caller.
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Prompts.psm1')
 Add-SBMessages @{
-    'prompts.migration.invalid' = @{ en = 'Invalid prompt migration: {0}; fix direttive/prompts/migration-map.json or the catalog and run migrate-prompts.ps1 again' }
+    'prompts.migration.invalid' = @{ en = 'Invalid prompt migration: {0}; fix directives/prompts/migration-map.json or the catalog and run migrate-prompts.ps1 again' }
     'prompts.migration.row' = @{ en = '{0} | {1} | {2} | {3}' }
     'prompts.migration.unmapped' = @{ en = 'Not in the migration map (left unchanged, needs an owner decision): {0}' }
     'prompts.migration.deferred' = @{ en = 'Waiting for new cards or workflows (written by later steps): {0} needs {1}' }
@@ -39,7 +39,7 @@ function ConvertTo-SBPromptJson($Value,[int]$Depth=0) {
 }
 
 function Read-SBPromptMigrationMap([string]$BrainRoot) {
-    $path=Join-Path $BrainRoot 'direttive/prompts/migration-map.json'
+    $path=Join-Path $BrainRoot 'directives/prompts/migration-map.json'
     if(!(Test-Path -LiteralPath $path -PathType Leaf)){throw (New-SBError 'prompts.migration.invalid' @('migration-map.json missing'))}
     $map=ConvertFrom-Json -InputObject (Read-SBText $path) -AsHashtable
     if($map.schemaVersion -ne 1 -or !$map.ContainsKey('cards')){throw (New-SBError 'prompts.migration.invalid' @('map schema'))}
@@ -47,7 +47,7 @@ function Read-SBPromptMigrationMap([string]$BrainRoot) {
 }
 
 function Get-SBPromptMigrationPlan([string]$BrainRoot) {
-    $promptDir=Join-Path $BrainRoot 'direttive/prompts'
+    $promptDir=Join-Path $BrainRoot 'directives/prompts'
     $map=Read-SBPromptMigrationMap $BrainRoot
     $catalog=Read-SBWorkflowCatalog $BrainRoot
     $byCode=@{}; foreach($card in $catalog.prompts){$byCode[$card.code]=$card}

@@ -50,11 +50,11 @@ try {
     Write-ReconcileFile (Join-Path $brain 'VERSION') (Read-SBText (Join-Path $PSScriptRoot '../VERSION'))
     Write-ReconcileFile (Join-Path $brain 'config/shared.json') (ConvertTo-SBJson @{schemaVersion=1;allowedOwners=@('test');excludedDirectories=@('.git')})
     Write-ReconcileFile (Join-Path $brain 'config/tracker.schema.json') (Read-SBText (Join-Path $PSScriptRoot '../config/tracker.schema.json'))
-    Write-ReconcileFile (Join-Path $brain 'direttive/AGENTS.global_ide.md') '# Synthetic directives'
-    Write-ReconcileFile (Join-Path $brain 'direttive/workstation.template.md') '<!-- secondbrain:tracker-contract:1 -->'
+    Write-ReconcileFile (Join-Path $brain 'directives/AGENTS.global_ide.md') '# Synthetic directives'
+    Write-ReconcileFile (Join-Path $brain 'directives/workstation.template.md') '<!-- secondbrain:tracker-contract:1 -->'
     $approval=@{authorization='isolated reconcile fixture';files=@{}}
-    foreach($file in @('AGENTS.global_ide.md','workstation.template.md')){$approval.files['direttive/'+$file]=Get-SBFileHash (Join-Path $brain ('direttive/'+$file))}
-    Write-ReconcileFile (Join-Path $brain 'direttive/approved.json') (ConvertTo-SBJson $approval)
+    foreach($file in @('AGENTS.global_ide.md','workstation.template.md')){$approval.files['directives/'+$file]=Get-SBFileHash (Join-Path $brain ('directives/'+$file))}
+    Write-ReconcileFile (Join-Path $brain 'directives/approved.json') (ConvertTo-SBJson $approval)
     Write-ReconcileFile (Join-Path $dossier 'entity.json') (ConvertTo-SBJson @{schemaVersion=1;id='reconcile-area';kind='area';title='Reconcile';status='active'})
     Write-ReconcileFile (Join-Path $dossier 'repository.json') (ConvertTo-SBJson @{schemaVersion=1;identity=$identity;tracker=@{location='dossier';path='tracker.json';schemaVersion=1}})
     Write-ReconcileFile (Join-Path $dossier 'context.md') "# Context`n"

@@ -3,8 +3,8 @@
 .SYNOPSIS
 Subagent definitions (F8): validation, inherited permissions and per-client export.
 .DESCRIPTION
-Definitions live in <dossier>/subagents/<name>.json: schema 1 (role, context, permissions, MCP tools) or schema 2, which adds id, revision, status, cards, output and bounds (docs/riferimento/asset-contracts.md section 4).
--Operation Validate: checks every definition and resolves its cards against direttive/prompts/catalog.json (read-only).
+Definitions live in <dossier>/subagents/<name>.json: schema 1 (role, context, permissions, MCP tools) or schema 2, which adds id, revision, status, cards, output and bounds (docs/reference/asset-contracts.md section 4).
+-Operation Validate: checks every definition and resolves its cards against directives/prompts/catalog.json (read-only).
 -Operation Resolve: shows effective permissions against a parent (-ParentTools, -ParentWrite); requesting more than the parent is an error. Also reports lifecycle, output, bounds and resolved cards.
 -Operation Create|Edit|Revise|Retire (#622): authoring and lifecycle of schema 2 definitions; preview unless -Apply. Create and Revise take -DefinitionPath (JSON), Edit changes only description and context, Retire takes -Status deprecated|retired and optionally -ReplacedBy. A breaking change is refused: create a new definition and retire the old one.
 -Operation Export: renders definitions for -Client into -OutputPath (under .runtime); preview unless -Apply. Never writes into a checkout.

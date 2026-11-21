@@ -19,12 +19,12 @@ function New-AuditFixture([string]$Name){
     Get-ChildItem -LiteralPath $PSScriptRoot -File|Copy-Item -Destination (Join-Path $brain 'scripts')
     Put-Audit (Join-Path $brain 'config/shared.json') (ConvertTo-SBJson @{schemaVersion=1;allowedOwners=@('test');excludedDirectories=@('.git')})
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../config/tracker.schema.json') -Destination (Join-Path $brain 'config/tracker.schema.json')
-    [IO.Directory]::CreateDirectory((Join-Path $brain 'direttive'))|Out-Null
-    Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../direttive/prompts') -Destination (Join-Path $brain 'direttive/prompts') -Recurse
+    [IO.Directory]::CreateDirectory((Join-Path $brain 'directives'))|Out-Null
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../directives/prompts') -Destination (Join-Path $brain 'directives/prompts') -Recurse
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../config/prompt-catalog.schema.json') -Destination (Join-Path $brain 'config/prompt-catalog.schema.json')
-    Put-Audit (Join-Path $brain 'direttive/AGENTS.global_ide.md') "# Common`nRevisione 3.1 — 2026-10-25."
-    Put-Audit (Join-Path $brain 'direttive/workstation.template.md') '<!-- secondbrain:tracker-contract:1 -->'
-    Put-Audit (Join-Path $brain 'direttive/approved.json') (ConvertTo-SBJson @{authorization='fixture';files=@{'direttive/AGENTS.global_ide.md'=Get-SBFileHash (Join-Path $brain 'direttive/AGENTS.global_ide.md');'direttive/workstation.template.md'=Get-SBFileHash (Join-Path $brain 'direttive/workstation.template.md')}})
+    Put-Audit (Join-Path $brain 'directives/AGENTS.global_ide.md') "# Common`nRevisione 3.1 — 2026-10-25."
+    Put-Audit (Join-Path $brain 'directives/workstation.template.md') '<!-- secondbrain:tracker-contract:1 -->'
+    Put-Audit (Join-Path $brain 'directives/approved.json') (ConvertTo-SBJson @{authorization='fixture';files=@{'directives/AGENTS.global_ide.md'=Get-SBFileHash (Join-Path $brain 'directives/AGENTS.global_ide.md');'directives/workstation.template.md'=Get-SBFileHash (Join-Path $brain 'directives/workstation.template.md')}})
     Put-Audit (Join-Path $dir 'repository.json') (ConvertTo-SBJson @{schemaVersion=1;identity='github.com/test/repo'})
     Put-Audit (Join-Path $dir 'entity.json') (ConvertTo-SBJson @{schemaVersion=1;id='repo-area';kind='area';title='Repo';status='active'})
     foreach($name in @('context.md','memory.md','brief.md')){Put-Audit (Join-Path $dir $name) '# Dossier'}

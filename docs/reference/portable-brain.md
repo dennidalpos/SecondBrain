@@ -6,7 +6,7 @@ SecondBrain resolves its root from the running checkout and optional user-local 
 
 ## Prerequisites and discovery
 
-Use Windows, PowerShell 7.5+ and Git 2.42+. Inspect the actual version with pwsh and git before activation. Source approval hashes in direttive/approved.json must match the approved text before distribution.
+Use Windows, PowerShell 7.5+ and Git 2.42+. Inspect the actual version with pwsh and git before activation. Source approval hashes in directives/approved.json must match the approved text before distribution.
 
 ~~~powershell
 pwsh -NoProfile -File scripts/secondbrain.ps1 -Setup -Roots C:/Projects -Interactive
@@ -58,7 +58,7 @@ A Git push does not synchronize ignored dossiers/runtime. Shared-root access is 
 
 `knowledge.ps1 -Search <term>` and the MCP tool `search_knowledge` accept two options that reduce what is returned.
 
-- `-Category` / `category`: `memoria` (`memory.md`), `informazioni` (`context.md`, `tracker.json`, archive, batch reports and any other topic file), `normative` and `policy` (files under `topics/<category>/` or `knowledge/<category>/`), and `prompt` (the `direttive/prompts/*.md` cards, searched only when requested; the README index is excluded). Without a category every dossier category is searched and prompts are left out. Each extract carries its `category`.
+- `-Category` / `category`: `memoria` (`memory.md`), `informazioni` (`context.md`, `tracker.json`, archive, batch reports and any other topic file), `normative` and `policy` (files under `topics/<category>/` or `knowledge/<category>/`), and `prompt` (the `directives/prompts/*.md` cards, searched only when requested; the README index is excluded). Without a category every dossier category is searched and prompts are left out. Each extract carries its `category`.
 - Convention for `normative` and `policy`: notes live in `topics/normative/<slug>.md` and `topics/policy/<slug>.md` of the dossier. A normative note names registry cards, accepted versions and hashes and says where they bear on the product; applicability stays in `authoritative-sources.json` and source text is never copied. A policy note records a project rule with its decision, application and limits. Both are orientation notes, not compliance statements.
 - `-PreviousRevision` / `previousRevision`: every search returns `revision`, a hash of query, mode, categories and the hash of each searched file. Passing it back on the same search with `offset` 0 returns `unchanged=true` with no extracts while nothing searched changed, so unchanged content is not repeated; any changed file, query or category gives the full result. Pagination (`offset`, `limit`, `nextOffset`) is unchanged and each match appears once.
 

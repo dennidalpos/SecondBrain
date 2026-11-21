@@ -758,13 +758,13 @@ async fn create_followup_task(app: AppHandle, repo: String, title: String, descr
 
 #[tauri::command]
 fn open_card(app: AppHandle, file: String) -> Result<String, String> {
-    // Read-only: shows a prompt card of the SecondBrain checkout (direttive/prompts/<CODE>.md); no script runs and nothing is written.
+    // Read-only: shows a prompt card of the SecondBrain checkout (directives/prompts/<CODE>.md); no script runs and nothing is written.
     let ok = file.len() <= 16 && file.ends_with(".md") && file[..file.len() - 3].chars().enumerate().all(|(i, c)| if i < 2 { c.is_ascii_uppercase() } else { c.is_ascii_uppercase() || c.is_ascii_digit() });
     if !ok {
         return Err("Invalid card.".into());
     }
     let (_, root) = context(&app)?;
-    read_text_file(root.join("direttive").join("prompts").join(&file).to_string_lossy().into_owned())
+    read_text_file(root.join("directives").join("prompts").join(&file).to_string_lossy().into_owned())
 }
 
 #[tauri::command]

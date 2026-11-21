@@ -15,7 +15,7 @@ SecondBrain manages instructions, configuration and local knowledge. Its core wo
 | `backup.ps1` / restore commands | Backup or restore operations; inspect the target and options first |
 | `mcp-server.ps1 -ExportPackage` | Managed writes into a new directory below `.runtime`; existing destinations are refused |
 
-Sync writes immediately. Inspect alignment first, preserve existing changes, and never treat a successful file write as proof that a live IDE loaded it. Every MCP tool advertises readOnlyHint=true except `submit_dossier_write`, which needs a local receipt. See [reviewed MCP writes](riferimento/mcp-writes.md). Start the server with `-NoRecovery` to forbid new writes for the whole session; a single call's `noRecovery=true` forbids them for that call.
+Sync writes immediately. Inspect alignment first, preserve existing changes, and never treat a successful file write as proof that a live IDE loaded it. Every MCP tool advertises readOnlyHint=true except `submit_dossier_write`, which needs a local receipt. See [reviewed MCP writes](reference/mcp-writes.md). Start the server with `-NoRecovery` to forbid new writes for the whole session; a single call's `noRecovery=true` forbids them for that call.
 
 SecondBrain does not inspect authentication stores to discover credentials. Account and profile identities are declared and separately verified through SYS01.
 
@@ -48,4 +48,4 @@ The stdio MCP server does not open a listening network port. Some explicit opera
 
 Preview `secondbrain.ps1 -Setup -Unbind <selection>` first; applying it requires explicit confirmation and `-Apply`. Review remaining managed blocks and MCP entries before removing them. Back up knowledge and recovery records before any separately authorized removal of the clone or environment registration. Unbinding does not authorize deleting dossiers or backups.
 
-Detailed procedures: [safe writes](riferimento/safety-backups.md), [recovery](riferimento/recovery.md), [access coordination](riferimento/access.md).
+Detailed procedures: [safe writes](reference/safety-backups.md), [recovery](reference/recovery.md), [access coordination](reference/access.md).

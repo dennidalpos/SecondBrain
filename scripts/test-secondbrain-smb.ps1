@@ -4,7 +4,7 @@
 Tests coordination (FileShare.None, concurrent writes, ExecutionPolicy, permissions) on a loopback SMB share.
 
 .DESCRIPTION
-Runs the docs/riferimento/shared-brain.md checklist on a share accessed from this same PC and user:
+Runs the docs/reference/shared-brain.md checklist on a share accessed from this same PC and user:
 UNC with localhost, 127.0.0.1, machine name and FQDN. Creates no shares or users: by default, uses the
 clone drive's administrative share (\\<alias>\D$), passing through the SMB client and server stack. -ShareRoot
 selects a different share (for example one created manually with New-SmbShare).

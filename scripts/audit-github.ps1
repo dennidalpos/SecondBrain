@@ -1,7 +1,7 @@
 #requires -Version 7.5
 <#
 .SYNOPSIS
-Explicit GitHub GET audit, separate from Check and Sync. See docs/riferimento/external-audit.md.
+Explicit GitHub GET audit, separate from Check and Sync. See docs/reference/external-audit.md.
 #>
 [CmdletBinding()]
 param([string]$ConfigPath,[string]$SessionId,[string[]]$Repository,[string]$OutputPath)

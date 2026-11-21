@@ -35,11 +35,11 @@ try {
     Put-Pending (Join-Path $brain 'VERSION') (Read-SBText (Join-Path $PSScriptRoot '../VERSION'))
     Put-Pending (Join-Path $brain 'config/shared.json') (ConvertTo-SBJson @{schemaVersion=1;allowedOwners=@('test');excludedDirectories=@('.git')})
     Put-Pending (Join-Path $brain 'config/tracker.schema.json') (Read-SBText (Join-Path $PSScriptRoot '../config/tracker.schema.json'))
-    Put-Pending (Join-Path $brain 'direttive/AGENTS.global_ide.md') '# Synthetic directives'
-    Put-Pending (Join-Path $brain 'direttive/workstation.template.md') '<!-- secondbrain:tracker-contract:1 -->'
+    Put-Pending (Join-Path $brain 'directives/AGENTS.global_ide.md') '# Synthetic directives'
+    Put-Pending (Join-Path $brain 'directives/workstation.template.md') '<!-- secondbrain:tracker-contract:1 -->'
     $approval=@{authorization='isolated pending fixture';files=@{}}
-    foreach($file in @('AGENTS.global_ide.md','workstation.template.md')){$approval.files['direttive/'+$file]=Get-SBFileHash (Join-Path $brain ('direttive/'+$file))}
-    Put-Pending (Join-Path $brain 'direttive/approved.json') (ConvertTo-SBJson $approval)
+    foreach($file in @('AGENTS.global_ide.md','workstation.template.md')){$approval.files['directives/'+$file]=Get-SBFileHash (Join-Path $brain ('directives/'+$file))}
+    Put-Pending (Join-Path $brain 'directives/approved.json') (ConvertTo-SBJson $approval)
     Put-Pending (Join-Path $dossier 'entity.json') (ConvertTo-SBJson @{schemaVersion=1;id='pending-area';kind='area';title='Pending';status='active'})
     Put-Pending (Join-Path $dossier 'repository.json') (ConvertTo-SBJson @{schemaVersion=1;identity=$identity;tracker=@{location='dossier';path='tracker.json';schemaVersion=1}})
     Put-Pending (Join-Path $dossier 'context.md') "# Context`n"

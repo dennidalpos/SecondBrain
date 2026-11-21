@@ -7,10 +7,10 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Knowledge.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Add-SBMessages @{
     'prompts.encoding.invalid' = @{ en = 'Prompt text contains corrupted characters: {0}; save the card as UTF-8 without BOM and rebuild with build-prompts.ps1' }
-    'prompts.catalog.invalid' = @{ en = 'Invalid prompt catalog: fix direttive/prompts/catalog.json and rerun build-prompts.ps1 -Check' }
+    'prompts.catalog.invalid' = @{ en = 'Invalid prompt catalog: fix directives/prompts/catalog.json and rerun build-prompts.ps1 -Check' }
     'prompts.code.literal' = @{ en = 'Card code {1} written in {0}: refer to the card by role or ID (a stale code is an error too); only test files and help examples may show a code' }
     'prompts.role.conflict' = @{ en = 'Role declared by more than one card: {0}; a role belongs to exactly one card' }
-    'prompts.alias.invalid' = @{ en = 'Invalid alias table entry: {0}; fix direttive/prompts/aliases.json (an alias never reuses an active code and targets existing cards or workflows)' }
+    'prompts.alias.invalid' = @{ en = 'Invalid alias table entry: {0}; fix directives/prompts/aliases.json (an alias never reuses an active code and targets existing cards or workflows)' }
     'prompts.workflow.invalid' = @{ en = 'Invalid workflow definition: {0}; fix it following config/prompt-workflow.schema.json' }
     'prompts.workflow.step' = @{ en = 'Workflow {0} cites a card that does not exist: {1}' }
     'prompts.workflow.pack' = @{ en = 'Workflow {0} uses card {1} from a pack the workflow does not belong to' }
@@ -64,7 +64,7 @@ function Assert-SBWorkflowEncoding([string]$Text,[string]$Path) {
 function Test-SBPromptJson([string]$Json,[string]$SchemaFile) { try{[bool](Test-Json -Json $Json -SchemaFile $SchemaFile -ErrorAction Stop)}catch{$false} }
 
 function Read-SBWorkflowCatalog([string]$BrainRoot, [switch]$ValidateBodies, [switch]$ValidateReferences) {
-    $root=Resolve-SBParaPath $BrainRoot 'direttive/prompts'
+    $root=Resolve-SBParaPath $BrainRoot 'directives/prompts'
     $path=Join-Path $root 'catalog.json'; Assert-SBPlainPath $path
     $json=Read-SBText $path
     Assert-SBWorkflowEncoding $json $path
@@ -115,7 +115,7 @@ function Read-SBWorkflowCatalog([string]$BrainRoot, [switch]$ValidateBodies, [sw
         foreach($prompt in $catalog.prompts){
             $relatedCodes=@($prompt.related|ForEach-Object {$codeById[$_]})
             foreach($relative in @($prompt.file)){
-                $text=Read-SBText (Resolve-SBParaPath $BrainRoot ('direttive/prompts/'+$relative))
+                $text=Read-SBText (Resolve-SBParaPath $BrainRoot ('directives/prompts/'+$relative))
                 foreach($cited in @([regex]::Matches($text,'\b[A-Z]{3}\d{2}\b')|ForEach-Object {$_.Value}|Select-Object -Unique)){
                     if($cited -ceq $prompt.code -or $cited.Substring(0,3) -notin $knownPrefixes){continue}
                     if(!$names.ContainsKey($cited)){throw (New-SBError 'prompts.reference.dangling' @($prompt.code,$cited))}
@@ -135,7 +135,7 @@ function Test-SBPromptCodeLiterals([string]$BrainRoot,$Catalog,$Names) {
     $targets=@(
         @{dir='scripts';filter='*.ps1'},@{dir='scripts';filter='*.psm1'},
         @{dir='app/orchestrator/src';filter='*.ts'},@{dir='app/orchestrator/src-tauri/src';filter='*.rs'},@{dir='app/orchestrator';filter='index.html';top=$true},
-        @{dir='config';filter='*.json'},@{dir='direttive';filter='*.md';top=$true})
+        @{dir='config';filter='*.json'},@{dir='directives';filter='*.md';top=$true})
     foreach($target in $targets){
         $dir=Join-Path $BrainRoot $target.dir
         if(!(Test-Path -LiteralPath $dir -PathType Container)){continue}
@@ -166,9 +166,9 @@ function Resolve-SBWorkflowPrompt($Catalog, [string]$Key) {
     throw (New-SBError 'prompts.code.unavailable' @($Key))
 }
 
-# Alias table (direttive/prompts/aliases.json, optional): an old code resolves to successor IDs or to a workflow. It never shadows an active code.
+# Alias table (directives/prompts/aliases.json, optional): an old code resolves to successor IDs or to a workflow. It never shadows an active code.
 function Read-SBPromptAliases([string]$BrainRoot,$Catalog,$Workflows=@()) {
-    $path=Resolve-SBParaPath $BrainRoot 'direttive/prompts/aliases.json'
+    $path=Resolve-SBParaPath $BrainRoot 'directives/prompts/aliases.json'
     if(!(Test-Path -LiteralPath $path -PathType Leaf)){return @{schemaVersion=1;aliases=@()}}
     Assert-SBPlainPath $path
     $json=Read-SBText $path
@@ -196,9 +196,9 @@ function Read-SBPromptAliases([string]$BrainRoot,$Catalog,$Workflows=@()) {
     $table
 }
 
-# Workflow definitions (direttive/prompts/workflows/*.json, optional): ordered steps over card IDs, no cycles, a non-core step needs the same pack.
+# Workflow definitions (directives/prompts/workflows/*.json, optional): ordered steps over card IDs, no cycles, a non-core step needs the same pack.
 function Read-SBPromptWorkflows([string]$BrainRoot,$Catalog) {
-    $dir=Resolve-SBParaPath $BrainRoot 'direttive/prompts/workflows'
+    $dir=Resolve-SBParaPath $BrainRoot 'directives/prompts/workflows'
     if(!(Test-Path -LiteralPath $dir -PathType Container)){return @()}
     $schema=Resolve-SBParaPath $BrainRoot 'config/prompt-workflow.schema.json'
     $byId=@{}; foreach($p in $Catalog.prompts){$byId[$p.id]=$p}
@@ -234,7 +234,7 @@ function New-SBWorkflowPromptId($Catalog) {
     $id
 }
 
-# Prompt cards, catalog fields and generated text are English only (direttive/prompts/<CODE>.md).
+# Prompt cards, catalog fields and generated text are English only (directives/prompts/<CODE>.md).
 function Get-SBWorkflowField($Prompt,[string]$Name) { $Prompt[$Name] }
 function Get-SBWorkflowCategoryTitle($Category) { $Category.title }
 
@@ -281,7 +281,7 @@ function Get-SBWorkflowTags([string]$Body) {
 
 function Read-SBWorkflowPrompt([string]$BrainRoot, $Prompt, $Catalog) {
     $relative=$Prompt.file
-    $path=Resolve-SBParaPath $BrainRoot ('direttive/prompts/'+$relative)
+    $path=Resolve-SBParaPath $BrainRoot ('directives/prompts/'+$relative)
     $body=(Read-SBText $path).Replace("`r`n","`n")
     Assert-SBWorkflowEncoding $body $path
     $code=$Prompt.code
@@ -509,7 +509,7 @@ Add-SBMessages @{
 }
 
 function Get-SBWorkflowIndexPath {
-    'direttive/prompts/README.md'
+    'directives/prompts/README.md'
 }
 
 # `sb` command registry: single source for the home screen. English commands are primary (directive revision 1.3);
@@ -562,17 +562,17 @@ function Get-SBWorkflowCommands {
 # Getting-started guides: root-relative path (optional anchor) and intended audience. A test verifies file existence.
 function Get-SBWorkflowGuides {
     @(
-        @{title=(Get-SBWorkflowMessage 'guide.safety.title');path='docs/sicurezza.md';for=(Get-SBWorkflowMessage 'guide.safety.for')},
-        @{title=(Get-SBWorkflowMessage 'guide.start.title');path='docs/inizia.md';for=(Get-SBWorkflowMessage 'guide.start.for')},
-        @{title=(Get-SBWorkflowMessage 'guide.daily.title');path='docs/uso-quotidiano.md';for=(Get-SBWorkflowMessage 'guide.daily.for')},
-        @{title=(Get-SBWorkflowMessage 'guide.product.title');path='docs/flusso-prodotto.md';for=(Get-SBWorkflowMessage 'guide.product.for')},
+        @{title=(Get-SBWorkflowMessage 'guide.safety.title');path='docs/security.md';for=(Get-SBWorkflowMessage 'guide.safety.for')},
+        @{title=(Get-SBWorkflowMessage 'guide.start.title');path='docs/getting-started.md';for=(Get-SBWorkflowMessage 'guide.start.for')},
+        @{title=(Get-SBWorkflowMessage 'guide.daily.title');path='docs/daily-use.md';for=(Get-SBWorkflowMessage 'guide.daily.for')},
+        @{title=(Get-SBWorkflowMessage 'guide.product.title');path='docs/product-flow.md';for=(Get-SBWorkflowMessage 'guide.product.for')},
         @{title=(Get-SBWorkflowMessage 'guide.prompt.title');path='docs/prompt.md';for=(Get-SBWorkflowMessage 'guide.prompt.for')},
         @{title=(Get-SBWorkflowMessage 'guide.mcp.title');path='docs/ide-e-mcp.md';for=(Get-SBWorkflowMessage 'guide.mcp.for')},
-        @{title=(Get-SBWorkflowMessage 'guide.editprompts.title');path='docs/riferimento/customizing-prompts-and-directives.md#modifica-dei-prompt';for=(Get-SBWorkflowMessage 'guide.editprompts.for')},
-        @{title=(Get-SBWorkflowMessage 'guide.editdirectives.title');path='docs/riferimento/customizing-prompts-and-directives.md#modifica-delle-direttive';for=(Get-SBWorkflowMessage 'guide.editdirectives.for')},
-        @{title=(Get-SBWorkflowMessage 'guide.recovery.title');path='docs/riferimento/recovery.md';for=(Get-SBWorkflowMessage 'guide.recovery.for')},
-        @{title=(Get-SBWorkflowMessage 'guide.runtime.title');path='docs/riferimento/runtime-maintenance.md';for=(Get-SBWorkflowMessage 'guide.runtime.for')},
-        @{title=(Get-SBWorkflowMessage 'guide.tree.title');path='docs/riferimento/tree.md';for=(Get-SBWorkflowMessage 'guide.tree.for')}
+        @{title=(Get-SBWorkflowMessage 'guide.editprompts.title');path='docs/reference/customizing-prompts-and-directives.md#modifica-dei-prompt';for=(Get-SBWorkflowMessage 'guide.editprompts.for')},
+        @{title=(Get-SBWorkflowMessage 'guide.editdirectives.title');path='docs/reference/customizing-prompts-and-directives.md#modifica-delle-direttive';for=(Get-SBWorkflowMessage 'guide.editdirectives.for')},
+        @{title=(Get-SBWorkflowMessage 'guide.recovery.title');path='docs/reference/recovery.md';for=(Get-SBWorkflowMessage 'guide.recovery.for')},
+        @{title=(Get-SBWorkflowMessage 'guide.runtime.title');path='docs/reference/runtime-maintenance.md';for=(Get-SBWorkflowMessage 'guide.runtime.for')},
+        @{title=(Get-SBWorkflowMessage 'guide.tree.title');path='docs/reference/tree.md';for=(Get-SBWorkflowMessage 'guide.tree.for')}
     )
 }
 

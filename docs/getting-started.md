@@ -60,7 +60,7 @@ $env:SECONDBRAIN_STATE_ROOT = 'D:/SecondBrainState'
 pwsh -NoProfile -File scripts/secondbrain.ps1 -Setup -SetupProfile Studio -TeamRoot '\\server\share' -Roots $project -Interactive
 ~~~
 
-`Solo` rejects `-TeamRoot` and a checkout on a network drive. `Studio` requires `-TeamRoot`, with the same checks as team setup (reachable UNC root, local state outside the share). Access in `Studio` is whatever the share's ACLs grant; SecondBrain sets no ACL in either profile. The JSON result reports `profile`, `sharedRoot`, `acl` and `state`. Without `-SetupProfile` Setup behaves as before. `Studio` on a real share and with distinct accounts is still unqualified (see [shared root](riferimento/shared-brain.md)); the profile commands are checked on synthetic fixtures and, for `Studio`, over loopback UNC when available.
+`Solo` rejects `-TeamRoot` and a checkout on a network drive. `Studio` requires `-TeamRoot`, with the same checks as team setup (reachable UNC root, local state outside the share). Access in `Studio` is whatever the share's ACLs grant; SecondBrain sets no ACL in either profile. The JSON result reports `profile`, `sharedRoot`, `acl` and `state`. Without `-SetupProfile` Setup behaves as before. `Studio` on a real share and with distinct accounts is still unqualified (see [shared root](reference/shared-brain.md)); the profile commands are checked on synthetic fixtures and, for `Studio`, over loopback UNC when available.
 
 ## Optional interactive setup
 
@@ -72,7 +72,7 @@ pwsh -NoProfile -File scripts/secondbrain.ps1 -Setup -Interactive -Roots $projec
 
 Review the activation and MCP plans. Enter APPLICA only for the displayed scope; any other reply leaves activation unapplied. The documented confirmation/refusal paths can be exercised on synthetic profiles, but this is not a live IDE loading test.
 
-Setup performs Sync for the approved selection. Do not immediately repeat a global Sync merely because an example used it in the past. Use targeted checks and preserve dirty-file conflicts. See [security and side effects](sicurezza.md).
+Setup performs Sync for the approved selection. Do not immediately repeat a global Sync merely because an example used it in the past. Use targeted checks and preserve dirty-file conflicts. See [security and side effects](security.md).
 
 ## Git and GitHub updates
 
@@ -96,7 +96,7 @@ pwsh -NoProfile -File scripts/mcp-server.ps1 -Pair -Target cursor -Scope project
 pwsh -NoProfile -File scripts/mcp-server.ps1 -Pair -Target cursor -Scope project -WorkspacePath $project -Apply
 ~~~
 
-Preview first. Apply writes configuration with backup; it does not prove that Cursor is installed, connected or displaying the tools. The example was checked against a synthetic project configuration, not a real client session. Other clients follow their own [MCP setup instructions](riferimento/mcp-setup.md).
+Preview first. Apply writes configuration with backup; it does not prove that Cursor is installed, connected or displaying the tools. The example was checked against a synthetic project configuration, not a real client session. Other clients follow their own [MCP setup instructions](reference/mcp-setup.md).
 
 ## Use an agent and get help
 
@@ -108,9 +108,9 @@ Open a new session in the selected agent and request sb prompt. This is a chat c
 | Startup reports withinBudget=false | Preserve essentials and prepare reviewed dossier maintenance |
 | The agent does not understand sb prompt | Check the selected integration and start a new session |
 | A tracked instructions file is modified | Preserve the change and review the conflict |
-| Automatic memory capture is expected | Read the [current limits](riferimento/memory-cycle.md#known-limits); explicit loading remains available |
+| Automatic memory capture is expected | Read the [current limits](reference/memory-cycle.md#known-limits); explicit loading remains available |
 
-Continue with [daily use](uso-quotidiano.md). Use the [bug form](https://github.com/dennidalpos/secondbrain/issues/new/choose) for defects and [SECURITY.md](../SECURITY.md) for private vulnerability reporting.
+Continue with [daily use](daily-use.md). Use the [bug form](https://github.com/dennidalpos/secondbrain/issues/new/choose) for defects and [SECURITY.md](../SECURITY.md) for private vulnerability reporting.
 
 ## Guided first-run setup
 

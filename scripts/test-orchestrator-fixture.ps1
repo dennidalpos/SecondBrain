@@ -25,9 +25,9 @@ Put (Join-Path $brain 'VERSION') (Read-SBText (Join-Path $real 'VERSION'))
 foreach($f in @('config/tracker.schema.json','config/agent-models.json','config/task-runs.schema.json','config/analysis/directives.schema.json','config/analysis/task.schema.json','config/analysis/prompt-draft.schema.json','config/prompt-catalog.schema.json','config/prompt-catalog.schema2.json')){Put (Join-Path $brain $f) (Read-SBText (Join-Path $real $f))}
 Put (Join-Path $brain 'config/shared.json') (ConvertTo-SBJson @{schemaVersion=1;allowedOwners=@('test');excludedDirectories=@('.git')})
 # Approved directives exactly as in this checkout (their hashes stay valid); proposals are not needed.
-[IO.Directory]::CreateDirectory((Join-Path $brain 'direttive'))|Out-Null
-foreach($f in @(Get-ChildItem -LiteralPath (Join-Path $real 'direttive') -File)){Copy-Item -LiteralPath $f.FullName -Destination (Join-Path $brain ('direttive/'+$f.Name)) -Force}
-Copy-Item -LiteralPath (Join-Path $real 'direttive/prompts') -Destination (Join-Path $brain 'direttive') -Recurse -Force
+[IO.Directory]::CreateDirectory((Join-Path $brain 'directives'))|Out-Null
+foreach($f in @(Get-ChildItem -LiteralPath (Join-Path $real 'directives') -File)){Copy-Item -LiteralPath $f.FullName -Destination (Join-Path $brain ('directives/'+$f.Name)) -Force}
+Copy-Item -LiteralPath (Join-Path $real 'directives/prompts') -Destination (Join-Path $brain 'directives') -Recurse -Force
 Put (Join-Path $dossier 'entity.json') (ConvertTo-SBJson @{schemaVersion=1;id='orchestrator-e2e';kind='project';title='Orchestrator E2E';status='active'})
 Put (Join-Path $dossier 'repository.json') (ConvertTo-SBJson @{schemaVersion=1;identity=$identity;tracker=@{location='dossier';path='tracker.json';schemaVersion=1}})
 Put (Join-Path $dossier 'context.md') "# Context`n"

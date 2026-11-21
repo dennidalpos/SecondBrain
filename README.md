@@ -30,13 +30,13 @@ Two profiles are supported:
 
 Isolation is per repository: a dossier is read and written only for its own repository, and cross-project reads are refused unless the workstation configuration explicitly allows them. Dossiers are private local data and are never part of the public Git content.
 
-SecondBrain also holds a registry of authoritative sources (laws, standards, product documentation) with a verification state per source ([guide](docs/riferimento/authoritative-sources.md)). The registry, its tooling and the Markdown transcripts of reusable sources are in the repository, each under its own terms ([CREDITS](CREDITS.md#4-testi-di-terzi-nel-registro-delle-fonti)); the downloaded originals stay local and are not distributed by Git.
+SecondBrain also holds a registry of authoritative sources (laws, standards, product documentation) with a verification state per source ([guide](docs/reference/authoritative-sources.md)). The registry, its tooling and the Markdown transcripts of reusable sources are in the repository, each under its own terms ([CREDITS](CREDITS.md#4-testi-di-terzi-nel-registro-delle-fonti)); the downloaded originals stay local and are not distributed by Git.
 
 Alternatives are often enough. Prefer a plain `AGENTS.md` or `CLAUDE.md` file for a single small repository whose notes fit in one page. Do not use SecondBrain if you are not on Windows, if you cannot run PowerShell 7.5+, or if you need context captured automatically from every chat: loading is explicit and native capture is partial (see the limits below).
 
 ## Quick start: load one project's context
 
-You need Windows, PowerShell 7.5+ and Git 2.42+. Choose an existing local Git repository for MyProject. Read [what Setup changes](docs/sicurezza.md) first.
+You need Windows, PowerShell 7.5+ and Git 2.42+. Choose an existing local Git repository for MyProject. Read [what Setup changes](docs/security.md) first.
 
 Run in PowerShell; replace the two example paths:
 
@@ -65,9 +65,9 @@ pwsh -NoProfile -File scripts/prompts.ps1 -Show -Prompt REP01
 
 Check the returned repository identity, profile and withinBudget value. A budget failure is a result to resolve, not a successful context load. The sequence was exercised from a clean Windows clone with one synthetic Git repository; no agent login was needed.
 
-For interactive selection, team setup and a new agent session, continue with [Getting started](docs/inizia.md).
+For interactive selection, team setup and a new agent session, continue with [Getting started](docs/getting-started.md).
 
-**Install with one prompt.** In a compatible agent, send: "Install https://github.com/dennidalpos/secondbrain, follow the procedures for my system, tell me where to place it and start the guided setup." The agent checks the prerequisites, asks where to place the clone, previews the setup and asks before every write ([procedure](docs/inizia.md#install-with-one-prompt)).
+**Install with one prompt.** In a compatible agent, send: "Install https://github.com/dennidalpos/secondbrain, follow the procedures for my system, tell me where to place it and start the guided setup." The agent checks the prerequisites, asks where to place the clone, previews the setup and asks before every write ([procedure](docs/getting-started.md#install-with-one-prompt)).
 
 ## Common tasks
 
@@ -78,11 +78,11 @@ pwsh -NoProfile -File scripts/knowledge.ps1 -Tasks -ReadyOnly -NoRecovery -Check
 pwsh -NoProfile -File scripts/secondbrain.ps1 -Check
 ~~~
 
-- **Read project knowledge:** use Startup, task lookup or search; [daily use](docs/uso-quotidiano.md) explains the CLI and chat conventions.
-- **Change a task or memory:** review the operation and its approval requirements. The [MCP write guide](docs/riferimento/mcp-writes.md) covers the local receipt for each submitted operation.
+- **Read project knowledge:** use Startup, task lookup or search; [daily use](docs/daily-use.md) explains the CLI and chat conventions.
+- **Change a task or memory:** review the operation and its approval requirements. The [MCP write guide](docs/reference/mcp-writes.md) covers the local receipt for each submitted operation.
 - **Run the ready tasks:** `scripts/run-ready-tasks.ps1` runs them one at a time with Claude Code, Codex or Gemini CLI; the [desktop orchestrator](docs/orchestratore.md) picks the repository, the directives, the model and the effort level. Open it without an IDE with `pwsh -NoProfile -File start.ps1` from the clone root. To work through the ready tasks unattended, `scripts/orchestrate-tasks.ps1` previews the selection by default; `-Run` works on a `queue/<date>` branch, commits locally and never pushes ([guide](docs/orchestrate-tasks.md)).
 - **Use prompt cards:** 124 English cards cover development, review, documentation and maintenance. [Prompt guide](docs/prompt.md).
-- **Back up private knowledge:** preserve the dossier and recovery records separately from Git. [Backup and recovery](docs/sicurezza.md).
+- **Back up private knowledge:** preserve the dossier and recovery records separately from Git. [Backup and recovery](docs/security.md).
 
 A new dossier has no recorded tasks, so an empty ready-task list is expected.
 
@@ -101,22 +101,22 @@ Setup can select repositories and supported IDE integrations interactively. MCP 
 
 See [Agents and MCP](docs/ide-e-mcp.md) for client scopes. An updated file or a successful synthetic handshake does not prove that a client loaded the configuration.
 
-SECONDBRAIN_HOME can identify the checkout on your workstation; scripts can also bootstrap from their own checkout. SECONDBRAIN_STATE_ROOT selects local workstation state, including when dossiers use an explicitly configured shared root. Keep machine paths and receipts out of public repositories. [Configuration reference](docs/riferimento/portable-brain.md).
+SECONDBRAIN_HOME can identify the checkout on your workstation; scripts can also bootstrap from their own checkout. SECONDBRAIN_STATE_ROOT selects local workstation state, including when dossiers use an explicitly configured shared root. Keep machine paths and receipts out of public repositories. [Configuration reference](docs/reference/portable-brain.md).
 
-PARA organizes the dossier; startup loads an essential layer before deeper history. [Architecture](docs/riferimento/architecture.md) describes the data boundaries and modules.
+PARA organizes the dossier; startup loads an essential layer before deeper history. [Architecture](docs/reference/architecture.md) describes the data boundaries and modules.
 
 ## Limits of the current version
 
 - Windows only; PowerShell and Git are required.
 - Setup discovery skips folders named `AppData`, `Windows`, `Program Files`, `node_modules` and `.venv`; a local `config/local/allowlist.json`, when present, limits it to the listed repositories.
 - Context loading must be requested through the CLI, MCP or an agent workflow. Setup does not make every client remember or capture every chat automatically.
-- Native memory capture remains partial. The native bridge accepts only a native Stop event and binds Permit Apply to the reviewed preview hash, tested on synthetic fixtures only. Use the guided workflow and read the [known memory-cycle limits](docs/riferimento/memory-cycle.md#known-limits) before enabling a native bridge.
+- Native memory capture remains partial. The native bridge accepts only a native Stop event and binds Permit Apply to the reviewed preview hash, tested on synthetic fixtures only. Use the guided workflow and read the [known memory-cycle limits](docs/reference/memory-cycle.md#known-limits) before enabling a native bridge.
 - Synthetic fixtures do not qualify real IDE sessions, account permissions, crashes or multiple physical hosts on SMB.
 - Ignored dossier files are private local/shared data, not a backup supplied by Git.
 
 ## Help and contributor checks
 
-Start with [Getting started](docs/inizia.md), [daily use](docs/uso-quotidiano.md), the [single guide](docs/guida.md) or the [technical reference](docs/riferimento/operations.md).
+Start with [Getting started](docs/getting-started.md), [daily use](docs/daily-use.md), the [single guide](docs/guida.md) or the [technical reference](docs/reference/operations.md).
 
 Report defects through the [bug form](https://github.com/dennidalpos/secondbrain/issues/new/choose). Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md). Contributions follow [CONTRIBUTING.md](CONTRIBUTING.md).
 
@@ -128,7 +128,7 @@ pwsh -NoProfile -File scripts/build-prompts.ps1 -Check
 pwsh -NoProfile -File scripts/check-distribution.ps1
 ~~~
 
-[Verification levels](docs/riferimento/runtime-maintenance.md#verification-levels) distinguish Quick, Fast, Full and live qualification. [SEC07](docs/riferimento/operations.md#publication) separately checks text and Git inventory before publication. Passing one level does not imply the others passed.
+[Verification levels](docs/reference/runtime-maintenance.md#verification-levels) distinguish Quick, Fast, Full and live qualification. [SEC07](docs/reference/operations.md#publication) separately checks text and Git inventory before publication. Passing one level does not imply the others passed.
 
 MIT License. [Sources and acknowledgements](CREDITS.md).
 
@@ -146,14 +146,14 @@ Due profili: **singolo utente** (una persona, una postazione Windows, le stesse 
 
 ### Inizia con un progetto
 
-Servono Windows, PowerShell 7.5+ e Git 2.42+. I comandi copiabili sono nella sezione [Quick start](#quick-start-load-one-projects-context): scegli un repository Git locale, leggi l'anteprima, autorizza Setup e carica il contesto con Startup. L'esempio non seleziona IDE né registra la variabile utente. [Guida di avvio](docs/inizia.md).
+Servono Windows, PowerShell 7.5+ e Git 2.42+. I comandi copiabili sono nella sezione [Quick start](#quick-start-load-one-projects-context): scegli un repository Git locale, leggi l'anteprima, autorizza Setup e carica il contesto con Startup. L'esempio non seleziona IDE né registra la variabile utente. [Guida di avvio](docs/getting-started.md).
 
 ### Compiti comuni e configurazione
 
-Consulta i task pronti, carica il dossier e usa una delle 124 schede prompt. Le scritture MCP richiedono un piano e una ricevuta CLI locale per operazione. [Uso quotidiano](docs/uso-quotidiano.md) · [Scritture approvate](docs/riferimento/mcp-writes.md) · [Agenti e MCP](docs/ide-e-mcp.md).
+Consulta i task pronti, carica il dossier e usa una delle 124 schede prompt. Le scritture MCP richiedono un piano e una ricevuta CLI locale per operazione. [Uso quotidiano](docs/daily-use.md) · [Scritture approvate](docs/reference/mcp-writes.md) · [Agenti e MCP](docs/ide-e-mcp.md).
 
 ### Limiti e aiuto
 
-Il contesto va richiesto: Setup non rende automatica la memoria di ogni chat. La cattura nativa è parziale: il bridge accetta solo l'evento Stop e Permit Apply è vincolato all'hash dell'anteprima, verificati solo su fixture sintetiche. [Limiti osservati](docs/riferimento/memory-cycle.md#known-limits).
+Il contesto va richiesto: Setup non rende automatica la memoria di ogni chat. La cattura nativa è parziale: il bridge accetta solo l'evento Stop e Permit Apply è vincolato all'hash dell'anteprima, verificati solo su fixture sintetiche. [Limiti osservati](docs/reference/memory-cycle.md#known-limits).
 
 Le fixture non qualificano sessioni IDE reali, account o share fra PC fisici. I controlli per contributori sono nella sezione [Help and contributor checks](#help-and-contributor-checks). Problemi di sicurezza: [SECURITY.md](SECURITY.md). Licenza MIT.

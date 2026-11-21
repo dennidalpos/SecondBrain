@@ -14,4 +14,4 @@ Replies are sent in the same private conversation. The fix is published before t
 
 ## Scope
 
-SecondBrain is a local tool: the PowerShell scripts, the local stdio MCP server (`scripts/mcp-server.ps1`, read-only except `submit_dossier_write`, which applies one reviewed request with a local approval receipt, or, for task operations only, under an owner-issued time-limited grant per repository: `mcp-write.ps1 -Grant`, see the [write guide](docs/riferimento/mcp-writes.md)) and the IDE configuration files it generates. Vulnerabilities in the IDEs, Git or PowerShell themselves are out of scope.
+SecondBrain is a local tool: the PowerShell scripts, the local stdio MCP server (`scripts/mcp-server.ps1`, read-only except `submit_dossier_write`, which applies one reviewed request with a local approval receipt, or, for task operations only, under an owner-issued time-limited grant per repository: `mcp-write.ps1 -Grant`, see the [write guide](docs/reference/mcp-writes.md)) and the IDE configuration files it generates. Vulnerabilities in the IDEs, Git or PowerShell themselves are out of scope.

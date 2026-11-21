@@ -1,7 +1,7 @@
 #requires -Version 7.5
 <#
 .SYNOPSIS
-Applies the approved prompt migration map (direttive/prompts/migration-map.json) to the catalog.
+Applies the approved prompt migration map (directives/prompts/migration-map.json) to the catalog.
 .DESCRIPTION
 Preview by default: lists every old code with its outcome (rename, retire into a workflow), whether the old card ID is kept or retired,
 the work still waiting for new cards or workflows, and the file changes. -Apply renames cards (git mv inside a checkout), removes the

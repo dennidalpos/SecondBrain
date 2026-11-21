@@ -20,7 +20,7 @@ Questo documento riconosce e ringrazia progetti, standard, toolchain e riferimen
 
 Il convertitore opzionale delle fonti usa MarkItDown 0.1.9, sviluppato da Microsoft e distribuito con licenza MIT. Gli extra `pdf` e `docx` abilitano la conversione di questi formati in Markdown. [Release 0.1.9](https://pypi.org/project/markitdown/0.1.9/) · [Licenza upstream](https://github.com/microsoft/markitdown/blob/main/LICENSE)
 
-Il [manifest](scripts/source-requirements.txt) dichiara `markitdown[pdf,docx]==0.1.9`. Il [lock](scripts/source-requirements.lock.txt) fissa le versioni di 30 pacchetti, incluso il convertitore, con gli hash sha256 richiesti da `pip --require-hashes`. L'ambiente Python 3.13 dedicato risiede nella sottocartella `sources/python` del runtime della postazione. I pacchetti si installano localmente e restano fuori dalle build dei prodotti e dalla distribuzione di SecondBrain. [Configurazione del convertitore](docs/riferimento/authoritative-sources.md)
+Il [manifest](scripts/source-requirements.txt) dichiara `markitdown[pdf,docx]==0.1.9`. Il [lock](scripts/source-requirements.lock.txt) fissa le versioni di 30 pacchetti, incluso il convertitore, con gli hash sha256 richiesti da `pip --require-hashes`. L'ambiente Python 3.13 dedicato risiede nella sottocartella `sources/python` del runtime della postazione. I pacchetti si installano localmente e restano fuori dalle build dei prodotti e dalla distribuzione di SecondBrain. [Configurazione del convertitore](docs/reference/authoritative-sources.md)
 
 ### Orchestratore desktop (`app/orchestrator`)
 

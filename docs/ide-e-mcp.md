@@ -21,7 +21,7 @@ flowchart LR
 | VS Code | User/profile MCP, or project .vscode/mcp.json with -WorkspacePath |
 | Cursor | User MCP, or project .cursor/mcp.json with -Scope project -WorkspacePath |
 
-Other adapters exist in the implementation; consult [adapter qualification](riferimento/adapters.md) for their actual scope. Do not label an adapter live-qualified from file inspection or a synthetic handshake alone.
+Other adapters exist in the implementation; consult [adapter qualification](reference/adapters.md) for their actual scope. Do not label an adapter live-qualified from file inspection or a synthetic handshake alone.
 
 In managed repositories, `AGENTS.md` is the common source. Sync manages `CLAUDE.md` and `GEMINI.md` pointers using `@AGENTS.md`. Existing text outside managed blocks is preserved. IDE-specific support and account-level settings require separate checks. SecondBrain does not inspect credential stores or automate login.
 
@@ -51,8 +51,8 @@ Preview user-level pairing separately for Codex or Claude Desktop; neither targe
 | `get_prompt` | `prompts.ps1 -Show -Prompt <code>` |
 | `check_publication` | `publication.ps1 -RepositoryPath <checkout>` |
 | `list_ides` | `ide-detect.ps1 [-WorkspacePath <path>] -Json` |
-| `preview_dossier_write` | Reviewed plan preparation; see the [write guide](riferimento/mcp-writes.md) (including the optional per-repository grant for task operations) |
-| `submit_dossier_write` | Submit one plan after local CLI approval; see the [write guide](riferimento/mcp-writes.md) |
+| `preview_dossier_write` | Reviewed plan preparation; see the [write guide](reference/mcp-writes.md) (including the optional per-repository grant for task operations) |
+| `submit_dossier_write` | Submit one plan after local CLI approval; see the [write guide](reference/mcp-writes.md) |
 
 `ide-detect.ps1` stays read-only. Its selection (`-Ides` with `-Scope`, or `-Interactive`) echoes each IDE, scope and location plus a `pairCommand`: the preview-only `mcp-server.ps1 -Pair -Target <id> -Scope <user|project>` command (no `-Apply`; `system` scope and IDEs without a Pair target get `null`). Run it yourself, then confirm with APPLICA to write; `secondbrain.ps1 -Setup` keeps its own `-Ides` selector.
 
@@ -76,13 +76,13 @@ A refused `submit_dossier_write` names its cause (no grant and no receipt, grant
 
 To forbid new writes for a session start `mcp-server.ps1 -NoRecovery`; per-call `noRecovery=true` forbids them for that call. Queued writes are integrated only by `knowledge.ps1 -FlushPending`.
 
-Repository memory collection is enabled separately and requires a verified permission policy for the turn. Fixture tests do not qualify native live collectors. See [memory cycle and known limits](riferimento/memory-cycle.md#known-limits).
+Repository memory collection is enabled separately and requires a verified permission policy for the turn. Fixture tests do not qualify native live collectors. See [memory cycle and known limits](reference/memory-cycle.md#known-limits).
 
 ## Packages
 
 Tool descriptions and messages are English only; `SECONDBRAIN_LANG`, `-Language` and the MCP `language` argument were removed in 3.0 (no deprecation window). Restart a client/server session when cached tool descriptions need updating.
 
-`-ExportPackage` creates a launcher and required modules for importing the connection elsewhere; keep the package together and review its destination. A package or a successful handshake does not prove live client loading. See [MCP setup](riferimento/mcp-setup.md).
+`-ExportPackage` creates a launcher and required modules for importing the connection elsewhere; keep the package together and review its destination. A package or a successful handshake does not prove live client loading. See [MCP setup](reference/mcp-setup.md).
 
 ## Troubleshooting
 
@@ -92,4 +92,4 @@ Tool descriptions and messages are English only; `SECONDBRAIN_LANG`, `-Language`
 4. Check named tool permissions without granting broader access than the current workflow needs.
 5. Record account/profile, instruction revision, observed loading and the popup outcome for the exact tool. `secondbrain.ps1 -Check -ObservationPath` reports `mcp-consent-unverified` for a supported IDE with an incomplete or invalid consent observation.
 
-Use the shell when MCP is unavailable. CLI access has the same data model, while shell permissions remain those of the session. Detailed procedures: [adapters](riferimento/adapters.md), [MCP setup](riferimento/mcp-setup.md), [deferred writes](riferimento/pending-writes.md).
+Use the shell when MCP is unavailable. CLI access has the same data model, while shell permissions remain those of the session. Detailed procedures: [adapters](reference/adapters.md), [MCP setup](reference/mcp-setup.md), [deferred writes](reference/pending-writes.md).

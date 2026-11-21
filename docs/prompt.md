@@ -9,7 +9,7 @@ sb prompt show DEV01
 sb prompt DEV01: add PDF export
 ~~~
 
-See the generated [catalog](../direttive/prompts/README.md). Memory and central maintenance prompts belong to the same list.
+See the generated [catalog](../directives/prompts/README.md). Memory and central maintenance prompts belong to the same list.
 
 ## Where you are
 
@@ -95,4 +95,4 @@ Maintain the English card and the catalog, then run:
 pwsh -NoProfile -File scripts/build-prompts.ps1 -Check
 ~~~
 
-Regeneration is a writing operation. Common instructions require a concrete proposal, explicit approval and verified hashes before distribution. See [customization](riferimento/customizing-prompts-and-directives.md).
+Regeneration is a writing operation. Common instructions require a concrete proposal, explicit approval and verified hashes before distribution. See [customization](reference/customizing-prompts-and-directives.md).

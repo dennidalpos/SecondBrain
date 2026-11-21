@@ -6,7 +6,7 @@ Prompt cards, common instructions, deployment and live client loading have separ
 
 ## Prompt catalog
 
-Cards live under direttive/prompts/<CODE>.md, in English. Each active card has stable code/immutable ID, catalog metadata and XML-tagged role, context, task (numbered steps), format and, optionally, examples (the RCTFE layout, see prompt-card-rctfe.md). Put the choices to ask the user in the context.
+Cards live under directives/prompts/<CODE>.md, in English. Each active card has stable code/immutable ID, catalog metadata and XML-tagged role, context, task (numbered steps), format and, optionally, examples (the RCTFE layout, see prompt-card-rctfe.md). Put the choices to ask the user in the context.
 
 Composition joins the objective, verified repository/project context, card, operating rules and next steps. It does not execute a task or grant permissions. Category/mode describe the workflow; read-only audits do not mutate trackers.
 
@@ -22,7 +22,7 @@ Prompt commands never write to the dossier. Generated README indexes are not man
 
 ## Common instruction changes
 
-1. Prepare concrete proposed source text and rationale under direttive/proposals/.
+1. Prepare concrete proposed source text and rationale under directives/proposals/.
 2. Run approve-revision Preview with ProposalPath.
 3. Present the exact text/diff and proposal hash for explicit user approval.
 4. Apply only that approved hash/authorization using the approval script.

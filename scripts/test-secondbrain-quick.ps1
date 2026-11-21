@@ -22,7 +22,7 @@ try {
     Assert-Quick ((ConvertTo-SBJson @{b=2;a=@{z=3;y=@()}}) -ceq (ConvertTo-SBJson @{a=@{y=@();z=3};b=2})) 'JSON deterministico'
     # Product releases and approved directive revisions have independent versions.
     $productVersion=(Read-SBText (Join-Path $productRoot 'VERSION')).Trim()
-    $revisionLine=[regex]::Match((Read-SBText (Join-Path $productRoot 'direttive/AGENTS.global_ide.md')),'(?m)^Revisi(?:on|one) (\d+\.\d+) ').Groups[1].Value
+    $revisionLine=[regex]::Match((Read-SBText (Join-Path $productRoot 'directives/AGENTS.global_ide.md')),'(?m)^Revisi(?:on|one) (\d+\.\d+) ').Groups[1].Value
     Assert-Quick ($productVersion -match '^\d+\.\d+\.\d+$') 'VERSION uses major.minor.patch'
     Assert-Quick ($revisionLine -match '^\d+\.\d+$') 'directive revision uses major.minor independently of VERSION'
     function Test-ReadmeBadge([string]$Text,[string]$Version){$Text.Contains('https://img.shields.io/badge/version-'+$Version+'-blue') -and $Text.Contains('![Version '+$Version+']')}
@@ -124,7 +124,7 @@ try {
     Assert-Quick ((Get-SBMessage 'para.status.invalid') -ceq 'Invalid PARA status') 'catalogo messaggi: Para in en'
     # Facts quoted in the public documents derive from the code (tool count, prompt count, anchors, versions).
     $toolCount=@(& (Get-Module SecondBrain.Mcp) { Get-SBMcpToolDefinitions }).Count
-    $promptCount=@((ConvertFrom-Json (Read-SBText (Join-Path $productRoot 'direttive/prompts/catalog.json'))).prompts).Count
+    $promptCount=@((ConvertFrom-Json (Read-SBText (Join-Path $productRoot 'directives/prompts/catalog.json'))).prompts).Count
     $numberWords=@{one=1;two=2;three=3;four=4;five=5;six=6;seven=7;eight=8;nine=9;ten=10;eleven=11;twelve=12;thirteen=13;uno=1;due=2;tre=3;quattro=4;cinque=5;sei=6;sette=7;otto=8;nove=9;dieci=10;undici=11;dodici=12;tredici=13}
     $docFiles=@(Get-Item -LiteralPath (Join-Path $productRoot 'README.md'))+@(Get-ChildItem -LiteralPath (Join-Path $productRoot 'docs') -Filter '*.md' -Recurse -File)
     $staleFacts=@();$brokenAnchors=@();$versionedHeadings=@()
@@ -177,7 +177,7 @@ try {
     }
     Assert-Quick (!$undocumentedExits.Count) ('codici di uscita degli script tra quelli documentati'+$(if($undocumentedExits.Count){': '+(($undocumentedExits|Select-Object -First 5) -join '; ')}))
     foreach($guide in @('operations.md')){
-        $guideText=Read-SBText (Join-Path $productRoot ('docs/riferimento/'+$guide))
+        $guideText=Read-SBText (Join-Path $productRoot ('docs/reference/'+$guide))
         $missingRows=@($documentedCodes|Where-Object {$guideText -notmatch ('(?m)^\|\s*'+$_+'\s*\|')})
         Assert-Quick (!$missingRows.Count) ('tabella dei codici di uscita completa in '+$guide)
     }

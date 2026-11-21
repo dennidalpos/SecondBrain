@@ -1,6 +1,6 @@
 # Asset contracts: prompts, workflows, agent definitions and user decisions
 
-Status: **design contract**, accepted with the [prompt library audit](#sources) of 2026-11-13. The audit's plan steps P2–P7 and P14 implement it (tracker tasks #566–#571, #578). Common directive revision 1.3 (`direttive/proposals/2026-11-13-revision-1-3`) carries the agent-facing rules. Until those steps land, the current catalog (schema 1) remains in force. [Subagent definitions](subagents.md) implement section 4 as schema 2 and still read schema 1. Section 5 is implemented for task and durable decisions by `scripts/decisions.ps1` and `config/decision.schema.json` ([operations](operations.md#user-decisions)); step-scoped decisions wait for the workflow run state. Section 6 is implemented for private cards and workflow files by `scripts/SecondBrain.PrivateAssets.psm1` ([operations](operations.md#private-cards-and-workflows)); private workflows are validated but not run until the workflow engine exists.
+Status: **design contract**, accepted with the [prompt library audit](#sources) of 2026-11-13. The audit's plan steps P2–P7 and P14 implement it (tracker tasks #566–#571, #578). Common directive revision 1.3 (`directives/proposals/2026-11-13-revision-1-3`) carries the agent-facing rules. Until those steps land, the current catalog (schema 1) remains in force. [Subagent definitions](subagents.md) implement section 4 as schema 2 and still read schema 1. Section 5 is implemented for task and durable decisions by `scripts/decisions.ps1` and `config/decision.schema.json` ([operations](operations.md#user-decisions)); step-scoped decisions wait for the workflow run state. Section 6 is implemented for private cards and workflow files by `scripts/SecondBrain.PrivateAssets.psm1` ([operations](operations.md#private-cards-and-workflows)); private workflows are validated but not run until the workflow engine exists.
 
 **Single source of truth.** Each field is defined in exactly one machine-readable place. When a step lands, its JSON Schema under `config/` becomes normative, and this page shrinks to an explanation that links to it. Generated files (indexes, alias table, exports, managed blocks) are never edited by hand. Their generator and `-Check` drift test are part of the contract.
 
@@ -117,10 +117,10 @@ Storage: step-scoped decisions live in the workflow run state (§3). Task and du
 
 | Asset | Public, reusable (this repository) | Private, one repository (its dossier `repos/<repo>/`) |
 |---|---|---|
-| Cards | `direttive/prompts/catalog.json` and `<code>.md` | `prompts/catalog.json` and `<key>.md` |
-| Workflows | `direttive/workflows/<key>.json` | `workflows/<key>.json` |
-| Agent definitions | `direttive/agents/<name>.json` (generic templates) | `subagents/<name>.json` (as today) |
-| Alias table | `direttive/prompts/aliases.json` (generated) | private aliases inside the private catalog |
+| Cards | `directives/prompts/catalog.json` and `<code>.md` | `prompts/catalog.json` and `<key>.md` |
+| Workflows | `directives/workflows/<key>.json` | `workflows/<key>.json` |
+| Agent definitions | `directives/agents/<name>.json` (generic templates) | `subagents/<name>.json` (as today) |
+| Alias table | `directives/prompts/aliases.json` (generated) | private aliases inside the private catalog |
 | User decisions | never | `decisions.json` and workflow run state |
 | Execution state, exports | never | `.runtime` work folders and exports |
 
@@ -129,7 +129,7 @@ Rules:
 - A private asset may reference public assets. A public asset never references a private one.
 - Private cards use the same RCTFE layout as shipped cards (`role`, `context`, `task` with at least two numbered steps, `format`, optional `examples`; at most 3,500 characters). The earlier eight-section layout is no longer accepted (#747).
 - Private keys are namespaced `<repo-slug>/<key>` (for example `acme-app/pkg-sign`), so they never collide with or shadow a public code, key or role.
-- Something belongs in the public catalog only when it is generic: no repository names, private paths, account data or internal task IDs. The publication scan (`scripts/publication.ps1`) enforces this for `direttive/`.
+- Something belongs in the public catalog only when it is generic: no repository names, private paths, account data or internal task IDs. The publication scan (`scripts/publication.ps1`) enforces this for `directives/`.
 - A private asset is promoted to public as a new public ID, through the catalog's add-card or add-workflow procedure with review. The private original is then retired with an alias to the public one.
 - Managed blocks and directive files are not assets of this kind: they change only through their generators and the directive proposal mechanism.
 
@@ -137,14 +137,14 @@ Rules:
 
 `build-prompts.ps1 -Check` (extended in P3 and P6) and the prompt test suite enforce these rules statically:
 
-1. Every ID, role and alias target referenced in catalogs, workflows, agent definitions, tasks (`card`/`workflow` fields, P14), `scripts/`, `app/`, `config/` and `direttive/*.md` resolves to an `active` or `deprecated` asset.
+1. Every ID, role and alias target referenced in catalogs, workflows, agent definitions, tasks (`card`/`workflow` fields, P14), `scripts/`, `app/`, `config/` and `directives/*.md` resolves to an `active` or `deprecated` asset.
 2. No card code literal appears in scripts, Rust, TypeScript, config or directive files. Codes are allowed only in cards, generated indexes, docs, help examples and tests.
 3. Workflows: steps exist, there are no cycles, depth is at most 2, pack rules hold, destructive steps have `confirm` gates, and `with` mappings name existing inputs and outputs.
 4. Roles are unique among active cards. Every role a script or the app uses exists.
 5. Agent definitions: tools are known, `cards` have compatible modes, and `bounds.depth` is 1.
 6. Retired IDs are not referenced by active assets. Aliases cover every retired or renamed key.
 7. Private assets reference only public or same-dossier IDs. Public assets reference no private ID.
-8. Historical files (`CHANGELOG.md` past entries, `direttive/proposals/`, dossier `history/`) are excluded and never rewritten.
+8. Historical files (`CHANGELOG.md` past entries, `directives/proposals/`, dossier `history/`) are excluded and never rewritten.
 
 ## 8. Compatibility
 

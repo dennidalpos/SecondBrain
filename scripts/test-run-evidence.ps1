@@ -2,7 +2,7 @@
 function Get-SBTestInputSnapshot([string]$BrainRoot,[switch]$NoGit) {
     if($NoGit){
         $files=[ordered]@{}
-        $paths=@(foreach($directory in @('scripts','docs','direttive','.github')){Get-ChildItem -LiteralPath (Join-Path $BrainRoot $directory) -File -Recurse})
+        $paths=@(foreach($directory in @('scripts','docs','directives','.github')){Get-ChildItem -LiteralPath (Join-Path $BrainRoot $directory) -File -Recurse})
         $paths+=@(Get-ChildItem -LiteralPath (Join-Path $BrainRoot 'config') -File)
         $paths+=@(foreach($name in @('VERSION','README.md','AGENTS.md','.gitignore','CHANGELOG.md','CREDITS.md')){Get-Item -LiteralPath (Join-Path $BrainRoot $name)})
         foreach($file in $paths|Sort-Object FullName){

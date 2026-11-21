@@ -1,7 +1,7 @@
 #requires -Version 7.5
 <#
 .SYNOPSIS
-Registers cooperative access to SecondBrain; see docs/riferimento/operations.md.
+Registers cooperative access to SecondBrain; see docs/reference/operations.md.
 Status (-Status) is read-only; -Purge removes sessions closed, expired or abandoned for more than 60 minutes.
 -Reconcile explicitly confirms a workstation relocation (same workstationId, different paths) and updates the registry.
 -Queue lists the FIFO writer queue (position 1 = next); -Purge removes tickets of exited processes without touching writer.lock.

@@ -8,4 +8,4 @@ Fonti pubbliche riutilizzabili; per materiali riservati o con licenze restrittiv
 
 Profili consultivi: [privacy](profiles/privacy-v1.md), [IA](profiles/ai-v1.md), [sviluppo sicuro](profiles/secure-development-v1.md). [Catalogo delle fonti](README.md) e [dati dell'indice](catalog.json).
 
-Gestione: `sources.ps1`; guida operativa [Fonti autorevoli](../../docs/riferimento/authoritative-sources.md). Attivita nel tracker SecondBrain esistente.
+Gestione: `sources.ps1`; guida operativa [Fonti autorevoli](../../docs/reference/authoritative-sources.md). Attivita nel tracker SecondBrain esistente.

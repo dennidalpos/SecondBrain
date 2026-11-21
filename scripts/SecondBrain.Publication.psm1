@@ -196,7 +196,7 @@ function Test-SBPublication {
     $files=Invoke-SBGit $root @('ls-files','-z','--cached','--others','--exclude-standard') -PreserveOutput
     if($files.code -ne 0){throw (New-SBError 'publication.inventory')}
     $targetFiles = @($files.output -split "`0"|Where-Object {$_}|Sort-Object -CaseSensitive -Unique)
-    # #589: in the SecondBrain repository, public assets under direttive/ never cite a private dossier asset (ID or <repo-slug>/<key>).
+    # #589: in the SecondBrain repository, public assets under directives/ never cite a private dossier asset (ID or <repo-slug>/<key>).
     $privateTokens=@()
     if($BrainRoot -and (Test-SBSamePath $root $BrainRoot)){$privateTokens=@(Get-SBPrivateAssetTokens $BrainRoot)}
 
@@ -234,7 +234,7 @@ function Test-SBPublication {
                     if($bytes -notcontains 0){
                         $workingText=[Text.Encoding]::UTF8.GetString($bytes)
                         $findings+=@(Test-SBPublicationText $workingText $relative 'working' $allowances);$checked++
-                        if($privateTokens.Count -and $relative -like 'direttive/*' -and $relative -notlike 'direttive/proposals/*'){
+                        if($privateTokens.Count -and $relative -like 'directives/*' -and $relative -notlike 'directives/proposals/*'){
                             foreach($token in $privateTokens){if($workingText.Contains($token)){$findings+=@{rule='private-asset-reference';severity='error';path=$relative;surface='working';reviewed=$false}}}
                         }
                     }

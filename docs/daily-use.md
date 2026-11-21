@@ -39,7 +39,7 @@ The command words below remain unchanged in every documentation language.
 | `sb directives propose` | Prepare a directive revision as a proposal; approval and distribution stay explicit |
 | `sb prompts check` | Validate the prompt catalog and cards and report drift of the generated indexes |
 
-See the [per-repository workflow](flusso-prodotto.md) for the order of operations.
+See the [per-repository workflow](product-flow.md) for the order of operations.
 
 ### Mechanical compaction (no model)
 
@@ -62,7 +62,7 @@ There are no archive folders: an inactive entity keeps its place and has a statu
 
 A repository dossier contains `index.md`, `context.md`, `memory.md`, `repository.json` and its declared tracker. Resolve it by repository identity, not the folder name. A declared dossier tracker is authoritative; a missing or invalid tracker is an error, not permission to use another file.
 
-Durable decisions use `Decision: … — Reason: …` in memory (the Italian `Decisione: … — Motivo: …` form in older entries is still read). Keep only verified, useful changes in context and memory. Read the essential startup package first, then request relevant task details and historical evidence. Slim defaults to 25,000 characters for the first load; characters are not tokens. See [loading and maintenance](riferimento/runtime-maintenance.md).
+Durable decisions use `Decision: … — Reason: …` in memory (the Italian `Decisione: … — Motivo: …` form in older entries is still read). Keep only verified, useful changes in context and memory. Read the essential startup package first, then request relevant task details and historical evidence. Slim defaults to 25,000 characters for the first load; characters are not tokens. See [loading and maintenance](reference/runtime-maintenance.md).
 
 ## One entry point: `sb`
 
@@ -113,7 +113,7 @@ The gate scans working tree, index and relevant history, subject to its reported
 
 ## Running tracker tasks
 
-To work through the ready autonomous tasks, one fresh agent session per task and one repository at a time, use `scripts/run-ready-tasks.ps1`. It previews by default and prints progress on the console while it runs. `-Run` also needs `-Model` and `-Effort`, or `-UseCliDefault`; without a choice it exits 2 and lists the options the installed CLI exposes. See [running tracker tasks](riferimento/operations.md#running-tracker-tasks-in-fresh-sessions) for options, safety limits and results.
+To work through the ready autonomous tasks, one fresh agent session per task and one repository at a time, use `scripts/run-ready-tasks.ps1`. It previews by default and prints progress on the console while it runs. `-Run` also needs `-Model` and `-Effort`, or `-UseCliDefault`; without a choice it exits 2 and lists the options the installed CLI exposes. See [running tracker tasks](reference/operations.md#running-tracker-tasks-in-fresh-sessions) for options, safety limits and results.
 
 ## Versions and closure
 
@@ -123,4 +123,4 @@ At an authorized task closure, verify acceptance criteria, preserve task IDs and
 
 ## Terms
 
-A dossier is a repository's knowledge folder; a tracker stores tasks; a managed block is the delimited text Sync maintains; MCP connects the client to the local server. See [trackers](riferimento/trackers.md), [PARA](riferimento/tree.md) and [operations](riferimento/operations.md).
+A dossier is a repository's knowledge folder; a tracker stores tasks; a managed block is the delimited text Sync maintains; MCP connects the client to the local server. See [trackers](reference/trackers.md), [PARA](reference/tree.md) and [operations](reference/operations.md).

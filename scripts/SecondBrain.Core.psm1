@@ -464,7 +464,7 @@ function Get-SBRuntimeRetention([string]$BrainRoot,[string[]]$ProtectedPaths=@()
     if($names.Count){
         $pattern=[regex]::new('\.runtime[\\/]+(?<n>'+($names -join '|')+')(?![A-Za-z0-9_-])',[Text.RegularExpressions.RegexOptions]::IgnoreCase)
         $byName=@{};foreach($entry in $entries){$byName[$entry.name.ToLowerInvariant()]=$entry}
-        $surfaces=@('README.md','AGENTS.md','docs','scripts','direttive','config','workstation','repos','shared')
+        $surfaces=@('README.md','AGENTS.md','docs','scripts','directives','config','workstation','repos','shared')
         $scan=[IO.EnumerationOptions]::new();$scan.RecurseSubdirectories=$true;$scan.IgnoreInaccessible=$true;$scan.AttributesToSkip=[IO.FileAttributes]::ReparsePoint
         $textExtensions=@('.md','.json','.ps1','.psm1','.txt')
         $files=@()
@@ -1409,12 +1409,12 @@ function Set-SBManagedContent {
 }
 function Get-SBApprovedDirectiveRevision([string]$BrainRoot) {
     if (!(Test-SBApproval $BrainRoot)) { return $null }
-    $text = Read-SBText (Join-Path $BrainRoot 'direttive/AGENTS.global_ide.md')
+    $text = Read-SBText (Join-Path $BrainRoot 'directives/AGENTS.global_ide.md')
     $revision = [regex]::Match($text, '(?m)^Revisi(?:on|one) (?<version>\d+(?:\.\d+)+) — (?<date>\d{4}-\d{2}-\d{2})\.')
     if (!$revision.Success) { return $null }
-    $approval = Read-SBJson (Join-Path $BrainRoot 'direttive/approved.json') @{}
+    $approval = Read-SBJson (Join-Path $BrainRoot 'directives/approved.json') @{}
     @{version=$revision.Groups['version'].Value; date=$revision.Groups['date'].Value;
-      globalHash=$approval.files['direttive/AGENTS.global_ide.md']; workstationHash=$approval.files['direttive/workstation.template.md']}
+      globalHash=$approval.files['directives/AGENTS.global_ide.md']; workstationHash=$approval.files['directives/workstation.template.md']}
 }
 
 function Initialize-SBFileRemoval {
@@ -1493,12 +1493,12 @@ function Remove-SBFile([string]$Path, [string]$AllowedRoot, [string]$ExpectedHas
 }
 
 function Test-SBApproval([string]$BrainRoot) {
-    $approval = Read-SBJson (Join-Path $BrainRoot 'direttive/approved.json') @{}
+    $approval = Read-SBJson (Join-Path $BrainRoot 'directives/approved.json') @{}
     if (!$approval.ContainsKey('files') -or !$approval.ContainsKey('authorization')) { return $false }
-    foreach ($relative in @('direttive/AGENTS.global_ide.md','direttive/workstation.template.md')) {
+    foreach ($relative in @('directives/AGENTS.global_ide.md','directives/workstation.template.md')) {
         if (!$approval.files.ContainsKey($relative) -or $approval.files[$relative] -ne (Get-SBFileHash (Join-Path $BrainRoot $relative))) { return $false }
     }
-    $repositorySource='direttive/AGENTS.repo.managed.md'
+    $repositorySource='directives/AGENTS.repo.managed.md'
     $repositoryHash=Get-SBFileHash (Join-Path $BrainRoot $repositorySource)
     if($approval.files.ContainsKey($repositorySource) -or $repositoryHash -ne 'absent'){
         if($repositoryHash -eq 'absent' -or $approval.files[$repositorySource] -cne $repositoryHash){return $false}

@@ -90,7 +90,7 @@ Add-SBMessages @{
 }
 
 function Test-SBTrackerPolicy([string]$BrainRoot) {
-    (Test-SBApproval $BrainRoot) -and (Read-SBText (Join-Path $BrainRoot 'direttive/workstation.template.md')).Contains('<!-- secondbrain:tracker-contract:1 -->')
+    (Test-SBApproval $BrainRoot) -and (Read-SBText (Join-Path $BrainRoot 'directives/workstation.template.md')).Contains('<!-- secondbrain:tracker-contract:1 -->')
 }
 
 # Sequential numbering: unique seq, consistent "#NNN - " title, extensions.lastSeq never below the maximum (numbers are never reused).
@@ -458,7 +458,7 @@ function Convert-SBTrackerLocation($Data,[hashtable]$Mapping,[string]$BrainRoot,
         $reference=$record.reference
         $relocated=Convert-SBParaReferences $reference $Mapping $BrainRoot
         if($relocated -cne $reference){$record.reference=$relocated;continue}
-        if([IO.Path]::IsPathFullyQualified($reference) -or $reference -match '^(?:[a-z][a-z0-9+.-]*:|#|//|(?:repos|workstation|shared|docs|scripts|direttive|config)/)'){continue}
+        if([IO.Path]::IsPathFullyQualified($reference) -or $reference -match '^(?:[a-z][a-z0-9+.-]*:|#|//|(?:repos|workstation|shared|docs|scripts|directives|direttive|config)/)'){continue}
         $parts=$reference -split '(?=[#?])',2
         $resolved=[IO.Path]::GetFullPath((Join-Path $oldDir ([Uri]::UnescapeDataString($parts[0]))))
         if(!(Test-Path -LiteralPath $resolved)){continue}
@@ -536,12 +536,12 @@ function Resolve-SBTrackerWriteTarget([string]$BrainRoot,[string]$Identity,[stri
     if(!$BrainRoot){
         if($Path){
             $p=[IO.Path]::GetFullPath($Path)
-            while($p -and !(Test-Path (Join-Path $p 'direttive/approved.json'))){
+            while($p -and !(Test-Path (Join-Path $p 'directives/approved.json'))){
                 $parent=Split-Path $p -Parent
                 if($parent -eq $p){break}
                 $p=$parent
             }
-            if(Test-Path (Join-Path $p 'direttive/approved.json')){$BrainRoot=$p}
+            if(Test-Path (Join-Path $p 'directives/approved.json')){$BrainRoot=$p}
         }
         if(!$BrainRoot){$BrainRoot=(Get-SBBrainRootPath)}
     }

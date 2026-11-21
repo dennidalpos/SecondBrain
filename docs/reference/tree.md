@@ -8,8 +8,8 @@ This map describes ownership and recovery boundaries. Regenerable does not mean 
 |---|---|
 | scripts/ | PowerShell modules (MCP server, IDE configuration and package in separate modules), CLI, tests and source-converter dependencies |
 | config/ | Local schemas, shared policy and configuration example |
-| direttive/ | Approved common instructions, original proposals and approval hashes |
-| direttive/prompts/ | English cards, Italian counterparts and generated indexes |
+| directives/ | Approved common instructions, original proposals and approval hashes |
+| directives/prompts/ | English cards, Italian counterparts and generated indexes |
 | docs/ | English guides and retained Italian sources |
 | .github/ | Community forms and workflow configuration |
 | README, VERSION, CHANGELOG, CREDITS, LICENSE | Public product information and attribution |
