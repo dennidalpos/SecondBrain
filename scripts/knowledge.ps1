@@ -34,7 +34,7 @@ param([Parameter(ParameterSetName='Tasks')][switch]$Tasks,[Parameter(ParameterSe
     [Parameter(ParameterSetName='TaskUpdate')][AllowEmptyString()][string]$Decision,
     [Parameter(ParameterSetName='TaskNew')][Parameter(ParameterSetName='TaskUpdate')][AllowEmptyCollection()][AllowEmptyString()][string[]]$Requires,
     [Parameter(Mandatory,ParameterSetName='TaskNew')][string]$Provenance,[Parameter(ParameterSetName='TaskNew')][string]$ProvenancePointer,[Parameter(ParameterSetName='TaskNew')][string]$FollowUpOf,
-    [Parameter(ParameterSetName='TaskNew')][string[]]$Files,[Parameter(ParameterSetName='TaskNew')][string[]]$Checks,
+    [Parameter(ParameterSetName='TaskNew')][Parameter(ParameterSetName='TaskUpdate')][AllowEmptyCollection()][AllowEmptyString()][string[]]$Files,[Parameter(ParameterSetName='TaskNew')][Parameter(ParameterSetName='TaskUpdate')][AllowEmptyCollection()][AllowEmptyString()][string[]]$Checks,
     [Parameter(Mandatory,ParameterSetName='Renumber')][switch]$RenumberTasks,
     [Parameter(Mandatory,ParameterSetName='HistoryMigration')][switch]$MigrateHistoryMessages,
     [Parameter(Mandatory,ParameterSetName='HistoryMessages')][switch]$HistoryMessages,
@@ -210,7 +210,7 @@ try{
         $repoId=if($Repository){$Repository}else{$working}
         if($repoId -cne $working){throw (New-SBError 'tracker.write.foreign' @($repoId,$working))}
         $arguments=@{TaskId=$UpdateTaskId}
-        foreach($field in @('Status','StateReason','Priority','Execution','DependsOn','Stream','Awaiting','Decision','Requires','Description')){
+        foreach($field in @('Status','StateReason','Priority','Execution','DependsOn','Stream','Awaiting','Decision','Requires','Files','Checks','Description')){
             if($PSBoundParameters.ContainsKey($field)){$arguments[$field]=$PSBoundParameters[$field]}
         }
         # With pwsh -File, lists arrive as one string: ';' separates acceptance criteria; evidence is reference|outcome, appended only; ';' separates entries, so a reference cannot contain ';' (commas are kept as they are).

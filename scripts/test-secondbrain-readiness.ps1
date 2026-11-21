@@ -48,5 +48,12 @@ try{
     Assert-Rd (!@($created.needsInfo).Count) 'a task created with stream, files and checks returns an empty needsInfo'
     $stored=@((Get-Content -Raw $createTracker|ConvertFrom-Json -AsHashtable).tasks)[0]
     Assert-Rd ($stored.extensions.stream -ceq 'runner' -and @($stored.extensions.files) -contains 'scripts/a.ps1' -and @($stored.extensions.checks) -contains 'scripts/test-secondbrain.ps1 -Quick') 'creation stores extensions.stream, files and checks'
+    # An update can set and clear files in scope and checks to run (';' separates entries), and re-assesses the task.
+    $upd=Update-SBTrackerTask -BrainRoot $createBrain -Identity $createId -Path $createTracker -WorkingRepository $createId -TaskId $stored.id -Files 'scripts/b.ps1;scripts/c.ps1' -Checks 'pwsh -File scripts/x.ps1'
+    $after=@((Get-Content -Raw $createTracker|ConvertFrom-Json -AsHashtable).tasks)[0]
+    Assert-Rd (@($after.extensions.files).Count -eq 2 -and @($after.extensions.files) -contains 'scripts/c.ps1' -and @($after.extensions.checks) -contains 'pwsh -File scripts/x.ps1') 'an update stores files and checks'
+    [void](Update-SBTrackerTask -BrainRoot $createBrain -Identity $createId -Path $createTracker -WorkingRepository $createId -TaskId $stored.id -Files @() -Checks @())
+    $cleared=@((Get-Content -Raw $createTracker|ConvertFrom-Json -AsHashtable).tasks)[0]
+    Assert-Rd (!$cleared.extensions.ContainsKey('files') -and !$cleared.extensions.ContainsKey('checks') -and @($cleared.extensions.readiness.advisory) -contains 'files') 'an empty update clears files and checks and the readiness lists them again'
 }finally{Remove-Item -LiteralPath $createRoot -Recurse -Force -ErrorAction SilentlyContinue}
 'SUCCESS READINESS: '+$script:rdChecks+' checks'

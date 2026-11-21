@@ -103,7 +103,7 @@ function Assert-SBPendingRequest($Request,[string]$Id) {
     if($Request.arguments -isnot [Collections.IDictionary] -or $Request.expected -isnot [Collections.IDictionary]){throw (New-SBError 'pending.invalid' @('arguments'))}
     $allowed=switch($Request.operation){
         'task.status' {@('TaskId','Status','StateReason','Evidence','Executor')}
-        'task.update' {@('TaskId','Status','StateReason','Priority','Execution','DependsOn','Stream','Awaiting','Requires','Evidence','EvidenceCorrection','Description','Acceptance','Decisions','Decision','Enrichment','Executor')}
+        'task.update' {@('TaskId','Status','StateReason','Priority','Execution','DependsOn','Stream','Awaiting','Requires','Files','Checks','Evidence','EvidenceCorrection','Description','Acceptance','Decisions','Decision','Enrichment','Executor')}
         'task.new' {@('Title','Id','Description','Priority','Execution','DependsOn','Acceptance','ProvenanceReference','ProvenancePointer','Requires','FollowUpOf','Stream','Files','Checks','Executor')}
         'file.save' {@('relativePath','content')}
         'file.append' {@('relativePath','content')}

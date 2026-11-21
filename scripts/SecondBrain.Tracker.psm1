@@ -1055,6 +1055,8 @@ function Update-SBTrackerTask {
         [AllowEmptyString()][string]$Stream,
         [AllowEmptyString()][string]$Awaiting,
         [AllowEmptyCollection()][AllowEmptyString()][string[]]$Requires,
+        [AllowEmptyCollection()][AllowEmptyString()][string[]]$Files,
+        [AllowEmptyCollection()][AllowEmptyString()][string[]]$Checks,
         $Evidence=@(),
         $EvidenceCorrection,
         [string]$Description,
@@ -1078,7 +1080,7 @@ function Update-SBTrackerTask {
     if($edit.closing){$result.closureAdvice=Get-SBClosureAdvice (Split-Path $target.path)}
     $result
 }
-function Get-SBTrackerUpdateFields {@('Status','StateReason','Priority','Execution','DependsOn','Stream','Awaiting','Requires','Evidence','EvidenceCorrection','Description','Acceptance','Decisions','Decision','Enrichment')}
+function Get-SBTrackerUpdateFields {@('Status','StateReason','Priority','Execution','DependsOn','Stream','Awaiting','Requires','Files','Checks','Evidence','EvidenceCorrection','Description','Acceptance','Decisions','Decision','Enrichment')}
 function ConvertTo-SBEvidenceCorrection($Value) {
     # #669: the audited correction of one task's evidence: a mandatory reason and the replacement list (empty removes every entry).
     # Entries are "reference|outcome" strings or {reference, outcome[, observedAt]}. The replaced entries are kept in extensions.evidenceCorrections.
@@ -1175,6 +1177,13 @@ function Edit-SBTrackerTaskFields($Target,$Archive,[string]$TaskId,[hashtable]$F
     if($Fields.ContainsKey('Requires')){
         $requiresList=ConvertTo-SBTaskRequires @($Fields.Requires)
         if($requiresList.Count){$task.extensions.requires=@($requiresList)}else{[void]$task.extensions.Remove('requires')}
+    }
+    # Files in scope and checks to run (extensions.files / extensions.checks, ';' separates entries from a command line); empty clears them.
+    foreach($field in @('Files','Checks')){
+        if($Fields.ContainsKey($field)){
+            $list=@(@($Fields[$field])|ForEach-Object {[string]$_ -split ';'}|ForEach-Object {$_.Trim()}|Where-Object {$_})
+            if($list.Count){$task.extensions[$field.ToLowerInvariant()]=@($list)}else{[void]$task.extensions.Remove($field.ToLowerInvariant())}
+        }
     }
     if($Fields.ContainsKey('Decision')){
         # #588: a task waiting on the user points at an open decision of its own dossier (awaiting=owner-consent); empty clears the link.
