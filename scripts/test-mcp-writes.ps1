@@ -27,7 +27,7 @@ Put $f5ConfigPath (ConvertTo-SBJson $f5Config)
 function F5-Plan($Op,$Payload){New-SBMcpWritePlan $f5Brain $f5ConfigPath $f5Id $f5Repo ([guid]::NewGuid().ToString('N')) $Op $Payload}
 function F5-Approve($Plan){Approve-SBMcpWritePlan $f5Brain $f5ConfigPath $Plan $Plan.planHash 'Synthetic per-call approval' $f5Session.sessionId}
 function F5-Submit($Plan){Submit-SBMcpWrite $f5Brain $f5ConfigPath $f5Id $f5Repo $Plan.requestId $Plan.planHash}
-function F5-Refusal([scriptblock]$Action,[string]$Phrase,[string]$Hash,[string]$Message){
+function Assert-F5Refusal([scriptblock]$Action,[string]$Phrase,[string]$Hash,[string]$Message){
     # A refusal must name its cause (own message key) and carry the exact owner commands with repository and plan hash filled in.
     $text=$null;try{& $Action|Out-Null}catch{$text=$_.Exception.Message}
     Check ($text -and $text -like ('*'+$Phrase+'*')) ($Message+' names its cause')
@@ -47,7 +47,7 @@ try {
     Check ($f5Plan.dossierPath -ceq $f5Dossier) 'reviewed plan names the exact dossier destination'
     Reject {F5-Plan 'memory.append' @{content=('漢'*50000)}} 'oversized UTF-8 plan is refused during preview'
     Reject {F5-Submit $f5Plan} 'MCP write without local receipt is denied'
-    [void](F5-Refusal {F5-Submit $f5Plan} 'no grant and no approval receipt' $f5Plan.planHash 'a submit with no grant and no receipt')
+    [void](Assert-F5Refusal {F5-Submit $f5Plan} 'no grant and no approval receipt' $f5Plan.planHash 'a submit with no grant and no receipt')
     Reject {New-SBMcpWritePlan $f5Brain $f5ConfigPath $f5Id $repo ('a'*32) 'memory.append' @{content='outside'}} 'MCP write rejects a foreign checkout'
     Reject {F5-Plan 'history.save' @{path='../memory.md';content='outside'}} 'MCP write rejects path traversal'
     Reject {F5-Plan 'memory.append' @{content='<private>SYNTHETIC-PRIVATE-F5</private>'}} 'MCP write refuses private content before persistence'
@@ -251,20 +251,20 @@ Put (Join-Path $f5Dossier memory.md) ((Read-SBText (Join-Path $f5Dossier memory.
     $f5Expiring=F5-Plan 'task.status' @{taskId='F5-1';status='todo'}
     & $f5GrantModule {param($c,$r) $g=Read-SBMcpWriteGrantFile $c $r;$g.expiresAt=(Get-SBNow).AddMinutes(-1).ToString('o');Save-SBMcpWriteGrant $c $r $g} (Read-SBConfiguration -ConfigPath $f5ConfigPath -BrainRoot $f5Brain -ReadOnly) $f5Id
     Reject {Submit-F5Grant $f5Expiring} 'an expired grant no longer lets the agent submit'
-    [void](F5-Refusal {Submit-F5Grant $f5Expiring} 'has expired' $f5Expiring.planHash 'a submit under an expired grant')
+    [void](Assert-F5Refusal {Submit-F5Grant $f5Expiring} 'has expired' $f5Expiring.planHash 'a submit under an expired grant')
     Check (@((Get-SBMcpWriteGrants $f5Brain $f5ConfigPath).grants|Where-Object {$_.repository -ceq $f5Id})[0].state -eq 'expired') 'grants lists the expired state'
     [void](New-SBMcpWriteGrant $f5Brain $f5ConfigPath $f5Id 4 'Synthetic grant' $f5Session.sessionId)
     $f5Revoked=F5-Plan 'task.status' @{taskId='F5-1';status='in_progress'}
     Check ($f5Revoked.planHash) 'a renewed grant is active again'
     [void](Revoke-SBMcpWriteGrant $f5Brain $f5ConfigPath $f5Id $f5Session.sessionId)
     Reject {Submit-F5Grant $f5Revoked} 'a revoked grant no longer lets the agent submit'
-    [void](F5-Refusal {Submit-F5Grant $f5Revoked} 'was revoked' $f5Revoked.planHash 'a submit under a revoked grant')
+    [void](Assert-F5Refusal {Submit-F5Grant $f5Revoked} 'was revoked' $f5Revoked.planHash 'a submit under a revoked grant')
     # Receipts: one for another plan, and an expired one.
     $f5Other=F5-Plan 'task.status' @{taskId='F5-1';status='todo'}
     [void](F5-Approve $f5Other)
-    [void](F5-Refusal {Submit-SBMcpWrite $f5Brain $f5ConfigPath $f5Id $f5Repo $f5Other.requestId $f5Revoked.planHash} 'is for a different plan' $f5Revoked.planHash 'a submit with a receipt for another plan')
+    [void](Assert-F5Refusal {Submit-SBMcpWrite $f5Brain $f5ConfigPath $f5Id $f5Repo $f5Other.requestId $f5Revoked.planHash} 'is for a different plan' $f5Revoked.planHash 'a submit with a receipt for another plan')
     & $f5GrantModule {param($c,$p) $r=Read-SBJson $p $null;$r.expiresAt=(Get-SBNow).AddMinutes(-1).ToString('o');$r.receiptHash=Get-SBMcpWriteHash $r receiptHash;[void](Write-SBFile $p ([Text.Encoding]::UTF8.GetBytes((ConvertTo-SBJson $r))) (Get-SBFileHash $p) $c.localStateBackupRoot)} (Read-SBConfiguration -ConfigPath $f5ConfigPath -BrainRoot $f5Brain -ReadOnly) (& $f5GrantModule {param($b,$cp,$i,$r,$q) (Get-SBMcpWriteContext $b $cp $i $r $q).approvalPath} $f5Brain $f5ConfigPath $f5Id $f5Repo $f5Other.requestId)
-    [void](F5-Refusal {F5-Submit $f5Other} 'approval receipt for this plan' $f5Other.planHash 'a submit with an expired receipt')
+    [void](Assert-F5Refusal {F5-Submit $f5Other} 'approval receipt for this plan' $f5Other.planHash 'a submit with an expired receipt')
     Check (@((Get-SBMcpWriteGrants $f5Brain $f5ConfigPath).grants|Where-Object {$_.repository -ceq $f5Id})[0].state -eq 'revoked') 'grants lists the revoked state'
     # Actual wire protocol: discover all tools, preview without writes, deny NoRecovery submit.
     $f5WirePlan=F5-Plan 'memory.append' @{content='wire fixture'}

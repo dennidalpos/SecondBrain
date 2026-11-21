@@ -157,7 +157,7 @@ try {
         if(!$dossierFull.StartsWith($brainFull+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase)){throw (New-SBError 'cleanup.archive.dossier')}
         $archiveRoot=Join-Path $dossierFull 'history/runtime-archive'
         $repoRoot=Join-Path $config.runtimeRoot ('repos/'+(Get-SBRuntimeRepoSegment $Repository))
-        $limitDate=(Get-Date).Date.AddDays(-$days)
+        $limitDate=(Get-SBNow -Local).Date.AddDays(-$days)
         $getArchivePlan={
             $targets=@();$skipped=[Collections.Generic.List[object]]::new()
             foreach($category in @('evidence','report')){
