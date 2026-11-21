@@ -578,7 +578,7 @@ try {
     $queueStatus=Invoke-PendingCli 'access.ps1' @('-Queue')
     Assert-Pending ($queueStatus.code -eq 0) 'the queue view reads the global and every repository queue without failing'
     if($heldId){[void](Invoke-PendingCli 'access.ps1' @('-End','-SessionId',$heldId))}
-    'SUCCESS PENDING: '+$checks+' verifiche; fixture conservata: '+$fixture
+    'SUCCESS PENDING: '+$checks+' checks; fixture kept:'+$fixture
 } finally {
     Exit-SBOperation $holder
     foreach($sessionId in $sessions){[void](Invoke-PendingCli 'access.ps1' @('-End','-SessionId',$sessionId))}

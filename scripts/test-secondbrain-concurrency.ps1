@@ -41,7 +41,7 @@ function Invoke-Race([int]$Count,[scriptblock]$Work,[object[]]$Arguments=@()){
     }
     $jobs=@(1..$Count|ForEach-Object {Start-ThreadJob -ThrottleLimit $Count -ScriptBlock $runner -ArgumentList $_,$gate,$ready,$modules,$Work.ToString(),$Arguments})
     try{
-        if(!$ready.Wait(120000)){throw 'FAIL CONCURRENCY: i worker non sono pronti entro 120 s'}
+        if(!$ready.Wait(120000)){throw 'FAIL CONCURRENCY: the workers are not ready within 120 s'}
         $gate.Set()
         $null=$jobs|Wait-Job -Timeout 300
         @($jobs|ForEach-Object {if($_.State -ne 'Completed'){@{index=0;ok=$false;code=$null;type='JobState';message=('job '+$_.State)}}else{Receive-Job $_}}|Sort-Object {$_.index})
@@ -66,11 +66,11 @@ try {
         $final=[IO.File]::ReadAllText($target)
         Assert-Conc ($wins.Count -le 1) ('Write-SBFile su file esistente: al piu un vincitore ('+$wins.Count+' su 2)')
         Assert-Conc (@($outcomes|Where-Object {!$_.ok -and $_.code -notin $allowed}).Count -eq 0) 'Write-SBFile: i perdenti falliscono con un codice stabile noto' (@($outcomes|Where-Object {!$_.ok}|ForEach-Object {[string]$_.code+':'+$_.type+':'+$_.message}) -join ' | ')
-        Assert-Conc (@(1..2|Where-Object {$final -ceq "scrittore-$_`n"}).Count -eq 1 -or $final -ceq "originale`n") 'Write-SBFile: il contenuto finale e esattamente quello di un solo scrittore (o l originale)'
+        Assert-Conc (@(1..2|Where-Object {$final -ceq "scrittore-$_`n"}).Count -eq 1 -or $final -ceq "originale`n") 'Write-SBFile: the final content is exactly that of a single writer (or the original)'
         # Losing writers intentionally retain staging ("Staging transazionale conservato" warning), but each .tmp must have an interrupted .stage record describing it.
         $interrupted=@(Get-ChildItem -LiteralPath $backups -File -Filter '*.stage'|ForEach-Object {Read-SBJson $_.FullName $null}|Where-Object {$_.status -eq 'interrupted'}|ForEach-Object staging)
         $kept=@(Get-ChildItem -LiteralPath $dir -Force -Filter '.secondbrain-*.tmp'|ForEach-Object FullName)
-        Assert-Conc (@($kept|Where-Object {$_ -notin $interrupted}).Count -eq 0) ('Write-SBFile: gli staging conservati ('+$kept.Count+') hanno tutti un record .stage interrotto; nessuno staging orfano')
+        Assert-Conc (@($kept|Where-Object {$_ -notin $interrupted}).Count -eq 0) ('Write-SBFile: gli staging conservati ('+$kept.Count+') all have an interrupted .stage record; no orphan staging')
         if($final -cne "originale`n"){
             $recoverable=@(Get-ChildItem -LiteralPath $backups -File -Filter '*.bin' -ErrorAction SilentlyContinue|Where-Object {(Get-SBFileHash $_.FullName) -eq $original}).Count+@(Get-ChildItem -LiteralPath $dir -Force -Filter '.secondbrain-*.recovery'|Where-Object {(Get-SBFileHash $_.FullName) -eq $original}).Count
             Assert-Conc ($recoverable -ge 1) 'Write-SBFile: il contenuto originale resta recuperabile (backup .bin o .recovery)'
@@ -99,25 +99,25 @@ try {
         [IO.File]::WriteAllText($crlf,"line one`r`nline two`r`n")
         $null=& git -C $repo add -- tracked.txt hidden.txt crlf.txt .gitattributes
         $null=& git -C $repo -c user.name=Fixture -c user.email=fixture@example.invalid commit -qm 'fixture'
-        Assert-Conc ($LASTEXITCODE -eq 0) 'originale registrato in Git'
+        Assert-Conc ($LASTEXITCODE -eq 0) 'original recorded in Git'
         $originalHash=Get-SBFileHash $target
         $newBytes=[Text.Encoding]::UTF8.GetBytes('updated content')
         $null=Write-SBFile $target $newBytes $originalHash $backupRoot
         $gitRecord=Get-ChildItem -LiteralPath $backupRoot -Filter '*.git.json' | ForEach-Object {Read-SBJson $_.FullName $null}
         $originalText=& git -C $repo cat-file blob $gitRecord.gitBlob
-        Assert-Conc ($gitRecord.previousHash -eq $originalHash -and (Get-SBTextHash $originalText) -eq $originalHash -and !(Get-ChildItem -LiteralPath $backupRoot -Filter '*.bin')) 'originale pulito recuperabile dal blob senza copia binaria'
+        Assert-Conc ($gitRecord.previousHash -eq $originalHash -and (Get-SBTextHash $originalText) -eq $originalHash -and !(Get-ChildItem -LiteralPath $backupRoot -Filter '*.bin')) 'clean original recoverable from the blob without a binary copy'
         $dirtyRejected=$false
         try{Write-SBFile $target ([Text.Encoding]::UTF8.GetBytes('new content')) (Get-SBFileHash $target) $backupRoot -Recoverable|Out-Null}
         catch{$dirtyRejected=(Get-ErrorCode $_.Exception) -eq 'core.tracked.dirty'}
-        Assert-Conc ($dirtyRejected -and (Get-SBFileHash $target) -eq (Get-SBHash $newBytes)) 'la rigenerabilita non aggira la protezione dei file tracciati sporchi'
+        Assert-Conc ($dirtyRejected -and (Get-SBFileHash $target) -eq (Get-SBHash $newBytes)) 'regenerability does not bypass the protection of dirty tracked files'
         $null=Write-SBFile $crlf $newBytes (Get-SBFileHash $crlf) $backupRoot
-        Assert-Conc (!(Get-ChildItem -LiteralPath $backupRoot -Filter '*.bin')) 'Git riproduce anche le terminazioni CRLF della copia di lavoro'
+        Assert-Conc (!(Get-ChildItem -LiteralPath $backupRoot -Filter '*.bin')) 'Git also reproduces the CRLF endings of the working copy'
         $null=& git -C $repo update-index --assume-unchanged -- hidden.txt
         [IO.File]::WriteAllText($hidden,'local bytes hidden from status')
         $hiddenHash=Get-SBFileHash $hidden
         $null=Write-SBFile $hidden $newBytes $hiddenHash $backupRoot
         $binaryBackup=Get-ChildItem -LiteralPath $backupRoot -Filter '*.bin'
-        Assert-Conc (@($binaryBackup).Count -eq 1 -and (Get-SBFileHash $binaryBackup.FullName) -eq $hiddenHash) 'un file apparentemente pulito conserva il backup se Git non riproduce i byte locali'
+        Assert-Conc (@($binaryBackup).Count -eq 1 -and (Get-SBFileHash $binaryBackup.FullName) -eq $hiddenHash) 'an apparently clean file keeps the backup if Git does not reproduce the local bytes'
     }
 
     Invoke-Case 'trace' (Join-Path $root 'trace') {
@@ -129,9 +129,9 @@ try {
         $files=@(Get-ChildItem -LiteralPath (Join-Path $brain '.runtime/trace') -Recurse -File -Filter '*.jsonl')
         $rows=@($files|ForEach-Object {[IO.File]::ReadAllLines($_.FullName)})
         $parsed=@($rows|ForEach-Object {try{$_|ConvertFrom-Json -AsHashtable}catch{$null}})
-        Assert-Conc (@($outcomes|Where-Object {!$_.ok}).Count -eq 0) 'traccia: nessun worker fallisce con 6 scrittori'
-        Assert-Conc ($rows.Count -eq 90 -and @($parsed|Where-Object {$null -eq $_}).Count -eq 0) 'traccia: 90 eventi, 90 righe JSON valide (nessuna riga persa, troncata o mista)' ('righe='+$rows.Count+' valide='+@($parsed|Where-Object {$null -ne $_}).Count)
-        Assert-Conc ((Get-SBTraceTurns $brain 'github.com/acme/repo-a') -eq 90 -and @(Get-ChildItem -LiteralPath (Join-Path $brain '.runtime/trace') -Recurse -File -Filter '*.jsonl').Count -eq 1) 'traccia: un solo file per giorno e il file di lock non e conteggiato come traccia'
+        Assert-Conc (@($outcomes|Where-Object {!$_.ok}).Count -eq 0) 'trace: no worker fails with 6 writers'
+        Assert-Conc ($rows.Count -eq 90 -and @($parsed|Where-Object {$null -eq $_}).Count -eq 0) 'trace: 90 events, 90 valid JSON lines (no line lost, truncated or mixed)' ('righe='+$rows.Count+' valide='+@($parsed|Where-Object {$null -ne $_}).Count)
+        Assert-Conc ((Get-SBTraceTurns $brain 'github.com/acme/repo-a') -eq 90 -and @(Get-ChildItem -LiteralPath (Join-Path $brain '.runtime/trace') -Recurse -File -Filter '*.jsonl').Count -eq 1) 'trace: a single file per day and the lock file is not counted as a trace'
         Assert-Conc (@(1..6|Where-Object {$n=$_;@($parsed|Where-Object {$_.sessionId -eq "sess-$n"}).Count -eq 15}).Count -eq 6) 'traccia: 15 eventi per ciascun scrittore'
     }
 
@@ -151,12 +151,12 @@ try {
             }finally{Exit-SBOperation $lock}
         } @($config,$counter,$marker)
         Assert-Conc (@($outcomes|Where-Object {!$_.ok}).Count -eq 0) 'coda di accesso: tutti i worker entrano a turno' (@($outcomes|Where-Object {!$_.ok}|ForEach-Object message) -join '; ')
-        Assert-Conc ([IO.File]::ReadAllText($counter) -eq '6' -and !(Test-Path -LiteralPath $marker)) 'coda di accesso: mutua esclusione, 6 incrementi senza perdite ne sovrapposizioni'
+        Assert-Conc ([IO.File]::ReadAllText($counter) -eq '6' -and !(Test-Path -LiteralPath $marker)) 'access queue: mutual exclusion, 6 increments without losses or overlaps'
         $held=Enter-SBOperation $config $null -LockOnly
         try{
             $busy=@(Invoke-Race 1 {param($i,$a) Enter-SBOperation $a[0] $null -WaitMs 300 -LockOnly|Out-Null} @($config))
         }finally{Exit-SBOperation $held}
-        Assert-Conc (!$busy[0].ok -and $busy[0].code -eq 'access.busy') 'coda di accesso: con il lock occupato l attesa scade con il codice access.busy' ([string]$busy[0].code+':'+$busy[0].type)
+        Assert-Conc (!$busy[0].ok -and $busy[0].code -eq 'access.busy') 'access queue: with the lock busy the wait expires with the code access.busy' ([string]$busy[0].code+':'+$busy[0].type)
     }
 
     Invoke-Case 'scoped-locks' (Join-Path $root 'scoped') {
@@ -226,10 +226,10 @@ try {
         $outcomes=Invoke-Race 6 {param($i,$a) Invoke-SBParaTransaction -Operations @(@{path=$a[0];expected=$a[1];bytes=[Text.Encoding]::UTF8.GetBytes("transazione-$i`n")}) -BackupRoot $a[2] -BrainRoot $a[3]} @($target,$original,$backups,$brain)
         $wins=@($outcomes|Where-Object ok);$final=[IO.File]::ReadAllText($target)
         $marker=Join-Path $brain '.runtime/access/para-transaction.json'
-        Assert-Conc ($wins.Count -le 1) ('transazioni PARA: al piu un vincitore sullo stesso file ('+$wins.Count+' su 6)')
-        Assert-Conc (@($outcomes|Where-Object {!$_.ok -and !$_.code -and $_.type -ne 'IOException'}).Count -eq 0) 'transazioni PARA: i perdenti falliscono con codice stabile o errore di I/O dichiarato'
-        Assert-Conc (@(1..6|Where-Object {$final -ceq "transazione-$_`n"}).Count -eq 1 -or $final -ceq "base`n") 'transazioni PARA: contenuto finale di una sola transazione (o originale)'
-        Assert-Conc ($wins.Count -eq 0 -or (Test-Path -LiteralPath $marker) -eq $false) 'transazioni PARA: nessun marker pendente dopo la transazione vincente'
+        Assert-Conc ($wins.Count -le 1) ('PARA transactions: at most one winner on the same file ('+$wins.Count+' su 6)')
+        Assert-Conc (@($outcomes|Where-Object {!$_.ok -and !$_.code -and $_.type -ne 'IOException'}).Count -eq 0) 'PARA transactions: the losers fail with a stable code or a declared I/O error'
+        Assert-Conc (@(1..6|Where-Object {$final -ceq "transazione-$_`n"}).Count -eq 1 -or $final -ceq "base`n") 'PARA transactions: final content of a single transaction (or the original)'
+        Assert-Conc ($wins.Count -eq 0 -or (Test-Path -LiteralPath $marker) -eq $false) 'PARA transactions: no pending marker after the winning transaction'
 
         # Deterministic sharing violation before marker acquisition: no target/marker mutation.
         $lockedBrain=Join-Path $brain 'locked-marker';$lockedMarker=Join-Path $lockedBrain '.runtime/access/para-transaction.json';$lockedTarget=Join-Path $lockedBrain 'target.md'
@@ -256,8 +256,8 @@ try {
         $outcomes=Invoke-Race 5 {param($i,$a) New-SBTrackerTaskEntry -BrainRoot $a[0] -Path $a[1] -Title ("Concorrente $i") -Acceptance @('ok') -ProvenanceReference 'history/fonte.md' -BackupRoot $a[2]} @($brain,$trackerPath,$backups)
         $data=Read-SBJson $trackerPath $null;$seqs=@($data.tasks|ForEach-Object seq);$wins=@($outcomes|Where-Object ok)
         Assert-Conc (@($outcomes|Where-Object {!$_.ok -and !$_.code}).Count -eq 0) ('tracker -NewTask: i perdenti falliscono con codice stabile ('+(@($outcomes|Where-Object {!$_.ok}|ForEach-Object {[string]$_.code+':'+$_.type+':'+$_.message}) -join ' | ')+')')
-        Assert-Conc ($data.tasks.Count -eq 1+$wins.Count -and @($seqs|Sort-Object -Unique).Count -eq $seqs.Count -and $data.extensions.lastSeq -eq ($seqs|Measure-Object -Maximum).Maximum) 'tracker -NewTask: file valido, numeri progressivi senza duplicati, lastSeq coerente'
-        Assert-Conc ($wins.Count -ge 1 -and ((Test-Path -LiteralPath (Join-Path $brain '.runtime/access/para-transaction.json')) -eq $false)) 'tracker -NewTask: almeno una creazione riuscita e nessuna transazione pendente'
+        Assert-Conc ($data.tasks.Count -eq 1+$wins.Count -and @($seqs|Sort-Object -Unique).Count -eq $seqs.Count -and $data.extensions.lastSeq -eq ($seqs|Measure-Object -Maximum).Maximum) 'tracker -NewTask: valid file, sequential numbers without duplicates, consistent lastSeq'
+        Assert-Conc ($wins.Count -ge 1 -and ((Test-Path -LiteralPath (Join-Path $brain '.runtime/access/para-transaction.json')) -eq $false)) 'tracker -NewTask: at least one successful creation and no pending transaction'
     }
 
     Invoke-Case 'backup' (Join-Path $root 'backup') {
@@ -280,8 +280,8 @@ try {
         $results=@($processes|ForEach-Object {$out=$_.StandardOutput.ReadToEndAsync();$err=$_.StandardError.ReadToEndAsync();$_.WaitForExit();@{exit=$_.ExitCode;out=$out.Result;err=$err.Result}})
         $zips=@(Get-ChildItem -LiteralPath (Join-Path $brain '.runtime/backups') -File -Filter 'secondbrain-backup-*.zip' -ErrorAction SilentlyContinue)
         $ok=@($results|Where-Object {$_.exit -eq 0})
-        Assert-Conc (@($results|Where-Object {$_.exit -notin @(0,3)}).Count -eq 0) ('backup: ogni processo termina con 0 o con 3 (occupato); esiti '+(($results|ForEach-Object exit) -join ','))
-        Assert-Conc ($ok.Count -ge 1 -and $zips.Count -eq $ok.Count) ('backup: uno zip distinto per ogni backup riuscito ('+$zips.Count+' zip, '+$ok.Count+' riusciti)')
+        Assert-Conc (@($results|Where-Object {$_.exit -notin @(0,3)}).Count -eq 0) ('backup: each process ends with 0 or 3 (busy); outcomes'+(($results|ForEach-Object exit) -join ','))
+        Assert-Conc ($ok.Count -ge 1 -and $zips.Count -eq $ok.Count) ('backup: a distinct zip for each successful backup ('+$zips.Count+' zip, '+$ok.Count+' riusciti)')
         $verified=@($zips|Where-Object {$v=(& pwsh -NoProfile -File $script -Verify -BackupPath $_.FullName 2>&1|Out-String);$LASTEXITCODE -eq 0 -and $v -match 'VERIFY SUCCESS'})
         Assert-Conc ($verified.Count -eq $zips.Count) 'backup: tutti gli zip prodotti superano -Verify'
         Add-Type -AssemblyName System.IO.Compression.FileSystem
@@ -299,24 +299,24 @@ try {
         $created=Write-SBFile $unicode ([Text.UTF8Encoding]::new($false).GetBytes($text)) 'absent' $backups
         Assert-Conc ($created -and (Read-SBText $unicode) -ceq $text) 'Unicode: nome e contenuto UTF-8 scritti e riletti identici'
         # Case differences: same path with a different spelling, and path comparison.
-        Assert-Conc (Test-SBSamePath $unicode $unicode.ToUpperInvariant() ) 'maiuscole/minuscole: lo stesso percorso e riconosciuto'
+        Assert-Conc (Test-SBSamePath $unicode $unicode.ToUpperInvariant() ) 'case: the same path is recognized'
         $caseFile=Join-Path $dir 'Caso.md';[IO.File]::WriteAllText($caseFile,"uno`n");$caseHash=Get-SBFileHash $caseFile
         $upperPath=Join-Path $dir 'CASO.md'
-        Assert-Conc ((Get-SBFileHash $upperPath) -eq $caseHash -and (Write-SBFile $upperPath ([Text.Encoding]::UTF8.GetBytes("due`n")) $caseHash $backups) -and [IO.File]::ReadAllText($caseFile) -ceq "due`n") 'maiuscole/minuscole: la scrittura con un altro caso aggiorna lo stesso file senza duplicarlo'
-        Assert-Conc (@(Get-ChildItem -LiteralPath $dir -File -Filter 'caso.md').Count -eq 1) 'maiuscole/minuscole: nessun file duplicato'
+        Assert-Conc ((Get-SBFileHash $upperPath) -eq $caseHash -and (Write-SBFile $upperPath ([Text.Encoding]::UTF8.GetBytes("due`n")) $caseHash $backups) -and [IO.File]::ReadAllText($caseFile) -ceq "due`n") 'case: writing with a different case updates the same file without duplicating it'
+        Assert-Conc (@(Get-ChildItem -LiteralPath $dir -File -Filter 'caso.md').Count -eq 1) 'case: no duplicate file'
         # File locked by another process/handle: clear error, intact content, no staging.
         $locked=Join-Path $dir 'bloccato.md';[IO.File]::WriteAllText($locked,"bloccato`n");$lockedHash=Get-SBFileHash $locked
         $holder=[IO.File]::Open($locked,[IO.FileMode]::Open,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None)
         $lockError=$null
         try{try{Write-SBFile $locked ([Text.Encoding]::UTF8.GetBytes("nuovo`n")) $lockedHash $backups|Out-Null}catch{$lockError=$_.Exception}}finally{$holder.Dispose()}
-        Assert-Conc ($null -ne $lockError) 'file bloccato: la scrittura fallisce con un errore, non in silenzio'
-        Assert-Conc ((Get-SBFileHash $locked) -eq $lockedHash -and @(Get-ChildItem -LiteralPath $dir -Force -Filter '.secondbrain-*.tmp').Count -le 1) 'file bloccato: contenuto originale intatto'
+        Assert-Conc ($null -ne $lockError) 'locked file: the write fails with an error, not silently'
+        Assert-Conc ((Get-SBFileHash $locked) -eq $lockedHash -and @(Get-ChildItem -LiteralPath $dir -Force -Filter '.secondbrain-*.tmp').Count -le 1) 'locked file: original content intact'
         # Path beyond 260 characters.
         $deep=$dir;while($deep.Length -lt 300){$deep=Join-Path $deep ('sezione-lunga-numero-'+$deep.Length)}
         $longPath=Join-Path $deep 'file-lungo.md';$longError=$null;$longCreated=$false
         try{[IO.Directory]::CreateDirectory($deep)|Out-Null;$longCreated=Write-SBFile $longPath ([Text.Encoding]::UTF8.GetBytes("lungo`n")) 'absent' $backups}catch{$longError=$_.Exception}
-        Assert-Conc ($longPath.Length -gt 260) ('percorso oltre 260 caratteri costruito ('+$longPath.Length+')')
-        Assert-Conc (($longCreated -and [IO.File]::ReadAllText($longPath) -ceq "lungo`n") -or ($null -ne $longError -and $longError.Message)) 'percorso oltre 260: scritto e riletto, oppure rifiutato con errore esplicito (mai in silenzio)'
+        Assert-Conc ($longPath.Length -gt 260) ('path over 260 characters built ('+$longPath.Length+')')
+        Assert-Conc (($longCreated -and [IO.File]::ReadAllText($longPath) -ceq "lungo`n") -or ($null -ne $longError -and $longError.Message)) 'path over 260: written and read back, or rejected with an explicit error (never silently)'
         $longResult=if($longCreated){'supportato'}else{'rifiutato: '+$longError.Message}
         Write-Output ('INFO CONCURRENCY: percorso '+$longPath.Length+' caratteri '+$longResult)
     }

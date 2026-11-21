@@ -25,14 +25,14 @@ $audit=Invoke-SBGitHubAudit @('github.com/test/repo') @('test') $request
 $repo=$audit.repositories[0]
 Assert-Audit ($audit.complete -and $repo.complete -and !$audit.remoteMutation) 'copertura completa con Wiki disabilitata, sole letture'
 Assert-Audit ($repo.resources.issues.count -eq 2 -and $repo.resources.issues.pages.Count -eq 2) 'pagination Link completa, PR escluse dalle issue'
-Assert-Audit ($repo.resources.reviews.count -eq 2 -and $repo.resources.reviews.requests[0].pages.Count -eq 2) 'review paginate per ogni PR'
-Assert-Audit ($repo.resources.issueComments.count -eq 0 -and $repo.resources.issueComments.complete) 'zero elementi solo dopo risposta completa'
-Assert-Audit ($repo.resources.wiki.status -eq 'disabled' -and $repo.resources.wiki.count -eq 0) 'Wiki disabilitata distinta da non verificata'
+Assert-Audit ($repo.resources.reviews.count -eq 2 -and $repo.resources.reviews.requests[0].pages.Count -eq 2) 'reviews paginated for each PR'
+Assert-Audit ($repo.resources.issueComments.count -eq 0 -and $repo.resources.issueComments.complete) 'zero items only after a complete response'
+Assert-Audit ($repo.resources.wiki.status -eq 'disabled' -and $repo.resources.wiki.count -eq 0) 'Wiki disabled is distinct from unverified'
 Assert-Audit ($repo.resources.forks.complete -and $repo.resources.branches.complete -and $repo.resources.tags.complete) 'fork branch tag censiti separatamente'
 $serialized=ConvertTo-SBJson $audit
 Assert-Audit (!$serialized.Contains('SECRET-SENTINEL') -and $repo.resources.issues.items[0].bodySha256 -eq (Get-SBTextHash 'SECRET-SENTINEL')) 'corpi e titoli ridotti a hash senza segreti'
 Assert-Audit ($repo.resources.issues.pages[0].httpStatus -eq 200 -and $repo.resources.issues.pages[0].requestedAt -and $repo.resources.issues.pages[0].bodySha256) 'timestamp HTTP URL e hash per pagina'
-Assert-Audit ($seen.Count -eq 11) 'nessuna richiesta a endpoint non previsti'
+Assert-Audit ($seen.Count -eq 11) 'no request to unexpected endpoints'
 
 foreach($case in @(@(401,'authentication_required'),@(403,'access_denied'),@(404,'not_found_or_inaccessible'),@(429,'rate_limited'))){
     $code=$case[0];$request={param($url) Response-Audit @{message='SECRET-SENTINEL'} $code}.GetNewClosure()
@@ -48,32 +48,32 @@ $a=Invoke-SBGitHubAudit @('github.com/test/repo','github.com/test/other') @('tes
 Assert-Audit ($calls.Count -eq 1 -and $a.repositories[1].resources.repository.status -eq 'not_attempted') 'autenticazione mancante ferma richieste successive'
 $request={param($url) if($url -eq $base){Response-Audit @{full_name='test/repo';has_wiki=$true}}else{Response-Audit @()}}.GetNewClosure()
 $a=Invoke-SBGitHubAudit @('github.com/test/repo') @('test') $request
-Assert-Audit (!$a.complete -and $a.repositories[0].resources.wiki.status -eq 'unverified' -and $null -eq $a.repositories[0].resources.wiki.count) 'Wiki abilitata mai presentata come vuota'
+Assert-Audit (!$a.complete -and $a.repositories[0].resources.wiki.status -eq 'unverified' -and $null -eq $a.repositories[0].resources.wiki.count) 'enabled Wiki never presented as empty'
 foreach($link in @('https://evil.test/page?per_page=100',('https://user:pass'+[char]64+'api.github.com/repos/test/repo/issues?per_page=100'),'https://api.github.com/repos/other/repo/issues?per_page=100','https://api.github.com/repos/test/repo/issues?token=SECRET%20VALUE','https://api.github.com/repos/test/repo/issues?token=secret')){
     $request={param($url) Response-Audit @(@{id=1}) 200 @{link=('<'+$link+'>; rel="next"')}}.GetNewClosure()
     $r=(Resource-Audit $request).resource
-    Assert-Audit (!$r.complete -and $r.pages.Count -eq 1 -and $r.reason -eq 'unsafe_pagination_link') 'pagination fuori confine o credenziali rifiutate prima della richiesta'
+    Assert-Audit (!$r.complete -and $r.pages.Count -eq 1 -and $r.reason -eq 'unsafe_pagination_link') 'out-of-bounds pagination or credentials rejected before the request'
 }
 $request={param($url) Response-Audit @() 200 @{link=('<'+$url+'>; rel="next"')}}
 $r=(Resource-Audit $request).resource
-Assert-Audit (!$r.complete -and $r.reason -eq 'pagination_cycle_or_limit') 'ciclo pagination rifiutato'
+Assert-Audit (!$r.complete -and $r.reason -eq 'pagination_cycle_or_limit') 'pagination loop rejected'
 $request={param($url) Response-Audit @() 200 @{link=('<'+$url+'&page=2>; rel="next"')}}
 $r=(Resource-Audit $request 1).resource
 Assert-Audit (!$r.complete -and $r.reason -eq 'pagination_cycle_or_limit') 'limite pagine non diventa completamento'
 $request={param($url) if($url -match 'page=2'){Response-Audit @{message='denied'} 403}else{Response-Audit @(@{id=1}) 200 @{link=('<'+$url+'&page=2>; rel="next"')}}}
 $r=(Resource-Audit $request).resource
-Assert-Audit (!$r.complete -and $r.status -eq 'partial' -and $r.observedCount -eq 1 -and $null -eq $r.count) 'errore a pagina successiva conserva parziali senza totale falso'
+Assert-Audit (!$r.complete -and $r.status -eq 'partial' -and $r.observedCount -eq 1 -and $null -eq $r.count) 'error on a later page keeps partial results without a false total'
 $r=(Resource-Audit {param($url) Response-Audit @{message='object'}}).resource
-Assert-Audit (!$r.complete -and $r.reason -eq 'expected_array') 'payload di tipo errato non interpretato come elenco'
+Assert-Audit (!$r.complete -and $r.reason -eq 'expected_array') 'payload of the wrong type not interpreted as a list'
 $r=(Resource-Audit {param($url) throw 'SECRET-SENTINEL'}).resource
 Assert-Audit (!$r.complete -and !(ConvertTo-SBJson $r).Contains('SECRET-SENTINEL')) 'eccezioni trasporto sanificate'
 $request={param($url) if($url -eq $base){Response-Audit @{full_name='other/repo';has_wiki=$false}}else{throw 'unexpected'}}.GetNewClosure()
 $a=Invoke-SBGitHubAudit @('github.com/test/repo') @('test') $request
-Assert-Audit (!$a.complete -and !$a.repositories[0].metadata -and $a.repositories[0].resources.repository.reason -eq 'repository_identity_changed') 'redirect identita non amplia perimetro'
+Assert-Audit (!$a.complete -and !$a.repositories[0].metadata -and $a.repositories[0].resources.repository.reason -eq 'repository_identity_changed') 'identity redirect does not widen the scope'
 foreach($identity in @('github.com/other/repo','github.com/test/../repo','github.com/test/repo?secret=1')){
     $caught=$false;try{Invoke-SBGitHubAudit @($identity) @('test') {throw 'no network'}|Out-Null}catch{$caught=$true}
-    Assert-Audit $caught 'owner e identita invalidi rifiutati prima della rete'
+    Assert-Audit $caught 'invalid owner and identity rejected before the network'
 }
 $caught=$false;try{Invoke-SBGitHubAudit @('github.com/test/repo','github.com/test/repo') @('test') {throw 'no network'}|Out-Null}catch{$caught=$true}
 Assert-Audit $caught 'identita duplicate rifiutate'
-'SUCCESS AUDIT: '+$script:auditChecks+' verifiche senza rete'
+'SUCCESS AUDIT: '+$script:auditChecks+' checks without network'

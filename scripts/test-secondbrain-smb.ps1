@@ -41,7 +41,7 @@ if (!$ShareRoot) {
     $ShareRoot = '\\localhost\' + $drive + '$'
     $ShareLocalPath = $drive + ':\'
 }
-if (!$ShareLocalPath) { throw 'Con -ShareRoot indicare anche -ShareLocalPath (percorso locale della share)' }
+if (!$ShareLocalPath) { throw 'With -ShareRoot also give -ShareLocalPath (local path of the share)' }
 $null = if ($ShareRoot -match '^\\\\([^\\]+)\\') { $Matches[1] } else { throw 'ShareRoot deve essere un percorso UNC' }
 $shareName = ($ShareRoot -replace '^\\\\[^\\]+\\', '').TrimEnd('\')
 if (!$Aliases) {
@@ -53,7 +53,7 @@ $stamp = [DateTime]::Now.ToString('yyyyMMdd-HHmmss')
 $localFixture = Join-Path $brain ('.runtime\tests\smb-' + $stamp)
 New-Item -ItemType Directory -Force -Path $localFixture | Out-Null
 $relative = [IO.Path]::GetRelativePath($ShareLocalPath, $localFixture)
-if ($relative.StartsWith('..')) { throw 'La fixture deve stare sotto il percorso locale della share' }
+if ($relative.StartsWith('..')) { throw 'The fixture must be under the local path of the share' }
 function Get-UncPath([string]$Alias, [string]$Leaf = '') {
     $base = '\\' + $Alias + '\' + $shareName + '\' + $relative
     if ($Leaf) { Join-Path $base $Leaf } else { $base }
@@ -162,8 +162,8 @@ if (Wait-File $ready) {
         $opened = [IO.File]::Exists($out) -and [IO.File]::ReadAllText($out) -eq 'OPENED'
         if (!$opened) { Start-Sleep -Milliseconds 500 }
     }
-    Add-Result 'lock rilasciato dopo la terminazione forzata del titolare' $opened $(if ($opened) { '' } else { 'ancora occupato dopo 10 s' })
-} else { Add-Result 'lock rilasciato dopo la terminazione forzata del titolare' $false 'titolare non avviato' }
+    Add-Result 'lock released after the forced termination of the holder' $opened $(if ($opened) { '' } else { 'still busy after 10 s' })
+} else { Add-Result 'lock released after the forced termination of the holder' $false 'holder not started' }
 
 # 3. Concurrent writes with the module's Open-SBLockFile, a different alias per process.
 $log = Join-Path $localFixture 'writers.log'
@@ -179,7 +179,7 @@ $intervals = @($lines | ForEach-Object { $f = $_ -split ';'; [pscustomobject]@{ 
 $overlap = $false
 for ($k = 1; $k -lt $intervals.Count; $k++) { if ($intervals[$k].enter -lt $intervals[$k - 1].leave) { $overlap = $true } }
 Add-Result "scritture concorrenti ($Writers processi, alias diversi): tutte completate" ($intervals.Count -eq $Writers) "$($intervals.Count)/$Writers"
-Add-Result 'scritture concorrenti: mutua esclusione (nessuna sovrapposizione)' (!$overlap -and $intervals.Count -gt 1) (($intervals | ForEach-Object { "$($_.id) attesa $($_.waitedMs) ms" }) -join '; ')
+Add-Result 'concurrent writes: mutual exclusion (no overlap)' (!$overlap -and $intervals.Count -gt 1) (($intervals | ForEach-Object { "$($_.id) attesa $($_.waitedMs) ms" }) -join '; ')
 
 # 3b. FIFO queue (Open-SBWriterLock): the first writer holds the lock; others queue one at a time (known arrival order) and must enter in that order.
 $fifoRoot = Get-UncPath $Aliases[0] 'fifo-coord'
@@ -232,14 +232,14 @@ try {
     & icacls $denyDir /remove:d $me | Out-Null
 }
 $owner = try { (Get-Acl -LiteralPath (Get-UncPath $Aliases[0])).Owner } catch { 'non leggibile' }
-Add-Result 'permessi: proprietario della fixture via UNC' $true $owner -Informational
+Add-Result 'permissions: owner of the fixture via UNC' $true $owner -Informational
 
 $hard = @($results | Where-Object { !$_.informational })
 $report = [ordered]@{
     schemaVersion = 1; date = [DateTimeOffset]::Now.ToString('o'); machine = [Environment]::MachineName; user = [Security.Principal.WindowsIdentity]::GetCurrent().Name
     shareRoot = $ShareRoot; aliases = $Aliases; fixture = $localFixture
     outcome = $(if ($failures.Count) { 'failed' } else { 'partial' })
-    limits = 'Un solo PC e un solo utente (loopback); nessun secondo host, nessun utente diverso, nessun NAS/Samba: esito massimo partial'
+    limits = 'One PC and one user (loopback); no second host, no different user, no NAS/Samba: maximum outcome partial'
     passed = @($hard | Where-Object ok).Count; total = $hard.Count; failures = @($failures); results = $results
 }
 $reportPath = Join-Path $localFixture 'report.json'

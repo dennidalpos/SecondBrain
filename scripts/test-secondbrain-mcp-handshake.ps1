@@ -69,10 +69,10 @@ Add-Request 'resources/read' @{ uri = 'secondbrain://prompts/catalog' }
 
 $targets = @($Target -split ',' | ForEach-Object { $_.Trim().ToLowerInvariant() } | Where-Object { $_ })
 $validTargets = @('codex','claude','claude-code','cursor','vscode','antigravity','windsurf','all')
-if (!$targets.Count -or @($targets | Where-Object { $_ -notin $validTargets }).Count) { throw ('Target non valido: usare ' + ($validTargets -join ', ') + ' (separati da virgola)') }
+if (!$targets.Count -or @($targets | Where-Object { $_ -notin $validTargets }).Count) { throw ('Invalid target: use' + ($validTargets -join ', ') + ' (separati da virgola)') }
 $pairings = @(@(Get-SBMcpPairing -BrainRoot $BrainRoot -Target 'all') | Where-Object { $targets -contains 'all' -or $_.Target -in $targets })
 $expectedVersion = if ($ProtocolVersion -in @('2024-11-05','2025-03-26')) { $ProtocolVersion } else { '2025-03-26' }
-$report = [ordered]@{ schemaVersion = 1; generatedAt = [DateTimeOffset]::UtcNow.ToString('o'); brainRoot = $BrainRoot; requestedProtocolVersion = $ProtocolVersion; expectedProtocolVersion = $expectedVersion; guiVerified = $false; note = 'Handshake stdio con il comando registrato per ogni IDE; la visualizzazione degli strumenti nelle GUI non e verificata.'
+$report = [ordered]@{ schemaVersion = 1; generatedAt = [DateTimeOffset]::UtcNow.ToString('o'); brainRoot = $BrainRoot; requestedProtocolVersion = $ProtocolVersion; expectedProtocolVersion = $expectedVersion; guiVerified = $false; note = 'Stdio handshake with the registered command for each IDE; the display of tools in the GUIs is not verified.'
     skippedTools = @(@($expectedTools | Where-Object { $_ -notin $calls.Keys })); ides = @(); checks = @() }
 
 foreach ($pairing in $pairings) {
@@ -112,9 +112,9 @@ foreach ($pairing in $pairings) {
     } finally { if (!$process.HasExited) { try { $process.Kill($true) } catch { Write-Verbose $_.Exception.Message } }; $process.Dispose() }
     $watch.Stop()
     $checks = @()
-    $checks += Assert-Handshake ($exit -eq 0) 'processo terminato con exit 0 alla chiusura di stdin' $ide
+    $checks += Assert-Handshake ($exit -eq 0) 'process ended with exit 0 when stdin closed' $ide
     $checks += Assert-Handshake ($responses.Count -eq $requests.Count) ("tutte le {0} richieste hanno una risposta" -f $requests.Count) $ide
-    $checks += Assert-Handshake ($invalidLines -eq 0) 'stdout contiene solo risposte JSON-RPC valide e senza duplicati' $ide
+    $checks += Assert-Handshake ($invalidLines -eq 0) 'stdout contains only valid JSON-RPC responses without duplicates' $ide
     $init = $responses[1]
     $checks += Assert-Handshake ($init -and $init.ContainsKey('result') -and $init.result.serverInfo.name -eq 'secondbrain-mcp') 'initialize: serverInfo secondbrain-mcp' $ide
     $checks += Assert-Handshake ($init.result.protocolVersion -ceq $expectedVersion) ("initialize: {0} negoziata come {1}" -f $ProtocolVersion,$expectedVersion) $ide
@@ -123,7 +123,7 @@ foreach ($pairing in $pairings) {
     $checks += Assert-Handshake (($names -join ',') -eq ($expectedTools -join ',')) 'tools/list: exactly the 13 expected tools' $ide
     # Pure reads (#474): every tool is read-only and idempotent except submit_dossier_write, which applies one reviewed request.
     $expectedAnnotations = { param($name) if ($name -eq 'submit_dossier_write') { @($false,$true,$true) } else { @($true,$false,$true) } }
-    $checks += Assert-Handshake (@($list.result.tools | Where-Object { $e = & $expectedAnnotations $_.name; !$_.annotations.title -or $_.annotations.readOnlyHint -ne $e[0] -or $_.annotations.destructiveHint -ne $e[1] -or $_.annotations.idempotentHint -ne $e[2] -or $_.annotations.openWorldHint -ne $false }).Count -eq 0) 'tools/list: titoli e annotazioni coerenti con il recupero delle scritture' $ide
+    $checks += Assert-Handshake (@($list.result.tools | Where-Object { $e = & $expectedAnnotations $_.name; !$_.annotations.title -or $_.annotations.readOnlyHint -ne $e[0] -or $_.annotations.destructiveHint -ne $e[1] -or $_.annotations.idempotentHint -ne $e[2] -or $_.annotations.openWorldHint -ne $false }).Count -eq 0) 'tools/list: titles and annotations consistent with write recovery' $ide
     foreach ($name in $calls.Keys) {
         $response = $responses[[int]$callIds[$name]]
         $ok = $response -and $response.ContainsKey('result') -and $response.result.isError -eq $false -and @($response.result.content).Count -ge 1 -and [string]@($response.result.content)[0].text
@@ -132,7 +132,7 @@ foreach ($pairing in $pairings) {
     $promptsId = $requests | Where-Object { $_.method -eq 'prompts/list' } | ForEach-Object { $_.id }
     $resourcesId = $requests | Where-Object { $_.method -eq 'resources/list' } | ForEach-Object { $_.id }
     $readId = $requests | Where-Object { $_.method -eq 'resources/read' } | ForEach-Object { $_.id }
-    $checks += Assert-Handshake ($responses[[int]$promptsId].result.prompts.Count -ge 1) 'prompts/list: catalogo non vuoto' $ide
+    $checks += Assert-Handshake ($responses[[int]$promptsId].result.prompts.Count -ge 1) 'prompts/list: non-empty catalog' $ide
     $checks += Assert-Handshake (@($responses[[int]$resourcesId].result.resources | Where-Object { $_.uri -eq 'secondbrain://prompts/catalog' }).Count -eq 1) 'resources/list: catalogo prompt esposto' $ide
     $checks += Assert-Handshake ([bool]$responses[[int]$readId].result.contents[0].text) 'resources/read: catalogo leggibile' $ide
     $report.ides += [ordered]@{ ide = $ide; configFile = [string]$pairing.ConfigFile; registeredInIde = [bool]$pairing.Configured; command = [string]$definition.command; args = @($definition.args); protocolVersion = $init.result.protocolVersion; toolsListCharacters = $toolsListCharacters; exitCode = $exit; seconds = [math]::Round($watch.Elapsed.TotalSeconds, 1); stderrLength = $stderrText.Length }

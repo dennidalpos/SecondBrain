@@ -12,7 +12,7 @@ $note = 'Nota privata originale: perché; not a program message.'
 $history = @(
     @{description='Esiti storici espliciti usati per risolvere le dipendenze';reference='history/source.md';sha256=('A'*64)},
     @{description=$note;reference='history/note.md';sha256=('B'*64)},
-    @{description='Numerazione retroattiva: 3 task (archivio e attivi) in ordine cronologico; originali conservati per hash.';reference='history/seq.json';sha256=('C'*64)}
+    @{description='Retroactive numbering: 3 tasks (archive and active) in chronological order; originals kept by hash.';reference='history/seq.json';sha256=('C'*64)}
 )
 $data = @{schemaVersion=1;repository=$identity;updatedAt='2026-11-03T00:00:00Z';tasks=@();history=$history;extensions=@{}}
 Put-Tracker $trackerPath (ConvertTo-SBJson $data)

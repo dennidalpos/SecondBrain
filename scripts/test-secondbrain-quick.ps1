@@ -13,10 +13,10 @@ $productRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 try {
     # Repository identities. The '@' is composed at runtime so that no email-shaped literal appears in the source.
     $at='@'
-    Assert-Quick ((ConvertTo-SBRepositoryIdentity "git${at}gitlab.example:group/nested/repo.git") -eq 'gitlab.example/group/nested/repo') 'GitLab annidato senza vincolo owner'
-    Assert-Quick ((ConvertTo-SBRepositoryIdentity "https://user:private${at}github.com/OWNER/REPO.git") -eq 'github.com/owner/repo') 'identita normalizzata senza credenziali'
+    Assert-Quick ((ConvertTo-SBRepositoryIdentity "git${at}gitlab.example:group/nested/repo.git") -eq 'gitlab.example/group/nested/repo') 'nested GitLab without an owner constraint'
+    Assert-Quick ((ConvertTo-SBRepositoryIdentity "https://user:private${at}github.com/OWNER/REPO.git") -eq 'github.com/owner/repo') 'identity normalized without credentials'
     Assert-Quick ((ConvertTo-SBRepositoryIdentity "git${at}ssh.dev.azure.com:v3/org/project/repo") -eq 'dev.azure.com/org/project/_git/repo') 'alias SSH Azure DevOps'
-    Assert-Quick ($null -eq (ConvertTo-SBRepositoryIdentity 'file:///not-a-remote')) 'remoto file non promosso a identita globale'
+    Assert-Quick ($null -eq (ConvertTo-SBRepositoryIdentity 'file:///not-a-remote')) 'file remote not promoted to a global identity'
     Assert-Quick (Test-SBRepositoryIdentity ('local:'+('a'*32))) 'identita locale persistente'
     # Deterministic JSON.
     Assert-Quick ((ConvertTo-SBJson @{b=2;a=@{z=3;y=@()}}) -ceq (ConvertTo-SBJson @{a=@{y=@();z=3};b=2})) 'JSON deterministico'
@@ -30,8 +30,8 @@ try {
     Assert-Quick (!(Test-ReadmeBadge '![Version 9.9.9](https://img.shields.io/badge/version-9.9.9-blue)' $productVersion)) 'stale README badge rejected'
     # #484 zero footprint: the user-scope text carries the loading rule and the repository files are opt-in only.
     $userScope=Get-SBPortableGlobal $productRoot
-    Assert-Quick ($userScope.Contains('knowledge.ps1 -Startup') -and $userScope.Contains('get_startup_context') -and $userScope.Contains('SECONDBRAIN_HOME')) 'le istruzioni di ambito utente caricano il contesto senza file nel repository'
-    Assert-Quick (@(ConvertTo-SBRepositoryFiles 'none').Count -eq 0 -and (@(ConvertTo-SBRepositoryFiles 'agents.md,CLAUDE.md') -join ',') -ceq 'AGENTS.md,CLAUDE.md' -and @(Get-SBBindingRepositoryFiles @{identity='x';repositoryFiles=@()}).Count -eq 0 -and @(Get-SBBindingRepositoryFiles $null).Count -eq 0) 'un binding con scelta vuota, o nessun binding, non gestisce alcun file del repository'
+    Assert-Quick ($userScope.Contains('knowledge.ps1 -Startup') -and $userScope.Contains('get_startup_context') -and $userScope.Contains('SECONDBRAIN_HOME')) 'user-scope instructions load the context without files in the repository'
+    Assert-Quick (@(ConvertTo-SBRepositoryFiles 'none').Count -eq 0 -and (@(ConvertTo-SBRepositoryFiles 'agents.md,CLAUDE.md') -join ',') -ceq 'AGENTS.md,CLAUDE.md' -and @(Get-SBBindingRepositoryFiles @{identity='x';repositoryFiles=@()}).Count -eq 0 -and @(Get-SBBindingRepositoryFiles $null).Count -eq 0) 'a binding with an empty choice, or no binding, manages no repository file'
     Assert-Quick ((@(Get-SBDefaultRepositoryFiles) -join ',') -ceq 'AGENTS.md,CLAUDE.md,GEMINI.md') 'a repository activated for the first time defaults to AGENTS.md, CLAUDE.md and GEMINI.md'
     Assert-Quick ((@(Get-SBBindingRepositoryFiles @{identity='x'}) -join ',') -ceq 'AGENTS.md,CLAUDE.md,GEMINI.md') 'un binding precedente a repositoryFiles continua a gestire AGENTS.md, CLAUDE.md e GEMINI.md'
     foreach($file in Get-ChildItem -LiteralPath $PSScriptRoot -File|Where-Object Extension -in @('.ps1','.psm1')){
@@ -67,7 +67,7 @@ try {
     Assert-Quick ((Get-SBMessage 'core.block.duplicate' @('x')) -ceq 'Duplicate block: x') 'message text is English'
     $brainRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
     Assert-Quick (!(Get-Command Set-SBUiLanguage,Get-SBUiLanguage -ErrorAction SilentlyContinue) -and !(Select-String -Path (Join-Path $PSScriptRoot '*.ps1'),(Join-Path $PSScriptRoot '*.psm1') -Pattern 'SECONDBRAIN_LANG' -SimpleMatch | Where-Object { $_.Filename -notlike 'test-*' })) 'language selection (SECONDBRAIN_LANG, -Language, Set-SBUiLanguage) is removed'
-    Assert-Quick ((Get-SBMessage 'chiave.inesistente') -ceq 'chiave.inesistente') 'chiave sconosciuta restituisce la chiave'
+    Assert-Quick ((Get-SBMessage 'chiave.inesistente') -ceq 'chiave.inesistente') 'an unknown key returns the key'
     $messageGaps=@()
     foreach($file in Get-ChildItem -LiteralPath $PSScriptRoot -Filter 'SecondBrain.*.psm1'|Where-Object Name -ne 'SecondBrain.Messages.psm1'){Import-Module $file.FullName -Force}
     foreach($file in Get-ChildItem -LiteralPath $PSScriptRoot -Filter 'SecondBrain.*.psm1'){
@@ -76,7 +76,7 @@ try {
             if((Get-SBMessage $key) -ceq $key){$messageGaps+=$key}
         }
     }
-    Assert-Quick (!$messageGaps.Count) ('ogni chiave usata ha testo en'+$(if($messageGaps.Count){': '+(($messageGaps|Select-Object -Unique) -join ', ')}))
+    Assert-Quick (!$messageGaps.Count) ('every key used has en text'+$(if($messageGaps.Count){': '+(($messageGaps|Select-Object -Unique) -join ', ')}))
     $catalog = & (Get-Module SecondBrain.Messages) { $script:SBMessages }
     $incompleteKeys = @($catalog.Keys | Where-Object { !$catalog[$_].ContainsKey('en') -or !$catalog[$_].en -or $catalog[$_].ContainsKey('it') })
     Assert-Quick (!$incompleteKeys.Count) 'all registered message keys, including dynamic diagnostics, have en text only'
@@ -118,9 +118,9 @@ try {
             $literalOutputs+=($file.Name+': '+$text.Substring(0,[Math]::Min(50,$text.Length)))
         }
     }
-    Assert-Quick (!$literalOutputs.Count) ('nessun Write-Host/Warning/Error con testo letterale'+$(if($literalOutputs.Count){': '+(($literalOutputs|Select-Object -First 5) -join '; ')}))
-    Assert-Quick (!$literalThrows.Count) ('nessun throw con testo letterale nei moduli e negli script'+$(if($literalThrows.Count){': '+(($literalThrows|Select-Object -First 5) -join '; ')}))
-    Assert-Quick (!$scriptGaps.Count) ('ogni chiave usata dagli script ha testo en nello script'+$(if($scriptGaps.Count){': '+(($scriptGaps|Select-Object -Unique -First 5) -join '; ')}))
+    Assert-Quick (!$literalOutputs.Count) ('no Write-Host/Warning/Error with literal text'+$(if($literalOutputs.Count){': '+(($literalOutputs|Select-Object -First 5) -join '; ')}))
+    Assert-Quick (!$literalThrows.Count) ('no throw with literal text in modules and scripts'+$(if($literalThrows.Count){': '+(($literalThrows|Select-Object -First 5) -join '; ')}))
+    Assert-Quick (!$scriptGaps.Count) ('every key used by the scripts has en text in the script'+$(if($scriptGaps.Count){': '+(($scriptGaps|Select-Object -Unique -First 5) -join '; ')}))
     Assert-Quick ((Get-SBMessage 'para.status.invalid') -ceq 'Invalid PARA status') 'catalogo messaggi: Para in en'
     # Facts quoted in the public documents derive from the code (tool count, prompt count, anchors, versions).
     $toolCount=@(& (Get-Module SecondBrain.Mcp) { Get-SBMcpToolDefinitions }).Count
@@ -165,17 +165,17 @@ try {
         }
         foreach($m in [regex]::Matches($text,'(?m)^#{1,6}\s+.*\(\d+\.\d+\.\d+\)\s*$')){$versionedHeadings+=($rel+': '+$m.Value.Trim())}
     }
-    Assert-Quick ($toolCount -ge 1 -and $promptCount -ge 1) ('fonti dei fatti: '+$toolCount+' strumenti MCP, '+$promptCount+' prompt')
-    Assert-Quick (!$staleFacts.Count) ('numeri di strumenti e prompt dei documenti coerenti con il codice'+$(if($staleFacts.Count){': '+(($staleFacts|Select-Object -First 5) -join '; ')}))
-    Assert-Quick (!$brokenAnchors.Count) ('ancore e file dei link interni dei documenti esistono'+$(if($brokenAnchors.Count){': '+(($brokenAnchors|Select-Object -Unique -First 40) -join '; ')}))
-    Assert-Quick (!$versionedHeadings.Count) ('nessun titolo di documento legato a una versione'+$(if($versionedHeadings.Count){': '+(($versionedHeadings|Select-Object -First 5) -join '; ')}))
+    Assert-Quick ($toolCount -ge 1 -and $promptCount -ge 1) ('sources of the facts:'+$toolCount+' strumenti MCP, '+$promptCount+' prompt')
+    Assert-Quick (!$staleFacts.Count) ('tool and prompt numbers in the documents consistent with the code'+$(if($staleFacts.Count){': '+(($staleFacts|Select-Object -First 5) -join '; ')}))
+    Assert-Quick (!$brokenAnchors.Count) ('anchors and files of the internal document links exist'+$(if($brokenAnchors.Count){': '+(($brokenAnchors|Select-Object -Unique -First 40) -join '; ')}))
+    Assert-Quick (!$versionedHeadings.Count) ('no document title tied to a version'+$(if($versionedHeadings.Count){': '+(($versionedHeadings|Select-Object -First 5) -join '; ')}))
     # Exit-code contract: every literal exit code of an entry script is a documented code (0-5) in both operations guides.
     $documentedCodes=@(0..5)
     $undocumentedExits=@()
     foreach($file in Get-ChildItem -LiteralPath $PSScriptRoot -Filter '*.ps1' -File|Where-Object {$_.Name -notlike 'test-*'}){
         foreach($m in [regex]::Matches((Read-SBText $file.FullName),'exit\s+(\d+)')){if([int]$m.Groups[1].Value -notin $documentedCodes){$undocumentedExits+=($file.Name+': exit '+$m.Groups[1].Value)}}
     }
-    Assert-Quick (!$undocumentedExits.Count) ('codici di uscita degli script tra quelli documentati'+$(if($undocumentedExits.Count){': '+(($undocumentedExits|Select-Object -First 5) -join '; ')}))
+    Assert-Quick (!$undocumentedExits.Count) ('script exit codes among the documented ones'+$(if($undocumentedExits.Count){': '+(($undocumentedExits|Select-Object -First 5) -join '; ')}))
     foreach($guide in @('operations.md')){
         $guideText=Read-SBText (Join-Path $productRoot ('docs/reference/'+$guide))
         $missingRows=@($documentedCodes|Where-Object {$guideText -notmatch ('(?m)^\|\s*'+$_+'\s*\|')})
@@ -204,18 +204,18 @@ try {
         $moduleGraph[$file.BaseName]=@([regex]::Matches((Read-SBText $file.FullName),"Import-Module \(Join-Path \$PSScriptRoot '(SecondBrain\.[A-Za-z]+)\.psm1'\)")|ForEach-Object {$_.Groups[1].Value}|Sort-Object -Unique)
     }
     $cycle=Find-QuickModuleCycle $moduleGraph
-    Assert-Quick (!$cycle) ('nessun ciclo tra i moduli'+$(if($cycle){': '+$cycle}))
-    Assert-Quick ((Find-QuickModuleCycle @{A=@('B');B=@('C');C=@('A')}) -eq 'A -> B -> C -> A') 'il controllo anti-ciclo fallisce su un ciclo di prova'
-    Assert-Quick (!(Find-QuickModuleCycle @{A=@('B','C');B=@('C');C=@()})) 'il controllo anti-ciclo accetta un grafo aciclico'
+    Assert-Quick (!$cycle) ('no cycle between the modules'+$(if($cycle){': '+$cycle}))
+    Assert-Quick ((Find-QuickModuleCycle @{A=@('B');B=@('C');C=@('A')}) -eq 'A -> B -> C -> A') 'the anti-cycle check fails on a test cycle'
+    Assert-Quick (!(Find-QuickModuleCycle @{A=@('B','C');B=@('C');C=@()})) 'the anti-cycle check accepts an acyclic graph'
     $readmeText=Read-SBText (Join-Path $productRoot 'README.md')
     Assert-Quick (!([regex]::IsMatch($readmeText,'(?i)\b(Version|versione|in) (\d+\.\d+\.\d+)\b') -and ([regex]::Matches($readmeText,'(?i)\b(Version|versione|in) (\d+\.\d+\.\d+)\b')|Where-Object {$_.Groups[2].Value -ne $productVersion}).Count)) 'il README non cita versioni diverse da VERSION'
     # Task runner selection on synthetic tasks.
     Import-Module (Join-Path $PSScriptRoot 'SecondBrain.TaskRunner.psm1') -Force
     # Project isolation has no switch (#475).
     $noBrain=Join-Path ([IO.Path]::GetTempPath()) ('sb-absent-'+[guid]::NewGuid().ToString('N'))
-    Assert-Quick (Test-SBProjectIsolation $noBrain) 'isolamento per progetto attivo per default'
+    Assert-Quick (Test-SBProjectIsolation $noBrain) 'isolation per active project by default'
     $rootsError=try{Invoke-SBHostDiscovery -BrainRoot $noBrain -Roots @();''}catch{$_.Exception.Message}
-    Assert-Quick ($rootsError -match 'Radici obbligatorie|Roots required') 'discovery senza radici esplicite rifiutata'
+    Assert-Quick ($rootsError -match 'Radici obbligatorie|Roots required') 'discovery without explicit roots rejected'
     # Repository dossier as a project in repos (strict per-repository perimeter).
     $paraBrain=Join-Path ([IO.Path]::GetTempPath()) ('sb-para-'+[guid]::NewGuid().ToString('N'))
     try{
@@ -225,7 +225,7 @@ try {
         foreach($name in @('brief.md','context.md','memory.md')){[IO.File]::WriteAllText((Join-Path $dossier $name),"# $name`n")}
         $entities=@(Get-SBParaEntities $paraBrain @())
         Assert-Quick ($entities.Count -eq 1 -and $entities[0].kind -eq 'project' -and $entities[0].repository -eq 'github.com/acme/demo') 'dossier repository come progetto in repos'
-        Assert-Quick (Test-SBRepoDossier $entities[0]) 'predicato dossier repository per kind=project con repository'
+        Assert-Quick (Test-SBRepoDossier $entities[0]) 'repository dossier predicate for kind=project with a repository'
         Assert-Quick (!(Test-SBRepoDossier @{kind='project';repository=''}) -and (Test-SBRepoDossier @{kind='area'})) 'progetto a tempo non e dossier repository, area legacy si'
     }finally{if(Test-Path -LiteralPath $paraBrain){Remove-Item -LiteralPath $paraBrain -Recurse -Force}}
     $synth=@(
@@ -238,11 +238,11 @@ try {
         [pscustomobject]@{id='G';seq=7;status='todo';priority='P0';execution='autonomous'}
     )
     $picked=@(Select-SBRunnableTasks $synth 10)
-    Assert-Quick (($picked.id -join ',') -ceq 'G,A,B') 'runner: solo todo autonomi, fuori da qualifiche e attese umane, per priorita e seq'
+    Assert-Quick (($picked.id -join ',') -ceq 'G,A,B') 'runner: only autonomous todo, outside qualifications and human waits, by priority and seq'
     Assert-Quick (@(Select-SBRunnableTasks $synth 1).Count -eq 1) 'runner: MaxTasks limita la selezione'
     Assert-Quick ((New-SBTaskRunPrompt $picked[0]).Contains('nessun commit')-or(New-SBTaskRunPrompt $picked[0]).Contains('Nessun commit')-or(New-SBTaskRunPrompt $picked[0]).Contains('commit, push')) 'runner: il prompt vieta commit e push'
     Assert-Quick ((New-SBTaskRunPrompt $picked[0]).Contains('Scope: work only on the repository of this checkout')) 'runner: the prompt limits the work to the checkout repository'
-    Assert-Quick (!(New-SBTaskRunPrompt $picked[0]).Contains('Letture consentite')) 'runner: il prompt non cita allowlist di lettura (#475)'
+    Assert-Quick (!(New-SBTaskRunPrompt $picked[0]).Contains('Letture consentite')) 'runner: the prompt does not cite a read allowlist (#475)'
     $decidedTask=[pscustomobject]@{id='D-1';seq=9;extensions=[pscustomobject]@{decisions=@([pscustomobject]@{questionId='q1';question='Quale sezione?';answer='Installazione'},@{questionId='q2';question='Senza risposta'})}}
     $decidedPrompt=New-SBTaskRunPrompt $decidedTask
     Assert-Quick ($decidedPrompt.Contains('Decisions already taken by the owner') -and $decidedPrompt.Contains('- Quale sezione? -> Installazione') -and !$decidedPrompt.Contains('Senza risposta') -and !(New-SBTaskRunPrompt $picked[0]).Contains('Decisions already taken by the owner')) 'runner: the prompt carries the owner decisions with an answer, only when present'
@@ -251,13 +251,13 @@ try {
     function Test-QuickScope([scriptblock]$Call){try{& $Call;$true}catch{$false}}
     try{
         foreach($n in $scopeNames.Values){[Environment]::SetEnvironmentVariable($n,$null)}
-        Assert-Quick ($null -eq (Get-SBRunnerReadScope) -and (Test-QuickScope {Assert-SBRunnerReadScope -Global}) -and (Test-QuickScope {Assert-SBRunnerReadScope -Repository 'github.com/x/other' -Write})) 'runner: fuori dal runner il guardiano non limita le letture globali'
+        Assert-Quick ($null -eq (Get-SBRunnerReadScope) -and (Test-QuickScope {Assert-SBRunnerReadScope -Global}) -and (Test-QuickScope {Assert-SBRunnerReadScope -Repository 'github.com/x/other' -Write})) 'runner: outside the runner the guard does not limit global reads'
         [Environment]::SetEnvironmentVariable($scopeNames.repository,'github.com/x/self')
         Assert-Quick ((Get-SBRunnerReadScope).repository -ceq 'github.com/x/self' -and $scopeNames.Count -eq 1) 'runner: perimetro dalla sola variabile del repository'
         Assert-Quick (!(Test-QuickScope {Assert-SBRunnerReadScope -Global})) 'runner: -All, -AllDossiers e all=true rifiutati nella sessione del runner'
-        Assert-Quick (!(Test-QuickScope {Assert-SBRunnerReadScope -Repository 'github.com/x/other'})) 'runner: lettura di un altro repository rifiutata'
+        Assert-Quick (!(Test-QuickScope {Assert-SBRunnerReadScope -Repository 'github.com/x/other'})) 'runner: reading another repository rejected'
         Assert-Quick (Test-QuickScope {Assert-SBRunnerReadScope -Repository 'github.com/x/self'}) 'runner: lettura del repository del task consentita'
-        Assert-Quick (!(Test-QuickScope {Assert-SBRunnerReadScope -Repository 'github.com/x/other' -Write}) -and (Test-QuickScope {Assert-SBRunnerReadScope -Repository 'github.com/x/self' -Write})) 'runner: scritture solo nel repository del task'
+        Assert-Quick (!(Test-QuickScope {Assert-SBRunnerReadScope -Repository 'github.com/x/other' -Write}) -and (Test-QuickScope {Assert-SBRunnerReadScope -Repository 'github.com/x/self' -Write})) 'runner: writes only in the task repository'
     }finally{foreach($n in $scopeNames.Values){[Environment]::SetEnvironmentVariable($n,$savedScope[$n])}}
     # Injectable clock and identifiers (#498): fixed values, then a stepping source, then the system sources again.
     $fixedNow=[DateTimeOffset]::new(2026,11,13,10,30,0,[TimeSpan]::Zero)
@@ -266,7 +266,7 @@ try {
         Assert-Quick ((Get-SBNow).ToString('o') -ceq '2026-11-13T10:30:00.0000000+00:00' -and (Get-SBNow).Offset -eq [TimeSpan]::Zero) 'orologio fisso: Get-SBNow restituisce il valore iniettato in UTC'
         Assert-Quick ((Get-SBNow).AddDays(-14).ToString('yyyyMMdd') -ceq '20261030' -and (Get-SBNow -Local).UtcDateTime -eq $fixedNow.UtcDateTime) 'orologio fisso: aritmetica e variante locale coerenti'
         $script:tick=0;Set-SBClockSource {$script:tick++;[DateTimeOffset]::new(2026,11,13,10,30,0,[TimeSpan]::Zero).AddSeconds($script:tick)}
-        Assert-Quick (((Get-SBNow)-(Get-SBNow)).TotalSeconds -eq -1) 'orologio a passi: ogni lettura avanza di un secondo'
+        Assert-Quick (((Get-SBNow)-(Get-SBNow)).TotalSeconds -eq -1) 'stepped clock: each read advances by one second'
         $script:seq=0;Set-SBIdSource {$script:seq++;('{0:x32}' -f $script:seq)}
         Assert-Quick ((New-SBId) -ceq ('0'*31+'1') -and (New-SBId) -ceq ('0'*31+'2')) 'ID iniettati: sequenza deterministica'
         Set-SBClockSource $null;Set-SBIdSource $null
@@ -275,7 +275,7 @@ try {
     }finally{Set-SBClockSource $null;Set-SBIdSource $null}
     # Only Core reads the system clock or creates GUIDs outside the tests.
     $direct=@(Get-ChildItem -LiteralPath $PSScriptRoot -File|Where-Object {$_.Extension -in '.ps1','.psm1' -and $_.Name -notlike 'test-*' -and $_.Name -ne 'SecondBrain.Core.psm1'}|Select-String -Pattern 'Get-Date|\[Date[Tt]ime(Offset)?\]::(Now|UtcNow)|NewGuid|Get-Random')
-    Assert-Quick ($direct.Count -eq 0) ('nessun orologio o GUID diretto fuori da Core e dai test'+$(if($direct.Count){': '+$direct[0].Filename+':'+$direct[0].LineNumber}))
+    Assert-Quick ($direct.Count -eq 0) ('no direct clock or GUID outside Core and the tests'+$(if($direct.Count){': '+$direct[0].Filename+':'+$direct[0].LineNumber}))
     # Tracker merge: messages keyed, source detection moved with the merge module, no Git needed for detection.
     Import-Module (Join-Path $PSScriptRoot 'SecondBrain.TrackerMerge.psm1') -Force
     Assert-Quick ((Get-SBMessage 'trackermerge.conflict.seq' @(3,'ONB-3')) -match 'Sequence number 3 already belongs to task ONB-3') 'tracker merge: conflict messages come from Add-SBMessages keys'
@@ -286,5 +286,5 @@ try {
         $probe=Get-SBCheckoutTrackerSource $mergeProbe 'github.com/test/probe'
         Assert-Quick ($probe.path -ceq 'tasks.json' -and !$probe.compatible -and $null -eq (Get-SBCheckoutTrackerSource (Join-Path $mergeProbe 'absent') 'github.com/test/probe')) 'tracker merge: checkout tracker source detection'
     }finally{if(Test-Path -LiteralPath $mergeProbe){Remove-Item -LiteralPath $mergeProbe -Recurse -Force}}
-    'SUCCESS QUICK: '+$script:quickChecks+' verifiche pure (nessun Git, nessun processo figlio).'
+    'SUCCESS QUICK: '+$script:quickChecks+' pure checks (no Git, no child process).'
 } finally { }

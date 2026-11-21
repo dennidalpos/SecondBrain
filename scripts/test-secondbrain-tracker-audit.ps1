@@ -65,7 +65,7 @@ try {
         $registrationPath=Get-SBTrackerImportPath $f.config $f.identity
         $manifestPath=(Read-SBJson $registrationPath $null).manifest
         $historical=Read-SBTrackerManifest $f.config $manifestPath
-        Assert-Audit ($historical.phase -ceq 'prepared' -and (Get-SBFileHash $historical.source.backup) -ceq $originalHash) 'preparazione conserva originale e fase'
+        Assert-Audit ($historical.phase -ceq 'prepared' -and (Get-SBFileHash $historical.source.backup) -ceq $originalHash) 'preparation keeps the original and the phase'
         # Model a pre-1.0 journal before it writes any archive operations.
         $historical.kind='tracker-migration'
         $historical.source.archive=$historical.source.archive.Replace('tracker-import-','tracker-migration-')
@@ -83,10 +83,10 @@ try {
         Assert-Audit (([string]$importedX.status -cin @('done','cancelled') -or $importedX.extensions.readiness.schemaVersion -eq 1) -and $manifestReadiness.Count -eq 1 -and $manifestReadiness[0].id -ceq 'X') ('#609: the imported task stores readiness in extensions and the manifest reports it: '+(ConvertTo-SBJson $importedX))
         $registrationFiles=@(foreach($rootName in @('tracker-imports','tracker-migrations')){$dir=Join-Path $f.config.runtimeRoot $rootName;if(Test-Path -LiteralPath $dir){Get-ChildItem -LiteralPath $dir -File -Filter '*.json'}})
         $registrations=@(Get-SBTrackerManifestRegistrations $f.config)
-        Assert-Audit ($registrationFiles.Count -eq 2 -and $registrations.Count -eq 1 -and $registrations[0].path -ceq $manifestPath) 'registri storico e corrente dello stesso manifest producono una sola registrazione'
+        Assert-Audit ($registrationFiles.Count -eq 2 -and $registrations.Count -eq 1 -and $registrations[0].path -ceq $manifestPath) 'historical and current registries of the same manifest produce a single registration'
         $mapping=@{'repos/Repo'='04-archives/areas/repo-area'}
         $relocation=@(Get-SBTrackerRelocationOperations $f.config $mapping)
-        Assert-Audit (@($relocation|Group-Object path|Where-Object Count -gt 1).Count -eq 0) 'pianificazione PARA: una sola operazione per manifest'
+        Assert-Audit (@($relocation|Group-Object path|Where-Object Count -gt 1).Count -eq 0) 'PARA planning: a single operation per manifest'
         Assert-Audit (@(Get-SBParaRuntimePaths $f.config|Where-Object {$_ -ceq $manifestPath}).Count -eq 1) 'protezioni PARA: manifest elencato una volta'
         & pwsh -NoProfile -File $cli -ConfigPath $f.config.configPath -RollbackManifest $manifestPath -Apply|Out-Null
         Assert-Audit ($LASTEXITCODE -eq 0 -and (Read-SBTrackerManifest $f.config $manifestPath).phase -ceq 'rolled_back' -and (Get-SBFileHash $f.source) -ceq $originalHash -and (Get-SBFileHash $metadata) -ceq $metadataHash) 'rollback esplicito del journal storico ripristina i byte originali'
@@ -104,22 +104,22 @@ try {
             Reject-Audit {Invoke-SBTrackerImport -Config $f.config -Identity $f.identity -SourcePath $source -Activate -AfterPhase $edit} ('modifica nella fase '+$checkpoint+' rifiutata')
             $m=Read-SBTrackerManifest $f.config (Read-SBJson (Get-SBTrackerImportPath $f.config $f.identity) $null).manifest
             Assert-Audit ((Read-SBJson $source $null).tasks.Count -eq 2 -and (Get-SBFileHash $m.source.backup) -eq $hash -and (Get-SBFileHash $m.source.archive) -eq $hash) ('entrambe le versioni preservate '+$checkpoint)
-            Reject-Audit {Invoke-SBTrackerImport -Config $f.config -ManifestPath (Read-SBJson (Get-SBTrackerImportPath $f.config $f.identity) $null).manifest -Activate} ('ripresa con fonte mutata rifiutata '+$checkpoint)
-            if(Test-Path -LiteralPath $m.candidate){Assert-Audit ((Read-SBJson $m.candidate $null).tasks.Count -eq 1) ('candidato derivato dalla copia verificata '+$checkpoint)}
+            Reject-Audit {Invoke-SBTrackerImport -Config $f.config -ManifestPath (Read-SBJson (Get-SBTrackerImportPath $f.config $f.identity) $null).manifest -Activate} ('resume with a mutated source rejected'+$checkpoint)
+            if(Test-Path -LiteralPath $m.candidate){Assert-Audit ((Read-SBJson $m.candidate $null).tasks.Count -eq 1) ('candidate derived from the verified copy'+$checkpoint)}
         }
         $f=New-AuditFixture 'source-missing';Put-Audit $f.source '{"tasks":[]}'
         $manifest=Invoke-SBTrackerImport -Config $f.config -Identity $f.identity -SourcePath $f.source
         [IO.File]::Delete($f.source)
-        Reject-Audit {Invoke-SBTrackerImport -Config $f.config -ManifestPath $manifest -Activate} 'assenza senza rimozione registrata rifiutata'
+        Reject-Audit {Invoke-SBTrackerImport -Config $f.config -ManifestPath $manifest -Activate} 'absence without a recorded removal rejected'
         $f=New-AuditFixture 'source-journal-removal';Put-Audit $f.source '{"tasks":[]}'
         $source=$f.source
         $interrupt={param($phase) if($phase -eq 'references_updated'){$guardPath=$source;Set-SBWriteGuard ({if(!(Test-Path -LiteralPath $guardPath)){throw 'interruzione dopo rimozione'}}.GetNewClosure())}}.GetNewClosure()
         try{Reject-Audit {Invoke-SBTrackerImport -Config $f.config -Identity $f.identity -SourcePath $source -Activate -AfterPhase $interrupt} 'interruzione fra rimozione e salvataggio fase'}finally{Set-SBWriteGuard $null}
         $manifest=(Read-SBJson (Get-SBTrackerImportPath $f.config $f.identity) $null).manifest
         [void](Invoke-SBTrackerImport -Config $f.config -ManifestPath $manifest -Activate)
-        Assert-Audit ((Read-SBTrackerManifest $f.config $manifest).phase -eq 'completed') 'assenza con rimozione registrata consente ripresa'
+        Assert-Audit ((Read-SBTrackerManifest $f.config $manifest).phase -eq 'completed') 'absence with a recorded removal allows resume'
         Restore-SBTrackerImport $f.config $manifest
-        Assert-Audit ((Read-SBJson $source $null).tasks.Count -eq 0) 'recupero dopo rimozione interrotta preserva originale'
+        Assert-Audit ((Read-SBJson $source $null).tasks.Count -eq 0) 'recovery after an interrupted removal preserves the original'
     }
     if($Case -in @('All','References')){
         foreach($kind in @('json','markdown')){
@@ -148,10 +148,10 @@ try {
             $composed=@(& pwsh -NoProfile -File (Join-Path $f.brain 'scripts/prompts.ps1') -Compose -ConfigPath $f.config.configPath -ProjectId project -Prompt REP01 -Objective fixture) -join "`n"
             Assert-Audit ($LASTEXITCODE -eq 0 -and $composed.Contains('Tracker: '+(Join-Path $f.dir 'tracker.json'))) ('composizione reale del Progetto '+$kind)
             Restore-SBTrackerImport $f.config $manifest
-            Assert-Audit ((Read-SBText (Join-Path $f.dir 'context.md')) -ceq $text -and (Get-SBFileHash (Join-Path $project 'entity.json')) -eq $beforeMeta -and (Test-Path -LiteralPath $f.source)) ('rollback esatto dei riferimenti '+$kind)
+            Assert-Audit ((Read-SBText (Join-Path $f.dir 'context.md')) -ceq $text -and (Get-SBFileHash (Join-Path $project 'entity.json')) -eq $beforeMeta -and (Test-Path -LiteralPath $f.source)) ('exact rollback of the references'+$kind)
             Put-Audit (Join-Path $f.brain 'para-index.json') (Get-SBParaIndex $f.brain @('test')).json
             $composed=@(& pwsh -NoProfile -File (Join-Path $f.brain 'scripts/prompts.ps1') -Compose -ConfigPath $f.config.configPath -ProjectId project -Prompt REP01 -Objective fixture) -join "`n"
-            Assert-Audit ($LASTEXITCODE -eq 0 -and $composed.Contains('Tracker: '+$f.source)) ('composizione dopo rollback '+$kind)
+            Assert-Audit ($LASTEXITCODE -eq 0 -and $composed.Contains('Tracker: '+$f.source)) ('composition after rollback'+$kind)
         }
     }
     if($Case -in @('All','Graph')){
@@ -182,7 +182,7 @@ try {
             Assert-Audit ((Read-SBTrackerManifest $f.config $manifest).phase -eq 'verified') ('preparazione grafo '+$scenario)
             if($scenario -eq 'changed'){
                 $related.tasks=@();Put-Audit $relatedPath (ConvertTo-SBJson $related)
-                Reject-Audit {Invoke-SBTrackerImport -Config $f.config -ManifestPath $manifest -Activate} 'dipendenza rimossa dopo preparazione rifiutata' @('tracker.dependency.missing')
+                Reject-Audit {Invoke-SBTrackerImport -Config $f.config -ManifestPath $manifest -Activate} 'dependency removed after preparation rejected' @('tracker.dependency.missing')
                 Assert-Audit ((Get-SBFileHash $f.source) -eq $sourceHash -and !(Test-Path -LiteralPath (Join-Path $f.dir 'tracker.json'))) 'rivalidazione precede attivazione'
                 continue
             }
@@ -191,7 +191,7 @@ try {
             & pwsh -NoProfile -File (Join-Path $f.brain 'scripts/import-tracker.ps1') -ConfigPath $f.config.configPath -ResumeManifest $manifest -Apply -Activate|Out-Null
             Assert-Audit ($LASTEXITCODE -eq 0 -and @(Get-SBTrackerImportIssues $f.config).Count -eq 0) 'ripresa grafo completato idempotente'
             Restore-SBTrackerImport $f.config $manifest
-            Assert-Audit ((Get-SBFileHash $f.source) -eq $sourceHash) 'rollback grafo conserva originale'
+            Assert-Audit ((Get-SBFileHash $f.source) -eq $sourceHash) 'graph rollback keeps the original'
         }
     }
     # The Para case (dossier moves to and from the archive) is gone: dossiers no longer move, an archived dossier only changes status.
@@ -225,7 +225,7 @@ try {
             $binding=@($hostConfig.bindings|Where-Object {Test-SBSamePath $_.path $onboard})
             $onboardDir=Join-Path $f.brain $plan.dossier
             Assert-Audit ($binding.Count -eq 1 -and $binding[0].status -ceq 'tracker-import-required') 'binding tracker-import-required'
-            Assert-Audit (!(Test-Path -LiteralPath (Join-Path $onboardDir 'tracker.json')) -and !(Read-SBJson (Join-Path $onboardDir 'repository.json') @{}).ContainsKey('tracker')) 'nessun tracker vuoto nel dossier'
+            Assert-Audit (!(Test-Path -LiteralPath (Join-Path $onboardDir 'tracker.json')) -and !(Read-SBJson (Join-Path $onboardDir 'repository.json') @{}).ContainsKey('tracker')) 'no empty tracker in the dossier'
         }finally{$env:SECONDBRAIN_STATE_ROOT=$savedState}
         $hostConfig.allowedOwners=@('test')
         $manifest=Invoke-SBTrackerImport -Config $hostConfig -Identity $onboardIdentity -SourcePath $trackerPath -Activate

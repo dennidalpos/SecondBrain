@@ -21,19 +21,19 @@ Assert-Prompts (@($prompts.id|Select-Object -Unique).Count -eq $prompts.Count) '
 Assert-Prompts (!(@($prompts|Where-Object {$_.id -notmatch '^pmt-[0-9a-f]{8}$'}).Count)) 'ID nel formato pmt-xxxxxxxx'
 $raw=Get-Content -Raw -LiteralPath (Join-Path $brain 'directives/prompts/catalog.json')
 foreach($legacy in 'pack','deprecations','aliases','supersededBy','next','references','status'){Assert-Prompts ($raw -notmatch ('"'+$legacy+'"\s*:')) "il catalogo non contiene la chiave $legacy"}
-Assert-Prompts (!(Test-Path -LiteralPath (Join-Path $brain 'directives/prompts/en'))) 'nessuna cartella en/ legacy'
+Assert-Prompts (!(Test-Path -LiteralPath (Join-Path $brain 'directives/prompts/en'))) 'no legacy en/ folder'
 Assert-Prompts (!(Get-ChildItem -LiteralPath (Join-Path $brain 'directives/prompts') -Filter 'README.maintenance*')) 'nessun README.maintenance legacy'
 foreach($p in $prompts){
     $en=Join-Path $brain ('directives/prompts/'+$p.code+'.md')
-    if(!(Test-Path -LiteralPath $en)){Assert-Prompts $false ($p.code+': scheda presente')}
+    if(!(Test-Path -LiteralPath $en)){Assert-Prompts $false ($p.code+': card present')}
     $enText=Get-Content -Raw -LiteralPath $en
     foreach($tag in 'role','context','task','format'){
         if($enText -notmatch "(?m)^<$tag>\s*$"){Assert-Prompts $false ($p.code+': tag '+$tag)}
     }
-    if($enText.Length -gt 6500){Assert-Prompts $false ($p.code+': scheda oltre 6.500 caratteri ('+$enText.Length+')')}
+    if($enText.Length -gt 6500){Assert-Prompts $false ($p.code+': card over 6,500 characters ('+$enText.Length+')')}
     if($enText -match '\bask_question\b'){Assert-Prompts $false ($p.code+': nome di tool non standard')}
 }
-Assert-Prompts $true 'ogni scheda ha i tag obbligatori, dimensione contenuta e nessun nome di tool non standard'
+Assert-Prompts $true 'every card has the required tags, a contained size and no non-standard tool name'
 # RCTFE (#721): every shipped card converts back to a valid card, kind separates system (SYS) from user prompts, one catalog version, no CO-STAR wording.
 Import-Module (Join-Path $brain 'scripts/SecondBrain.PromptSchema.psm1') -Force
 $rctfeSchema=Join-Path $brain 'config/prompt-card-rctfe.schema.json'
@@ -45,9 +45,9 @@ foreach($p in $prompts){
     $found=@(Test-SBRctfeCard $card $rctfeSchema)
     if($found.Count -or $p.summary.Length -gt 120){$rctfeBad+=($p.code+': '+($found -join ','))}
 }
-Assert-Prompts (!$rctfeBad.Count) ('ogni scheda rispetta lo schema RCTFE: '+($rctfeBad -join '; '))
-Assert-Prompts ($catalog.catalogVersion -ge 2) 'catalogo alla versione 2 (schede RCTFE)'
-Assert-Prompts (@($prompts|Where-Object {$_.kind -notin 'system','user'}).Count -eq 0 -and @($prompts|Where-Object {($_.code -like 'SYS*') -ne ($_.kind -eq 'system')}).Count -eq 0) 'kind: system solo per le schede SYS, user per le altre'
+Assert-Prompts (!$rctfeBad.Count) ('every card follows the RCTFE schema:'+($rctfeBad -join '; '))
+Assert-Prompts ($catalog.catalogVersion -ge 2) 'catalog at version 2 (RCTFE cards)'
+Assert-Prompts (@($prompts|Where-Object {$_.kind -notin 'system','user'}).Count -eq 0 -and @($prompts|Where-Object {($_.code -like 'SYS*') -ne ($_.kind -eq 'system')}).Count -eq 0) 'kind: system only for SYS cards, user for the others'
 $catalogJson=ConvertFrom-Json -InputObject (ConvertTo-SBJson (ConvertTo-SBWorkflowCatalogData $catalog $null)) -AsHashtable
 $jsonPrompts=@($catalogJson.categories|ForEach-Object {$_.prompts})
 Assert-Prompts ($jsonPrompts.Count -eq $prompts.Count -and @($jsonPrompts|Where-Object {$_.kind -notin 'system','user'}).Count -eq 0 -and @($jsonPrompts|Where-Object {($_.code -like 'SYS*') -ne ($_.kind -eq 'system')}).Count -eq 0) '#748: the app catalog JSON carries kind for every prompt'
@@ -56,18 +56,18 @@ Assert-Prompts (!$costar.Count) ('nessun riferimento a CO-STAR in script e docum
 # Every related code exists; every category is used.
 $ids=@($prompts.id)
 Assert-Prompts (!(@($prompts|ForEach-Object {$_.related}|Where-Object {$_ -notin $ids}).Count)) 'related punta a ID esistenti'
-Assert-Prompts (!(@($prompts|Where-Object {$_.id -in $_.related}).Count)) 'nessun prompt correlato a sé stesso'
+Assert-Prompts (!(@($prompts|Where-Object {$_.id -in $_.related}).Count)) 'no prompt related to itself'
 # Groups: central categories hold only central prompts and repository categories none; every category has a group.
 foreach($category in $catalog.categories){
     $members=@($prompts|Where-Object category -eq $category.id)
     $expectedTarget=if($category.group -eq 'central'){'central'}else{'repository'}
-    Assert-Prompts (@($members|Where-Object target -ne $expectedTarget).Count -eq 0) ('categoria '+$category.id+': gruppo '+$category.group+' coerente con la destinazione dei prompt')
+    Assert-Prompts (@($members|Where-Object target -ne $expectedTarget).Count -eq 0) ('categoria '+$category.id+': gruppo '+$category.group+' consistent with the prompt destination')
 }
 # Perimeter: a repository prompt works on the repository it runs from; the only cross-repository reads are declared allowlists (REP16).
 foreach($p in @($prompts|Where-Object {$_.target -eq 'repository' -and $_.code -ne 'REP16'})){
     foreach($relative in @($p.file)){
         $body=Get-Content -Raw -LiteralPath (Join-Path $brain ('directives/prompts/'+$relative))
-        Assert-Prompts ($body -notmatch '(?i)para-index|para\.ps1|-AllDossiers|\.runtime|central maintenance|manutenzione centrale') ($p.code+' ('+$relative+'): nessun riferimento oltre il repository corrente')
+        Assert-Prompts ($body -notmatch '(?i)para-index|para\.ps1|-AllDossiers|\.runtime|central maintenance|manutenzione centrale') ($p.code+' ('+$relative+'): no reference beyond the current repository')
     }
 }
 # Related: a code cited in a card must be listed among its related prompts, and cited codes must exist.
@@ -92,26 +92,26 @@ try{[void](Read-SBWorkflowCatalog $relatedRoot -ValidateBodies -ValidateReferenc
 Assert-Prompts $dangling 'related: codice citato inesistente respinto'
 # Listing.
 $list=& pwsh -NoProfile -File (Join-Path $PSScriptRoot 'prompts.ps1') -List -Compact
-Assert-Prompts ($LASTEXITCODE -eq 0 -and ($list -join "`n") -match 'SYS03' -and ($list -join "`n") -match 'MEM05') 'elenco compatto con prompt di sistema e memoria nella stessa lista'
+Assert-Prompts ($LASTEXITCODE -eq 0 -and ($list -join "`n") -match 'SYS03' -and ($list -join "`n") -match 'MEM05') 'compact list with system and memory prompts in the same list'
 $cat=& pwsh -NoProfile -File (Join-Path $PSScriptRoot 'prompts.ps1') -List -Category TST
-Assert-Prompts ($LASTEXITCODE -eq 0 -and ($cat -join "`n") -match 'TST04') 'elenco per categoria'
+Assert-Prompts ($LASTEXITCODE -eq 0 -and ($cat -join "`n") -match 'TST04') 'list by category'
 $show=& pwsh -NoProfile -File (Join-Path $PSScriptRoot 'prompts.ps1') -Show -Prompt TST04
-Assert-Prompts ($LASTEXITCODE -eq 0 -and ($show -join "`n") -match 'TST04') 'scheda mostrata per codice'
+Assert-Prompts ($LASTEXITCODE -eq 0 -and ($show -join "`n") -match 'TST04') 'card shown by code'
 $byId=($prompts|Where-Object code -eq 'TST04').id
 $showId=& pwsh -NoProfile -File (Join-Path $PSScriptRoot 'prompts.ps1') -Show -Prompt $byId
-Assert-Prompts ($LASTEXITCODE -eq 0 -and ($showId -join "`n") -eq ($show -join "`n")) 'ID e codice risolvono la stessa scheda'
+Assert-Prompts ($LASTEXITCODE -eq 0 -and ($showId -join "`n") -eq ($show -join "`n")) 'ID and code resolve the same card'
 # Composition: XML structure, objective honored, closing depends on mode.
 $ctx=@{repositories=@();sourceRegistry=$null;project=$null}
 $readPrompt=$prompts|Where-Object {$_.mode -eq 'read'}|Select-Object -First 1
 $writePrompt=$prompts|Where-Object {$_.mode -eq 'write' -and $_.code -notmatch '^(MEM|SYS)'}|Select-Object -First 1
 $objective='Obiettivo di prova 4242'
 $readOut=New-SBWorkflowComposition $brain $catalog $readPrompt $ctx $objective -Standalone
-Assert-Prompts ($readOut -match '(?s)<prompt code="'+$readPrompt.code+'".*<role>.*<context>.*<task>\s*'+[regex]::Escape($objective)+'.*</task>.*<format>.*</format>.*</prompt>') 'composizione XML RCTFE con ruolo, contesto, compito con obiettivo e formato'
+Assert-Prompts ($readOut -match '(?s)<prompt code="'+$readPrompt.code+'".*<role>.*<context>.*<task>\s*'+[regex]::Escape($objective)+'.*</task>.*<format>.*</format>.*</prompt>') 'RCTFE XML composition with role, context, task with objective and format'
 $writeOut=New-SBWorkflowComposition $brain $catalog $writePrompt $ctx '' -Standalone
 Assert-Prompts ($writeOut -ne $readOut -and $writeOut -match '<operating_rules>') 'regole operative presenti anche in scrittura'
 $closingRead=([regex]::Match($readOut,'(?s)<operating_rules>(.*?)</operating_rules>')).Groups[1].Value
 $closingWrite=([regex]::Match($writeOut,'(?s)<operating_rules>(.*?)</operating_rules>')).Groups[1].Value
-Assert-Prompts ($closingRead -ne $closingWrite) 'la chiusura del task dipende dalla modalità'
+Assert-Prompts ($closingRead -ne $closingWrite) 'task closure depends on the mode'
 # Language: the composition is English only.
 Assert-Prompts ($readOut -match 'language="en"') 'composition language is English'
 # Pointer files for agents that do not read AGENTS.md (Claude Code, Gemini CLI): created, idempotent, preserve user text, conflict on foreign edits.
@@ -120,24 +120,24 @@ $pointerRoot=Join-Path (Get-SBTestRoot) ('fixture-'+(Get-Date -Format 'yyyyMMdd'
 $pointerBackup=Join-Path $pointerRoot 'backups';$pointerState=@{}
 [IO.File]::WriteAllText((Join-Path $pointerRoot 'CLAUDE.md'),"# Note utente`nIstruzioni personali.`n")
 $preview=@(Set-SBRepositoryPointers $pointerRoot $pointerState $true $pointerBackup)
-Assert-Prompts (@($preview|Where-Object result -eq 'pending').Count -eq 2 -and !(Test-Path -LiteralPath (Join-Path $pointerRoot 'GEMINI.md'))) 'anteprima dei puntatori senza scrivere'
+Assert-Prompts (@($preview|Where-Object result -eq 'pending').Count -eq 2 -and !(Test-Path -LiteralPath (Join-Path $pointerRoot 'GEMINI.md'))) 'pointer preview without writing'
 $applied=@(Set-SBRepositoryPointers $pointerRoot $pointerState $false $pointerBackup)
 $claude=Get-Content -Raw -LiteralPath (Join-Path $pointerRoot 'CLAUDE.md')
 $gemini=Get-Content -Raw -LiteralPath (Join-Path $pointerRoot 'GEMINI.md')
-Assert-Prompts (@($applied|Where-Object result -eq 'updated').Count -eq 2 -and $claude.Contains('@AGENTS.md') -and $claude.Contains('Istruzioni personali.') -and $gemini.Contains('@AGENTS.md')) 'puntatori creati e testo utente preservato'
+Assert-Prompts (@($applied|Where-Object result -eq 'updated').Count -eq 2 -and $claude.Contains('@AGENTS.md') -and $claude.Contains('Istruzioni personali.') -and $gemini.Contains('@AGENTS.md')) 'pointers created and user text preserved'
 Assert-Prompts (@(Set-SBRepositoryPointers $pointerRoot $pointerState $false $pointerBackup|Where-Object result -ne 'aligned').Count -eq 0) 'puntatori idempotenti'
 $crlf=(Get-Content -Raw -LiteralPath (Join-Path $pointerRoot 'CLAUDE.md')) -replace "`r?`n","`r`n"
 [IO.File]::WriteAllText((Join-Path $pointerRoot 'CLAUDE.md'),$crlf)
 Assert-Prompts (@(Set-SBRepositoryPointers $pointerRoot $pointerState $true $pointerBackup|Where-Object {$_.file -eq 'CLAUDE.md'}).result -eq 'aligned') 'puntatore con terminatori CRLF (autocrlf) resta allineato'
 [IO.File]::WriteAllText((Join-Path $pointerRoot 'GEMINI.md'),($gemini -replace '@AGENTS.md','@ALTRO.md'))
-Assert-Prompts (@(Set-SBRepositoryPointers $pointerRoot $pointerState $true $pointerBackup|Where-Object {$_.file -eq 'GEMINI.md'}).result -eq 'conflict') 'modifica esterna del blocco segnalata come conflitto'
+Assert-Prompts (@(Set-SBRepositoryPointers $pointerRoot $pointerState $true $pointerBackup|Where-Object {$_.file -eq 'GEMINI.md'}).result -eq 'conflict') 'external edit of the block reported as a conflict'
 $pointerBinaryCount=@(Get-ChildItem -LiteralPath $pointerBackup -Filter '*.bin').Count
 $geminiPath=Join-Path $pointerRoot 'GEMINI.md'
 $pointerState[$geminiPath+'|pointer']=Get-SBTextHash ((Read-SBText $geminiPath).Trim())
 $updatedPointer=@(Set-SBRepositoryPointers $pointerRoot $pointerState $false $pointerBackup|Where-Object file -eq 'GEMINI.md')
-Assert-Prompts ($updatedPointer.result -eq 'updated' -and (Read-SBText $geminiPath) -ceq $gemini -and @(Get-ChildItem -LiteralPath $pointerBackup -Filter '*.bin').Count -eq $pointerBinaryCount) 'puntatore interamente generato aggiornato senza copia binaria'
+Assert-Prompts ($updatedPointer.result -eq 'updated' -and (Read-SBText $geminiPath) -ceq $gemini -and @(Get-ChildItem -LiteralPath $pointerBackup -Filter '*.bin').Count -eq $pointerBinaryCount) 'fully generated pointer updated without a binary copy'
 $personalBackup=@(Get-ChildItem -LiteralPath $pointerBackup -Filter '*.bin'|Where-Object {(Read-SBText $_.FullName) -ceq "# Note utente`nIstruzioni personali.`n"})
-Assert-Prompts ($personalBackup.Count -eq 1) 'puntatore misto mantiene una copia esatta delle istruzioni personali'
+Assert-Prompts ($personalBackup.Count -eq 1) 'mixed pointer keeps an exact copy of the personal instructions'
 # Encoding guard: exercise both read boundaries, including corruption in a body beyond its title.
 $encodingRoot=Join-Path $pointerRoot 'encoding'
 $encodingCatalog=Join-Path $encodingRoot 'directives/prompts/catalog.json'
@@ -165,7 +165,7 @@ foreach($bad in $badSequences){
     Write-SBFile $encodingCard ([Text.Encoding]::UTF8.GetBytes($badCard)) (Get-SBFileHash $encodingCard) $encodingBackup|Out-Null
     $cardRejected=$false
     try{[void](Read-SBWorkflowPrompt $encodingRoot $readPrompt $catalog)}catch{$cardRejected=Test-SBError $_ 'prompts.encoding.invalid'}
-    Assert-Prompts $cardRejected 'codifica: corpo scheda corrotto respinto con codice stabile'
+    Assert-Prompts $cardRejected 'encoding: corrupted card body rejected with a stable code'
 }
 # Generated indexes are in sync.
 $drift=Get-SBWorkflowDrift $brain
@@ -179,7 +179,7 @@ $repoBlock=Get-Content -Raw -Encoding utf8 (Join-Path $latest.FullName 'AGENTS.r
 Assert-Prompts ($global.Length -le 6500) ('testo comune entro 6.500 caratteri ('+$global.Length+')')
 Assert-Prompts ($station.Length -le 3200) ('testo di postazione entro 3.200 caratteri ('+$station.Length+')')
 Assert-Prompts ($repoBlock.Length -le 3200) ('blocco repository entro 3.200 caratteri ('+$repoBlock.Length+')')
-Assert-Prompts ($global -match '(?m)^Revisi(?:on|one) \d+\.\d+ — \d{4}-\d{2}-\d{2}\.') 'riga di revisione leggibile dal registro'
+Assert-Prompts ($global -match '(?m)^Revisi(?:on|one) \d+\.\d+ — \d{4}-\d{2}-\d{2}\.') 'revision line readable from the registry'
 $headings=[ordered]@{
     'Principi'='Principles'
     'Sicurezza e dati'='Security and data'
@@ -193,9 +193,9 @@ foreach($heading in $headings.Keys){
     $english=[regex]::Escape($headings[$heading])
     Assert-Prompts ($global -match "(?m)^## (?:$italian|$english)\s*$") "sezione '$heading' nel testo comune"
 }
-Assert-Prompts ($global -notmatch 'ask_question|Function Calling') 'nessun nome di strumento non standard nel testo comune'
-foreach($text in $global,$station,$repoBlock){Assert-Prompts ($text -notmatch '(?<![A-Za-z0-9+.-])[A-Z]:[\/]|(?<![\w/])/(?:Users|home)/|\{\{') 'nessun percorso assoluto o segnaposto'}
-Assert-Prompts ($station.Contains('<!-- secondbrain:tracker-contract:1 -->')) 'contratto tracker presente nel testo di postazione'
+Assert-Prompts ($global -notmatch 'ask_question|Function Calling') 'no non-standard tool name in the common text'
+foreach($text in $global,$station,$repoBlock){Assert-Prompts ($text -notmatch '(?<![A-Za-z0-9+.-])[A-Z]:[\/]|(?<![\w/])/(?:Users|home)/|\{\{') 'no absolute path or placeholder'}
+Assert-Prompts ($station.Contains('<!-- secondbrain:tracker-contract:1 -->')) 'tracker contract present in the workstation text'
 $registry=@(Get-SBWorkflowCommands|ForEach-Object {$_.command})
 $english='sb activate','sb check','sb sync','sb setup','sb compact','sb stop','sb prompt list','sb prompt area AREA','sb prompt show KEY'
 foreach($command in $english){Assert-Prompts ($command -in $registry) "command '$command' in the registry"}
@@ -225,7 +225,7 @@ $unknownError=$null;try{Resolve-SBDispatch @('bogus')|Out-Null}catch{$unknownErr
 Assert-Prompts ($null -ne $unknownError) 'an unknown sb command is refused'
 foreach($word in $english){Assert-Prompts ($station.Contains($word)) "command '$word' described in the workstation text"}
 $referenced=@([regex]::Matches($global+$station+$repoBlock,'(?:COM|PRG|DEV|TST|SEC|AUD|INT|DAT|OPS|DOC|REP|GOV|MEM|SYS)\d{2}')|ForEach-Object {$_.Value}|Select-Object -Unique)
-Assert-Prompts (!(@($referenced|Where-Object {$_ -notin @($prompts.code)}).Count)) 'ogni codice prompt citato nelle direttive esiste nel catalogo'
+Assert-Prompts (!(@($referenced|Where-Object {$_ -notin @($prompts.code)}).Count)) 'every prompt code cited in the directives exists in the catalog'
 # #589: private repository cards and workflows in the dossier, namespaced keys, no shadowing, no public reference to them.
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.PrivateAssets.psm1') -Force
 $privateRoot=Join-Path (Get-SBTestRoot) ('private-assets-'+[guid]::NewGuid().ToString('N').Substring(0,12))

@@ -4,7 +4,7 @@ Indice generato da `scripts/resources.ps1`; non modificare a mano. Controllo int
 
 | Percorso | File | Byte |
 |---|---|---|
-| (radice) | 7 | 68641 |
+| (radice) | 7 | 68639 |
 | census/ | 2 | 98076 |
 | entries/ | 161 | 19427109 |
 | profiles/ | 3 | 5471 |

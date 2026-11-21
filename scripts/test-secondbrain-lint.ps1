@@ -3,7 +3,7 @@
 $ErrorActionPreference='Stop'
 if(!(Get-Module -ListAvailable -Name PSScriptAnalyzer)){
     Write-Output 'INFO LINT: modulo PSScriptAnalyzer assente, analisi saltata'
-    Write-Output 'SUCCESS LINT: 0 verifiche (PSScriptAnalyzer non installato)'
+    Write-Output 'SUCCESS LINT: 0 checks (PSScriptAnalyzer not installed)'
     return
 }
 $output=@(& pwsh -NoProfile -File (Join-Path $PSScriptRoot 'lint.ps1') 2>&1|ForEach-Object {[string]$_})
