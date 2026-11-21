@@ -451,6 +451,24 @@ if('portable' -in $Groups){
                 $unknownAdopt=$null
                 try{[void](Invoke-SBPortableSync -Config $adoptConfig -Check -AdoptIde 'No such IDE')}catch{$unknownAdopt=$_}
                 Check ($null -ne $unknownAdopt -and $unknownAdopt.Exception.Message -match 'No registered IDE named') '-AdoptIde rejects an IDE name that is not registered'
+                # #781: apply path adopts the stale hash, rewrites the block with the approved text and leaves a backup; Claude Code files outside ~/.claude/CLAUDE.md warn.
+                $adoptApproved=(Get-SBPortableGlobal $brain).Trim()
+                $adoptApplied=Invoke-SBPortableSync -Config $adoptConfig -AdoptIde 'Fixture adopt'
+                $adoptedState=ConvertFrom-Json ([IO.File]::ReadAllText($adoptStatePath)) -AsHashtable
+                $adoptBlock=Get-SBManagedContent ((Read-SBText $adoptFile) -replace "`r`n","`n") 'global'
+                $adoptBackups=@(Get-ChildItem -LiteralPath $adoptStateRoot -Recurse -File -ErrorAction SilentlyContinue|Where-Object {$_.FullName -match 'backups' -and [IO.File]::ReadAllText($_.FullName) -match 'foreign body'})
+                Check ('ide-adopted:Fixture adopt' -in @($adoptApplied.changes)) ('-Sync -AdoptIde reports ide-adopted (changes: '+(@($adoptApplied.changes) -join ',')+'; issues: '+((@($adoptApplied.issues)|ForEach-Object {$_.kind}) -join ',')+')')
+                Check ($adoptBlock -ceq $adoptApproved) '-Sync -AdoptIde rewrites the block with the approved text'
+                Check ('ide-conflict' -notin @((Invoke-SBPortableSync -Config $adoptConfig -Check).issues).kind -and $adoptedState.managed[[IO.Path]::GetFullPath($adoptFile)+'|global'] -cne ('0'*64)) '-Sync -AdoptIde replaces the stale state hash'
+                Check ($adoptBackups.Count -ge 1) '-Sync -AdoptIde leaves a backup holding the replaced block'
+                $configDirConfig=Read-SBConfiguration -BrainRoot $brain -ReadOnly
+                $configDirConfig.ides=@(@{id='fixture-claude-code';name='Claude Code';mode='file';instructions=$adoptFile;sha256=(Get-SBFileHash $adoptFile)})
+                $configDirCheck=Invoke-SBPortableSync -Config $configDirConfig -Check
+                Check (@($configDirCheck.warnings|Where-Object {$_.kind -eq 'claude-config-dir-override' -and $_.ide -ceq 'Claude Code'}).Count -eq 1) 'claude-config-dir-override appears when the registered Claude Code file is not ~/.claude/CLAUDE.md'
+                $permanentClaude=Join-Path $env:USERPROFILE '.claude/CLAUDE.md'
+                $configDirConfig.ides[0].instructions=$permanentClaude
+                $permanentCheck=Invoke-SBPortableSync -Config $configDirConfig -Check
+                Check (@($permanentCheck.warnings|Where-Object {$_.kind -eq 'claude-config-dir-override'}).Count -eq 0) 'claude-config-dir-override is absent for the permanent ~/.claude/CLAUDE.md'
             }finally{
                 if($null -ne $adoptStateBefore){Put $adoptStatePath $adoptStateBefore}elseif([IO.File]::Exists($adoptStatePath)){[IO.File]::Delete($adoptStatePath)}
             }
