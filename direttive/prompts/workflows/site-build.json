@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "id": "wfl-e90a5348",
+  "key": "wf-site-build",
+  "title": "Build a site or app: scaffold a first slice, develop features, verify",
+  "revision": 1,
+  "status": "active",
+  "steps": [
+    {
+      "step": "scaffold",
+      "ref": "pmt-884419a5",
+      "kind": "required",
+      "gate": "auto"
+    },
+    {
+      "step": "develop",
+      "ref": "pmt-83df1685",
+      "kind": "required",
+      "gate": "auto"
+    },
+    {
+      "step": "accessibility",
+      "ref": "pmt-2ea0c993",
+      "kind": "optional",
+      "gate": "auto"
+    },
+    {
+      "step": "journeys",
+      "ref": "pmt-286c3225",
+      "kind": "optional",
+      "gate": "auto"
+    }
+  ]
+}

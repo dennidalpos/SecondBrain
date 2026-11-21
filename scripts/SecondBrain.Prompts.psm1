@@ -631,10 +631,16 @@ function Get-SBWorkflowNextStep($State) {
 }
 
 # Standard starting chain for the location: start (session.start), work, close, resume; a repository not onboarded starts by exploring it.
-function Get-SBWorkflowStartChain($State) {
+function Get-SBWorkflowStartChain($State,$Catalog=$null,$Workflows=@()) {
     $location=if($State -and $State.repository -and $State.repository.Contains('location')){$State.repository.location}else{$null}
     if(!$location -or $location -eq 'none'){return @()}
     $steps=@((Get-SBWorkflowMessage 'home.chain.start'))
+    # The managed start comes from the active wf-session-start workflow when it is defined (#570): one line per step, in order.
+    $startFlow=@($Workflows|Where-Object {$_.key -ceq 'wf-session-start' -and $_.status -eq 'active'})|Select-Object -First 1
+    if($startFlow -and $Catalog -and $location -ne 'repo-unmanaged'){
+        $byId=@{};foreach($card in $Catalog.prompts){$byId[$card.id]=$card}
+        $steps=@(foreach($step in $startFlow.steps){$card=$byId[$step.ref];('`sb prompt '+$card.code+'` — '+$card.summary+$(if($step.kind -ne 'required'){' (optional)'}else{''}))})
+    }
     if($location -eq 'repo-unmanaged'){$steps+=(Get-SBWorkflowMessage 'home.chain.explore')}
     if($location -eq 'repo-unmanaged'){$steps+=(Get-SBWorkflowMessage 'home.chain.reduced')}
     else{$steps+=@((Get-SBWorkflowMessage 'home.chain.work'),(Get-SBWorkflowMessage 'home.chain.close'))}
@@ -657,7 +663,7 @@ function Format-SBWorkflowHome([string]$BrainRoot, $Catalog, $State=$null) {
             if($State.repository.Contains('location')){$lines+=('- '+(Get-SBWorkflowMessage 'home.location.line' @((Get-SBWorkflowMessage ('home.location.'+$State.repository.location)))))}
         }
         $lines+=@('',(Get-SBWorkflowMessage 'home.next'),('- '+(Get-SBWorkflowNextStep $State)),'')
-        $chain=@(Get-SBWorkflowStartChain $State)
+        $chain=@(Get-SBWorkflowStartChain $State $Catalog @(Read-SBPromptWorkflows $BrainRoot $Catalog))
         if($chain.Count){
             $lines+=@((Get-SBWorkflowMessage 'home.chain.title'))
             $n=0;foreach($s in $chain){$n++;$lines+=($n.ToString()+'. '+$s)}

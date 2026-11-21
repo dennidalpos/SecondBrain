@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "id": "wfl-a84c6e13",
+  "key": "wf-repo-audit",
+  "title": "Audit a repository: metrics, architecture, dependencies, CI, security, licenses, tests",
+  "revision": 1,
+  "status": "active",
+  "steps": [
+    {
+      "step": "measure",
+      "ref": "pmt-4a9a4b4f",
+      "kind": "required",
+      "gate": "auto"
+    },
+    {
+      "step": "architecture",
+      "ref": "pmt-c692cc23",
+      "kind": "required",
+      "gate": "auto"
+    },
+    {
+      "step": "dependencies",
+      "ref": "pmt-7dc63766",
+      "kind": "required",
+      "gate": "auto"
+    },
+    {
+      "step": "pipeline",
+      "ref": "pmt-6b494996",
+      "kind": "required",
+      "gate": "auto"
+    },
+    {
+      "step": "review",
+      "ref": "pmt-27896824",
+      "kind": "required",
+      "gate": "auto"
+    },
+    {
+      "step": "credentials",
+      "ref": "pmt-73fb4547",
+      "kind": "required",
+      "gate": "auto"
+    },
+    {
+      "step": "personal-data",
+      "ref": "pmt-24189cb6",
+      "kind": "required",
+      "gate": "auto"
+    },
+    {
+      "step": "licenses",
+      "ref": "pmt-adb9bfc0",
+      "kind": "required",
+      "gate": "auto"
+    },
+    {
+      "step": "behavior",
+      "ref": "pmt-ef96dea5",
+      "kind": "required",
+      "gate": "auto"
+    },
+    {
+      "step": "performance",
+      "ref": "pmt-9de57e24",
+      "kind": "optional",
+      "gate": "auto"
+    }
+  ]
+}

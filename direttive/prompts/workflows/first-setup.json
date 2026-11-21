@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "wfl-12b6d8c7",
+  "key": "wf-first-setup",
+  "title": "First-run setup: activate SecondBrain, install the MCP server, check the IDEs",
+  "revision": 1,
+  "status": "active",
+  "steps": [
+    {
+      "step": "activate",
+      "ref": "pmt-5f9f93e0",
+      "kind": "required",
+      "gate": "confirm"
+    },
+    {
+      "step": "install-mcp",
+      "ref": "pmt-2d3c1d51",
+      "kind": "required",
+      "gate": "confirm"
+    },
+    {
+      "step": "check-ides",
+      "ref": "pmt-26817a61",
+      "kind": "required",
+      "gate": "auto"
+    }
+  ]
+}
