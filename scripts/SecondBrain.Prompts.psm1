@@ -389,6 +389,11 @@ Add-SBMessages @{
     'home.step.unmanaged' = @{ en = 'Repository not onboarded: it works in reduced mode, starting with `sb prompt session.start`. Onboarding is optional: `sb activate` to add it (preview, then confirm).' }
     'home.step.ready' = @{ en = 'Start with `sb prompt session.start` (state, alignment, next tasks), then `sb prompt task.work` or `sb runner`; when the work is done `sb prompt session.close`; to stop and resume from another IDE or account `sb stop`, then `sb prompt session.resume` on the other side.' }
     'home.location.line' = @{ en = 'Location: {0}' }
+    'home.write.sessions' = @{ en = 'Active Write sessions of this repository on this computer (SessionId):' }
+    'home.write.session' = @{ en = '`{0}`' }
+    'home.grant.missing' = @{ en = 'No active MCP write grant for {0}: an agent cannot submit MCP writes. The owner opens a Write session and grants it from a terminal:' }
+    'home.grant.start' = @{ en = 'pwsh -NoProfile -File scripts/access.ps1 -Start -Mode Write' }
+    'home.grant.command' = @{ en = 'pwsh -NoProfile -File scripts/mcp-write.ps1 -Grant -Repository {0} -Hours 8 -SessionId {1} -Authorization TEXT' }
     'home.location.secondbrain' = @{ en = 'SecondBrain checkout (maintenance and SecondBrain''s own dossier)' }
     'home.location.repo-managed' = @{ en = 'managed repository (dossier, tracker and runner available)' }
     'home.location.repo-unmanaged' = @{ en = 'repository not onboarded (reduced mode)' }
@@ -621,8 +626,22 @@ function Get-SBWorkflowState([string]$BrainRoot, [string]$RepositoryPath) {
         $managed=[bool]($identity -and @($bindings|Where-Object {$_.identity -ceq $identity}).Count -gt 0)
         $location=if(!$root){'none'}elseif([string]::Equals($root.TrimEnd('\','/'),$brain.TrimEnd('\','/'),[StringComparison]::OrdinalIgnoreCase)){'secondbrain'}elseif($managed){'repo-managed'}else{'repo-unmanaged'}
         $state.repository=[ordered]@{path=$full;root=$root;identity=$identity;managed=$managed;location=$location}
+        if($managed -and $state.activated){
+            $access=Get-SBWorkflowWriteAccess $identity
+            if($access){$state.repository.writeSessions=@($access.sessions);$state.repository.grant=$access.grant}
+        }
     }
     $state
+}
+
+# Read-only: active Write sessions of the repository on this computer and whether an MCP write grant is active; null when state cannot be read.
+function Get-SBWorkflowWriteAccess([string]$Identity) {
+    try{
+        foreach($m in 'Access','McpWrites'){Import-Module (Join-Path $PSScriptRoot ('SecondBrain.'+$m+'.psm1'))}
+        $config=Read-SBConfiguration $null -ReadOnly
+        $sessions=@(Get-SBAccessStatus $config|Where-Object {$_ -is [Collections.IDictionary] -and $_.ContainsKey('sessionId') -and $_.status -eq 'active' -and $_.mode -eq 'Write' -and $_.repository -ceq $Identity -and [string]$_.computer -ieq [Environment]::MachineName}|ForEach-Object {[string]$_.sessionId})
+        @{sessions=$sessions;grant=[bool](Read-SBMcpWriteGrant $config $Identity)}
+    }catch{$null}
 }
 
 function Get-SBWorkflowNextStep($State) {
@@ -667,6 +686,16 @@ function Format-SBWorkflowHome([string]$BrainRoot, $Catalog, $State=$null) {
             $repositoryLabel=if($State.repository.identity){$State.repository.identity+$(if($State.repository.managed){Get-SBWorkflowMessage 'home.repo.managed'}else{Get-SBWorkflowMessage 'home.repo.unmanaged'})}else{Get-SBWorkflowMessage 'home.repo.noidentity'}
             $lines+=('- '+(Get-SBWorkflowMessage 'home.repo.line' @($repositoryLabel,($State.repository.path -replace '\\','/'))))
             if($State.repository.Contains('location')){$lines+=('- '+(Get-SBWorkflowMessage 'home.location.line' @((Get-SBWorkflowMessage ('home.location.'+$State.repository.location)))))}
+        }
+        if($State.repository -and $State.repository.Contains('writeSessions')){
+            $sessionIds=@($State.repository.writeSessions)
+            $lines+=''
+            if($sessionIds.Count){$lines+=(Get-SBWorkflowMessage 'home.write.sessions');foreach($id in $sessionIds){$lines+=('- '+(Get-SBWorkflowMessage 'home.write.session' @($id)))}}
+            if($State.repository.Contains('grant') -and !$State.repository.grant){
+                $lines+=(Get-SBWorkflowMessage 'home.grant.missing' @($State.repository.identity))
+                $lines+=('  `'+(Get-SBWorkflowMessage 'home.grant.start')+'`')
+                $lines+=('  `'+(Get-SBWorkflowMessage 'home.grant.command' @($State.repository.identity,$(if($sessionIds.Count){$sessionIds[0]}else{'ID'})))+'`')
+            }
         }
         $lines+=@('',(Get-SBWorkflowMessage 'home.next'),('- '+(Get-SBWorkflowNextStep $State)),'')
         $chain=@(Get-SBWorkflowStartChain $State $Catalog @(Read-SBPromptWorkflows $BrainRoot $Catalog))

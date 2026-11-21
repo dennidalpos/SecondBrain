@@ -408,6 +408,15 @@ try{
     $startChain=@(Get-SBWorkflowStartChain @{repository=@{location='repo-managed'}} $liveCatalog $liveFlows)
     $startFlow=@($liveFlows|Where-Object key -ceq 'wf-session-start')[0]
     Assert-Prompts ($startChain.Count -ge $startFlow.steps.Count -and $startChain[0] -match '^`sb prompt [A-Z]{3}\d\d` — ') '#570: the managed start chain lists the steps of wf-session-start'
+    # #788: the home screen lists the active Write sessions and, without an MCP write grant, the exact commands to open a session and grant.
+    $homeIdentity='github.com/test/homeaccess'
+    $homeState={param($sessions,$grant)@{activated=$true;hostId='h';repositories=1;ides=0;repository=@{path='C:/x';root='C:/x';identity=$homeIdentity;managed=$true;location='repo-managed';writeSessions=$sessions;grant=$grant}}}
+    $noGrant=Format-SBWorkflowHome $brain $liveCatalog (& $homeState @('sess-aaa111') $false)
+    Assert-Prompts ($noGrant -match 'sess-aaa111' -and $noGrant -match 'scripts/access\.ps1 -Start -Mode Write' -and $noGrant -match [regex]::Escape("scripts/mcp-write.ps1 -Grant -Repository $homeIdentity -Hours 8 -SessionId sess-aaa111 -Authorization TEXT")) '#788: without a grant the home lists the SessionId and prints the start and grant commands with the identity'
+    $withGrant=Format-SBWorkflowHome $brain $liveCatalog (& $homeState @('sess-aaa111') $true)
+    Assert-Prompts ($withGrant -match 'sess-aaa111' -and $withGrant -notmatch '-Grant -Repository' -and $withGrant -notmatch 'No active MCP write grant') '#788: with an active grant the home prints no grant text'
+    $noSession=Format-SBWorkflowHome $brain $liveCatalog (& $homeState @() $false)
+    Assert-Prompts ($noSession -notmatch 'Active Write sessions' -and $noSession -match 'SessionId ID ') '#788: without sessions no list is shown and the grant command keeps the ID placeholder'
     $aliases=Read-SBPromptAliases $migRoot $after @(Read-SBPromptWorkflows $migRoot $after)
     # #570: the repository now defines the workflows, so the 4 retired orchestration codes resolve to their workflow instead of staying retired.
     $flowAliases=@($aliases.aliases|Where-Object {$_.status -eq 'workflow' -and $_.workflow})
