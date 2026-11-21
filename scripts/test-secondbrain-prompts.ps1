@@ -203,7 +203,7 @@ foreach($command in $english){Assert-Prompts ($command -in $registry) "command '
 $aliases=@(Get-SBWorkflowCommands|ForEach-Object {@($_.aliases)})
 Assert-Prompts ($aliases.Count -eq 0) 'the verb registry has no aliases (Italian sb verbs removed)'
 Assert-Prompts ((@(Get-SBWorkflowCommands|Where-Object command -eq 'sb stop')[0].script) -match '-Prompt session.stop$') 'sb stop compone il ruolo session.stop'
-$extended='sb tasks','sb next','sb pending','sb pending flush','sb runner status','sb publish check','sb grants','sb projects','sb status','sb ides','sb backup','sb backup verify','sb sources','sb cleanup','sb bindings','sb recover','sb directives check','sb directives propose','sb prompts check'
+$extended='sb tasks','sb next','sb pending','sb pending flush','sb runner status','sb queue','sb queue status','sb queue stop','sb publish check','sb grants','sb projects','sb status','sb ides','sb backup','sb backup verify','sb sources','sb cleanup','sb bindings','sb recover','sb directives check','sb directives propose','sb prompts check'
 foreach($command in $extended){Assert-Prompts ($command -in $registry) "command '$command' in the registry"}
 Assert-Prompts (@($registry|Group-Object|Where-Object Count -gt 1).Count -eq 0) 'the command registry has no duplicates'
 foreach($entry in @(Get-SBWorkflowCommands)){
@@ -404,7 +404,7 @@ try{
     # #570: the repository's own workflow definitions load, and the managed start chain of the home screen comes from wf-session-start.
     $liveCatalog=Read-SBWorkflowCatalog $brain
     $liveFlows=@(Read-SBPromptWorkflows $brain $liveCatalog)
-    Assert-Prompts ($liveFlows.Count -eq 9 -and 'wf-session-start' -in $liveFlows.key) ('#570: the 9 workflow definitions of the repository load (found '+$liveFlows.Count+')')
+    Assert-Prompts ($liveFlows.Count -eq 10 -and 'wf-session-start' -in $liveFlows.key -and 'wf-prepare-unattended' -in $liveFlows.key) ('#570: the 10 workflow definitions of the repository load (found '+$liveFlows.Count+')')
     $startChain=@(Get-SBWorkflowStartChain @{repository=@{location='repo-managed'}} $liveCatalog $liveFlows)
     $startFlow=@($liveFlows|Where-Object key -ceq 'wf-session-start')[0]
     Assert-Prompts ($startChain.Count -ge $startFlow.steps.Count -and $startChain[0] -match '^`sb prompt [A-Z]{3}\d\d` — ') '#570: the managed start chain lists the steps of wf-session-start'

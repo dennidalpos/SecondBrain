@@ -1319,6 +1319,26 @@
       ]
     },
     {
+      "id": "pmt-210af3b0",
+      "code": "REP19",
+      "kind": "user",
+      "role": "tasks.prepare",
+      "category": "backlog",
+      "summary": "Prepare tasks for unattended runs one at a time, then start the queue",
+      "target": "repository",
+      "mode": "write",
+      "scope": "repo",
+      "requires": "candidate tasks from `sb queue -Candidates`, the checkout read-only, the owner's answers to multiple-choice questions and the owner's go-ahead to start",
+      "example": "REP19: make the next tasks autonomous one by one, stop at 5, then start the queue",
+      "file": "REP19.md",
+      "related": [
+        "pmt-821f7dec",
+        "pmt-cca5cbfd",
+        "pmt-876bccc6",
+        "pmt-802ff569"
+      ]
+    },
+    {
       "id": "pmt-27896824",
       "code": "SEC01",
       "kind": "user",

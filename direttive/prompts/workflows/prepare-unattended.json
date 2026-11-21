@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "wfl-0c6069a2",
+  "key": "wf-prepare-unattended",
+  "title": "Prepare tasks for unattended runs one at a time, then start the queue",
+  "revision": 1,
+  "status": "active",
+  "steps": [
+    {
+      "step": "read-tracker",
+      "ref": "pmt-821f7dec",
+      "kind": "required",
+      "gate": "auto"
+    },
+    {
+      "step": "prepare-tasks",
+      "ref": "pmt-210af3b0",
+      "kind": "required",
+      "gate": "confirm"
+    }
+  ]
+}

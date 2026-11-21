@@ -31,4 +31,14 @@ if ($out -notmatch 'E2E-2') { Fail ('the ready task E2E-2 is not in the preview:
 if ($out -match 'Task #\d+ \(E2E-1\)') { Fail 'the not-ready task E2E-1 was queued' }
 if ($out -notmatch 'Files in scope' -or $out -notmatch 'src/example\.ps1' -or $out -notmatch 'Checks to run' -or $out -notmatch 'test-secondbrain\.ps1 -Quick') { Fail ('the prompt lacks files and checks: ' + $out) }
 if ($out -notmatch 'not ready \(readiness:inputs:provenance\)|readiness:inputs:provenance') { Fail ('the skip reason is not shown: ' + $out) }
-Write-Output ('SUCCESS ORCH-READY: 4 checks; retained fixture ' + $root)
+# -Candidates (read only): the not-ready task is listed with its reason, the queued one is not, and nothing is written to the tracker.
+$before = (Get-FileHash -LiteralPath $fx.tracker).Hash
+Push-Location $fx.checkout
+try { $cand = (& pwsh -NoProfile -File $run -SecondBrain $fx.brain -Checkout $fx.checkout -Candidates -NeedsOwner 2>&1 | Out-String | ConvertFrom-Json) }
+finally { Pop-Location }
+$ids = @($cand.candidates | ForEach-Object { $_.id })
+if ('E2E-1' -notin $ids) { Fail ('-Candidates does not list the not-ready task E2E-1: ' + ($ids -join ',')) }
+if ('E2E-2' -in $ids) { Fail '-Candidates lists the queued task E2E-2' }
+if (@($cand.candidates | Where-Object { $_.id -eq 'E2E-1' })[0].reasons -notcontains 'readiness:inputs:provenance') { Fail '-Candidates misses the readiness reason of E2E-1' }
+if ((Get-FileHash -LiteralPath $fx.tracker).Hash -ne $before) { Fail '-Candidates changed the tracker' }
+Write-Output ('SUCCESS ORCH-READY: 8 checks; retained fixture ' + $root)

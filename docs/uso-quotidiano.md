@@ -23,6 +23,7 @@ The command words below remain unchanged in every documentation language.
 | `sb tasks` | List the open tasks of the repository (`-ReadyOnly` for the runner's) |
 | `sb next` | Propose the next steps with the reason for each |
 | `sb pending` / `sb pending flush` | List the queued dossier writes / integrate them (conflicts stay queued: `sb reconcile tasks`) |
+| `sb queue` / `sb queue status` / `sb queue stop` | Alternative queue for autonomous tasks (`orchestrate-tasks.ps1`), independent of the runner and usable from any managed repository: preview by default, `-Start` runs it detached on a `queue/<date>` branch (local commits, no push), `-Provider claude\|codex\|gemini`; see `docs/orchestrate-tasks.md` |
 | `sb runner status` | Show whether the runner is working, stalled, finished or orphaned; `-List` for recent runs, `-Stop` to stop the active one |
 | `sb publish check` | Scan the repository for private data and secrets before a push |
 | `sb grants` | List the scoped MCP write grants (the owner grants and revokes them in the terminal) |

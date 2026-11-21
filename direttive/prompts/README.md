@@ -527,6 +527,12 @@ BACKLOG, MEMORY AND CONTINUITY
   • Needs: one task the runner skips, its reason and dependencies, the checkout read-only and the owner's answers to multiple-choice questions
   • Example: REP18: analyze task #42 and ask me only what is needed to make it autonomous
 
+🔥 REP19 | Prepare tasks for unattended runs one at a time, then start the queue
+  • ID: pmt-210af3b0
+  • Scope: repo | Mode: write
+  • Needs: candidate tasks from `sb queue -Candidates`, the checkout read-only, the owner's answers to multiple-choice questions and the owner's go-ahead to start
+  • Example: REP19: make the next tasks autonomous one by one, stop at 5, then start the queue
+
 🔥 SYS13 | Set or remove the greenfield lock (versions, changelog, migrations, aliases).
   • ID: pmt-29b3278f
   • Scope: repo/area | Mode: write

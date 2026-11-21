@@ -8,6 +8,7 @@ Default is a preview (selection and prompts, nothing runs). Switches:
   -Run                    execute; creates a queue/<yyyyMMdd-HHmm> branch first (never master or main) unless already on a queue/* branch.
   -Status                 print the state of the latest run (phase, pid alive, current task, counters, notice, last events).
   -Stop                   create stop.flag in the latest run folder: the run ends before the next task.
+  -Candidates             read-only list (JSON) of the open tasks the queue cannot take yet, by priority, each with its reasons (execution:, awaiting:, stream:, dependencies:, readiness:<check>:<missing>); -IncludeAdvisory adds tasks that only lack files/checks, -NeedsOwner keeps only the tasks the owner can fix (drops those that only wait for dependencies), -Limit N returns the first N, -OnlyIds/-ExcludeIds narrow it.
   -InstallAgent           write the context-free supervisor agent definition for -Provider into the checkout; never overwrites a file.
   -Provider               claude (default), codex or gemini; the headless CLI comes from SecondBrain.AgentAdapters (-AgentPath overrides the executable).
   -ConfirmExtendedTools   required before -PermissionMode, -AllowedTools or -DisallowedTools differ from the defaults; recorded in status.json.
@@ -60,6 +61,10 @@ param(
     [switch]$Run,
     [switch]$Status,
     [switch]$Stop,
+    [switch]$Candidates,
+    [switch]$IncludeAdvisory,
+    [switch]$NeedsOwner,
+    [ValidateRange(0, 1000)][int]$Limit = 0,
     [switch]$InstallAgent,
     [switch]$Pinned,
     [switch]$ExtendedProfile
@@ -197,6 +202,50 @@ if ($InstallAgent) {
     New-Item -ItemType Directory -Force -Path (Split-Path -Parent $full) | Out-Null
     [IO.File]::WriteAllText($full, $target.content.Replace("`r`n", "`n"), [Text.UTF8Encoding]::new($false))
     [pscustomobject]@{ state = 'created'; provider = $Provider; path = $target.path; liveVerified = $target.verified; note = 'Not committed; the orchestrator ignores this file when it checks the tree.' } | ConvertTo-Json
+    return
+}
+
+# --- candidates (read only): open tasks the queue cannot take yet, with what each one lacks ---
+# Feeds the one-at-a-time preparation flow (card role tasks.prepare): the owner makes each candidate self-sufficient, then the queue can select it.
+if ($Candidates) {
+    $all = @((Read-Json $TrackerPath).tasks)
+    $archiveTasks = if ($archivePath -and (Test-Path -LiteralPath $archivePath)) { @((Read-Json $archivePath).tasks) } else { @() }
+    $closedStreams = @('qualifica-finale', 'intervento-su-richiesta', 'coordinamento-prodotti', 'final-qualification', 'on-request', 'product-coordination')
+    $found = foreach ($task in $all) {
+        if ($task.status -notin 'todo', 'in_progress') { continue }
+        if ($OnlyIds.Count -and $task.id -notin $OnlyIds -and "#$($task.seq)" -notin $OnlyIds) { continue }
+        if ($task.id -in $ExcludeIds) { continue }
+        $ext = Get-Property $task 'extensions'
+        $reasons = @()
+        $execution = [string](Get-Property $task 'execution' '')
+        if ($execution -cne 'autonomous') { $reasons += 'execution:' + $(if ($execution) { $execution } else { 'missing' }) }
+        $awaiting = [string](Get-Property $ext 'awaiting' '')
+        if ($awaiting) { $reasons += "awaiting:$awaiting" }
+        $stream = [string](Get-Property $ext 'stream' '')
+        if ($stream -in $closedStreams) { $reasons += "stream:$stream" }
+        $unmet = @(@(Get-Property $task 'dependencies' @()) | Where-Object { $d = $_.id; -not (@($all + $archiveTasks) | Where-Object { $_.id -eq $d -and $_.status -eq 'done' }) } | ForEach-Object { $_.id })
+        if ($unmet.Count) { $reasons += 'dependencies:' + ($unmet -join '+') }
+        $readiness = Get-Property $ext 'readiness'
+        $missing = @(foreach ($check in @(Get-Property $readiness 'checks' @())) {
+            if ([bool](Get-Property $check 'passed' $true)) { continue }
+            $name = [string](Get-Property $check 'check' '')
+            if ($name -ceq 'authorization') { continue }   # already reported as execution: / awaiting:
+            $names = @(@(Get-Property $check 'missing' @()) | Where-Object { $_ })
+            if ($name -ceq 'scope' -and -not @($names | Where-Object { $_ -cne 'stream' }).Count) { continue }   # legacy: the queue tolerates a task that lacks only a stream
+            "${name}:$(@(@(Get-Property $check 'missing' @()) | Where-Object { $_ }) -join '+')"
+        })
+        if ($missing.Count) { $reasons += 'readiness:' + ($missing -join ',') }
+        $advisory = @(@(Get-Property $readiness 'advisory' @()) | Where-Object { $_ } | ForEach-Object { [string]$_ })
+        if (-not $reasons.Count -and $IncludeAdvisory -and $advisory.Count) { $reasons += 'advisory:' + ($advisory -join '+') }
+        if (-not $reasons.Count) { continue }
+        $ownerFixable = [bool]@($reasons | Where-Object { $_ -notmatch '^(dependencies|stream):' }).Count
+        if ($NeedsOwner -and -not $ownerFixable) { continue }
+        [pscustomobject]@{ id = $task.id; ownerFixable = $ownerFixable; seq = [int]$task.seq; title = [string]$task.title; priority = [string]$task.priority; status = [string]$task.status
+            execution = $execution; stream = $stream; reasons = $reasons; advisory = $advisory; acceptance = @(@(Get-Property $task 'acceptance' @()) | ForEach-Object { [string]$_ }) }
+    }
+    $ordered = @(@($found) | Sort-Object { $_.priority }, { $_.seq })
+    $page = if ($Limit -gt 0) { @($ordered | Select-Object -First $Limit) } else { $ordered }
+    [pscustomobject]@{ checkout = $Checkout; tracker = $TrackerPath; total = $ordered.Count; returned = $page.Count; candidates = $page } | ConvertTo-Json -Depth 6
     return
 }
 

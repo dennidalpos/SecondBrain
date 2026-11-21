@@ -438,6 +438,9 @@ Add-SBMessages @{
     'cmd.next' = @{ en = 'Proposes the next steps for the repository after a task or a run, each with the reason. Nothing is written.' }
     'cmd.pending' = @{ en = 'Lists the queued dossier writes of the repository (applied, pending, conflict, invalid). Nothing is integrated.' }
     'cmd.pendingflush' = @{ en = 'Integrates the queued dossier writes of the own dossier; conflicts stay queued (resolve them with sb reconcile tasks).' }
+    'cmd.queue' = @{ en = 'Alternative queue for the autonomous tasks of the current repository (orchestrate-tasks.ps1), independent of the runner: use it while maintenance tasks change the runner. Preview by default; -Start runs it detached on a queue/<date> branch with local commits only; -Provider claude|codex|gemini, -OnlyIds, -ExcludeIds, -MaxTasks.' }
+    'cmd.queuestatus' = @{ en = 'Shows the latest queue run of the repository (phase, pid alive, current task, counters, notice, last events). Nothing is written.' }
+    'cmd.queuestop' = @{ en = 'Asks the active queue run of the repository to end before the next task (stop.flag).' }
     'cmd.runnerstatus' = @{ en = 'Shows whether the task runner of the repository is working, stalled, finished or orphaned and what the agent did last; -List shows the recent runs, -Stop stops the active one.' }
     'cmd.publishcheck' = @{ en = 'Scans the working tree, index and history of the repository for private data and secrets before a push. Nothing is changed.' }
     'cmd.grants' = @{ en = 'Lists the scoped MCP write grants of the workstation (repository, state, expiry, operations). Granting and revoking stay with the owner in the terminal (mcp-write.ps1 -Grant, -Revoke).' }
@@ -520,6 +523,9 @@ function Get-SBWorkflowCommands {
         @{command='sb sync';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.sync');mode=(Get-SBWorkflowMessage 'mode.write');script='scripts/secondbrain.ps1 -Sync'},
         @{command='sb compact';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.compact');mode=(Get-SBWorkflowMessage 'mode.write');script='scripts/knowledge.ps1 -Compact -Mechanical [-Apply] | -Compact -CandidatePath FILE'},
         @{command='sb runner';aliases=@();scope='repository';does=(Get-SBWorkflowMessage 'cmd.runner');mode=(Get-SBWorkflowMessage 'mode.run');script='scripts/runner.ps1'},
+        @{command='sb queue';aliases=@();scope='repository';does=(Get-SBWorkflowMessage 'cmd.queue');mode=(Get-SBWorkflowMessage 'mode.run');script='scripts/queue.ps1 [-Start] [-Provider claude|codex|gemini] [-OnlyIds IDS] [-ExcludeIds IDS] [-MaxTasks N]'},
+        @{command='sb queue status';aliases=@();scope='repository';does=(Get-SBWorkflowMessage 'cmd.queuestatus');mode=(Get-SBWorkflowMessage 'mode.read');script='scripts/queue.ps1 -Status'},
+        @{command='sb queue stop';aliases=@();scope='repository';does=(Get-SBWorkflowMessage 'cmd.queuestop');mode=(Get-SBWorkflowMessage 'mode.write');script='scripts/queue.ps1 -Stop'},
         @{command='sb reconcile tasks';aliases=@();scope='repository';does=(Get-SBWorkflowMessage 'cmd.reconcile');mode=(Get-SBWorkflowMessage 'mode.write');script='scripts/reconcile-tasks.ps1 [-Apply] [-Decide ID=OPTION]'},
         @{command='sb stop';aliases=@();scope='repository';does=(Get-SBWorkflowMessage 'cmd.stop');mode=(Get-SBWorkflowMessage 'mode.write');script='scripts/prompts.ps1 -Compose -Prompt session.stop'},
         @{command='sb tasks';aliases=@();scope='repository';does=(Get-SBWorkflowMessage 'cmd.tasks');mode=(Get-SBWorkflowMessage 'mode.read');script='scripts/knowledge.ps1 -Tasks [-ReadyOnly]'},
