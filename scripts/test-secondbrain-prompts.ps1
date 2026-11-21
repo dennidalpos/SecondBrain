@@ -197,8 +197,9 @@ Assert-Prompts ($global -notmatch 'ask_question|Function Calling') 'nessun nome 
 foreach($text in $global,$station,$repoBlock){Assert-Prompts ($text -notmatch '(?<![A-Za-z0-9+.-])[A-Z]:[\/]|(?<![\w/])/(?:Users|home)/|\{\{') 'nessun percorso assoluto o segnaposto'}
 Assert-Prompts ($station.Contains('<!-- secondbrain:tracker-contract:1 -->')) 'contratto tracker presente nel testo di postazione'
 $registry=@(Get-SBWorkflowCommands|ForEach-Object {$_.command})
-$english='sb activate','sb check','sb sync','sb compact','sb stop','sb prompt list','sb prompt area AREA','sb prompt show KEY'
+$english='sb activate','sb check','sb sync','sb setup','sb compact','sb stop','sb prompt list','sb prompt area AREA','sb prompt show KEY'
 foreach($command in $english){Assert-Prompts ($command -in $registry) "command '$command' in the registry"}
+Assert-Prompts ($station.Contains('sb sync, sb setup, sb compact')) 'sb setup listed among the workstation commands'
 # English-only (3.0): the Italian verbs of revisions up to 1.2 are no longer aliases.
 $aliases=@(Get-SBWorkflowCommands|ForEach-Object {@($_.aliases)})
 Assert-Prompts ($aliases.Count -eq 0) 'the verb registry has no aliases (Italian sb verbs removed)'

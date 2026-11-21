@@ -1,15 +1,15 @@
 {
-  "approvedAt": "2026-11-20T17:35:29.3754533+01:00",
-  "authorization": "Owner in chat, 2026-11-20: Approvo 1.6 (self-sufficient tasks for the unattended runner)",
+  "approvedAt": "2026-11-21T22:13:51.8873619+01:00",
+  "authorization": "Owner approval in chat 2026-11-21: 'Sì, approva' for proposal 2026-11-21-workstation-sb-setup (#442)",
   "files": {
     "directives/AGENTS.global_ide.md": "0A70848B8CBBE1939BDB240F37280AB3594914B41E4152F8543A554F04FEF0FF",
     "directives/AGENTS.repo.managed.md": "03E91474A68AB03784B6B86B686A537B06105B04ACB3115A7F57B6626B1C5DE7",
-    "directives/workstation.template.md": "2B4198D3D9F66B2EC4AD159DC7889F6C21AD64C5E025B99005D26122D6E5AEDB"
+    "directives/workstation.template.md": "FE4E7619B750B3784AA2F282061DDD82BBD00B3871E7D35739DD217E297D7A4F"
   },
   "proposal": {
-    "path": "directives/proposals/2026-11-20-task-self-sufficiency",
-    "readmeHash": "57B5F29BF9254F6F8BFE3442A7665452CE09F11B527E651D91F6A06638165B99",
-    "sha256": "CF8B1A692BE2F9D47DB0602E4EEA148DA6923C789602406C92486A2FD88DAC74"
+    "path": "directives/proposals/2026-11-21-workstation-sb-setup",
+    "readmeHash": "FC743498F888C535EEFB60624F023DB344B80A39EAA0911E3802F6F197191927",
+    "sha256": "A038955310F0385A1B1B3253E4E93230CC2DAEF5C13259312E19F938D164C5D9"
   },
   "schemaVersion": 1
 }
