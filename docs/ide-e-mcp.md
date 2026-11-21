@@ -72,6 +72,8 @@ Reading: for a structured read the MCP saves about 70% of the turns, 72% of the 
 
 The server runs over stdio and does not listen on a network port. It never applies queued dossier writes at startup or during lookups; every tool advertises readOnlyHint=true except submit_dossier_write, which requires a local approval receipt. Knowledge tools and the publication gate have distinct consent requirements.
 
+A refused `submit_dossier_write` names its cause (no grant and no receipt, grant revoked, grant expired, receipt expired, receipt for a different plan, session of another repository) and prints the exact `mcp-write.ps1 -Grant` and `-Approve` commands with the repository and plan hash filled in and placeholders for the plan path, `SessionId` and `Authorization`. Approval given in chat does not count; what is accepted does not change.
+
 To forbid new writes for a session start `mcp-server.ps1 -NoRecovery`; per-call `noRecovery=true` forbids them for that call. Queued writes are integrated only by `knowledge.ps1 -FlushPending`.
 
 Repository memory collection is enabled separately and requires a verified permission policy for the turn. Fixture tests do not qualify native live collectors. See [memory cycle and known limits](riferimento/memory-cycle.md#known-limits).

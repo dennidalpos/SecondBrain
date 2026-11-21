@@ -8,6 +8,12 @@ Add-SBMessages @{
     'mcpwrite.stale' = @{ en = 'MCP write: plan or preconditions changed; preview and approve a new request' }
     'mcpwrite.activity' = @{ en = 'Real activity log disabled: complete F6/F11 activation procedure; no write' }
     'mcpwrite.grant.scope' = @{ en = 'MCP write: the active grant does not cover this operation (allowed: task.status, task.update with status/reason/evidence, task.new as non-autonomous)' }
+    'mcpwrite.deny.nogrant' = @{ en = 'MCP write refused: no grant and no approval receipt exist for {0}. The owner must run in a terminal: {1} (or approve this plan only: {2}). Approval given in chat does not count.' }
+    'mcpwrite.deny.revoked' = @{ en = 'MCP write refused: the grant for {0} was revoked. The owner must run in a terminal: {1} (or approve this plan only: {2}). Approval given in chat does not count.' }
+    'mcpwrite.deny.expired' = @{ en = 'MCP write refused: the grant for {0} has expired. The owner must run in a terminal: {1} (or approve this plan only: {2}). Approval given in chat does not count.' }
+    'mcpwrite.deny.receipt.expired' = @{ en = 'MCP write refused: the approval receipt for this plan of {0} has expired. The owner must run in a terminal: {2} (or grant the repository: {1}). Approval given in chat does not count.' }
+    'mcpwrite.deny.receipt.plan' = @{ en = 'MCP write refused: the approval receipt for this request of {0} is for a different plan. The owner must review this plan and run in a terminal: {2} (or grant the repository: {1}). Approval given in chat does not count.' }
+    'mcpwrite.deny.session' = @{ en = 'MCP write refused: the session belongs to another repository than {0}. Start a session for {0}, then the owner runs in a terminal: {1} (or approve this plan only: {2}). Approval given in chat does not count.' }
     'mcpwrite.grant.none' = @{ en = 'MCP write: no grant stored for {0}' }
     'mcpwrite.disabled' = @{ en = 'New MCP writes disabled in NoRecovery mode' }
 }
@@ -38,7 +44,7 @@ function Get-SBMcpWriteContext([string]$BrainRoot,[string]$ConfigPath,[string]$R
     $dossier=Join-Path $BrainRoot (Resolve-SBWorkingDossier $BrainRoot $Repository)
     $approval=Join-Path $config.localStateRoot ('mcp-write-approvals/'+(Get-SBRuntimeRepoSegment $Repository)+'/'+$RequestId+'.json')
     Assert-SBPlainPath $approval
-    @{config=$config;checkout=$asset.path;dossier=$dossier;approvalPath=$approval}
+    @{config=$config;repository=$Repository;checkout=$asset.path;dossier=$dossier;approvalPath=$approval}
 }
 function Get-SBMcpWritePinnedExecutor($Plan) {
     # The executor captured at preview (task operations only); null when the plan has none.
@@ -186,8 +192,28 @@ function New-SBMcpWritePlan {
     if([Text.Encoding]::UTF8.GetByteCount((ConvertTo-SBJson $plan)) -gt 256KB){throw (New-SBError 'mcpwrite.invalid' @('plan size'))}
     $plan
 }
+function Get-SBMcpWriteOwnerCommands([string]$Repository,[string]$PlanHash) {
+    # Exact owner commands for a refusal; the repository identity and plan hash are filled in, the rest are placeholders.
+    $script='scripts/mcp-write.ps1'
+    @("pwsh -NoProfile -File $script -Grant -Repository $Repository -SessionId <SessionId> -Authorization '<Authorization>'",
+      "pwsh -NoProfile -File $script -Approve -PlanPath <reviewed-plan.json> -ExpectedPlanHash $PlanHash -SessionId <SessionId> -Authorization '<Authorization>'")
+}
+function New-SBMcpWriteRefusal([string]$Key,[string]$Repository,[string]$PlanHash) {
+    $commands=Get-SBMcpWriteOwnerCommands $Repository $PlanHash
+    New-SBError $Key @($Repository,$commands[0],$commands[1])
+}
+function Get-SBMcpWriteNoGrantKey($Config,[string]$Repository) {
+    $grant=Read-SBMcpWriteGrantFile $Config $Repository
+    if(!$grant){return 'mcpwrite.deny.nogrant'}
+    if($grant.ContainsKey('revokedAt')){return 'mcpwrite.deny.revoked'}
+    if([DateTimeOffset]::Parse($grant.expiresAt) -le (Get-SBNow)){return 'mcpwrite.deny.expired'}
+    'mcpwrite.deny.nogrant'
+}
 function Read-SBMcpWriteApproval($Context,[string]$PlanHash) {
     $receipt=Read-SBJson $Context.approvalPath $null
+    $repository=$Context.repository
+    if(!$receipt){throw (New-SBMcpWriteRefusal (Get-SBMcpWriteNoGrantKey $Context.config $repository) $repository $PlanHash)}
+    if($receipt.planHash -cne $PlanHash){throw (New-SBMcpWriteRefusal 'mcpwrite.deny.receipt.plan' $repository $PlanHash)}
     if(!$receipt -or $receipt.schemaVersion -ne 1 -or $receipt.planHash -cne $PlanHash -or
        $receipt.receiptHash -cne (Get-SBMcpWriteHash $receipt receiptHash) -or
        $receipt.plan.planHash -cne (Get-SBMcpWriteHash $receipt.plan planHash) -or $receipt.plan.planHash -cne $PlanHash -or
@@ -243,7 +269,7 @@ function New-SBMcpWriteGrant {
     if(!(Test-SBRepositoryIdentity $Repository) -or !$Authorization -or $Hours -lt 1 -or $Hours -gt 72){throw (New-SBError 'mcpwrite.invalid' @('grant'))}
     $config=Read-SBConfiguration -ConfigPath $ConfigPath -BrainRoot $BrainRoot -ReadOnly
     $session=Assert-SBSession $config $SessionId
-    if($session.repository -cne $Repository){throw (New-SBError 'mcpwrite.approval')}
+    if($session.repository -cne $Repository){throw (New-SBMcpWriteRefusal 'mcpwrite.deny.session' $Repository '<PlanHash>')}
     $now=Get-SBNow
     $grant=@{schemaVersion=1;repository=$Repository;workstationId=$config.workstationId;user=[Security.Principal.WindowsIdentity]::GetCurrent().Name;
         grantedAt=$now.ToString('o');expiresAt=$now.AddHours($Hours).ToString('o');operations=@($script:SBMcpGrantOperations);authorization=$Authorization}
@@ -255,7 +281,7 @@ function Revoke-SBMcpWriteGrant {
     if(!(Test-SBRepositoryIdentity $Repository)){throw (New-SBError 'mcpwrite.invalid' @('grant'))}
     $config=Read-SBConfiguration -ConfigPath $ConfigPath -BrainRoot $BrainRoot -ReadOnly
     $session=Assert-SBSession $config $SessionId
-    if($session.repository -cne $Repository){throw (New-SBError 'mcpwrite.approval')}
+    if($session.repository -cne $Repository){throw (New-SBMcpWriteRefusal 'mcpwrite.deny.session' $Repository '<PlanHash>')}
     $grant=Read-SBMcpWriteGrantFile $config $Repository
     if(!$grant){throw (New-SBError 'mcpwrite.grant.none' @($Repository))}
     if(!$grant.ContainsKey('revokedAt')){$grant.revokedAt=(Get-SBNow).ToString('o');Save-SBMcpWriteGrant $config $Repository $grant}
@@ -280,7 +306,7 @@ function Get-SBMcpWriteGrants {
 function Assert-SBMcpWriteGrantedPlan($Context,[string]$Repository,[string]$RequestId,[string]$PlanHash,$Supplied) {
     # Submit under a grant: the caller supplies the previewed plan (the preview persists nothing); it must be intact, bound to this request and covered.
     $grant=Read-SBMcpWriteGrant $Context.config $Repository
-    if(!$grant){throw (New-SBError 'mcpwrite.approval')}
+    if(!$grant){throw (New-SBMcpWriteRefusal (Get-SBMcpWriteNoGrantKey $Context.config $Repository) $Repository $PlanHash)}
     if($Supplied -isnot [Collections.IDictionary] -or $Supplied.planHash -cne $PlanHash -or (Get-SBMcpWriteHash $Supplied planHash) -cne $PlanHash -or
        $Supplied.repository -cne $Repository -or $Supplied.requestId -cne $RequestId -or $Supplied.workstationId -cne $Context.config.workstationId -or
        !(Test-SBSamePath $Supplied.checkoutPath $Context.checkout) -or !(Test-SBSamePath $Supplied.dossierPath $Context.dossier)){throw (New-SBError 'mcpwrite.approval')}
@@ -293,7 +319,7 @@ function Approve-SBMcpWritePlan {
        (Get-SBMcpWriteHash $Plan planHash) -cne $ExpectedPlanHash){throw (New-SBError 'mcpwrite.approval')}
     $ctx=Get-SBMcpWriteContext $BrainRoot $ConfigPath $Plan.repository $Plan.checkoutPath $Plan.requestId
     $session=Assert-SBSession $ctx.config $SessionId
-    if($session.repository -cne $Plan.repository){throw (New-SBError 'mcpwrite.approval')}
+    if($session.repository -cne $Plan.repository){throw (New-SBMcpWriteRefusal 'mcpwrite.deny.session' $Plan.repository $ExpectedPlanHash)}
     $fresh=New-SBMcpWritePlan $BrainRoot $ConfigPath $Plan.repository $Plan.checkoutPath $Plan.requestId $Plan.operation $Plan.payload (Get-SBMcpWritePinnedExecutor $Plan)
     if($fresh.planHash -cne $ExpectedPlanHash){throw (New-SBError 'mcpwrite.stale')}
     if([IO.File]::Exists($ctx.approvalPath)){
@@ -322,7 +348,7 @@ function Submit-SBMcpWrite {
     $queued=[IO.File]::Exists($queuedPath)
     if(!$queued){
         if($receipt -and ([DateTimeOffset]::Parse($receipt.approvedAt) -gt (Get-SBNow) -or
-           [DateTimeOffset]::Parse($receipt.expiresAt) -le (Get-SBNow))){throw (New-SBError 'mcpwrite.approval')}
+           [DateTimeOffset]::Parse($receipt.expiresAt) -le (Get-SBNow))){throw (New-SBMcpWriteRefusal 'mcpwrite.deny.receipt.expired' $Repository $PlanHash)}
         if($plan.operation -eq 'activity.append' -and (!$ctx.config.ContainsKey('activityLogEnabled') -or $ctx.config.activityLogEnabled -ne $true)){throw (New-SBError 'mcpwrite.activity')}
         $fresh=New-SBMcpWritePlan $BrainRoot $ConfigPath $Repository $CheckoutPath $RequestId $plan.operation $plan.payload (Get-SBMcpWritePinnedExecutor $plan)
         if($fresh.planHash -cne $PlanHash){throw (New-SBError 'mcpwrite.stale')}
