@@ -117,4 +117,32 @@ Assert-Setup (!$other.resumed -and $other.from -eq 'discovery') 'different disco
 Set-SBSetupProgress $paths $sha 'mcp';Set-SBSetupProgress $paths $sha 'sync';Set-SBSetupProgress $paths $sha 'report' -Complete
 $finished=Get-SBSetupResumePoint (Get-SBSetupProgress $paths) $sha
 Assert-Setup (!$finished.resumed -and (Get-SBSetupProgress $paths).status -eq 'complete') 'complete run is not resumed'
+# sb install: one command chains preflight, Setup and enrolment; preview changes nothing, -Apply leaves the workstation active.
+$sourceRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+$cloneRoot=Join-Path $root 'install-clone';$installProject=Join-Path $root 'install-project'
+$savedEnv=@{}
+foreach($name in @('SECONDBRAIN_TEST_ROOT','SECONDBRAIN_TEST_RUN_CONTEXT','SECONDBRAIN_TEST_KEEP','SECONDBRAIN_HOME','SECONDBRAIN_STATE_ROOT')){$savedEnv[$name]=[Environment]::GetEnvironmentVariable($name,'Process');[Environment]::SetEnvironmentVariable($name,$null,'Process')}
+try{
+    & git -c core.longpaths=true clone -q --no-hardlinks $sourceRoot $cloneRoot 2>&1|Out-Null
+    foreach($relative in (@(& git -c core.quotepath=false -C $sourceRoot ls-files -z --cached --others --exclude-standard|ForEach-Object {$_}) -join '') -split "`0"|Where-Object {$_}){
+        $from=Join-Path $sourceRoot $relative
+        if(!(Test-Path -LiteralPath $from -PathType Leaf)){continue}
+        $to=Join-Path $cloneRoot $relative
+        [void][IO.Directory]::CreateDirectory((Split-Path $to))
+        Copy-Item -LiteralPath $from -Destination $to -Force
+    }
+    [void][IO.Directory]::CreateDirectory($installProject)
+    & git -C $installProject init -q
+    & git -C $installProject remote add origin 'https://github.com/test/install-fixture.git'
+    Set-Fixture (Join-Path $installProject 'README.md') "# Synthetic project`n"
+    $installScript=Join-Path $cloneRoot 'scripts/install.ps1'
+    $runInstall={param([string[]]$Extra) $out=@(& pwsh -NoProfile -File $installScript -Roots $installProject -NoRegisterEnvironment @Extra 2>&1);@{code=$LASTEXITCODE;data=((@($out|Where-Object {$_ -isnot [Management.Automation.ErrorRecord]}) -join "`n")|ConvertFrom-Json -AsHashtable)}}
+    $previewRun=& $runInstall @()
+    Assert-Setup ($previewRun.code -eq 0 -and $previewRun.data.stage -eq 'preview' -and $previewRun.data.checks.git -and !(Test-Path -LiteralPath (Join-Path $cloneRoot '.runtime/hosts')) -and @(Get-ChildItem -LiteralPath $installProject -Force|Where-Object Name -notin '.git','README.md').Count -eq 0) 'install preview: preflight passes, nothing written'
+    $applyRun=& $runInstall @('-Apply')
+    $installStatus=@(& pwsh -NoProfile -File (Join-Path $cloneRoot 'scripts/secondbrain.ps1') -Setup -Status 2>&1|Where-Object {$_ -isnot [Management.Automation.ErrorRecord]})-join "`n"|ConvertFrom-Json -AsHashtable
+    Assert-Setup ($applyRun.code -eq 0 -and $applyRun.data.stage -eq 'applied' -and (Test-Path -LiteralPath (Join-Path $cloneRoot '.runtime/hosts')) -and (Test-Path -LiteralPath (Join-Path $installProject 'AGENTS.md')) -and $installStatus.stage -eq 'status') 'install -Apply: workstation active and repository enrolled'
+}finally{
+    foreach($name in $savedEnv.Keys){[Environment]::SetEnvironmentVariable($name,$savedEnv[$name],'Process')}
+}
 'SUCCESS SETUP-STATUS: '+$passed+' verifiche'

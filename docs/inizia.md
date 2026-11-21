@@ -20,6 +20,17 @@ The agent should follow this procedure and stop for your confirmation at each st
 
 The repository's `AGENTS.md` repeats this entry point, so an agent opening a fresh clone finds the same procedure. Load and write evidence of the real agent session remain separate from file alignment (see [Inspect the result](#inspect-the-result)).
 
+## One command for a new PC
+
+After cloning, `scripts/install.ps1` chains the preflight checks (Windows, Git 2.42+, the project folders), `secondbrain.ps1 -Setup` and the enrolment of each repository. It previews by default and writes nothing; `-Apply` runs Setup with `-Yes -Apply`, which activates the workstation and enrols the repositories.
+
+~~~powershell
+pwsh -NoProfile -File scripts/install.ps1 -Roots D:\Projects\my-product
+pwsh -NoProfile -File scripts/install.ps1 -Roots D:\Projects\my-product -Apply
+~~~
+
+The JSON reports `checks` and one `runs` entry per root. Exit 0 preview or applied, 1 Setup not completed, 2 preflight failed. `-NoRegisterEnvironment` skips the `SECONDBRAIN_HOME` variable. The command adds no setup logic: for IDEs, MCP and optional features continue with `sb setup`. Checked on a synthetic clone; the per-dossier lock on two real PCs is not covered.
+
 ## Clone and choose a project
 
 Follow the [README quick start](../README.md#quick-start-load-one-projects-context). It provides the complete clone, read-only preview, explicit activation and Startup commands. The example chooses one existing Git checkout, selects no IDE and uses NoRegisterEnvironment.
