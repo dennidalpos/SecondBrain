@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "wfl-c3158f65",
+  "key": "wf-dossier-tidy",
+  "title": "Tidy a dossier: reorder and archive the tracker, compact, then align",
+  "revision": 1,
+  "status": "active",
+  "steps": [
+    {
+      "step": "reorder-tracker",
+      "ref": "pmt-c1e1e70c",
+      "kind": "required",
+      "gate": "auto"
+    },
+    {
+      "step": "compact",
+      "ref": "pmt-77d7bf7a",
+      "kind": "required",
+      "gate": "confirm"
+    },
+    {
+      "step": "align",
+      "ref": "pmt-f02db9d0",
+      "kind": "required",
+      "gate": "auto"
+    }
+  ]
+}

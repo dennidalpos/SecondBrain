@@ -401,8 +401,17 @@ try{
     $lost=@($plan.rows|Where-Object {$_.idFate -eq 'kept' -and $_.oldId -notin $afterIds})
     Assert-Prompts (!$lost.Count) '#568: every kept card ID is still in the catalog under its new code'
     Assert-Prompts (@($after.prompts|Where-Object {$_.code -in $plan.rows.oldCode}).Count -eq 0) '#568: no old code remains in the catalog'
-    $aliases=Read-SBPromptAliases $migRoot $after
-    Assert-Prompts (@($aliases.aliases).Count -eq 121 -and @($aliases.aliases|Where-Object {$_.status -eq 'retired' -and $_.retiredId}).Count -eq 4) '#568: aliases.json has 121 entries and lists the 4 retired IDs'
+    # #570: the repository's own workflow definitions load, and the managed start chain of the home screen comes from wf-session-start.
+    $liveCatalog=Read-SBWorkflowCatalog $brain
+    $liveFlows=@(Read-SBPromptWorkflows $brain $liveCatalog)
+    Assert-Prompts ($liveFlows.Count -eq 9 -and 'wf-session-start' -in $liveFlows.key) ('#570: the 9 workflow definitions of the repository load (found '+$liveFlows.Count+')')
+    $startChain=@(Get-SBWorkflowStartChain @{repository=@{location='repo-managed'}} $liveCatalog $liveFlows)
+    $startFlow=@($liveFlows|Where-Object key -ceq 'wf-session-start')[0]
+    Assert-Prompts ($startChain.Count -ge $startFlow.steps.Count -and $startChain[0] -match '^`sb prompt [A-Z]{3}\d\d` — ') '#570: the managed start chain lists the steps of wf-session-start'
+    $aliases=Read-SBPromptAliases $migRoot $after @(Read-SBPromptWorkflows $migRoot $after)
+    # #570: the repository now defines the workflows, so the 4 retired orchestration codes resolve to their workflow instead of staying retired.
+    $flowAliases=@($aliases.aliases|Where-Object {$_.status -eq 'workflow' -and $_.workflow})
+    Assert-Prompts (@($aliases.aliases).Count -eq 121 -and $flowAliases.Count -eq 4) ('#568: aliases.json has 121 entries and the 4 retired orchestration codes resolve to a workflow (found '+@($aliases.aliases).Count+' and '+$flowAliases.Count+')')
     Assert-Prompts ($aliases.aliases|Where-Object {$_.code -eq 'AIS01'}|ForEach-Object {$_.status -eq 'renamed' -and $_.ids[0] -eq $before['AIS01']}) '#568: an old code resolves to the same card ID'
     foreach($row in $plan.rows|Where-Object action -eq 'rename'){
         if(!(Test-Path -LiteralPath (Join-Path $migRoot ('direttive/prompts/'+$row.newCode+'.md'))) -or (Test-Path -LiteralPath (Join-Path $migRoot ('direttive/prompts/'+$row.oldCode+'.md')))){Assert-Prompts $false ('#568: card files moved for '+$row.oldCode)}

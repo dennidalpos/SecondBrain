@@ -534,8 +534,17 @@ test("a run stopped by a plan limit shows its resume point, and the window resum
   await page.locator("#run-resume-start").click();
   await expect(resume).toBeHidden({ timeout: 60_000 });
   expect(calls("start_queue")).toBe(2);
-  // #650: the window still shows the stopped run's Finished verdict until it reattaches; wait for the new run folder before asserting the result row.
-  await expect.poll(async () => path.basename(((await page.locator("#run-folder").textContent()) ?? "").trim()), { timeout: 120_000, intervals: [1_000] }).not.toBe(runId);
+  // A refused start (for example "already running") shows in #run-error and must fail here instead of waiting for a folder that never comes.
+  await expect(page.locator("#run-error")).toHaveText("");
+  // #650: the window still shows the stopped run's Finished verdict until it reattaches; resetRunView() blanks #run-folder to "—", so wait for
+  // a real new run folder (not the placeholder) that exists on disk before asserting the result row.
+  const folderOf = async () => ((await page.locator("#run-folder").textContent()) ?? "").trim();
+  await expect.poll(async () => {
+    const err = ((await page.locator("#run-error").textContent()) ?? "").trim();
+    if (err) throw new Error(`The resume start was refused: ${err}`);
+    const folder = await folderOf();
+    return /runner-run-/.test(path.basename(folder)) && path.basename(folder) !== runId && fs.existsSync(folder);
+  }, { timeout: 120_000, intervals: [1_000] }).toBe(true);
   await expect(page.locator("#run-verdict")).toHaveText("Last run finished", { timeout: 240_000 });
   await expect(page.locator("#run-results tr").filter({ hasText: "E2E-3" }).last()).toContainText("finished", { timeout: 60_000 });
   expect(readTracker().tasks.find((t) => t.id === "E2E-3")?.status).toBe("in_progress");

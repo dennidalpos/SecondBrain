@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "id": "wfl-5e1a9c01",
+  "key": "wf-session-start",
+  "title": "Start a session: read the context, check the state, align, pick the next task",
+  "revision": 1,
+  "status": "active",
+  "steps": [
+    {
+      "step": "read-context",
+      "ref": "pmt-821f7dec",
+      "kind": "required",
+      "gate": "auto"
+    },
+    {
+      "step": "start-session",
+      "ref": "pmt-5916b85a",
+      "kind": "required",
+      "gate": "auto"
+    },
+    {
+      "step": "align",
+      "ref": "pmt-f02db9d0",
+      "kind": "optional",
+      "gate": "confirm"
+    },
+    {
+      "step": "next-task",
+      "ref": "pmt-4cc383ba",
+      "kind": "optional",
+      "gate": "confirm"
+    }
+  ]
+}
