@@ -27,3 +27,19 @@
 - Require an explicit confirmation before the run for the extended profile, and record the profile, who confirmed and when in `status.json` and the run report.
 - For `orchestrate-tasks.ps1`, widen `-PermissionMode`, `-AllowedTools` and `-DisallowedTools` only with the user's prior authorization.
 - Keep the forbidden actions of the repository directives (commit, push, publication, deletion) outside the extended profile unless the authorization names them.
+
+## Review (#652, 2026-11-21): keep / fix / replace
+
+| Point | Outcome | Note |
+|---|---|---|
+| Fresh detached headless process per task through `SecondBrain.AgentAdapters`; `sb queue -Start` detaches the run | keep | Verified live with a fake Claude; real Codex and Gemini sessions are not verified (Codex CLI is not installed on the review workstation) |
+| Script-side bookkeeping (in_progress, evidence, reopen, park, local commit) and health check; a failure stops with `NOTICE.txt`, never reverts | keep | Covered by `test-orchestrator-queue-live.ps1` and `test-orchestrator-readiness.ps1` |
+| Queue branch `queue/*`, never `master` or `main`, no push; commit, push and deletion forbidden in the profile | keep | |
+| Extended tool access needs `-ConfirmExtendedTools`, recorded in `status.json` (Claude Code only) | keep | |
+| Pinned script copy and snapshot of `scripts/`, `config/`, `VERSION`, retaken between tasks | keep | |
+| Self-editing tasks ordered last, local commit as rollback point | keep | |
+| Resume of a cut run with a dirty tree, no reset, clean or stash | keep | Checked on a synthetic repository: interrupted task first, partial work committed, tree clean, no stash |
+| Power request, `NOTICE.txt`, `-Status`, `-Stop`, `-InstallAgent` (never overwrites) | keep | |
+| A direct call without `-SecondBrain` failed (`$candidates` collided with the typed `-Candidates` switch) | fix (done) | Renamed to `$homeFolders` |
+| Supervisor context grows with every report | keep | Reports are short and the script does all bookkeeping; relaunch the supervisor per task if it grows |
+| Codex and Gemini supervisor files are unverified formats | keep, open | Needs real sessions |

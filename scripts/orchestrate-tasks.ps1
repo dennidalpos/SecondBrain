@@ -75,8 +75,9 @@ Set-StrictMode -Version Latest
 $ExcludeIds = @($ExcludeIds | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
 $OnlyIds = @($OnlyIds | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
 if (-not $SecondBrain) {
-    $candidates = @($env:SECONDBRAIN_HOME, (Split-Path -Parent $PSScriptRoot)) | Where-Object { $_ }
-    $SecondBrain = $candidates | Where-Object { Test-Path -LiteralPath (Join-Path $_ 'scripts\knowledge.ps1') } | Select-Object -First 1
+    # Not named $candidates: variables are case-insensitive and that name is the typed -Candidates switch.
+    $homeFolders = @($env:SECONDBRAIN_HOME, (Split-Path -Parent $PSScriptRoot)) | Where-Object { $_ }
+    $SecondBrain = $homeFolders | Where-Object { Test-Path -LiteralPath (Join-Path $_ 'scripts\knowledge.ps1') } | Select-Object -First 1
 }
 # Messages and adapters come from the SecondBrain modules (a pinned copy runs from the work folder, so $PSScriptRoot is not enough).
 $moduleRoot = if ($SecondBrain) { Join-Path $SecondBrain 'scripts' } else { $PSScriptRoot }
