@@ -452,7 +452,7 @@ if('portable' -in $Groups){
                 try{[void](Invoke-SBPortableSync -Config $adoptConfig -Check -AdoptIde 'No such IDE')}catch{$unknownAdopt=$_}
                 Check ($null -ne $unknownAdopt -and $unknownAdopt.Exception.Message -match 'No registered IDE named') '-AdoptIde rejects an IDE name that is not registered'
                 # #781: apply path adopts the stale hash, rewrites the block with the approved text and leaves a backup; Claude Code files outside ~/.claude/CLAUDE.md warn.
-                $adoptApproved=(Get-SBPortableGlobal $brain).Trim()
+                $adoptApproved="<!-- secondbrain:global:begin -->`n"+(Get-SBPortableGlobal $brain).Trim()+"`n<!-- secondbrain:global:end -->"
                 $adoptApplied=Invoke-SBPortableSync -Config $adoptConfig -AdoptIde 'Fixture adopt'
                 $adoptedState=ConvertFrom-Json ([IO.File]::ReadAllText($adoptStatePath)) -AsHashtable
                 $adoptBlock=Get-SBManagedContent ((Read-SBText $adoptFile) -replace "`r`n","`n") 'global'
