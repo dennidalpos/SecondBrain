@@ -937,7 +937,7 @@ if('workflows' -in $Groups){
     Check (!$markdown.Contains('O-1') -and !$markdown.Contains('github.com/test/other') -and !$markdown.Contains($identity)) 'roadmap contains no data of other repositories'
     Check ((Get-SBRoadmap -BrainRoot $brain -Dossier $roadDossier -CheckoutPath $roadRepo -Since '2026-12-01').interventions.Count -eq 1) 'roadmap -Since keeps only undated interventions after the cut'
 }
-if('mcp-writes' -in $Groups){. (Join-Path $PSScriptRoot 'test-mcp-writes.ps1')}
+if('mcp-writes' -in $Groups){. (Join-Path $PSScriptRoot 'test-mcp-writes.ps1');. (Join-Path $PSScriptRoot 'test-identity-grants.ps1')}
 if('pending' -in $Groups){
     . (Join-Path $PSScriptRoot 'test-mcp-write-smoke.ps1')
     $noRecoveryRequest=New-SBPendingWrite -BrainRoot $brain -Repository $identity -Operation file.append -Arguments @{relativePath='memory.md';content="`nPending no-recovery fixture"} -Config $cfg
