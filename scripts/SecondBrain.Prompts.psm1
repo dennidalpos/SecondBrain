@@ -414,9 +414,12 @@ Add-SBMessages @{
     'home.chain.explore' = @{ en = '`sb prompt repo.explore` to learn the repository; optional onboarding with `sb activate` (workstation.activate).' }
     'home.commands.repo' = @{ en = 'REPOSITORY COMMANDS' }
     'home.commands.brain' = @{ en = 'SECONDBRAIN ACTIVATION AND MAINTENANCE' }
-    'home.catalog' = @{ en = 'Full catalog ({0} prompts in {1} areas, Markdown file): {2}' }
+    'home.catalog' = @{ en = 'Full catalog ({0} prompts in {1} areas): {2}' }
+    'home.present' = @{ en = 'PRESENTATION (for the agent): show this screen in the language the user writes in, translating every title, description and label; keep `sb` commands, prompt codes, file paths and links verbatim. Render it as a terminal-style multiple-choice menu: the repository state first, then the numbered choices in their groups, ending with the full-catalog link, and let the user answer with a number or a command.' }
+    'home.menu' = @{ en = 'MENU — pick a number or type the command; [CODE] is the prompt card behind a command.' }
+    'home.choose' = @{ en = 'Your choice: a number from the menu, an `sb` command, or `sb prompt list` for the whole catalog.' }
     'home.relpath' = @{ en = 'Path relative to the SecondBrain root: {0}' }
-    'home.twoways' = @{ en = 'Two ways to use SecondBrain: in chat (`sb` command, in supported IDEs and agents) or from a script (same result, PowerShell command).' }
+    'home.twoways' = @{ en = 'Two ways to use SecondBrain: in chat (`sb` command, in supported IDEs and agents) or from a script (same result, PowerShell command: see the flow-per-product guide).' }
     'home.table.commands' = @{ en = '| Chat command | What it does | Mode | From script | Prompt card |' }
     'home.presets.title' = @{ en = 'PRESETS: ORDERED CHAINS OF CARDS FOR A BIGGER JOB' }
     'home.presets.how' = @{ en = 'Run a whole preset with `sb prompt wf-NAME: objective` (`-Skip` skips optional steps), or run the steps one by one with `sb prompt CODE: objective`. A step marked confirm needs your approval before it writes; optional steps may be skipped.' }
@@ -690,7 +693,7 @@ function Format-SBWorkflowHome([string]$BrainRoot, $Catalog, $State=$null) {
     $index=Resolve-SBParaPath $BrainRoot $indexPath
     $areas=@($Catalog.prompts|ForEach-Object category|Select-Object -Unique).Count
     $root=([IO.Path]::GetFullPath($BrainRoot) -replace '\\','/').TrimEnd('/')
-    $lines=@((Get-SBWorkflowMessage 'home.title'),'')
+    $lines=@((Get-SBWorkflowMessage 'home.title'),'',(Get-SBWorkflowMessage 'home.present'),'')
     if($State){
         $lines+=(Get-SBWorkflowMessage 'home.where')
         $lines+=('- '+$(if($State.activated){Get-SBWorkflowMessage 'home.station.active' @($State.hostId,$State.repositories,$State.ides)}else{Get-SBWorkflowMessage 'home.station.inactive' @($State.hostId)}))
@@ -718,41 +721,45 @@ function Format-SBWorkflowHome([string]$BrainRoot, $Catalog, $State=$null) {
         }
         if($State.repository -and $State.repository.Contains('location') -and $State.repository.location -eq 'repo-unmanaged'){$lines+=@((Get-SBWorkflowMessage 'home.degraded'),'')}
     }
-    $lines+=@((Get-SBWorkflowMessage 'home.catalog' @(@($Catalog.prompts).Count,$areas,($index -replace '\\','/'))),
-        (Get-SBWorkflowLegend),
-        (Get-SBWorkflowMessage 'home.relpath' @($indexPath)),'',
-        (Get-SBWorkflowMessage 'home.twoways'))
+    $indexLink='['+$indexPath+']('+($index -replace '\\','/')+')'
+    $lines+=@((Get-SBWorkflowMessage 'home.catalog' @(@($Catalog.prompts).Count,$areas,$indexLink)),
+        (Get-SBWorkflowLegend),'',
+        (Get-SBWorkflowMessage 'home.twoways'),'',
+        (Get-SBWorkflowMessage 'home.menu'))
+    $choice=0
     # Two groups: commands for the repository you are in, and SecondBrain activation and maintenance; outside a project and in SecondBrain the latter come first.
     $groups=@(@{scope='repository';title='home.commands.repo'},@{scope='secondbrain';title='home.commands.brain'})
     if($State -and $State.repository -and $State.repository.Contains('location') -and $State.repository.location -in @('none','secondbrain')){[array]::Reverse($groups)}
     foreach($g in $groups){
-        $lines+=@('',(Get-SBWorkflowMessage $g.title),'',(Get-SBWorkflowMessage 'home.table.commands'),'|---|---|---|---|---|')
+        $lines+=@('',(Get-SBWorkflowMessage $g.title),'')
         foreach($command in @(Get-SBWorkflowCommands|Where-Object {$_.scope -eq $g.scope})){
-            $cardText='—'
+            $cardText=''
             if($script:SBWorkflowCommandRoles.ContainsKey($command.command)){
                 $roleName=$script:SBWorkflowCommandRoles[$command.command]
                 $roleCard=@($Catalog.prompts|Where-Object {$_.ContainsKey('role') -and $_.role -ceq $roleName})|Select-Object -First 1
-                if($roleCard){$cardText='`'+$roleCard.code+'`'}
+                if($roleCard){$cardText=' ['+$roleCard.code+']'}
             }
-            $lines+=('| `'+$command.command+'` | '+$command.does+' | '+$command.mode+' | `'+$command.script+'` | '+$cardText+' |')
+            $choice++
+            $lines+=('['+$choice+'] `'+$command.command+'` — '+$command.does+' ('+$command.mode+')'+$cardText)
         }
     }
     $presetFlows=@(Read-SBPromptWorkflows $BrainRoot $Catalog|Where-Object {$_.status -eq 'active'})
     if($presetFlows.Count){
         $byIdPreset=@{};foreach($card in $Catalog.prompts){$byIdPreset[$card.id]=$card}
-        $lines+=@('',(Get-SBWorkflowMessage 'home.presets.title'),'',(Get-SBWorkflowMessage 'home.presets.how'),'',(Get-SBWorkflowMessage 'home.presets.table'),'|---|---|---|')
+        $lines+=@('',(Get-SBWorkflowMessage 'home.presets.title'),'',(Get-SBWorkflowMessage 'home.presets.how'),'')
         foreach($flow in $presetFlows){
             $stepText=@(foreach($step in $flow.steps){$byIdPreset[$step.ref].code+$(if($step.kind -ne 'required'){'?'}else{''})+$(if($step.gate -eq 'confirm'){'!'}else{''})}) -join ' → '
-            $lines+=('| `'+$flow.key+'` | '+$flow.title+' | '+$stepText+' |')
+            $choice++
+            $lines+=('['+$choice+'] `'+$flow.key+'` — '+$flow.title+': '+$stepText)
         }
         $lines+=('','`?` optional step, `!` asks for your confirmation.')
     }
     if($State -and $State.activated){
-        $lines+=@('',(Get-SBWorkflowMessage 'home.flow.title'),'',(Get-SBWorkflowMessage 'home.flow.table'),'|---|---|---|---|')
+        $lines+=@('',(Get-SBWorkflowMessage 'home.flow.title'),'')
         $number=0
         foreach($item in Get-SBWorkflowProductFlow){
             $number++
-            $lines+=('| '+$number+' | '+$item.step+' | '+$(if($item.chat -eq '—'){'—'}else{'`'+$item.chat+'`'})+' | '+$(if($item.script -eq '—'){'—'}else{'`'+$item.script+'`'})+' |')
+            $lines+=($number.ToString()+'. '+$item.step+$(if($item.chat -eq '—'){''}else{' — `'+$item.chat+'`'}))
         }
     }else{
         $lines+=@('',(Get-SBWorkflowMessage 'home.first.title'),'')
@@ -763,8 +770,9 @@ function Format-SBWorkflowHome([string]$BrainRoot, $Catalog, $State=$null) {
             if($item.command){$lines+=('   `'+$item.command+'`')}
         }
     }
-    $lines+=@('',(Get-SBWorkflowMessage 'home.guides.title'),'',(Get-SBWorkflowMessage 'home.guides.table'),'|---|---|')
-    foreach($guide in Get-SBWorkflowGuides){$lines+=('| ['+$guide.title+']('+$root+'/'+$guide.path+') | '+$guide.for+' |')}
+    $lines+=@('',(Get-SBWorkflowMessage 'home.guides.title'),'')
+    foreach($guide in Get-SBWorkflowGuides){$lines+=('- ['+$guide.title+']('+$root+'/'+$guide.path+') — '+$guide.for)}
+    $lines+=@('',(Get-SBWorkflowMessage 'home.choose'))
     ($lines -join "`n")+"`n"
 }
 
