@@ -1,5 +1,5 @@
 {
-  "fileCount": 173,
+  "fileCount": 175,
   "files": [
     {
       "bytes": 371,
@@ -12,9 +12,9 @@
       "sha256": "0350276463D3D1A1A37669285B57D704D4844DF697F51512BA939C0EB51D7102"
     },
     {
-      "bytes": 16893,
+      "bytes": 16891,
       "path": "catalog.json",
-      "sha256": "9FED85CFD2B77B5873D679338CCB4F0E8277B7FC87141C9FF116D1F2C34924FE"
+      "sha256": "32C03B9503CFEEB3B24374954AAC2F8A1D998FBB6DF9F69EEE319D5B52E2FA6D"
     },
     {
       "bytes": 87002,
@@ -52,9 +52,14 @@
       "sha256": "12EA09B94FFCB36AA84891ECD72B1B80931CDE8DBD880E46402F30A53D2300CF"
     },
     {
-      "bytes": 1839,
+      "bytes": 509,
+      "path": "entries/ec-ai-framework/decisions.json",
+      "sha256": "CF59591F0BA35FE1551142660237DDB51C53D7C304D789AF35DB7D7CF15A7B42"
+    },
+    {
+      "bytes": 1838,
       "path": "entries/ec-ai-framework/metadata.json",
-      "sha256": "9003D37E2946DDC436C2C55794781C3C1D8254D0B912A6C6A6BF5E46E88DCA84"
+      "sha256": "6A74B2CF47D902D972E3DA6419BF90C53A9136158E5AAFEF6621082E3F12A05A"
     },
     {
       "bytes": 263,
@@ -722,9 +727,14 @@
       "sha256": "AE1C6E8B4000C4604080B5A80E1E8218C7BDAEB38EC390F1ABB92D7C3A72BD04"
     },
     {
-      "bytes": 1675,
+      "bytes": 511,
+      "path": "entries/owasp-file-upload/decisions.json",
+      "sha256": "A04B01585328F9F716D02C81E9C91550C874F4D327EB1DC87C9A426EFB1437B7"
+    },
+    {
+      "bytes": 1674,
       "path": "entries/owasp-file-upload/metadata.json",
-      "sha256": "0550AE942E4B870CE669AB97A088B394165107428971B95E734DC21EE6290F08"
+      "sha256": "41A2777BFDB8F59A745E6DDF35A7AEBDDA59B2BDD08931E588FC620A0E657398"
     },
     {
       "bytes": 251,

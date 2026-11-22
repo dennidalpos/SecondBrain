@@ -1,0 +1,14 @@
+{
+  "decisions": [
+    {
+      "decidedAt": "2026-11-22T11:15:25.8215476+00:00",
+      "decidedBy": "repository owner (chat, 2026-11-22)",
+      "decision": "reject",
+      "fingerprint": "77436177C9B43BC55BC336463DD2FC73E1378FEAE2F35918B85991F0957936C4",
+      "reason": "Candidate has no extracted transcript; rejected to collect again, difference review already done in chat on 2026-11-22.",
+      "versionId": "20261120-77436177c9b43bc5"
+    }
+  ],
+  "schemaVersion": 1,
+  "sourceId": "owasp-file-upload"
+}
