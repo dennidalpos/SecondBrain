@@ -233,6 +233,8 @@ Put (Join-Path $f5Dossier memory.md) ((Read-SBText (Join-Path $f5Dossier memory.
     $f5Granted=New-SBMcpWriteGrant $f5Brain $f5ConfigPath $f5Id 4 'Synthetic grant' $f5Session.sessionId
     Check ($f5Granted.granted -and @($f5Granted.operations) -contains 'task.status' -and @($f5Granted.operations) -contains 'memory.append' -and @($f5Granted.operations) -notcontains 'task.evidence.correct') 'a grant covers task and own-dossier operations, never evidence correction'
     Check (@((Get-SBMcpWriteGrants $f5Brain $f5ConfigPath).grants|Where-Object {$_.repository -ceq $f5Id -and $_.state -eq 'active'}).Count -eq 1) 'grants lists the active grant'
+    $f5NoPlan=$null;try{[void](F5-Submit $f5GrantStatus)}catch{$f5NoPlan=$_.Exception.Message}
+    Check ($f5NoPlan -like '*active grant*' -and $f5NoPlan -like '*plan argument*' -and $f5NoPlan -notlike '*-Grant -Repository*') 'a submit under an active grant without plan says to pass the plan, not to ask the owner for a grant'
     Check (Submit-F5Grant $f5GrantStatus).applied 'under a grant an agent updates a task status without approval'
     Check ((Submit-F5Grant $f5GrantStatus).applied) 'a granted submit replays idempotently'
     $f5GrantUpdate=F5-Plan 'task.update' @{taskId='F5-1';status='in_progress';reason='Synthetic grant update'}

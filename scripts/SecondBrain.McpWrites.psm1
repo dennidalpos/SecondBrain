@@ -8,6 +8,7 @@ Add-SBMessages @{
     'mcpwrite.stale' = @{ en = 'MCP write: plan or preconditions changed; preview and approve a new request' }
     'mcpwrite.activity' = @{ en = 'Real activity log disabled: complete F6/F11 activation procedure; no write' }
     'mcpwrite.grant.scope' = @{ en = 'MCP write: the active grant does not cover this operation (allowed: task.status, task.update with status/reason/evidence, task.new as non-autonomous, memory.append, activity.append, history.save)' }
+    'mcpwrite.deny.noplan' = @{ en = 'MCP write refused: {0} has an active grant, but this submit carried no plan. Call submit_dossier_write again with the same requestId and planHash plus the full object returned by preview_dossier_write in the plan argument. The owner needs to do nothing.' }
     'mcpwrite.deny.nogrant' = @{ en = 'MCP write refused: no grant and no approval receipt exist for {0}. The owner must run in a terminal: {1} (or approve this plan only: {2}). Approval given in chat does not count.' }
     'mcpwrite.deny.revoked' = @{ en = 'MCP write refused: the grant for {0} was revoked. The owner must run in a terminal: {1} (or approve this plan only: {2}). Approval given in chat does not count.' }
     'mcpwrite.deny.expired' = @{ en = 'MCP write refused: the grant for {0} has expired. The owner must run in a terminal: {1} (or approve this plan only: {2}). Approval given in chat does not count.' }
@@ -207,7 +208,7 @@ function Get-SBMcpWriteNoGrantKey($Config,[string]$Repository) {
     if(!$grant){return 'mcpwrite.deny.nogrant'}
     if($grant.ContainsKey('revokedAt')){return 'mcpwrite.deny.revoked'}
     if([DateTimeOffset]::Parse($grant.expiresAt) -le (Get-SBNow)){return 'mcpwrite.deny.expired'}
-    'mcpwrite.deny.nogrant'
+    'mcpwrite.deny.noplan'
 }
 function Read-SBMcpWriteApproval($Context,[string]$PlanHash) {
     $receipt=Read-SBJson $Context.approvalPath $null
