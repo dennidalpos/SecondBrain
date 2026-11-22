@@ -6,7 +6,7 @@ Set-StrictMode -Version Latest
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Prompts.psm1')
-Import-Module (Join-Path $PSScriptRoot 'SecondBrain.PromptMigration.psm1')
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.PromptJson.psm1')
 Add-SBMessages @{
     'prompts.lifecycle.operation' = @{ en = 'Unknown lifecycle operation: {0}; use add, edit, duplicate, deprecate or retire' }
     'prompts.lifecycle.field' = @{ en = 'Missing or invalid input for {0}: {1}' }

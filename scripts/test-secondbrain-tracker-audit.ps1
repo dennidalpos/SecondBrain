@@ -22,6 +22,7 @@ function New-AuditFixture([string]$Name){
     [IO.Directory]::CreateDirectory((Join-Path $brain 'directives'))|Out-Null
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../directives/prompts') -Destination (Join-Path $brain 'directives/prompts') -Recurse
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../config/prompt-catalog.schema.json') -Destination (Join-Path $brain 'config/prompt-catalog.schema.json')
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../config/prompt-catalog.schema2.json') -Destination (Join-Path $brain 'config/prompt-catalog.schema2.json')
     Put-Audit (Join-Path $brain 'directives/AGENTS.global_ide.md') "# Common`nRevisione 3.1 — 2026-10-25."
     Put-Audit (Join-Path $brain 'directives/workstation.template.md') '<!-- secondbrain:tracker-contract:1 -->'
     Put-Audit (Join-Path $brain 'directives/approved.json') (ConvertTo-SBJson @{authorization='fixture';files=@{'directives/AGENTS.global_ide.md'=Get-SBFileHash (Join-Path $brain 'directives/AGENTS.global_ide.md');'directives/workstation.template.md'=Get-SBFileHash (Join-Path $brain 'directives/workstation.template.md')}})
@@ -145,12 +146,12 @@ try {
             $entities=@(Get-SBParaEntities $f.brain @('test'))
             Assert-Audit (@(Get-SBCuratedReferenceIssues $f.brain $entities).Count -eq 0 -and @(Get-SBTrackerAuthorityIssues $f.brain $entities).Count -eq 0) ('controlli riferimenti dopo migrazione '+$kind)
             Put-Audit (Join-Path $f.brain 'para-index.json') (Get-SBParaIndex $f.brain @('test')).json
-            $composed=@(& pwsh -NoProfile -File (Join-Path $f.brain 'scripts/prompts.ps1') -Compose -ConfigPath $f.config.configPath -ProjectId project -Prompt REP01 -Objective fixture) -join "`n"
+            $composed=@(& pwsh -NoProfile -File (Join-Path $f.brain 'scripts/prompts.ps1') -Compose -ConfigPath $f.config.configPath -ProjectId project -Prompt TRK02 -Objective fixture) -join "`n"
             Assert-Audit ($LASTEXITCODE -eq 0 -and $composed.Contains('Tracker: '+(Join-Path $f.dir 'tracker.json'))) ('composizione reale del Progetto '+$kind)
             Restore-SBTrackerImport $f.config $manifest
             Assert-Audit ((Read-SBText (Join-Path $f.dir 'context.md')) -ceq $text -and (Get-SBFileHash (Join-Path $project 'entity.json')) -eq $beforeMeta -and (Test-Path -LiteralPath $f.source)) ('exact rollback of the references'+$kind)
             Put-Audit (Join-Path $f.brain 'para-index.json') (Get-SBParaIndex $f.brain @('test')).json
-            $composed=@(& pwsh -NoProfile -File (Join-Path $f.brain 'scripts/prompts.ps1') -Compose -ConfigPath $f.config.configPath -ProjectId project -Prompt REP01 -Objective fixture) -join "`n"
+            $composed=@(& pwsh -NoProfile -File (Join-Path $f.brain 'scripts/prompts.ps1') -Compose -ConfigPath $f.config.configPath -ProjectId project -Prompt TRK02 -Objective fixture) -join "`n"
             Assert-Audit ($LASTEXITCODE -eq 0 -and $composed.Contains('Tracker: '+$f.source)) ('composition after rollback'+$kind)
         }
     }

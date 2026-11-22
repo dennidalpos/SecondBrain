@@ -21,6 +21,8 @@
       "id": {"$ref": "#/$defs/id"},
       "code": {"type": "string", "pattern": "^[A-Z]{2,4}[0-9]{2}$"},
       "role": {"$ref": "#/$defs/role"},
+      "kind": {"enum": ["user", "system"]},
+      "scope": {"type": "string", "pattern": "^(repo|area|file|central)(/(repo|area|file|central))*$"},
       "category": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
       "summary": {"type": "string", "minLength": 1, "maxLength": 82, "pattern": "^[^\\r\\n\\t]+$"},
       "target": {"enum": ["repository", "central"]},

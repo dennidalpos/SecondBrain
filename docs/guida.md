@@ -66,6 +66,6 @@ Clean tracked files are recoverable by recorded Git commit/blob; local files use
 
 ## Lifecycle and limits
 
-Greenfield state is declared in dossier `repository.json`; Check reports incompatible version/changelog/schema changes. Changing lifecycle is a separate SYS13 decision.
+Greenfield state is declared in dossier `repository.json`; Check reports incompatible version/changelog/schema changes. Changing lifecycle is a separate TRK11 decision.
 
 Dossiers, backups and evidence are not covered by a Git push. Account login is manual. Product builds/tests belong to product agents. Shared-brain and SMB behavior requires its own real-host qualification. See [portable configuration](reference/portable-brain.md), [shared brain](reference/shared-brain.md) and [runtime maintenance](reference/runtime-maintenance.md).

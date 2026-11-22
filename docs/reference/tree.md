@@ -33,7 +33,7 @@ A dossier contains index.md, context.md, memory.md, repository.json, its declare
 
 There are no archive folders: an inactive entity keeps its place and has a status other than `active`. `entity.ps1 -Archive` and `-Restore` only change the status; identity and references are preserved. Sync does not reactivate inactive entities.
 
-Use MEM05 and entity.ps1 for entity creation/state changes. Check and SuggestArchive inspect; NewProject/NewResource/SetStatus/Archive/Restore are writing workflows with separate authorization. Tracker import manifests must be reconciled before a move.
+Use KNW03 and entity.ps1 for entity creation/state changes. Check and SuggestArchive inspect; NewProject/NewResource/SetStatus/Archive/Restore are writing workflows with separate authorization. Tracker import manifests must be reconciled before a move.
 
 ## Runtime
 

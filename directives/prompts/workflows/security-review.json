@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "id": "wfl-5f41ace0",
+  "key": "wf-security-review",
+  "title": "Security review: threats, vulnerabilities, secrets, dependencies, licenses",
+  "revision": 1,
+  "status": "active",
+  "steps": [
+    {
+      "step": "threat-model",
+      "ref": "pmt-deb7d01a",
+      "kind": "required",
+      "gate": "auto"
+    },
+    {
+      "step": "vulnerabilities",
+      "ref": "pmt-fe014372",
+      "kind": "required",
+      "gate": "auto"
+    },
+    {
+      "step": "credentials",
+      "ref": "pmt-73fb4547",
+      "kind": "required",
+      "gate": "auto"
+    },
+    {
+      "step": "personal-data",
+      "ref": "pmt-24189cb6",
+      "kind": "optional",
+      "gate": "auto"
+    },
+    {
+      "step": "dependencies",
+      "ref": "pmt-7dc63766",
+      "kind": "required",
+      "gate": "auto"
+    },
+    {
+      "step": "licenses",
+      "ref": "pmt-adb9bfc0",
+      "kind": "optional",
+      "gate": "auto"
+    }
+  ]
+}

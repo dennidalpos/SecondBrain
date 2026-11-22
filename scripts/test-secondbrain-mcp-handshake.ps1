@@ -58,7 +58,7 @@ if ($dossierRelative) {
 }
 $calls['search_knowledge'] = @{ query = 'SecondBrain'; budget = 20000 }
 $calls['list_prompts'] = @{}
-$calls['get_prompt'] = @{ prompt = 'SYS03' }
+$calls['get_prompt'] = @{ prompt = 'WKS02' }
 $calls['get_prompt_home'] = @{}
 if ($isGit) { $calls['check_publication'] = @{ repositoryPath = $PublicationPath } }
 $callIds = @{}

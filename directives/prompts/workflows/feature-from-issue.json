@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "id": "wfl-6cbf4d4e",
+  "key": "wf-feature-from-issue",
+  "title": "Feature from an issue: plan, implement, test, review, commit",
+  "revision": 1,
+  "status": "active",
+  "steps": [
+    {
+      "step": "plan",
+      "ref": "pmt-2330fcf1",
+      "kind": "required",
+      "gate": "auto"
+    },
+    {
+      "step": "explore-options",
+      "ref": "pmt-b120a366",
+      "kind": "optional",
+      "gate": "auto"
+    },
+    {
+      "step": "implement",
+      "ref": "pmt-83df1685",
+      "kind": "required",
+      "gate": "confirm"
+    },
+    {
+      "step": "tests",
+      "ref": "pmt-08bff671",
+      "kind": "required",
+      "gate": "confirm"
+    },
+    {
+      "step": "review-change",
+      "ref": "pmt-27896824",
+      "kind": "optional",
+      "gate": "auto"
+    },
+    {
+      "step": "prepare-commits",
+      "ref": "pmt-3e3728b6",
+      "kind": "optional",
+      "gate": "confirm"
+    }
+  ]
+}

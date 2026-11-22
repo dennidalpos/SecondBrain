@@ -93,7 +93,7 @@ try{
     $originalGate=Invoke-Pwsh $distribution @('-RepositoryPath',$clone)
     Assert-Clean ($originalGate.code -eq 1 -and $originalGate.all -match 'VIOLAZIONE CRITICA') 'check-distribution refuses a tracked original'
     & git -C $clone reset -q -- $original;Remove-Item -LiteralPath (Split-Path (Split-Path $original)) -Recurse -Force
-    $prompt=Invoke-Pwsh (Join-Path $clone 'scripts/prompts.ps1') @('-Show','-Prompt','REP01')
+    $prompt=Invoke-Pwsh (Join-Path $clone 'scripts/prompts.ps1') @('-Show','-Prompt','TRK02')
     Assert-Clean ($prompt.code -eq 0 -and $prompt.text.Length -gt 0) 'the next-task prompt opens'
     $check=Invoke-Pwsh $setup @('-Check','-Repository',$identity)
     Assert-Clean ($check.code -in @(0,1) -and $check.data) 'Check on the clean clone returns a report'

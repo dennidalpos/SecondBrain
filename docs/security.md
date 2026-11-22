@@ -17,7 +17,7 @@ SecondBrain manages instructions, configuration and local knowledge. Its core wo
 
 Sync writes immediately. Inspect alignment first, preserve existing changes, and never treat a successful file write as proof that a live IDE loaded it. Every MCP tool advertises readOnlyHint=true except `submit_dossier_write`, which needs a local receipt. See [reviewed MCP writes](reference/mcp-writes.md). Start the server with `-NoRecovery` to forbid new writes for the whole session; a single call's `noRecovery=true` forbids them for that call.
 
-SecondBrain does not inspect authentication stores to discover credentials. Account and profile identities are declared and separately verified through SYS01.
+SecondBrain does not inspect authentication stores to discover credentials. Account and profile identities are declared and separately verified through WKS05.
 
 <a id="ripristina-un-file"></a>
 

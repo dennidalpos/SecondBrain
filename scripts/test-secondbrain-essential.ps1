@@ -20,8 +20,9 @@ function Copy-SetupCatalog([string]$Root){
     Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Prompts.psm1')
     $source=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
     Put (Join-Path $Root 'config/prompt-catalog.schema.json') (Read-SBText (Join-Path $source 'config/prompt-catalog.schema.json'))
+    Put (Join-Path $Root 'config/prompt-catalog.schema2.json') (Read-SBText (Join-Path $source 'config/prompt-catalog.schema2.json'))
     $catalog=Read-SBJson (Join-Path $source 'directives/prompts/catalog.json') @{}
-    $catalog.prompts=@($catalog.prompts|Where-Object code -in 'SYS03','SYS04')
+    $catalog.prompts=@($catalog.prompts|Where-Object code -in 'WKS02','WKS03')
     $catalog.categories=@($catalog.categories|Where-Object id -in @($catalog.prompts.category))
     foreach($prompt in $catalog.prompts){
         $prompt.related=@($catalog.prompts|Where-Object id -ne $prompt.id|ForEach-Object id)
@@ -351,7 +352,7 @@ if('portable' -in $Groups){
                         Put (Join-Path $personalRoot ('directives/'+$file)) (Read-SBText (Join-Path $brain ('directives/'+$file)))
                     }
                     Put (Join-Path $personalRoot 'directives/approved.json') (ConvertTo-SBJson $approval)
-                    foreach($file in 'VERSION','config/tracker.schema.json','config/prompt-catalog.schema.json','scripts/mcp-server.ps1'){
+                    foreach($file in 'VERSION','config/tracker.schema.json','config/prompt-catalog.schema.json','config/prompt-catalog.schema2.json','scripts/mcp-server.ps1'){
                         Put (Join-Path $personalRoot $file) (Read-SBText (Join-Path $brain $file))
                     }
                     Copy-SetupCatalog $personalRoot
@@ -535,7 +536,7 @@ if('portable' -in $Groups){
         $seedHash=Get-SBFileHash $freshTracker
         $knowledge=Join-Path $brain 'scripts/knowledge.ps1'
         $lifecycle=(& pwsh -NoProfile -File $knowledge -ConfigPath $activated.configuration -CheckoutPath $freshCheckout -SetLifecycle greenfield)|ConvertFrom-Json -AsHashtable
-        Check ($LASTEXITCODE -eq 0 -and $lifecycle.lifecycle -ceq 'greenfield') 'SYS13 entry point declares greenfield'
+        Check ($LASTEXITCODE -eq 0 -and $lifecycle.lifecycle -ceq 'greenfield') 'TRK11 entry point declares greenfield'
         $reopened=(& pwsh -NoProfile -File $knowledge -ConfigPath $activated.configuration -CheckoutPath $freshCheckout -Startup -NoRecovery)|ConvertFrom-Json -AsHashtable
         Check ($LASTEXITCODE -eq 0 -and $reopened.repository -ceq 'github.com/test/fresh' -and (Test-SBSamePath $reopened.taskSource $freshTracker) -and (Get-SBFileHash $freshTracker) -ceq $seedHash) 'separate CLI process reopens the declared greenfield tracker without rewriting it'
     } finally {Put $configPath $previousConfig}

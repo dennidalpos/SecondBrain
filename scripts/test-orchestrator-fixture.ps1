@@ -84,7 +84,7 @@ $prompt=[Console]::In.ReadToEnd()
 if($prompt -match '# Output'){
     $answer=if($prompt -match '# User prompt draft'){
         @{title='Draft review prompt';role='You are a careful code reviewer.';context='Use it before merging a change.';task="1. Read the diff.`n2. Report the findings.";format='A short list of findings.'}
-    }elseif($prompt -match 'DOC06'){
+    }elseif($prompt -match 'DCM04'){
         @{sections=@(@{title='Checks';body='- Run npm test before closing a task.';rationale='Product test script.';sources=@('README.md')});coveredElsewhere=@(@{topic='Commit and push';where='global'});warnings=@()}
     }elseif($prompt -notmatch 'Answers of the owner so far\s*\r?\n\(none yet\)'){
         @{taskId='E2E-4';verdict='autonomous-now';summary='With the choice made the task is autonomous.';blockersRemaining=@();calls=@(@{name='propose_task_update';arguments=@{questionId=$null;header=$null;question=$null;options=$null;multiSelect=$null;recommended=$null;description='Update the README with the chosen section.';acceptance=@('README.md contains the Installation section','npm test passa');execution='autonomous';awaiting='';requires=@();dependencies=$null;stateReason='Owner choice recorded: Installation section.';reason=$null}})}

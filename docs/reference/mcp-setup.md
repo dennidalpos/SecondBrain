@@ -28,7 +28,7 @@ Supported targets are codex, claude, claude-code, cursor, vscode, antigravity, w
 
 Google documents `~/.gemini/config/mcp_config.json` for the user and `.agents/mcp_config.json` for a workspace. `-Pair` uses these paths and retains the legacy fallback to `~/.gemini/antigravity/mcp_config.json` when it is the only existing user file. The preview shows the selected destination. [Antigravity IDE MCP documentation](https://antigravity.google/docs/mcp?tab=ide#antigravity-ide)
 
-Inspect the exact destination/snippet/native CLI command before adding Apply. Target all is not permission to change every client. Setup previews user-level pairing for selected supported IDEs or explicit `-McpTargets`. Run with `-Yes` and without `-Apply` to inspect the plan before an explicit apply. In interactive Setup, the MCP preview precedes the `APPLICA` prompt. SYS15 guides both paths.
+Inspect the exact destination/snippet/native CLI command before adding Apply. Target all is not permission to change every client. Setup previews user-level pairing for selected supported IDEs or explicit `-McpTargets`. Run with `-Yes` and without `-Apply` to inspect the plan before an explicit apply. In interactive Setup, the MCP preview precedes the `APPLICA` prompt. WKS07 guides both paths.
 
 Codex/Claude Code can use native user CLI registration. JSON/TOML adapters update the secondbrain section while preserving supported unrelated settings. Invalid input stops writing. JSON formatting/comments may not survive reserialization, so retain verified backup metadata. Inspect actual profile/configuration roots rather than assuming a path from the product name.
 

@@ -94,13 +94,13 @@ pwsh -NoProfile -File scripts/knowledge.ps1 -Startup -Profile Full -NoRecovery
 pwsh -NoProfile -File scripts/knowledge.ps1 -Search "terms" -NoRecovery
 ~~~
 
-Slim composes index, essential context/memory, explicitly selected TaskIds and references to deeper layers. Its first-load default is 25,000 characters, not tokens. Without TaskIds it does not include tasks. The startup result (CLI and MCP `get_startup_context`) also carries `directives` (characters of the checkout's `AGENTS.md` and of each agent's global instructions) and, when the total of package, `AGENTS.md` and the largest global directive reaches 80% of the cap, a `budgetAlert` (soft; hard only when the package itself exceeds the cap) proposing SYS05; `-Report` prints that total and the alert, and `secondbrain.ps1 -Check` measures the same total. Nothing is compacted without confirmation. Full has no default budget; search separately defaults to 20 matches and 10,000 characters, with paging/overrides.
+Slim composes index, essential context/memory, explicitly selected TaskIds and references to deeper layers. Its first-load default is 25,000 characters, not tokens. Without TaskIds it does not include tasks. The startup result (CLI and MCP `get_startup_context`) also carries `directives` (characters of the checkout's `AGENTS.md` and of each agent's global instructions) and, when the total of package, `AGENTS.md` and the largest global directive reaches 80% of the cap, a `budgetAlert` (soft; hard only when the package itself exceeds the cap) proposing KNW02; `-Report` prints that total and the alert, and `secondbrain.ps1 -Check` measures the same total. Nothing is compacted without confirmation. Full has no default budget; search separately defaults to 20 matches and 10,000 characters, with paging/overrides.
 
 Selection keeps whole blocks in deterministic order. If the essential minimum exceeds budget, report withinBudget=false/minimumCharacters rather than dropping essentials. PreviousRevision can suppress repeated unchanged parts. After the first package, load relevant sections/task/history through the documented commands; the initial ceiling is not a permanent conversation cap.
 
 ## Compaction
 
-SYS05 reviews a complete candidate and preserves originals by hash. knowledge Compact previews; CandidatePath Apply requires the reviewed source hashes and confirmation. Tracker/history are not discarded to fit a budget, and historical permissions are not renewed.
+KNW02 reviews a complete candidate and preserves originals by hash. knowledge Compact previews; CandidatePath Apply requires the reviewed source hashes and confirmation. Tracker/history are not discarded to fit a budget, and historical permissions are not renewed.
 
 Trace/memory-cycle turn counting only covers observed authorized metadata. Missing or legacy collector IDs affect coverage; no turn transcript is invented. See [memory cycle](memory-cycle.md), [recovery](recovery.md), [safe writes](safety-backups.md).
 

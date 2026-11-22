@@ -16,7 +16,7 @@ The agent should follow this procedure and stop for your confirmation at each st
 2. Location (ask): propose a short local path outside any product repository and outside cloud-synced folders (for example `C:/Projects/SecondBrain`), because dossiers, runtime files and backups live inside the clone and are ignored by Git. Wait for your answer.
 3. Clone (ask) with `git clone https://github.com/dennidalpos/secondbrain.git <chosen path>`; never clone into a non-empty folder.
 4. Project choice (ask): list candidate local Git checkouts and let you pick; then run the read-only preview `pwsh -NoProfile -File scripts/secondbrain.ps1 -Setup -PreviewOnly -Roots <project> -Select <project>` and show the plan.
-5. Guided setup (ask before every write): continue with `sb setup` (prompt SYS17), which walks activation (SYS03), MCP (SYS15) and directives (SYS01) and offers optional features one at a time. Do not use `-Yes` unless you ask for it.
+5. Guided setup (ask before every write): continue with `sb setup` (prompt WKS01), which walks activation (WKS02), MCP (WKS07) and directives (WKS05) and offers optional features one at a time. Do not use `-Yes` unless you ask for it.
 
 The repository's `AGENTS.md` repeats this entry point, so an agent opening a fresh clone finds the same procedure. Load and write evidence of the real agent session remain separate from file alignment (see [Inspect the result](#inspect-the-result)).
 
@@ -114,11 +114,11 @@ Continue with [daily use](daily-use.md). Use the [bug form](https://github.com/d
 
 ## Guided first-run setup
 
-On a clean machine, after cloning, ask your agent for `sb setup` (prompt SYS17). It runs `scripts/setup-status.ps1` (read-only: preflight, detected IDEs, and which optional features are enabled, available or unsupported, with the reason and a preview command for each), then walks activation (SYS03), MCP (SYS15) and directives (SYS01) with a confirmation before every write, and finally offers the optional features one at a time. Recommendations come from the current state of the workstation, not from your command history; nothing is enabled without your confirmation. The JSON lists recommended features first, adds a per-feature `summary` and an `exit` object that explains the exit code (1 means recommendations or not activated, not an error).
+On a clean machine, after cloning, ask your agent for `sb setup` (prompt WKS01). It runs `scripts/setup-status.ps1` (read-only: preflight, detected IDEs, and which optional features are enabled, available or unsupported, with the reason and a preview command for each), then walks activation (WKS02), MCP (WKS07) and directives (WKS05) with a confirmation before every write, and finally offers the optional features one at a time. Recommendations come from the current state of the workstation, not from your command history; nothing is enabled without your confirmation. The JSON lists recommended features first, adds a per-feature `summary` and an `exit` object that explains the exit code (1 means recommendations or not activated, not an error).
 
 ## Skills for your agents
 
-Ask your agent for `sb skills` (prompt SYS18) in a project. It runs `scripts/skills.ps1 -Analyze` (read-only), proposes only skills that the project's facts justify (detected check commands, layout, changelog, CI), and installs the ones you select for Claude Code, Codex or Antigravity, at project scope (inside the checkout, shareable through Git) or user scope (all your projects). Install previews first; `-Apply` writes `<skill>/SKILL.md` with a backup, and a skill you edited is a conflict that is skipped unless you pass `-Overwrite`. `-Install -Prompt <code>` (for example `-Prompt REP15`) exports a catalog card as the skill `sb-<code>`.
+Ask your agent for `sb skills` (prompt WKS08) in a project. It runs `scripts/skills.ps1 -Analyze` (read-only), proposes only skills that the project's facts justify (detected check commands, layout, changelog, CI), and installs the ones you select for Claude Code, Codex or Antigravity, at project scope (inside the checkout, shareable through Git) or user scope (all your projects). Install previews first; `-Apply` writes `<skill>/SKILL.md` with a backup, and a skill you edited is a conflict that is skipped unless you pass `-Overwrite`. `-Install -Prompt <code>` (for example `-Prompt TRK04`) exports a catalog card as the skill `sb-<code>`.
 
 | Agent | Project folder | User folder | Source (checked 2026-11-15) |
 |---|---|---|---|

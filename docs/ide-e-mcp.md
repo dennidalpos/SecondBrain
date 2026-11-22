@@ -34,7 +34,7 @@ pwsh -NoProfile -File scripts/mcp-server.ps1 -Pair -Target cursor -Scope project
 
 Run this project-scoped Cursor example from the SecondBrain checkout with $project set to the selected Git checkout. It was verified on synthetic configuration, without launching a client.
 
-Preview user-level pairing separately for Codex or Claude Desktop; neither target accepts project scope. Review Setup's user-level MCP preview for selected supported IDEs or explicit `-McpTargets`. In interactive Setup, review the destination and named tool rules before entering `APPLICA`. For direct pairing, preview first. Apply changes the selected configuration with backup. Restart the client and inspect its MCP connection in a new session. SYS15 guides multi-client installation; SYS01 handles profile/account evidence. For workspace targets, inspect the explicit destination before applying.
+Preview user-level pairing separately for Codex or Claude Desktop; neither target accepts project scope. Review Setup's user-level MCP preview for selected supported IDEs or explicit `-McpTargets`. In interactive Setup, review the destination and named tool rules before entering `APPLICA`. For direct pairing, preview first. Apply changes the selected configuration with backup. Restart the client and inspect its MCP connection in a new session. WKS07 guides multi-client installation; WKS05 handles profile/account evidence. For workspace targets, inspect the explicit destination before applying.
 
 ## Exposed tools
 

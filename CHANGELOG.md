@@ -2,7 +2,26 @@
 
 Formato [Keep a Changelog](https://keepachangelog.com/it-IT/1.1.0/). La numerazione segue il file `VERSION`. Questo registro cambia solo quando accetti un cambio di versione: vedi [Cambiare versione](docs/daily-use.md).
 
-> Versione corrente: **3.3.1**, numerazione reimpostata il 2026-11-04 con le funzionalità attuali conservate. Le sezioni seguenti mantengono la cronologia dei rilasci precedenti.
+> Versione corrente: **4.0.0**, numerazione reimpostata il 2026-11-04 con le funzionalità attuali conservate. Le sezioni seguenti mantengono la cronologia dei rilasci precedenti.
+
+## [4.0.0] - 2026-11-22
+
+### Changed
+- Prompt library 4.0: every card code is rewritten without aliases (an old code is unknown). Cards are atomic: one mode, one target and one outcome each; multi-outcome cards were split (for example DEV03 became BLD04 and the preset `refactor`). Immutable IDs of kept cards did not change. Catalog schema 2 is now the live schema and carries `kind` and `scope`.
+- The base catalog follows the tasks shared by public prompt libraries (Claude Code common workflows, GitHub Copilot prompt files and cookbook, OpenAI Codex cookbook, awesome-copilot community skills, read on 2026-11-22). 22 cards were added to close gaps against them (onboarding plan, plan from an issue, design-pattern and data-access refactors, test doubles, retrospective, repository activity summary, conventional commit message and others).
+- The `sb` commands run on a separate system layer of cards (kind `system`: SES, TRK, KNW, WKS, DIR, UPK). Roles are unchanged. The `sb prompt` home lists every command with its purpose, mode, script and prompt card, plus the presets.
+- Presets: 14 workflows (new: `refactor`, `feature-from-issue`, `fix-defect`, `security-review`); `repo-audit` and `publish` follow the new cards.
+- Site and company-AI cards live in the optional packs `site` (SIT) and `llm` (LLM).
+- Contract (`docs/reference/asset-contracts.md`): codes are renamed without alias; `aliases.json` keeps only retired-code tombstones.
+
+### Removed
+- Cards that delete files, branches or history, change platform settings, open issues for the user or decommission a repository: SEC09, REP12, REP11, SYS10; REP04 and REP13 survive only as read-only cards (REV09, RSK06).
+- Cards with no match in any public list and a write mode: DEV06, TST03, TST07, DOC03, DOC04, DAT02, OPS01, OPS03, OPS06, INT02, INT05; also MEM02, COM08.
+- `scripts/migrate-prompts.ps1`, `SecondBrain.PromptMigration.psm1` and `migration-map.json` (the 3.0 renumbering with aliases was never applied). The serializer moved to `SecondBrain.PromptJson.psm1`.
+
+### Old to new codes
+AUD01→preset wf-repo-audit; AUD02→REV06; AUD03→REV03; AUD04→REV04; AUD07→REV05; COM01→UND01; COM02→UND02; COM03→UND04; COM04→UND06; COM05→UND05; COM06→UND03; DAT01→DTA01; DAT03→DTA02; DAT04→DTA03; DEV01→BLD01; DEV02→BLD03+UND11+BLD02; DEV03→BLD04; DEV04→BLD11; DEV05→BLD10; DEV12→QUA08; DOC01→DCM01; DOC02→DCM02; DOC05→DCM03; DOC06→DCM04; GOV02→RSK08; INT01→UIX01; INT03→UIX02; INT04→UIX03; MEM01→TRK10; MEM03→SES02; MEM05→KNW03; MEM06→TRK01; MEM07→SES04; MEM08→SES01; MEM09→SES03; OPS02→REL02; OPS04→REL01; OPS05→GIT02; OPS07→REL03; PRG01→PLN01; PRG02→PLN03; PRG03→PLN04; PRG04→PLN05+PLN06; PRG05→BLD12; PRG07→PLN07; REP01→TRK02; REP04→REV09; REP08→TRK03; REP13→RSK06; REP14→GIT03; REP15→TRK04; REP16→TRK05; REP17→TRK06; REP18→TRK07; REP19→TRK08; SEC01→REV01+REV02; SEC02→RSK01; SEC03→RSK03; SEC04→RSK04; SEC05→RSK05; SEC06→RSK06; SEC07→RSK07; SYS01→WKS05+WKS06; SYS02→KNW04+KNW05; SYS03→WKS02; SYS04→WKS03+WKS04; SYS05→KNW02; SYS09→WKS09; SYS11→DIR01; SYS13→TRK11; SYS15→WKS07; SYS16→DIR03; SYS17→WKS01; SYS18→WKS08; TST01→QUA01; TST02→QUA02; TST04→QUA05; TST05→QUA06; TST06→QUA07+BLD13; TST08→QUA03; WEB01→SIT01; WEB02→SIT02; WEB03→SIT03; WEB04→SIT04; WEB05→SIT05; WEB06→SIT06; AIS01→LLM01; AIS02→LLM02; AIS03→LLM03; AIS04→LLM04; AIS05→LLM05; AIS06→LLM06; AIS07→LLM07; AIS08→LLM08; AIS09→LLM09; COM07→WKS08; WEB07→SIT07; WEB08→SIT08; WEB09→SIT09; MNT01→preset wf-maintenance-round; MNT02→UPK01; MNT03→preset wf-dossier-tidy; MNT04→UPK02; MNT05→UPK03; MNT06→UPK04; MNT07→UPK05; SYS19→TRK09.
+Removed without successor: DAT02, DEV06, DOC03, DOC04, INT02, INT05, MEM02, OPS01, OPS03, OPS06, REP11, REP12, SEC09, SYS10, TST03, TST07, COM08.
 
 ## [3.3.1] - 2026-11-22
 

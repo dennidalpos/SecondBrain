@@ -2,7 +2,7 @@
 
 Status: **design contract**, accepted with the [prompt library audit](#sources) of 2026-11-13. The audit's plan steps P2–P7 and P14 implement it (tracker tasks #566–#571, #578). Common directive revision 1.3 (`directives/proposals/2026-11-13-revision-1-3`) carries the agent-facing rules. Until those steps land, the current catalog (schema 1) remains in force. [Subagent definitions](subagents.md) implement section 4 as schema 2 and still read schema 1. Section 5 is implemented for task and durable decisions by `scripts/decisions.ps1` and `config/decision.schema.json` ([operations](operations.md#user-decisions)); step-scoped decisions wait for the workflow run state. Section 6 is implemented for private cards and workflow files by `scripts/SecondBrain.PrivateAssets.psm1` ([operations](operations.md#private-cards-and-workflows)); private workflows are validated but not run until the workflow engine exists.
 
-**Single source of truth.** Each field is defined in exactly one machine-readable place. When a step lands, its JSON Schema under `config/` becomes normative, and this page shrinks to an explanation that links to it. Generated files (indexes, alias table, exports, managed blocks) are never edited by hand. Their generator and `-Check` drift test are part of the contract.
+**Single source of truth.** Each field is defined in exactly one machine-readable place. When a step lands, its JSON Schema under `config/` becomes normative, and this page shrinks to an explanation that links to it. Generated files (indexes, exports, managed blocks) are never edited by hand. Their generator and `-Check` drift test are part of the contract.
 
 ## 1. Rules common to every asset
 
@@ -11,17 +11,17 @@ Status: **design contract**, accepted with the [prompt library audit](#sources) 
 | Element | Rule |
 |---|---|
 | Machine ID | `<kind>-` plus 8 lowercase hex digits: `pmt-` card, `wfl-` workflow, `agt-` agent definition, `dec-` user decision. Assigned once, immutable, never reused, including after retirement. |
-| Human key | Card `code` (three-letter area plus two digits), workflow `key` (`wf-<slug>`), agent `name` (`^[a-z0-9][a-z0-9-]{0,63}$`). Renamable only with a catalog version bump and an alias entry; never reused. |
+| Human key | Card `code` (three-letter area plus two digits), workflow `key` (`wf-<slug>`), agent `name` (`^[a-z0-9][a-z0-9-]{0,63}$`). Renamable only with a catalog version bump; the old code is deleted, never aliased and never reused. |
 | Role | A named indirection (`stop`, `activate`, `check`, `compact`, `para`, `analysis.task`, `analysis.directives` …). It is declared on exactly one active card and resolved through the catalog. |
 | What a reference stores | Code, workflows, agent definitions, tasks, the app and the runner store an ID or a role. Human keys appear only in UI text, docs and examples. Directives name `sb` commands or roles, never codes. |
 
-New area prefixes are disjoint from all retired prefixes, so an old code never resolves to a different card.
+A rewrite of the codes (catalog 4.0) uses area prefixes disjoint from every retired prefix, so an old code never resolves to a different card. Old codes are not resolved at all: there is no alias table.
 
 ### 1.2 Revisioning
 
 - Every asset carries `revision`, a positive integer that increases on any change to its contract: inputs, outputs, mode, `destructive`, target, steps, permissions or role. Wording fixes that leave the contract unchanged do not bump it.
 - A change is **compatible** when every existing reference still works without edits: an added optional input, a clarified step, a narrower permission. Bump `revision` only.
-- A change is **breaking** when it removes or renames a required input, changes the output shape, raises `mode` (`read` → `verify` → `write`), sets `destructive`, widens agent permissions, or changes the outcome. A breaking change creates a new ID: the old ID is deprecated with `replacedBy`, and an alias entry points to the successor.
+- A change is **breaking** when it removes or renames a required input, changes the output shape, raises `mode` (`read` → `verify` → `write`), sets `destructive`, widens agent permissions, or changes the outcome. A breaking change creates a new ID: the old ID is deprecated with `replacedBy` and then retired. No alias entry is written (decision of 2026-11-22).
 - `catalogVersion` increases whenever a key is renamed or an asset is retired. The product version follows the version rule in the common directives: a breaking catalog change is a major version.
 - A reference may pin `minRevision`. The validator rejects a pin above the current revision.
 
@@ -31,10 +31,10 @@ New area prefixes are disjoint from all retired prefixes, so an old code never r
 |---|---|---|---|
 | `draft` | no (preview only) | only with an explicit preview flag | by ID only |
 | `active` | yes | yes | by ID, key or role |
-| `deprecated` | yes, with a notice | yes, with a notice naming `replacedBy` | by ID, key or alias |
-| `retired` | no | no | the alias table returns the successor (one target, or a choice after a split) |
+| `deprecated` | yes, with a notice | yes, with a notice naming `replacedBy` | by ID or key |
+| `retired` | no | no | none: the code is unknown; the old-to-new table in the changelog is the only record |
 
-Transitions only go forward: draft → active → deprecated → retired. A card or workflow is retired through the catalog's `retire` procedure, which writes the alias entry in the same change. Files leave the tree with `git rm` and stay recoverable from history. Retiring an asset that active assets still reference is an error.
+Transitions only go forward: draft → active → deprecated → retired. A card or workflow is retired through the catalog's `retire` procedure, which records the old-to-new mapping in the changelog in the same change. Files leave the tree with `git rm` and stay recoverable from history. Retiring an asset that active assets still reference is an error.
 
 ### 1.4 Language
 
@@ -120,7 +120,7 @@ Storage: step-scoped decisions live in the workflow run state (§3). Task and du
 | Cards | `directives/prompts/catalog.json` and `<code>.md` | `prompts/catalog.json` and `<key>.md` |
 | Workflows | `directives/workflows/<key>.json` | `workflows/<key>.json` |
 | Agent definitions | `directives/agents/<name>.json` (generic templates) | `subagents/<name>.json` (as today) |
-| Alias table | `directives/prompts/aliases.json` (generated) | private aliases inside the private catalog |
+| Alias table | none (removed in 4.0.0) | none |
 | User decisions | never | `decisions.json` and workflow run state |
 | Execution state, exports | never | `.runtime` work folders and exports |
 
@@ -130,29 +130,29 @@ Rules:
 - Private cards use the same RCTFE layout as shipped cards (`role`, `context`, `task` with at least two numbered steps, `format`, optional `examples`; at most 3,500 characters). The earlier eight-section layout is no longer accepted (#747).
 - Private keys are namespaced `<repo-slug>/<key>` (for example `acme-app/pkg-sign`), so they never collide with or shadow a public code, key or role.
 - Something belongs in the public catalog only when it is generic: no repository names, private paths, account data or internal task IDs. The publication scan (`scripts/publication.ps1`) enforces this for `directives/`.
-- A private asset is promoted to public as a new public ID, through the catalog's add-card or add-workflow procedure with review. The private original is then retired with an alias to the public one.
+- A private asset is promoted to public as a new public ID, through the catalog's add-card or add-workflow procedure with review. The private original is then retired.
 - Managed blocks and directive files are not assets of this kind: they change only through their generators and the directive proposal mechanism.
 
 ## 7. Reference validation
 
 `build-prompts.ps1 -Check` (extended in P3 and P6) and the prompt test suite enforce these rules statically:
 
-1. Every ID, role and alias target referenced in catalogs, workflows, agent definitions, tasks (`card`/`workflow` fields, P14), `scripts/`, `app/`, `config/` and `directives/*.md` resolves to an `active` or `deprecated` asset.
+1. Every ID and role referenced in catalogs, workflows, agent definitions, tasks (`card`/`workflow` fields, P14), `scripts/`, `app/`, `config/` and `directives/*.md` resolves to an `active` or `deprecated` asset.
 2. No card code literal appears in scripts, Rust, TypeScript, config or directive files. Codes are allowed only in cards, generated indexes, docs, help examples and tests.
 3. Workflows: steps exist, there are no cycles, depth is at most 2, pack rules hold, destructive steps have `confirm` gates, and `with` mappings name existing inputs and outputs.
 4. Roles are unique among active cards. Every role a script or the app uses exists.
 5. Agent definitions: tools are known, `cards` have compatible modes, and `bounds.depth` is 1.
-6. Retired IDs are not referenced by active assets. Aliases cover every retired or renamed key.
+6. Retired IDs are not referenced by active assets. No old code remains in docs, tests, help or dossier outside history.
 7. Private assets reference only public or same-dossier IDs. Public assets reference no private ID.
 8. Historical files (`CHANGELOG.md` past entries, `directives/proposals/`, dossier `history/`) are excluded and never rewritten.
 
 ## 8. Compatibility
 
-- The loader reads catalog schema 1 and 2 during the migration (P2). Old codes resolve through `aliases.json` for the whole major version 3. They are removed in version 4 on a new proposal.
-- MCP tool names do not change. `get_prompt` and `list_prompts` accept old codes through aliases.
+- The loader reads catalog schema 1 and 2 during the migration (P2). Version 4.0.0 rewrites every card code and writes no alias table; the 3.x aliases never shipped. The old-to-new mapping lives only in `CHANGELOG.md`.
+- MCP tool names do not change. `get_prompt` and `list_prompts` accept the new codes only.
 - The `sb` commands are English from directive revision 1.3: `sb activate`, `sb check`, `sb sync`, `sb compact`, `sb prompt area`, `sb prompt show`. The Italian verbs of earlier revisions remain aliases.
 - Directives name commands and roles, so renumbering cards never needs a directive revision.
 
 ## Sources
 
-Prompt library audit, 2026-11-13 (private dossier report `history/2026-11-13-prompt-library-audit/report.md`), and the owner's choices of 2026-11-13: renumbering with aliases; atomic cards plus workflows; packs; English `sb` verbs with Italian aliases; directives citing commands and roles; delegation on request at one level; conditional PDCA.
+Prompt library audit, 2026-11-13 (private dossier report `history/2026-11-13-prompt-library-audit/report.md`), and the owner's choices of 2026-11-13: renumbering with aliases (superseded 2026-11-22: renumbering without aliases, atomic cards, presets chaining cards); atomic cards plus workflows; packs; English `sb` verbs with Italian aliases; directives citing commands and roles; delegation on request at one level; conditional PDCA.

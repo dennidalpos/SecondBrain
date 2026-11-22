@@ -29,7 +29,7 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Access.psm1') -Force
 trap { if (Test-SBWriteDeniedError $_) { Write-SBWriteDeniedDiagnostic $_ $PSCommandPath $PSBoundParameters; exit 4 }; if (Test-SBBusyError $_) { [Console]::Error.WriteLine($_.Exception.Message); exit 3 }; break }
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Prompts.psm1') -Force
-Import-Module (Join-Path $PSScriptRoot 'SecondBrain.PromptMigration.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.PromptJson.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.PromptLifecycle.psm1') -Force
 $config=$null;$lock=$null
 try{$config=Read-SBConfiguration $ConfigPath}catch{if($Apply){throw}}

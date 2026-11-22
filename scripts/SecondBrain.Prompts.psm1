@@ -414,7 +414,10 @@ Add-SBMessages @{
     'home.catalog' = @{ en = 'Full catalog ({0} prompts in {1} areas, Markdown file): {2}' }
     'home.relpath' = @{ en = 'Path relative to the SecondBrain root: {0}' }
     'home.twoways' = @{ en = 'Two ways to use SecondBrain: in chat (`sb` command, in supported IDEs and agents) or from a script (same result, PowerShell command).' }
-    'home.table.commands' = @{ en = '| Chat command | What it does | Mode | From script |' }
+    'home.table.commands' = @{ en = '| Chat command | What it does | Mode | From script | Prompt card |' }
+    'home.presets.title' = @{ en = 'PRESETS: ORDERED CHAINS OF CARDS FOR A BIGGER JOB' }
+    'home.presets.how' = @{ en = 'Run the steps in order, each with `sb prompt CODE: objective`. A step marked confirm needs your approval before it writes; optional steps may be skipped.' }
+    'home.presets.table' = @{ en = '| Preset | What it does | Steps |' }
     'home.flow.title' = @{ en = 'FLOW PER PRODUCT (in this order, for each repository)' }
     'home.flow.table' = @{ en = '| # | Step | In chat | From script |' }
     'home.first.title' = @{ en = 'FIRST STEPS (from the clone root, in this order)' }
@@ -504,7 +507,7 @@ Add-SBMessages @{
     'flow.9' = @{ en = 'If Check asks for compaction: preview, then apply.' }
     'index.title' = @{ en = 'Prompt catalog' }
     'index.generated' = @{ en = 'Index generated from catalog.json and the Markdown cards with scripts/build-prompts.ps1. Do not edit this index by hand.' }
-    'index.chat' = @{ en = 'In the chat: `sb prompt`, `sb prompt list`, `sb prompt area test`, `sb prompt show TST04`, `sb prompt TST04: description`. Every prompt has an immutable ID (`pmt-` and 8 hex digits) and a stable code that is never reused: ID and code resolve to the same prompt.' }
+    'index.chat' = @{ en = 'In the chat: `sb prompt`, `sb prompt list`, `sb prompt area quality`, `sb prompt show REV01`, `sb prompt REV01: description`. Every prompt has an immutable ID (`pmt-` and 8 hex digits) and a stable code that is never reused: ID and code resolve to the same prompt. Codes are rewritten without aliases in 4.0: an old code is unknown.' }
     'index.cli' = @{ en = 'The CLI composes text; the task is carried out by the agent within the permissions and mode of the session. [How to use and edit the prompts](../../docs/prompt.md).' }
 }
 
@@ -557,6 +560,12 @@ function Get-SBWorkflowCommands {
         @{command='sb resync';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.resync');mode=(Get-SBWorkflowMessage 'mode.write');script='scripts/resync.ps1 -RepositoryIdentity ID [-Apply]'},
         @{command='sb uninstall';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.uninstall');mode=(Get-SBWorkflowMessage 'mode.write');script='scripts/uninstall.ps1 [-Apply] [-Only STEPS]'}
     )
+}
+
+# Which system card sits behind a command: the command table names a role, never a card code.
+$script:SBWorkflowCommandRoles=@{
+    'sb activate'='workstation.activate';'sb setup'='workstation.setup';'sb skills'='project.skills';'sb check'='workstation.check';'sb sync'='directives.sync'
+    'sb compact'='dossier.compact';'sb runner'='runner.choice';'sb reconcile tasks'='tasks.reconcile';'sb stop'='session.stop';'sb publish check'='publication.check'
 }
 
 # Getting-started guides: root-relative path (optional anchor) and intended audience. A test verifies file existence.
@@ -714,8 +723,26 @@ function Format-SBWorkflowHome([string]$BrainRoot, $Catalog, $State=$null) {
     $groups=@(@{scope='repository';title='home.commands.repo'},@{scope='secondbrain';title='home.commands.brain'})
     if($State -and $State.repository -and $State.repository.Contains('location') -and $State.repository.location -in @('none','secondbrain')){[array]::Reverse($groups)}
     foreach($g in $groups){
-        $lines+=@('',(Get-SBWorkflowMessage $g.title),'',(Get-SBWorkflowMessage 'home.table.commands'),'|---|---|---|---|')
-        foreach($command in @(Get-SBWorkflowCommands|Where-Object {$_.scope -eq $g.scope})){$lines+=('| `'+$command.command+'` | '+$command.does+' | '+$command.mode+' | `'+$command.script+'` |')}
+        $lines+=@('',(Get-SBWorkflowMessage $g.title),'',(Get-SBWorkflowMessage 'home.table.commands'),'|---|---|---|---|---|')
+        foreach($command in @(Get-SBWorkflowCommands|Where-Object {$_.scope -eq $g.scope})){
+            $cardText='—'
+            if($script:SBWorkflowCommandRoles.ContainsKey($command.command)){
+                $roleName=$script:SBWorkflowCommandRoles[$command.command]
+                $roleCard=@($Catalog.prompts|Where-Object {$_.ContainsKey('role') -and $_.role -ceq $roleName})|Select-Object -First 1
+                if($roleCard){$cardText='`'+$roleCard.code+'`'}
+            }
+            $lines+=('| `'+$command.command+'` | '+$command.does+' | '+$command.mode+' | `'+$command.script+'` | '+$cardText+' |')
+        }
+    }
+    $presetFlows=@(Read-SBPromptWorkflows $BrainRoot $Catalog|Where-Object {$_.status -eq 'active'})
+    if($presetFlows.Count){
+        $byIdPreset=@{};foreach($card in $Catalog.prompts){$byIdPreset[$card.id]=$card}
+        $lines+=@('',(Get-SBWorkflowMessage 'home.presets.title'),'',(Get-SBWorkflowMessage 'home.presets.how'),'',(Get-SBWorkflowMessage 'home.presets.table'),'|---|---|---|')
+        foreach($flow in $presetFlows){
+            $stepText=@(foreach($step in $flow.steps){$byIdPreset[$step.ref].code+$(if($step.kind -ne 'required'){'?'}else{''})+$(if($step.gate -eq 'confirm'){'!'}else{''})}) -join ' → '
+            $lines+=('| `'+$flow.key+'` | '+$flow.title+' | '+$stepText+' |')
+        }
+        $lines+=('','`?` optional step, `!` asks for your confirmation.')
     }
     if($State -and $State.activated){
         $lines+=@('',(Get-SBWorkflowMessage 'home.flow.title'),'',(Get-SBWorkflowMessage 'home.flow.table'),'|---|---|---|---|')

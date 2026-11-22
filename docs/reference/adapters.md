@@ -1,6 +1,6 @@
 # IDE adapters and live qualification
 
-SecondBrain distinguishes file configuration, installed client, profile, environment, account and actual loaded instructions. Evidence on one surface does not certify the others. SYS01 guides verification after setup and after login/profile changes.
+SecondBrain distinguishes file configuration, installed client, profile, environment, account and actual loaded instructions. Evidence on one surface does not certify the others. WKS05 guides verification after setup and after login/profile changes.
 
 ## Inspect the map
 

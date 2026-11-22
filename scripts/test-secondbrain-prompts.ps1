@@ -11,6 +11,7 @@ $script:promptChecks=0
 function Assert-Prompts($Condition,[string]$Message){if(!$Condition){throw 'FAIL PROMPTS: '+$Message};$script:promptChecks++;'PASS PROMPTS: '+$Message}
 $catalog=Read-SBWorkflowCatalog $brain -ValidateBodies -ValidateReferences
 $prompts=@($catalog.prompts)
+$systemCategories='session','tracker','knowledge','workstation','library','upkeep'
 # #617: the question rule in generated prompts covers the missing-tool fallback and subagents.
 $ruleSource=Get-Content -LiteralPath (Join-Path $PSScriptRoot 'SecondBrain.Prompts.psm1') -Raw
 Assert-Prompts ($ruleSource -match "rule='[^']*structured question tool[^']*capability is missing[^']*numbered options[^']*pause the dependent work") '#617: without a question tool the capability is reported, the fallback is text and dependent work pauses'
@@ -20,7 +21,7 @@ Assert-Prompts (@($prompts.code|Select-Object -Unique).Count -eq $prompts.Count)
 Assert-Prompts (@($prompts.id|Select-Object -Unique).Count -eq $prompts.Count) 'ID univoci'
 Assert-Prompts (!(@($prompts|Where-Object {$_.id -notmatch '^pmt-[0-9a-f]{8}$'}).Count)) 'ID nel formato pmt-xxxxxxxx'
 $raw=Get-Content -Raw -LiteralPath (Join-Path $brain 'directives/prompts/catalog.json')
-foreach($legacy in 'pack','deprecations','aliases','supersededBy','next','references','status'){Assert-Prompts ($raw -notmatch ('"'+$legacy+'"\s*:')) "il catalogo non contiene la chiave $legacy"}
+foreach($legacy in 'deprecations','aliases','supersededBy','next','references','status'){Assert-Prompts ($raw -notmatch ('"'+$legacy+'"\s*:')) "il catalogo non contiene la chiave $legacy"}
 Assert-Prompts (!(Test-Path -LiteralPath (Join-Path $brain 'directives/prompts/en'))) 'no legacy en/ folder'
 Assert-Prompts (!(Get-ChildItem -LiteralPath (Join-Path $brain 'directives/prompts') -Filter 'README.maintenance*')) 'nessun README.maintenance legacy'
 foreach($p in $prompts){
@@ -47,10 +48,10 @@ foreach($p in $prompts){
 }
 Assert-Prompts (!$rctfeBad.Count) ('every card follows the RCTFE schema:'+($rctfeBad -join '; '))
 Assert-Prompts ($catalog.catalogVersion -ge 2) 'catalog at version 2 (RCTFE cards)'
-Assert-Prompts (@($prompts|Where-Object {$_.kind -notin 'system','user'}).Count -eq 0 -and @($prompts|Where-Object {($_.code -like 'SYS*') -ne ($_.kind -eq 'system')}).Count -eq 0) 'kind: system only for SYS cards, user for the others'
+Assert-Prompts (@($prompts|Where-Object {$_.kind -notin 'system','user'}).Count -eq 0 -and @($prompts|Where-Object {($_.category -in $systemCategories) -ne ($_.kind -eq 'system')}).Count -eq 0) 'kind: system only for the sb system categories, user for the others'
 $catalogJson=ConvertFrom-Json -InputObject (ConvertTo-SBJson (ConvertTo-SBWorkflowCatalogData $catalog $null)) -AsHashtable
 $jsonPrompts=@($catalogJson.categories|ForEach-Object {$_.prompts})
-Assert-Prompts ($jsonPrompts.Count -eq $prompts.Count -and @($jsonPrompts|Where-Object {$_.kind -notin 'system','user'}).Count -eq 0 -and @($jsonPrompts|Where-Object {($_.code -like 'SYS*') -ne ($_.kind -eq 'system')}).Count -eq 0) '#748: the app catalog JSON carries kind for every prompt'
+Assert-Prompts ($jsonPrompts.Count -eq $prompts.Count -and @($jsonPrompts|Where-Object {$_.kind -notin 'system','user'}).Count -eq 0 -and @($catalogJson.categories|Where-Object {$cat=$_; @($cat.prompts|Where-Object {($cat.id -in $systemCategories) -ne ($_.kind -eq 'system')}).Count}).Count -eq 0) '#748: the app catalog JSON carries kind for every prompt'
 $costar=@(Get-ChildItem -LiteralPath (Join-Path $brain 'scripts'),(Join-Path $brain 'docs'),(Join-Path $brain 'directives') -Recurse -File -Include *.ps1,*.psm1,*.md -ErrorAction SilentlyContinue|Where-Object {$_.FullName -notmatch '[\\/]proposals[\\/]' -and $_.Name -ne 'test-secondbrain-prompts.ps1' -and (Select-String -LiteralPath $_.FullName -Pattern 'CO-STAR' -Quiet)})
 Assert-Prompts (!$costar.Count) ('nessun riferimento a CO-STAR in script e documenti: '+(($costar|ForEach-Object Name) -join ', '))
 # Every related code exists; every category is used.
@@ -63,8 +64,8 @@ foreach($category in $catalog.categories){
     $expectedTarget=if($category.group -eq 'central'){'central'}else{'repository'}
     Assert-Prompts (@($members|Where-Object target -ne $expectedTarget).Count -eq 0) ('categoria '+$category.id+': gruppo '+$category.group+' consistent with the prompt destination')
 }
-# Perimeter: a repository prompt works on the repository it runs from; the only cross-repository reads are declared allowlists (REP16).
-foreach($p in @($prompts|Where-Object {$_.target -eq 'repository' -and $_.code -ne 'REP16'})){
+# Perimeter: a repository prompt works on the repository it runs from; the only cross-repository reads are declared allowlists (TRK05).
+foreach($p in @($prompts|Where-Object {$_.target -eq 'repository' -and $_.code -ne 'TRK05'})){
     foreach($relative in @($p.file)){
         $body=Get-Content -Raw -LiteralPath (Join-Path $brain ('directives/prompts/'+$relative))
         Assert-Prompts ($body -notmatch '(?i)para-index|para\.ps1|-AllDossiers|\.runtime|central maintenance|manutenzione centrale') ($p.code+' ('+$relative+'): no reference beyond the current repository')
@@ -75,35 +76,36 @@ $relatedRoot=Join-Path (Get-SBTestRoot) ('fixture-'+(Get-Date -Format 'yyyyMMdd'
 foreach($folder in 'directives/prompts','config'){[void][IO.Directory]::CreateDirectory((Join-Path $relatedRoot $folder))}
 Copy-Item -LiteralPath (Join-Path $brain 'directives/prompts') -Destination (Join-Path $relatedRoot 'directives') -Recurse -Force
 Copy-Item -LiteralPath (Join-Path $brain 'config/prompt-catalog.schema.json') -Destination (Join-Path $relatedRoot 'config/prompt-catalog.schema.json') -Force
+Copy-Item -LiteralPath (Join-Path $brain 'config/prompt-catalog.schema2.json') -Destination (Join-Path $relatedRoot 'config/prompt-catalog.schema2.json') -Force
 Assert-Prompts ($null -ne (Read-SBWorkflowCatalog $relatedRoot -ValidateBodies -ValidateReferences)) 'related: copia di prova valida'
 $relatedCatalogPath=Join-Path $relatedRoot 'directives/prompts/catalog.json'
 $relatedCatalog=Read-SBJson $relatedCatalogPath @{}
-$victim=@($relatedCatalog.prompts|Where-Object {$_.code -eq 'AUD01'})[0]
-$victim.related=@($victim.related|Select-Object -First 1)
+$victim=@($relatedCatalog.prompts|Where-Object {$_.code -eq 'BLD04'})[0]
+$victim.related=@()
 [IO.File]::WriteAllText($relatedCatalogPath,(ConvertTo-SBJson $relatedCatalog),[Text.UTF8Encoding]::new($false))
 $uncited=$false
 try{[void](Read-SBWorkflowCatalog $relatedRoot -ValidateBodies -ValidateReferences)}catch{$uncited=Test-SBError $_ 'prompts.related.uncited'}
 Assert-Prompts $uncited 'related: codice citato ma non elencato respinto'
 Copy-Item -LiteralPath (Join-Path $brain 'directives/prompts/catalog.json') -Destination $relatedCatalogPath -Force
-$danglingCard=Join-Path $relatedRoot 'directives/prompts/DEV01.md'
-[IO.File]::WriteAllText($danglingCard,(([IO.File]::ReadAllText($danglingCard)).Replace("`n</context>"," See DEV99.`n</context>")),[Text.UTF8Encoding]::new($false))
+$danglingCard=Join-Path $relatedRoot 'directives/prompts/BLD01.md'
+[IO.File]::WriteAllText($danglingCard,(([IO.File]::ReadAllText($danglingCard)).Replace("`n</context>"," See BLD99.`n</context>")),[Text.UTF8Encoding]::new($false))
 $dangling=$false
 try{[void](Read-SBWorkflowCatalog $relatedRoot -ValidateBodies -ValidateReferences)}catch{$dangling=Test-SBError $_ 'prompts.reference.dangling'}
 Assert-Prompts $dangling 'related: codice citato inesistente respinto'
 # Listing.
 $list=& pwsh -NoProfile -File (Join-Path $PSScriptRoot 'prompts.ps1') -List -Compact
-Assert-Prompts ($LASTEXITCODE -eq 0 -and ($list -join "`n") -match 'SYS03' -and ($list -join "`n") -match 'MEM05') 'compact list with system and memory prompts in the same list'
-$cat=& pwsh -NoProfile -File (Join-Path $PSScriptRoot 'prompts.ps1') -List -Category TST
-Assert-Prompts ($LASTEXITCODE -eq 0 -and ($cat -join "`n") -match 'TST04') 'list by category'
-$show=& pwsh -NoProfile -File (Join-Path $PSScriptRoot 'prompts.ps1') -Show -Prompt TST04
-Assert-Prompts ($LASTEXITCODE -eq 0 -and ($show -join "`n") -match 'TST04') 'card shown by code'
-$byId=($prompts|Where-Object code -eq 'TST04').id
+Assert-Prompts ($LASTEXITCODE -eq 0 -and ($list -join "`n") -match 'WKS02' -and ($list -join "`n") -match 'KNW03') 'compact list with development and system prompts in the same list'
+$cat=& pwsh -NoProfile -File (Join-Path $PSScriptRoot 'prompts.ps1') -List -Category QUA
+Assert-Prompts ($LASTEXITCODE -eq 0 -and ($cat -join "`n") -match 'QUA05') 'list by category'
+$show=& pwsh -NoProfile -File (Join-Path $PSScriptRoot 'prompts.ps1') -Show -Prompt QUA05
+Assert-Prompts ($LASTEXITCODE -eq 0 -and ($show -join "`n") -match 'QUA05') 'card shown by code'
+$byId=($prompts|Where-Object code -eq 'QUA05').id
 $showId=& pwsh -NoProfile -File (Join-Path $PSScriptRoot 'prompts.ps1') -Show -Prompt $byId
 Assert-Prompts ($LASTEXITCODE -eq 0 -and ($showId -join "`n") -eq ($show -join "`n")) 'ID and code resolve the same card'
 # Composition: XML structure, objective honored, closing depends on mode.
 $ctx=@{repositories=@();sourceRegistry=$null;project=$null}
 $readPrompt=$prompts|Where-Object {$_.mode -eq 'read'}|Select-Object -First 1
-$writePrompt=$prompts|Where-Object {$_.mode -eq 'write' -and $_.code -notmatch '^(MEM|SYS)'}|Select-Object -First 1
+$writePrompt=$prompts|Where-Object {$_.mode -eq 'write' -and $_.code -notmatch '^(SES|TRK|KNW|WKS|DIR|UPK)'}|Select-Object -First 1
 $objective='Obiettivo di prova 4242'
 $readOut=New-SBWorkflowComposition $brain $catalog $readPrompt $ctx $objective -Standalone
 Assert-Prompts ($readOut -match '(?s)<prompt code="'+$readPrompt.code+'".*<role>.*<context>.*<task>\s*'+[regex]::Escape($objective)+'.*</task>.*<format>.*</format>.*</prompt>') 'RCTFE XML composition with role, context, task with objective and format'
@@ -341,8 +343,8 @@ try{
     Assert-S2Refused {Read-SBWorkflowCatalog $s2Root} 'prompts.catalog.invalid' '#566: destructive is required in schema 2'
     Write-S2Catalog @($a,(New-S2Card 'pmt-b0000002' 'AAA02' @{pack='misc'}))
     Assert-S2Refused {Read-SBWorkflowCatalog $s2Root} 'prompts.catalog.invalid' '#566: an unknown pack is refused'
-    Write-S2Catalog @($a,(New-S2Card 'pmt-b0000002' 'AAA02' @{scope='repo'}))
-    Assert-S2Refused {Read-SBWorkflowCatalog $s2Root} 'prompts.catalog.invalid' '#566: scope is dropped in schema 2'
+    Write-S2Catalog @($a,(New-S2Card 'pmt-b0000002' 'AAA02' @{legacy='x'}))
+    Assert-S2Refused {Read-SBWorkflowCatalog $s2Root} 'prompts.catalog.invalid' '#566: an unknown field is refused in schema 2'
     Write-S2Catalog @($a,(New-S2Card 'pmt-b0000002' 'AAA02' @{role='stop'}))
     Assert-S2Refused {Read-SBWorkflowCatalog $s2Root} 'prompts.role.conflict' '#566: a role on two cards is refused'
     Write-S2Catalog @($a,(New-S2Card 'pmt-b0000002' 'AAA02' @{role='Bad Role'}))
@@ -375,66 +377,23 @@ try{
 }finally{
     if($env:SECONDBRAIN_TEST_KEEP -ne '1' -and (Test-Path -LiteralPath $s2Root)){Remove-Item -LiteralPath $s2Root -Recurse -Force}
 }
-# #568: migration tool on a copy of the real catalog and cards; the real repository is never written.
-Import-Module (Join-Path $PSScriptRoot 'SecondBrain.PromptMigration.psm1') -Force
-$migRoot=Join-Path (Get-SBTestRoot) ('migration-'+[guid]::NewGuid().ToString('N').Substring(0,12))
-try{
-    [IO.Directory]::CreateDirectory((Join-Path $migRoot 'config'))|Out-Null
-    Copy-Item -LiteralPath (Join-Path $brain 'directives') -Destination (Join-Path $migRoot 'directives') -Recurse
-    Copy-Item -Path (Join-Path $brain 'config/prompt-*.json') -Destination (Join-Path $migRoot 'config')
-    $migCatalogPath=Join-Path $migRoot 'directives/prompts/catalog.json'
-    $migRaw=Read-SBText $migCatalogPath
-    Assert-Prompts ((ConvertTo-SBPromptJson (ConvertFrom-Json -InputObject $migRaw -AsHashtable))+"`n" -ceq $migRaw.Replace("`r`n","`n")) '#568: the catalog serializer round-trips the catalog byte for byte'
-    $plan=Get-SBPromptMigrationPlan $migRoot
-    $map=Read-SBPromptMigrationMap $migRoot
-    Assert-Prompts (@($plan.rows).Count -eq 121 -and @($plan.rows|Where-Object {$_.outcome -in 'keep','split','workflow' -and $_.action -in 'rename','retire'}).Count -eq 121) '#568: the dry run lists 121 old codes, each with one outcome'
-    Assert-Prompts (@($plan.rows.oldCode|Select-Object -Unique).Count -eq 121 -and !(@($plan.rows|Where-Object {$_.oldCode -notin $map.cards.oldCode}).Count)) '#568: every old code of the map appears once'
-    Assert-Prompts (@($plan.rows|Where-Object {$_.idFate -eq 'retired'}).Count -eq 4 -and @($plan.rows|Where-Object {$_.idFate -eq 'kept'}).Count -eq 117 -and !(@($plan.rows|Where-Object {!$_.oldId}).Count)) '#568: every old card ID is kept (117) or listed as retired (4)'
-    Assert-Prompts ($plan.unmapped -contains 'SYS18') '#568: a catalog card outside the map is reported, not touched'
-    Assert-Prompts ((Read-SBText $migCatalogPath) -ceq $migRaw) '#568: the dry run writes nothing'
-    $before=@{}; foreach($row in $plan.rows){if($row.pending){$before[$row.oldCode]=(Read-SBWorkflowCatalog $migRoot).prompts|Where-Object code -eq $row.oldCode|ForEach-Object id}}
-    $writer={param($path,$text) [IO.File]::WriteAllText($path,$text,[Text.UTF8Encoding]::new($false))}
-    $mover={param($from,$to) Move-Item -LiteralPath $from -Destination $to}
-    $remover={param($path) Remove-Item -LiteralPath $path}
-    Invoke-SBPromptMigration $plan $writer $mover $remover
-    $after=Read-SBWorkflowCatalog $migRoot -ValidateBodies
-    $afterIds=@($after.prompts.id)
-    $lost=@($plan.rows|Where-Object {$_.idFate -eq 'kept' -and $_.oldId -notin $afterIds})
-    Assert-Prompts (!$lost.Count) '#568: every kept card ID is still in the catalog under its new code'
-    Assert-Prompts (@($after.prompts|Where-Object {$_.code -in $plan.rows.oldCode}).Count -eq 0) '#568: no old code remains in the catalog'
-    # #570: the repository's own workflow definitions load, and the managed start chain of the home screen comes from wf-session-start.
-    $liveCatalog=Read-SBWorkflowCatalog $brain
-    $liveFlows=@(Read-SBPromptWorkflows $brain $liveCatalog)
-    Assert-Prompts ($liveFlows.Count -eq 10 -and 'wf-session-start' -in $liveFlows.key -and 'wf-prepare-unattended' -in $liveFlows.key) ('#570: the 10 workflow definitions of the repository load (found '+$liveFlows.Count+')')
-    $startChain=@(Get-SBWorkflowStartChain @{repository=@{location='repo-managed'}} $liveCatalog $liveFlows)
-    $startFlow=@($liveFlows|Where-Object key -ceq 'wf-session-start')[0]
-    Assert-Prompts ($startChain.Count -ge $startFlow.steps.Count -and $startChain[0] -match '^`sb prompt [A-Z]{3}\d\d` — ') '#570: the managed start chain lists the steps of wf-session-start'
-    # #788: the home screen lists the active Write sessions and, without an MCP write grant, the exact commands to open a session and grant.
-    $homeIdentity='github.com/test/homeaccess'
-    $homeState={param($sessions,$grant)@{activated=$true;hostId='h';repositories=1;ides=0;repository=@{path='C:/x';root='C:/x';identity=$homeIdentity;managed=$true;location='repo-managed';writeSessions=$sessions;grant=$grant}}}
-    $noGrant=Format-SBWorkflowHome $brain $liveCatalog (& $homeState @('sess-aaa111') $false)
-    Assert-Prompts ($noGrant -match 'sess-aaa111' -and $noGrant -match 'scripts/access\.ps1 -Start -Mode Write' -and $noGrant -match [regex]::Escape("scripts/mcp-write.ps1 -Grant -Repository $homeIdentity -SessionId sess-aaa111 -Authorization TEXT")) '#788: without a grant the home lists the SessionId and prints the start and grant commands with the identity'
-    $withGrant=Format-SBWorkflowHome $brain $liveCatalog (& $homeState @('sess-aaa111') $true)
-    Assert-Prompts ($withGrant -match 'sess-aaa111' -and $withGrant -notmatch '-Grant -Repository' -and $withGrant -notmatch 'No active MCP write grant') '#788: with an active grant the home prints no grant text'
-    $noSession=Format-SBWorkflowHome $brain $liveCatalog (& $homeState @() $false)
-    Assert-Prompts ($noSession -notmatch 'Active Write sessions' -and $noSession -match 'SessionId ID ') '#788: without sessions no list is shown and the grant command keeps the ID placeholder'
-    $aliases=Read-SBPromptAliases $migRoot $after @(Read-SBPromptWorkflows $migRoot $after)
-    # #570: the repository now defines the workflows, so the 4 retired orchestration codes resolve to their workflow instead of staying retired.
-    $flowAliases=@($aliases.aliases|Where-Object {$_.status -eq 'workflow' -and $_.workflow})
-    Assert-Prompts (@($aliases.aliases).Count -eq 121 -and $flowAliases.Count -eq 4) ('#568: aliases.json has 121 entries and the 4 retired orchestration codes resolve to a workflow (found '+@($aliases.aliases).Count+' and '+$flowAliases.Count+')')
-    Assert-Prompts ($aliases.aliases|Where-Object {$_.code -eq 'AIS01'}|ForEach-Object {$_.status -eq 'renamed' -and $_.ids[0] -eq $before['AIS01']}) '#568: an old code resolves to the same card ID'
-    foreach($row in $plan.rows|Where-Object action -eq 'rename'){
-        if(!(Test-Path -LiteralPath (Join-Path $migRoot ('directives/prompts/'+$row.newCode+'.md'))) -or (Test-Path -LiteralPath (Join-Path $migRoot ('directives/prompts/'+$row.oldCode+'.md')))){Assert-Prompts $false ('#568: card files moved for '+$row.oldCode)}
-    }
-    Assert-Prompts $true '#568: every renamed card has its new file and no old file'
-    $again=Get-SBPromptMigrationPlan $migRoot
-    Assert-Prompts ($again.changeCount -eq 0 -and @($again.rows|Where-Object pending).Count -eq 0) '#568: a second run changes nothing'
-    $afterRaw=Read-SBText $migCatalogPath
-    Invoke-SBPromptMigration $again $writer $mover $remover
-    Assert-Prompts ((Read-SBText $migCatalogPath) -ceq $afterRaw) '#568: the second run leaves the catalog identical'
-}finally{
-    if($env:SECONDBRAIN_TEST_KEEP -ne '1' -and (Test-Path -LiteralPath $migRoot)){Remove-Item -LiteralPath $migRoot -Recurse -Force}
-}
+# #570 and #788: workflows load and the home screen is built from the live catalog.
+# #570: the repository's own workflow definitions load, and the managed start chain of the home screen comes from wf-session-start.
+$liveCatalog=Read-SBWorkflowCatalog $brain
+$liveFlows=@(Read-SBPromptWorkflows $brain $liveCatalog)
+Assert-Prompts ($liveFlows.Count -eq 14 -and 'wf-session-start' -in $liveFlows.key -and 'wf-prepare-unattended' -in $liveFlows.key) ('#570: the 14 workflow definitions of the repository load (found '+$liveFlows.Count+')')
+$startChain=@(Get-SBWorkflowStartChain @{repository=@{location='repo-managed'}} $liveCatalog $liveFlows)
+$startFlow=@($liveFlows|Where-Object key -ceq 'wf-session-start')[0]
+Assert-Prompts ($startChain.Count -ge $startFlow.steps.Count -and $startChain[0] -match '^`sb prompt [A-Z]{3}\d\d` — ') '#570: the managed start chain lists the steps of wf-session-start'
+# #788: the home screen lists the active Write sessions and, without an MCP write grant, the exact commands to open a session and grant.
+$homeIdentity='github.com/test/homeaccess'
+$homeState={param($sessions,$grant)@{activated=$true;hostId='h';repositories=1;ides=0;repository=@{path='C:/x';root='C:/x';identity=$homeIdentity;managed=$true;location='repo-managed';writeSessions=$sessions;grant=$grant}}}
+$noGrant=Format-SBWorkflowHome $brain $liveCatalog (& $homeState @('sess-aaa111') $false)
+Assert-Prompts ($noGrant -match 'sess-aaa111' -and $noGrant -match 'scripts/access\.ps1 -Start -Mode Write' -and $noGrant -match [regex]::Escape("scripts/mcp-write.ps1 -Grant -Repository $homeIdentity -SessionId sess-aaa111 -Authorization TEXT")) '#788: without a grant the home lists the SessionId and prints the start and grant commands with the identity'
+$withGrant=Format-SBWorkflowHome $brain $liveCatalog (& $homeState @('sess-aaa111') $true)
+Assert-Prompts ($withGrant -match 'sess-aaa111' -and $withGrant -notmatch '-Grant -Repository' -and $withGrant -notmatch 'No active MCP write grant') '#788: with an active grant the home prints no grant text'
+$noSession=Format-SBWorkflowHome $brain $liveCatalog (& $homeState @() $false)
+Assert-Prompts ($noSession -notmatch 'Active Write sessions' -and $noSession -match 'SessionId ID ') '#788: without sessions no list is shown and the grant command keeps the ID placeholder'
 # #615: validated card lifecycle on a copy of the real catalog; the real repository is never written.
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.PromptLifecycle.psm1') -Force
 $lcRoot=Join-Path (Get-SBTestRoot) ('lifecycle-'+[guid]::NewGuid().ToString('N').Substring(0,12))

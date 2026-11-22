@@ -1,6 +1,6 @@
 # SecondBrain for Coding Agents
 
-![Version 3.3.1](https://img.shields.io/badge/version-3.3.1-blue) ![Windows](https://img.shields.io/badge/Windows-0078D6) ![PowerShell 7.5+](https://img.shields.io/badge/PowerShell-7.5%2B-5391FE)
+![Version 4.0.0](https://img.shields.io/badge/version-4.0.0-blue) ![Windows](https://img.shields.io/badge/Windows-0078D6) ![PowerShell 7.5+](https://img.shields.io/badge/PowerShell-7.5%2B-5391FE)
 English · [Italiano](#italiano)
 
 **Project context, decisions, tasks and shared rules for coding agents on Windows.**
@@ -60,7 +60,7 @@ Load the dossier and open the next-task prompt:
 
 ~~~powershell
 pwsh -NoProfile -File scripts/knowledge.ps1 -Startup -Profile Slim -NoRecovery -CheckoutPath $project
-pwsh -NoProfile -File scripts/prompts.ps1 -Show -Prompt REP01
+pwsh -NoProfile -File scripts/prompts.ps1 -Show -Prompt TRK02
 ~~~
 
 Check the returned repository identity, profile and withinBudget value. A budget failure is a result to resolve, not a successful context load. The sequence was exercised from a clean Windows clone with one synthetic Git repository; no agent login was needed.
@@ -81,7 +81,7 @@ pwsh -NoProfile -File scripts/secondbrain.ps1 -Check
 - **Read project knowledge:** use Startup, task lookup or search; [daily use](docs/daily-use.md) explains the CLI and chat conventions.
 - **Change a task or memory:** review the operation and its approval requirements. The [MCP write guide](docs/reference/mcp-writes.md) covers the local receipt for each submitted operation.
 - **Run the ready tasks:** `scripts/run-ready-tasks.ps1` runs them one at a time with Claude Code, Codex or Gemini CLI; the [desktop orchestrator](docs/orchestratore.md) picks the repository, the directives, the model and the effort level. Open it without an IDE with `pwsh -NoProfile -File start.ps1` from the clone root. To work through the ready tasks unattended, `scripts/orchestrate-tasks.ps1` previews the selection by default; `-Run` works on a `queue/<date>` branch, commits locally and never pushes ([guide](docs/orchestrate-tasks.md)).
-- **Use prompt cards:** 124 English cards cover development, review, documentation and maintenance. [Prompt guide](docs/prompt.md).
+- **Use prompt cards:** 127 English cards cover development, review, documentation and maintenance. [Prompt guide](docs/prompt.md).
 - **Back up private knowledge:** preserve the dossier and recovery records separately from Git. [Backup and recovery](docs/security.md).
 
 A new dossier has no recorded tasks, so an empty ready-task list is expected.
@@ -128,7 +128,7 @@ pwsh -NoProfile -File scripts/build-prompts.ps1 -Check
 pwsh -NoProfile -File scripts/check-distribution.ps1
 ~~~
 
-[Verification levels](docs/reference/runtime-maintenance.md#verification-levels) distinguish Quick, Fast, Full and live qualification. [SEC07](docs/reference/operations.md#publication) separately checks text and Git inventory before publication. Passing one level does not imply the others passed.
+[Verification levels](docs/reference/runtime-maintenance.md#verification-levels) distinguish Quick, Fast, Full and live qualification. [RSK07](docs/reference/operations.md#publication) separately checks text and Git inventory before publication. Passing one level does not imply the others passed.
 
 MIT License. [Sources and acknowledgements](CREDITS.md).
 
@@ -150,7 +150,7 @@ Servono Windows, PowerShell 7.5+ e Git 2.42+. I comandi copiabili sono nella sez
 
 ### Compiti comuni e configurazione
 
-Consulta i task pronti, carica il dossier e usa una delle 124 schede prompt. Le scritture MCP richiedono un piano e una ricevuta CLI locale per operazione. [Uso quotidiano](docs/daily-use.md) · [Scritture approvate](docs/reference/mcp-writes.md) · [Agenti e MCP](docs/ide-e-mcp.md).
+Consulta i task pronti, carica il dossier e usa una delle 127 schede prompt. Le scritture MCP richiedono un piano e una ricevuta CLI locale per operazione. [Uso quotidiano](docs/daily-use.md) · [Scritture approvate](docs/reference/mcp-writes.md) · [Agenti e MCP](docs/ide-e-mcp.md).
 
 ### Limiti e aiuto
 

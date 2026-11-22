@@ -1,6 +1,6 @@
 # Customize prompts and common instructions
 
-Prompt cards, common instructions, deployment and live client loading have separate approval/verification boundaries. Use SYS11 for card/catalog changes and the common revision workflow for new shared prescriptions.
+Prompt cards, common instructions, deployment and live client loading have separate approval/verification boundaries. Use DIR01 for card/catalog changes and the common revision workflow for new shared prescriptions.
 
 <a id="modifica-dei-prompt"></a>
 
@@ -11,7 +11,7 @@ Cards live under directives/prompts/<CODE>.md, in English. Each active card has 
 Composition joins the objective, verified repository/project context, card, operating rules and next steps. It does not execute a task or grant permissions. Category/mode describe the workflow; read-only audits do not mutate trackers.
 
 ~~~powershell
-pwsh -NoProfile -File scripts/prompts.ps1 -Show -Prompt DOC01 -Language en
+pwsh -NoProfile -File scripts/prompts.ps1 -Show -Prompt DCM01 -Language en
 pwsh -NoProfile -File scripts/build-prompts.ps1 -Check
 ~~~
 
@@ -48,7 +48,7 @@ Existing IDE files without approved managed blocks are not silently adopted. Dir
 
 Use explicit Repository/CheckoutPath when needed; ProjectId and Repository are alternative composition contexts. Resolve identity from Git/bindings/PARA, not display names. An absent checkout is not authority to archive a dossier.
 
-Use MEM05/entity.ps1 for projects/resources/status/archive operations. PARA views are generated. Tracker import, task edits, terminal history and compaction have their own validated CLI transactions; no prompt rewrite authorizes them implicitly.
+Use KNW03/entity.ps1 for projects/resources/status/archive operations. PARA views are generated. Tracker import, task edits, terminal history and compaction have their own validated CLI transactions; no prompt rewrite authorizes them implicitly.
 
 ## Working rules and verification
 

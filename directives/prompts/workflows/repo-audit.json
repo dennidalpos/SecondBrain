@@ -3,7 +3,7 @@
   "id": "wfl-a84c6e13",
   "key": "wf-repo-audit",
   "title": "Audit a repository: metrics, architecture, dependencies, CI, security, licenses, tests",
-  "revision": 1,
+  "revision": 2,
   "status": "active",
   "steps": [
     {
@@ -62,7 +62,7 @@
     },
     {
       "step": "performance",
-      "ref": "pmt-9de57e24",
+      "ref": "pmt-2eb73728",
       "kind": "optional",
       "gate": "auto"
     }

@@ -11,15 +11,15 @@ The command words below remain unchanged in every documentation language.
 | `sb prompt` | Show commands, guides and the next step |
 | `sb prompt list` | Show the complete prompt list |
 | `sb prompt area test` | List one category |
-| `sb prompt show TST04` | Display a prompt card |
-| `sb prompt TST04: check the login flow` | Compose the card with your objective |
+| `sb prompt show QUA05` | Display a prompt card |
+| `sb prompt QUA05: check the login flow` | Compose the card with your objective |
 | `sb check` | Inspect alignment without changing anything |
 | `sb sync` | Sync approved instructions |
 | `sb activate` | Discover and activate selected integrations |
 | `sb compact` | Preview dossier compaction; applying it requires confirmation |
-| `sb reconcile tasks` | Plan the reconciliation of conflicting or invalid queued writes and orphan receipts; `-Apply` for the safe items, `-Decide` for the owner's choices (SYS19) |
+| `sb reconcile tasks` | Plan the reconciliation of conflicting or invalid queued writes and orphan receipts; `-Apply` for the safe items, `-Decide` for the owner's choices (TRK09) |
 | `sb runner` | Run the ready tasks of the current repository from the desktop app or the command line |
-| `sb stop` | Stop the agent, save the session in the dossier and resume it from another IDE or account with `sb prompt MEM07` (MEM09) |
+| `sb stop` | Stop the agent, save the session in the dossier and resume it from another IDE or account with `sb prompt SES04` (SES03) |
 | `sb tasks` | List the open tasks of the repository (`-ReadyOnly` for the runner's) |
 | `sb next` | Propose the next steps with the reason for each |
 | `sb pending` / `sb pending flush` | List the queued dossier writes / integrate them (conflicts stay queued: `sb reconcile tasks`) |

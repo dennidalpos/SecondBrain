@@ -10,7 +10,7 @@ $git=@{mode='commit-push-main';branch='main';confirmed=$false}
 $confirmed=@{mode='none';branch='main';confirmed=$true}
 
 # Nothing to report: only housekeeping, each with a reason.
-$steps=@(Get-SBNextSteps -Tasks @() -Ready @() -Runs @() -GitUpdate $git -HasSkills $false -SkillsCard ([ordered]@{id='pmt-3d7b91c4';file='SYS18.md';title='Skills procedure'}))
+$steps=@(Get-SBNextSteps -Tasks @() -Ready @() -Runs @() -GitUpdate $git -HasSkills $false -SkillsCard ([ordered]@{id='pmt-3d7b91c4';file='WKS08.md';title='Skills procedure'}))
 Assert-Ns ((Ids $steps) -ceq 'git-update,skills') ('housekeeping only: '+(Ids $steps))
 Assert-Ns (@($steps|Where-Object {!$_.why -or !$_.title -or !$_.action.value}).Count -eq 0) 'every step has title, reason and action'
 Assert-Ns (@(Get-SBNextSteps -Tasks @() -Ready @() -Runs @() -GitUpdate $confirmed -HasSkills $true).Count -eq 0) 'confirmed preference and skills installed: nothing to propose'
@@ -19,7 +19,7 @@ Assert-Ns (@(Get-SBNextSteps -Tasks @() -Ready @() -Runs @() -GitUpdate $confirm
 $tasks=@(@{id='T-2';seq=2;status='in_progress';title='two';priority='P2'},@{id='T-1';seq=1;status='in_progress';title='one';priority='P2'},@{id='T-3';seq=3;status='todo';title='three';priority='P1'})
 $ready=@(@{id='T-4';seq=4;priority='P2';title='#4 - four'},@{id='T-5';seq=5;priority='P1';title='#5 - five'})
 $run=@{results=@(@{id='T-1';process='failed'},@{id='T-2';process='succeeded';acceptance='unverified'},@{id='T-6';process='succeeded';acceptance='verified';findings=@{created=2}})}
-$steps=@(Get-SBNextSteps -Tasks $tasks -Ready $ready -Runs @($run) -GitUpdate $git -HasSkills $false -Limit 20 -SkillsCard ([ordered]@{id='pmt-3d7b91c4';file='SYS18.md';title='Skills procedure'}))
+$steps=@(Get-SBNextSteps -Tasks $tasks -Ready $ready -Runs @($run) -GitUpdate $git -HasSkills $false -Limit 20 -SkillsCard ([ordered]@{id='pmt-3d7b91c4';file='WKS08.md';title='Skills procedure'}))
 Assert-Ns ((Ids $steps) -ceq 'recheck-failed,verify-acceptance,review-findings,finish-open,run-next,git-update,skills') ('full order: '+(Ids $steps))
 $open=$steps|Where-Object id -eq 'finish-open'
 Assert-Ns ($open.action.value -ceq 'T-1' -and $open.title -match '#1') 'in-progress tasks start with the lowest number'
@@ -37,5 +37,5 @@ Assert-Ns ((Ids (Get-SBNextSteps -Tasks $blocked -Ready $ready -Runs @() -GitUpd
 $ver=$steps|Where-Object id -eq 'verify-acceptance'
 Assert-Ns ($ver.followUp.title -and $ver.followUp.description -and @($ver.followUp.acceptance).Count -ge 1 -and $ver.followUp.priority -cmatch '^P[0-3]$') 'verify step carries a complete follow-up task'
 Assert-Ns (@(@($ver.followUp.acceptance)|Where-Object {$_ -match ';'}).Count -eq 0) 'criteria hold no semicolon'
-Assert-Ns ((@($steps|Where-Object id -eq 'skills')[0]).card.file -ceq 'SYS18.md') 'skills step names its card'
+Assert-Ns ((@($steps|Where-Object id -eq 'skills')[0]).card.file -ceq 'WKS08.md') 'skills step names its card'
 'SUCCESS NEXTSTEPS: '+$script:nsChecks+' checks'

@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "id": "wfl-48cf1b29",
   "key": "wf-publish",
-  "title": "Publish: secrets, licenses, release notes, packages, scan, then commits",
-  "revision": 1,
+  "title": "Publish: secrets, licenses, release notes, scan, then commits",
+  "revision": 2,
   "status": "active",
   "steps": [
     {
@@ -21,12 +21,6 @@
     {
       "step": "release-notes",
       "ref": "pmt-0618969e",
-      "kind": "optional",
-      "gate": "auto"
-    },
-    {
-      "step": "packages",
-      "ref": "pmt-a5c78cc6",
       "kind": "optional",
       "gate": "auto"
     },

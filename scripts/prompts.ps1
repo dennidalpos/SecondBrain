@@ -7,17 +7,17 @@ pwsh -NoProfile -File scripts/prompts.ps1
 .EXAMPLE
 pwsh -NoProfile -File scripts/prompts.ps1 -List -Compact
 .EXAMPLE
-pwsh -NoProfile -File scripts/prompts.ps1 -List -Category TST
+pwsh -NoProfile -File scripts/prompts.ps1 -List -Category quality
 .EXAMPLE
 pwsh -NoProfile -File scripts/prompts.ps1 -List -Json
 .EXAMPLE
 pwsh -NoProfile -File scripts/prompts.ps1 -Json
 .EXAMPLE
-pwsh -NoProfile -File scripts/prompts.ps1 -Show -Prompt TST04 -Json
+pwsh -NoProfile -File scripts/prompts.ps1 -Show -Prompt QUA05 -Json
 .EXAMPLE
-pwsh -NoProfile -File scripts/prompts.ps1 -Show -Prompt TST04
+pwsh -NoProfile -File scripts/prompts.ps1 -Show -Prompt QUA05
 .EXAMPLE
-pwsh -NoProfile -File scripts/prompts.ps1 -Compose -Prompt TST04 -Objective 'Diagnostica il job Windows'
+pwsh -NoProfile -File scripts/prompts.ps1 -Compose -Prompt QUA05 -Objective 'Diagnose the Windows job'
 #>
 [CmdletBinding(DefaultParameterSetName='Home')]
 param(

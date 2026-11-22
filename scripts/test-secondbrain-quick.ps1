@@ -53,7 +53,7 @@ try {
     }
     $duplicateKeys=@($keyPlaces.GetEnumerator()|Where-Object {$_.Value.Count -gt 1}|ForEach-Object {$_.Key})
     Assert-Quick ($duplicateKeys.Count -eq 0) ('message keys defined once ('+($duplicateKeys -join ', ')+')')
-    foreach($name in @('shared.json','tracker.schema.json','prompt-catalog.schema.json')){
+    foreach($name in @('shared.json','tracker.schema.json','prompt-catalog.schema.json','prompt-catalog.schema2.json')){
         Assert-Quick (Test-Json -Json (Read-SBText (Join-Path $productRoot ('config/'+$name)))) ('valid JSON: '+$name)
     }
     $validTracker=@{schemaVersion=1;repository='github.com/test/quick';updatedAt='2026-11-04T00:00:00Z';tasks=@();history=@();extensions=@{}}
