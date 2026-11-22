@@ -4,12 +4,12 @@ param(
     [Parameter(Mandatory,ParameterSetName='Approve')][switch]$Approve,
     [Parameter(Mandatory,ParameterSetName='Approve')][string]$PlanPath,
     [Parameter(Mandatory,ParameterSetName='Approve')][string]$ExpectedPlanHash,
-    # Grant (#707): the owner lets the agent submit task.status, task.update (status, reason, evidence) and non-autonomous task.new for one repository until it expires.
+    # Grant (#707): lets the agent submit task.status, task.update (status, reason, evidence), non-autonomous task.new, memory.append, activity.append and history.save for one repository. -Hours 0 (default) is standing until revoked.
     [Parameter(Mandatory,ParameterSetName='Grant')][switch]$Grant,
     [Parameter(Mandatory,ParameterSetName='Revoke')][switch]$Revoke,
     [Parameter(Mandatory,ParameterSetName='Grants')][switch]$Grants,
     [Parameter(Mandatory,ParameterSetName='Grant')][Parameter(Mandatory,ParameterSetName='Revoke')][string]$Repository,
-    [Parameter(ParameterSetName='Grant')][ValidateRange(1,72)][int]$Hours=8,
+    [Parameter(ParameterSetName='Grant')][ValidateRange(0,72)][int]$Hours=0,
     [Parameter(Mandatory,ParameterSetName='Approve')][Parameter(Mandatory,ParameterSetName='Grant')][string]$Authorization,
     [Parameter(Mandatory,ParameterSetName='Approve')][Parameter(Mandatory,ParameterSetName='Grant')][Parameter(Mandatory,ParameterSetName='Revoke')][string]$SessionId,
     [string]$ConfigPath)

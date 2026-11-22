@@ -1,6 +1,6 @@
 # MCP setup and verification
 
-The PowerShell server uses stdio JSON-RPC and no listening network port. It exposes knowledge/prompt/publication operations. Startup and lookups never integrate queued dossier writes; only `submit_dossier_write` writes, one reviewed request with a local receipt. Task operations can run under an owner-issued, time-limited grant (`mcp-write.ps1 -Grant`, [mcp-writes](mcp-writes.md)).
+The PowerShell server uses stdio JSON-RPC and no listening network port. It exposes knowledge/prompt/publication operations. Startup and lookups never integrate queued dossier writes; only `submit_dossier_write` writes, one reviewed request with a local receipt. Task and own-dossier operations can run under an owner-issued standing grant (`mcp-write.ps1 -Grant`, [mcp-writes](mcp-writes.md)).
 
 ## Prerequisites and contract
 

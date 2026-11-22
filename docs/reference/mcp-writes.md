@@ -54,23 +54,25 @@ Filesystem permissions and OS identity protect this store. It is not a cryptogra
 
 ## Scoped grants (#707)
 
-Instead of one receipt per request, the owner can grant one repository for a limited time from the local CLI, in a coordinated session for that repository:
+Instead of one receipt per request, a repository is granted once from the local CLI, in a coordinated session for that repository. The grant is standing by default (no expiry, ends only when revoked); `-Hours 1..72` limits it:
 
 ~~~powershell
-& "$brain/scripts/mcp-write.ps1" -Grant -Repository $identity -Hours 8 -Authorization 'Explicit grant for task updates' -SessionId $session.sessionId
+& "$brain/scripts/mcp-write.ps1" -Grant -Repository $identity -Authorization 'Standing grant for the repository dossier' -SessionId $session.sessionId
 & "$brain/scripts/mcp-write.ps1" -Grants          # list: repository, state (active, expired, revoked), expiry, operations
 & "$brain/scripts/mcp-write.ps1" -Revoke -Repository $identity -SessionId $session.sessionId
 ~~~
 
-The grant lives under localStateRoot/mcp-write-grants/<repository-segment>/grant.json, is bound to the repository, workstation and OS user, carries a hash and expires after 1 to 72 hours (default 8). Revoking stamps the file; it is never deleted.
+The grant lives under localStateRoot/mcp-write-grants/<repository-segment>/grant.json, is bound to the repository, workstation and OS user, carries a hash and has no expiry unless `-Hours 1..72` is given. Revoking stamps the file; it is never deleted.
+
+`sb onboard -Path <repo> -Apply` (run by the owner) issues the standing grant for the new repository automatically, so its agents write to their own dossier without any later step; `-NoGrant` skips it. Repositories without a remote identity (`local`) get none. Existing repositories get theirs with the command above, once.
 
 Under an active grant, submit_dossier_write takes the previewed plan in an optional `plan` argument (the preview persists nothing, so the plan cannot be looked up) and checks the grant instead of the ten-minute receipt. The plan must be intact (its own hash), match the request, repository, checkout, dossier and workstation, and be reproduced by a fresh preview with the same hash; otherwise the submit is refused.
 
 | Covered by a grant | Never covered |
 |---|---|
-| task.status; task.update limited to taskId, status, reason, evidence; task.new, forced to `user_required` (the plan shows it) and without requires | memory.append, history.save, task.evidence.correct, activity.append, execution or requires changes |
+| task.status; task.update limited to taskId, status, reason, evidence; task.new, forced to `user_required` (the plan shows it) and without requires; memory.append, activity.append (when the activity log is enabled) and history.save of the repository's own dossier | task.evidence.correct, execution or requires changes |
 
-Expiry and revoke take effect at the next submit. A queued request stays authorized as described below. Documented limit: the agent and the owner share the OS user, so the grant is a policy control, not a cryptographic boundary; grant only repositories where unattended task bookkeeping is acceptable and revoke when done.
+Expiry and revoke take effect at the next submit. A queued request stays authorized as described below. Documented limit: the agent and the owner share the OS user, so the grant is a policy control, not a cryptographic boundary; grant only repositories whose own dossier the agent may update unattended, and revoke when that stops being true.
 
 ## Replay, conflicts and recovery
 

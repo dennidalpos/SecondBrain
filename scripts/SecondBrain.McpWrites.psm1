@@ -7,7 +7,7 @@ Add-SBMessages @{
     'mcpwrite.approval' = @{ en = 'MCP write: local approval is missing, expired or invalid' }
     'mcpwrite.stale' = @{ en = 'MCP write: plan or preconditions changed; preview and approve a new request' }
     'mcpwrite.activity' = @{ en = 'Real activity log disabled: complete F6/F11 activation procedure; no write' }
-    'mcpwrite.grant.scope' = @{ en = 'MCP write: the active grant does not cover this operation (allowed: task.status, task.update with status/reason/evidence, task.new as non-autonomous)' }
+    'mcpwrite.grant.scope' = @{ en = 'MCP write: the active grant does not cover this operation (allowed: task.status, task.update with status/reason/evidence, task.new as non-autonomous, memory.append, activity.append, history.save)' }
     'mcpwrite.deny.nogrant' = @{ en = 'MCP write refused: no grant and no approval receipt exist for {0}. The owner must run in a terminal: {1} (or approve this plan only: {2}). Approval given in chat does not count.' }
     'mcpwrite.deny.revoked' = @{ en = 'MCP write refused: the grant for {0} was revoked. The owner must run in a terminal: {1} (or approve this plan only: {2}). Approval given in chat does not count.' }
     'mcpwrite.deny.expired' = @{ en = 'MCP write refused: the grant for {0} has expired. The owner must run in a terminal: {1} (or approve this plan only: {2}). Approval given in chat does not count.' }
@@ -223,7 +223,8 @@ function Read-SBMcpWriteApproval($Context,[string]$PlanHash) {
     }
     $receipt
 }
-$script:SBMcpGrantOperations=@('task.status','task.update','task.new')
+$script:SBMcpGrantOperations=@('task.status','task.update','task.new','memory.append','activity.append','history.save')
+$script:SBMcpStandingExpiry='9999-12-31T23:59:59.0000000+00:00'
 function Get-SBMcpWriteGrantPath($Config,[string]$Repository) {
     $path=Join-Path $Config.localStateRoot ('mcp-write-grants/'+(Get-SBRuntimeRepoSegment $Repository)+'/grant.json')
     Assert-SBPlainPath $path
@@ -246,8 +247,9 @@ function Read-SBMcpWriteGrant($Config,[string]$Repository) {
     $grant
 }
 function Test-SBMcpWriteGrantCovers($Grant,$Plan) {
-    # Granted: task.status; task.update limited to status, reason and evidence; task.new only forced non-autonomous and without requires.
-    # Never granted: memory.append, history.save, task.evidence.correct, activity.append, execution/requires changes.
+    # Granted: task.status; task.update limited to status, reason and evidence; task.new only forced non-autonomous and without requires;
+    # memory.append, activity.append and history.save of the repository's own dossier (the plan is already bound to it).
+    # Never granted: task.evidence.correct, execution/requires changes.
     if($Plan.operation -cnotin @($Grant.operations)){return $false}
     $payload=$Plan.payload
     if($payload -isnot [Collections.IDictionary]){return $false}
@@ -255,6 +257,7 @@ function Test-SBMcpWriteGrantCovers($Grant,$Plan) {
         'task.status' {return $true}
         'task.update' {return !@($payload.Keys|Where-Object {$_ -cnotin @('taskId','status','reason','evidence')}).Count}
         'task.new' {return (!$payload.ContainsKey('requires') -and $Plan.pending.arguments.Execution -ceq 'user_required')}
+        {$_ -cin @('memory.append','activity.append','history.save')} {return $true}
         default {return $false}
     }
 }
@@ -264,15 +267,16 @@ function Save-SBMcpWriteGrant($Config,[string]$Repository,$Grant) {
     [void](Write-SBFile $path ([Text.Encoding]::UTF8.GetBytes((ConvertTo-SBJson $Grant))) (Get-SBFileHash $path) $Config.localStateBackupRoot)
 }
 function New-SBMcpWriteGrant {
-    # Owner action (terminal): lets the agent submit the granted operations for one repository without a per-call receipt until it expires or is revoked.
-    param([string]$BrainRoot,[string]$ConfigPath,[string]$Repository,[int]$Hours=8,[string]$Authorization,[string]$SessionId)
-    if(!(Test-SBRepositoryIdentity $Repository) -or !$Authorization -or $Hours -lt 1 -or $Hours -gt 72){throw (New-SBError 'mcpwrite.invalid' @('grant'))}
+    # Owner action (terminal, or setup/onboarding run by the owner): lets the agent submit the granted operations for one repository without a per-call receipt.
+    # Hours=0 (default) is a standing grant with no expiry; 1 to 72 limits it. It ends only when revoked.
+    param([string]$BrainRoot,[string]$ConfigPath,[string]$Repository,[int]$Hours=0,[string]$Authorization,[string]$SessionId)
+    if(!(Test-SBRepositoryIdentity $Repository) -or !$Authorization -or $Hours -lt 0 -or $Hours -gt 72){throw (New-SBError 'mcpwrite.invalid' @('grant'))}
     $config=Read-SBConfiguration -ConfigPath $ConfigPath -BrainRoot $BrainRoot -ReadOnly
     $session=Assert-SBSession $config $SessionId
     if($session.repository -cne $Repository){throw (New-SBMcpWriteRefusal 'mcpwrite.deny.session' $Repository '<PlanHash>')}
     $now=Get-SBNow
     $grant=@{schemaVersion=1;repository=$Repository;workstationId=$config.workstationId;user=[Security.Principal.WindowsIdentity]::GetCurrent().Name;
-        grantedAt=$now.ToString('o');expiresAt=$now.AddHours($Hours).ToString('o');operations=@($script:SBMcpGrantOperations);authorization=$Authorization}
+        grantedAt=$now.ToString('o');expiresAt=$(if($Hours -eq 0){$script:SBMcpStandingExpiry}else{$now.AddHours($Hours).ToString('o')});operations=@($script:SBMcpGrantOperations);authorization=$Authorization}
     Save-SBMcpWriteGrant $config $Repository $grant
     @{granted=$true;repository=$Repository;expiresAt=$grant.expiresAt;operations=@($grant.operations)}
 }

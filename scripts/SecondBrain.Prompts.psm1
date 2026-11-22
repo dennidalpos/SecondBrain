@@ -393,7 +393,7 @@ Add-SBMessages @{
     'home.write.session' = @{ en = '`{0}`' }
     'home.grant.missing' = @{ en = 'No active MCP write grant for {0}: an agent cannot submit MCP writes. The owner opens a Write session and grants it from a terminal:' }
     'home.grant.start' = @{ en = 'pwsh -NoProfile -File scripts/access.ps1 -Start -Mode Write' }
-    'home.grant.command' = @{ en = 'pwsh -NoProfile -File scripts/mcp-write.ps1 -Grant -Repository {0} -Hours 8 -SessionId {1} -Authorization TEXT' }
+    'home.grant.command' = @{ en = 'pwsh -NoProfile -File scripts/mcp-write.ps1 -Grant -Repository {0} -SessionId {1} -Authorization TEXT' }
     'home.location.secondbrain' = @{ en = 'SecondBrain checkout (maintenance and SecondBrain''s own dossier)' }
     'home.location.repo-managed' = @{ en = 'managed repository (dossier, tracker and runner available)' }
     'home.location.repo-unmanaged' = @{ en = 'repository not onboarded (reduced mode)' }

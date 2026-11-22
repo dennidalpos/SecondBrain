@@ -52,6 +52,8 @@ Workstation state, inventory, backups and selection receipts live under .runtime
 
 Spaces are supported when paths are quoted. Missing SECONDBRAIN_HOME does not prevent direct checkout bootstrap, but the pre-push hook needs a resolvable brain/runtime. Moving a real workstation configuration requires reviewed setup/reconciliation; aliases are not automatically relocation.
 
+To move a managed repository to another identity (for example a fork whose checkout origin already points to the new name), use `scripts/rename-identity.ps1 -From <old> -To <new>`. It previews by default; `-Apply` needs a write session for the dossier and no unapplied queued writes. It updates the dossier `repository.json` (the old identity becomes an alias), the `repository` references in the tracker and its archive, the workstation binding and the allowlist entry. Other dossiers that still reference the old identity are reported, not edited. Grants, runtime folders and sessions of the old identity are not moved: issue the grant for the new one afterwards.
+
 A Git push does not synchronize ignored dossiers/runtime. Shared-root access is a separate [deployment/qualification model](shared-brain.md), not a private-Git synchronization mechanism.
 
 ## Categorized and incremental search (F7)

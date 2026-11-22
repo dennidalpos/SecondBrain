@@ -1234,7 +1234,84 @@ function Invoke-SBPortableSync {
         @{schemaVersion=1;workstationId=$Config.workstationId;repositories=$Config.bindings.Count;changes=$changes;issues=$issues;environment=$environment;warnings=$warnings;aligned=(!$issues.Count);filesAligned=$filesAligned;liveLoadingVerified=$liveLoadingVerified;writesApplied=(!$Check);inventoryIsLocal=$true;scope=$(if($Repository){@{repository=$Repository;coverage='repository-only';notCovered=@('global-instructions','ides','curated-references','tracker-authority','tracker-imports','authoritative-sources','prompt-index','inventory','para-index')}}else{@{coverage='workstation'}})}
     }finally{Exit-SBOperation $lock}
 }
+Add-SBMessages @{
+    'portable.rename.invalid' = @{ en = 'Identity rename: both identities must be valid, different and not local' }
+    'portable.rename.binding' = @{ en = 'Identity rename: exactly one binding must carry the old identity and its checkout origin must already be the new identity' }
+    'portable.rename.dossier' = @{ en = 'Identity rename: exactly one active dossier must carry the old identity and none the new one' }
+    'portable.rename.pending' = @{ en = 'Identity rename: the old identity has queued dossier writes; integrate them first (knowledge.ps1 -FlushPending)' }
+}
+function Convert-SBIdentityReferences($Value,[string]$From,[string]$To) {
+    # Replaces the value of every "repository" key equal to the old identity, at any depth; returns how many were replaced.
+    $count=0
+    if($Value -is [Collections.IDictionary]){
+        foreach($key in @($Value.Keys)){
+            if($key -ceq 'repository' -and $Value[$key] -is [string] -and $Value[$key] -ceq $From){$Value[$key]=$To;$count++}
+            else{$count+=Convert-SBIdentityReferences $Value[$key] $From $To}
+        }
+    }elseif($Value -is [Collections.IList]){foreach($item in $Value){$count+=Convert-SBIdentityReferences $item $From $To}}
+    $count
+}
+function Rename-SBRepositoryIdentity {
+    # Owner action: a managed repository whose dossier carries the old identity (the checkout origin is the new one) is moved to the new identity.
+    # Changes the dossier repository.json (old identity kept as alias), its tracker and archive references, the binding and the allowlist entry.
+    # Other dossiers that still reference the old identity are only reported. Previews by default; -Apply needs a write session for the dossier.
+    param([string]$BrainRoot,[string]$From,[string]$To,[switch]$Apply,[string]$SessionId)
+    if(!(Test-SBRepositoryIdentity $From) -or !(Test-SBRepositoryIdentity $To) -or $From -ceq $To -or $From.StartsWith('local:') -or $To.StartsWith('local:')){throw (New-SBError 'portable.rename.invalid')}
+    $configPath=Get-SBHostConfigPath $BrainRoot
+    $configurationHash=Get-SBFileHash $configPath
+    $configuration=Read-SBJson $configPath $null
+    $bindings=@($configuration.bindings|Where-Object {$_.identity -ceq $From})
+    if($bindings.Count -ne 1){throw (New-SBError 'portable.rename.binding')}
+    $origin=Invoke-SBGit $bindings[0].path @('config','--get','remote.origin.url')
+    if($origin.code -ne 0 -or (ConvertTo-SBRepositoryIdentity $origin.output) -cne $To){throw (New-SBError 'portable.rename.binding')}
+    $entities=@(Get-SBParaEntities $BrainRoot @())
+    $source=@($entities|Where-Object {(Test-SBRepoDossier $_) -and $_.repository -ceq $From})
+    if($source.Count -ne 1 -or $source[0].archived -or $source[0].status -ne 'active' -or @($entities|Where-Object {(Test-SBRepoDossier $_) -and $_.repository -ceq $To}).Count){throw (New-SBError 'portable.rename.dossier')}
+    # Applied requests keep their receipt and do not block; anything not yet applied would be orphaned by the rename.
+    if(@(Get-SBPendingScopeWrites $BrainRoot (Get-SBScopeKey $From)|Where-Object {$_.state -ne 'applied'}).Count){throw (New-SBError 'portable.rename.pending')}
+    $dossier=Resolve-SBParaPath $BrainRoot $source[0].path
+    $operations=@();$changes=@()
+    $metadataPath=Join-Path $dossier 'repository.json';$metadata=Read-SBJson $metadataPath $null
+    $aliases=@(if($metadata.ContainsKey('aliases')){@($metadata.aliases)})
+    $metadata.identity=$To;$metadata.aliases=@(@($aliases)+@($From)|Where-Object {$_ -cne $To}|Sort-Object -Unique)
+    $operations+=@{path=$metadataPath;expected=(Get-SBFileHash $metadataPath);bytes=[Text.Encoding]::UTF8.GetBytes((ConvertTo-SBJson $metadata))};$changes+=@{file='repository.json';references=1}
+    foreach($relative in @('tracker.json','history/tracker-archive.json')){
+        $path=Join-Path $dossier $relative
+        if(![IO.File]::Exists($path)){continue}
+        $document=Read-SBJson $path $null
+        $replaced=Convert-SBIdentityReferences $document $From $To
+        if($replaced){$operations+=@{path=$path;expected=(Get-SBFileHash $path);bytes=[Text.Encoding]::UTF8.GetBytes((ConvertTo-SBJson $document))};$changes+=@{file=$relative;references=$replaced}}
+    }
+    $binding=$bindings[0];$binding.identity=$To
+    if($binding.ContainsKey('remoteIdentity') -and $binding.remoteIdentity -ceq $To){[void]$binding.Remove('remoteIdentity')}
+    $configOperation=@{path=$configPath;expected=$configurationHash;bytes=[Text.Encoding]::UTF8.GetBytes((ConvertTo-SBJson $configuration))}
+    $externalState=(Get-SBWorkstationStateRoot $BrainRoot (Get-SBHostId)) -ine (Get-SBLocalRoot $BrainRoot (Get-SBHostId))
+    if(!$externalState){$operations+=$configOperation}
+    $changes+=@{file='workstation binding';references=1}
+    $allowlistPath=Get-SBAllowlistPath $BrainRoot;$allowlist=Read-SBAllowlist $BrainRoot;$allowlistChanged=$false
+    if($allowlist){foreach($entry in @($allowlist.repositories)){if($entry.identity -ceq $From){$entry.identity=$To;$allowlistChanged=$true}}}
+    if($allowlistChanged){$changes+=@{file='config/local/allowlist.json';references=1}}
+    # Other dossiers still pointing at the old identity belong to their own agents: reported, never edited.
+    $others=@(foreach($entity in @($entities|Where-Object {(Test-SBRepoDossier $_) -and $_.path -ne $source[0].path})){
+        $trackerPath=Join-Path (Resolve-SBParaPath $BrainRoot $entity.path) 'tracker.json'
+        if([IO.File]::Exists($trackerPath) -and (Convert-SBIdentityReferences (Read-SBJson $trackerPath $null) $From $To)){$entity.repository}
+    })
+    $result=@{applied=[bool]$Apply;from=$From;to=$To;dossier=$source[0].path;changes=$changes;otherDossiersReferencingOldIdentity=@($others);
+        notMoved='queued writes, grants, sessions and runtime folders of the old identity; run mcp-write.ps1 -Grant or grant-repositories.ps1 -Apply for the new one'}
+    if($Apply){
+        $lockConfig=Read-SBConfiguration $configPath -BrainRoot $BrainRoot
+        $lock=Enter-SBOperation $lockConfig $SessionId
+        try{
+            Invoke-SBParaTransaction $operations $lockConfig.backupRoot $BrainRoot|Out-Null
+            if($externalState){Write-SBFile $configPath $configOperation.bytes $configurationHash (Get-SBSetupPaths $BrainRoot).backupRoot|Out-Null}
+            if($allowlistChanged){Write-SBFile $allowlistPath ([Text.Encoding]::UTF8.GetBytes((ConvertTo-SBJson $allowlist))) (Get-SBFileHash $allowlistPath) (Get-SBWorkstationStateRoot $BrainRoot (Get-SBHostId))|Out-Null}
+            Update-SBParaIndex (Read-SBConfiguration $configPath -BrainRoot $BrainRoot)|Out-Null
+        }finally{Exit-SBOperation $lock}
+    }
+    $result
+}
 Export-ModuleMember -Function @(
+    'Rename-SBRepositoryIdentity',
     'Get-SBBlockForeignLines',
     'Get-SBProfileCopyIssues',
     'ConvertTo-SBMinimalBinding',

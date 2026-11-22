@@ -231,7 +231,7 @@ Put (Join-Path $f5Dossier memory.md) ((Read-SBText (Join-Path $f5Dossier memory.
     Reject {New-SBMcpWriteGrant $f5Brain $f5ConfigPath 'github.com/test/other' 4 'Synthetic grant' $f5Session.sessionId} 'a grant for another repository than the session is refused'
     Reject {New-SBMcpWriteGrant $f5Brain $f5ConfigPath $f5Id 4 '' $f5Session.sessionId} 'a grant needs the owner authorization text'
     $f5Granted=New-SBMcpWriteGrant $f5Brain $f5ConfigPath $f5Id 4 'Synthetic grant' $f5Session.sessionId
-    Check ($f5Granted.granted -and @($f5Granted.operations) -contains 'task.status' -and @($f5Granted.operations) -notcontains 'memory.append') 'the owner grants the task operations only'
+    Check ($f5Granted.granted -and @($f5Granted.operations) -contains 'task.status' -and @($f5Granted.operations) -contains 'memory.append' -and @($f5Granted.operations) -notcontains 'task.evidence.correct') 'a grant covers task and own-dossier operations, never evidence correction'
     Check (@((Get-SBMcpWriteGrants $f5Brain $f5ConfigPath).grants|Where-Object {$_.repository -ceq $f5Id -and $_.state -eq 'active'}).Count -eq 1) 'grants lists the active grant'
     Check (Submit-F5Grant $f5GrantStatus).applied 'under a grant an agent updates a task status without approval'
     Check ((Submit-F5Grant $f5GrantStatus).applied) 'a granted submit replays idempotently'
@@ -239,14 +239,20 @@ Put (Join-Path $f5Dossier memory.md) ((Read-SBText (Join-Path $f5Dossier memory.
     Check (Submit-F5Grant $f5GrantUpdate).applied 'under a grant task.update of status and reason is applied'
     Reject {Submit-F5Grant (F5-Plan 'task.update' @{taskId='F5-1';execution='autonomous'})} 'a grant does not cover execution changes'
     Reject {Submit-F5Grant (F5-Plan 'task.update' @{taskId='F5-1';requires=@('computer-use')})} 'a grant does not cover requires changes'
-    Reject {Submit-F5Grant (F5-Plan 'memory.append' @{content='outside the grant'})} 'a grant does not cover memory.append'
-    Reject {Submit-F5Grant (F5-Plan 'history.save' @{path='history/seed/report.md';content='outside the grant'})} 'a grant does not cover history.save'
+    Check (Submit-F5Grant (F5-Plan 'memory.append' @{content="`ngranted-memory-entry`n"})).applied 'under a grant memory.append of the own dossier is applied'
+    Check (Submit-F5Grant (F5-Plan 'history.save' @{path='history/f5-grant/report.md';content='# Granted history'})).applied 'under a grant history.save of the own dossier is applied'
+    Reject {F5-Plan 'history.save' @{path='../memory.md';content='outside'}} 'a grant does not widen path rules of history.save'
+    Reject {Submit-F5Grant (F5-Plan 'task.evidence.correct' @{taskId='F5-1';reason='x';evidence=@('a|passed')})} 'a grant does not cover evidence correction'
     $f5GrantNew=F5-Plan 'task.new' @{title='Granted task';acceptance=@('fixture');provenance='history/seed/report.md'}
     Check ($f5GrantNew.pending.arguments.Execution -ceq 'user_required') 'under a grant task.new is forced non-autonomous'
     Check (Submit-F5Grant $f5GrantNew).applied 'under a grant a non-autonomous task.new is applied'
     $f5Tampered=ConvertTo-SBJson $f5GrantStatus|ConvertFrom-Json -AsHashtable -DateKind String
     $f5Tampered.payload.status='done'
     Reject {Submit-SBMcpWrite $f5Brain $f5ConfigPath $f5Id $f5Repo $f5GrantStatus.requestId $f5GrantStatus.planHash $f5Tampered} 'a tampered supplied plan is refused under a grant'
+    # Standing grant (default, -Hours 0): no expiry until revoked.
+    $f5Standing=New-SBMcpWriteGrant $f5Brain $f5ConfigPath $f5Id 0 'Synthetic standing grant' $f5Session.sessionId
+    Check ($f5Standing.expiresAt.StartsWith('9999-12-31')) 'a standing grant has no expiry'
+    Check (@((Get-SBMcpWriteGrants $f5Brain $f5ConfigPath).grants|Where-Object {$_.repository -ceq $f5Id})[0].state -eq 'active') 'a standing grant lists as active'
     # Expiry: an expired grant stops covering writes; revoke does the same at once.
     $f5Expiring=F5-Plan 'task.status' @{taskId='F5-1';status='todo'}
     & $f5GrantModule {param($c,$r) $g=Read-SBMcpWriteGrantFile $c $r;$g.expiresAt=(Get-SBNow).AddMinutes(-1).ToString('o');Save-SBMcpWriteGrant $c $r $g} (Read-SBConfiguration -ConfigPath $f5ConfigPath -BrainRoot $f5Brain -ReadOnly) $f5Id

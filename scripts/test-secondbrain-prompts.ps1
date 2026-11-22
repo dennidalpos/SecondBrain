@@ -413,7 +413,7 @@ try{
     $homeIdentity='github.com/test/homeaccess'
     $homeState={param($sessions,$grant)@{activated=$true;hostId='h';repositories=1;ides=0;repository=@{path='C:/x';root='C:/x';identity=$homeIdentity;managed=$true;location='repo-managed';writeSessions=$sessions;grant=$grant}}}
     $noGrant=Format-SBWorkflowHome $brain $liveCatalog (& $homeState @('sess-aaa111') $false)
-    Assert-Prompts ($noGrant -match 'sess-aaa111' -and $noGrant -match 'scripts/access\.ps1 -Start -Mode Write' -and $noGrant -match [regex]::Escape("scripts/mcp-write.ps1 -Grant -Repository $homeIdentity -Hours 8 -SessionId sess-aaa111 -Authorization TEXT")) '#788: without a grant the home lists the SessionId and prints the start and grant commands with the identity'
+    Assert-Prompts ($noGrant -match 'sess-aaa111' -and $noGrant -match 'scripts/access\.ps1 -Start -Mode Write' -and $noGrant -match [regex]::Escape("scripts/mcp-write.ps1 -Grant -Repository $homeIdentity -SessionId sess-aaa111 -Authorization TEXT")) '#788: without a grant the home lists the SessionId and prints the start and grant commands with the identity'
     $withGrant=Format-SBWorkflowHome $brain $liveCatalog (& $homeState @('sess-aaa111') $true)
     Assert-Prompts ($withGrant -match 'sess-aaa111' -and $withGrant -notmatch '-Grant -Repository' -and $withGrant -notmatch 'No active MCP write grant') '#788: with an active grant the home prints no grant text'
     $noSession=Format-SBWorkflowHome $brain $liveCatalog (& $homeState @() $false)
