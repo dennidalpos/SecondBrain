@@ -385,6 +385,23 @@ Assert-Prompts ($liveFlows.Count -eq 14 -and 'wf-session-start' -in $liveFlows.k
 $startChain=@(Get-SBWorkflowStartChain @{repository=@{location='repo-managed'}} $liveCatalog $liveFlows)
 $startFlow=@($liveFlows|Where-Object key -ceq 'wf-session-start')[0]
 Assert-Prompts ($startChain.Count -ge $startFlow.steps.Count -and $startChain[0] -match '^`sb prompt [A-Z]{3}\d\d` — ') '#570: the managed start chain lists the steps of wf-session-start'
+# #801: one command runs a whole preset with its gates; unknown presets, required skips and bad choices are refused.
+$presetContext=@{repositories=@();project=$null;sourceRegistry=$null}
+$presetRun=New-SBWorkflowPresetRun $brain $liveCatalog 'wf-fix-defect' $presetContext 'Fix the crash' -Skip @('review-change') -Standalone
+Assert-Prompts ($presetRun -match '<preset key="wf-fix-defect"' -and $presetRun -match 'Step 4/5 review-change: skipped' -and $presetRun -match 'Fix the crash') '#801: a preset run lists its steps, marks the skipped one and carries the objective'
+$fixFlow=@($liveFlows|Where-Object key -ceq 'wf-fix-defect')[0]
+$cardById=@{};foreach($card in $liveCatalog.prompts){$cardById[$card.id]=$card}
+$runCodes=@([regex]::Matches($presetRun,'(?m)^<prompt code="([A-Z]{2,4}\d{2})"')|ForEach-Object {$_.Groups[1].Value})
+$expectedCodes=@($fixFlow.steps|Where-Object {$_.step -ne 'review-change'}|ForEach-Object {$cardById[$_.ref].code})
+Assert-Prompts (($runCodes -join ',') -ceq ($expectedCodes -join ',')) '#801: the composed cards follow the preset order'
+$gates=@($fixFlow.steps|Where-Object {$_.gate -eq 'confirm' -and $_.step -ne 'review-change'}).Count
+Assert-Prompts ([regex]::Matches($presetRun,'GATE: confirm').Count -eq $gates) '#801: every confirm gate is announced before its step'
+Assert-Prompts ((New-SBWorkflowPresetRun $brain $liveCatalog 'fix-defect' $presetContext '' -Standalone) -match 'Step 5/5 prepare-commits') '#801: the bare preset name resolves and optional steps run unless skipped'
+foreach($case in @(@{k='wf-nope';s=@();c=@{};e='Unknown preset'},@{k='wf-fix-defect';s=@('fix');c=@{};e='only optional steps'},@{k='wf-fix-defect';s=@('nothing');c=@{};e='only optional steps'},@{k='wf-fix-defect';s=@();c=@{fix='ZZZ99'};e='Invalid choice'})){
+    $presetError=$null;try{New-SBWorkflowPresetRun $brain $liveCatalog $case.k $presetContext '' -Skip $case.s -Choose $case.c -Standalone|Out-Null}catch{$presetError=$_}
+    Assert-Prompts ($presetError -and $presetError.Exception.Message -match $case.e) ('#801: refused: '+$case.e+' ('+$case.k+')')
+}
+Assert-Prompts (((Resolve-SBDispatch @('prompt','wf-fix-defect:','Fix','it')).arguments -join ' ') -ceq '-Preset wf-fix-defect -Objective Fix it') '#801: sb prompt wf-NAME dispatches to -Preset'
 # #788: the home screen lists the active Write sessions and, without an MCP write grant, the exact commands to open a session and grant.
 $homeIdentity='github.com/test/homeaccess'
 $homeState={param($sessions,$grant)@{activated=$true;hostId='h';repositories=1;ides=0;repository=@{path='C:/x';root='C:/x';identity=$homeIdentity;managed=$true;location='repo-managed';writeSessions=$sessions;grant=$grant}}}

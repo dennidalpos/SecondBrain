@@ -18,6 +18,8 @@ pwsh -NoProfile -File scripts/prompts.ps1 -Show -Prompt QUA05 -Json
 pwsh -NoProfile -File scripts/prompts.ps1 -Show -Prompt QUA05
 .EXAMPLE
 pwsh -NoProfile -File scripts/prompts.ps1 -Compose -Prompt QUA05 -Objective 'Diagnose the Windows job'
+.EXAMPLE
+pwsh -NoProfile -File scripts/prompts.ps1 -Preset wf-fix-defect -Objective 'Fix the login crash' -Skip review-change
 #>
 [CmdletBinding(DefaultParameterSetName='Home')]
 param(
@@ -27,17 +29,20 @@ param(
     [Parameter(ParameterSetName='Home')][Parameter(ParameterSetName='List')][Parameter(ParameterSetName='Show')][switch]$Json,
     [Parameter(Mandatory,ParameterSetName='Show')][switch]$Show,
     [Parameter(Mandatory,ParameterSetName='Compose')][switch]$Compose,
+    [Parameter(Mandatory,ParameterSetName='Preset')][string]$Preset,
+    [Parameter(ParameterSetName='Preset')][string[]]$Skip,
+    [Parameter(ParameterSetName='Preset')][hashtable]$Choose,
     [Parameter(Mandatory,ParameterSetName='Context')][switch]$Context,
     [Parameter(Mandatory,ParameterSetName='Show')]
     [Parameter(Mandatory,ParameterSetName='Compose')][ValidatePattern('^([A-Z]{2,4}[0-9]{2}|pmt-[0-9a-f]{8})$')][string]$Prompt,
     [Parameter(ParameterSetName='List')][string]$Category,
-    [Parameter(ParameterSetName='Compose')][string]$Objective,
-    [Parameter(ParameterSetName='Compose')][string]$OutputPath,
-    [Parameter(ParameterSetName='Home')][Parameter(ParameterSetName='List')][Parameter(ParameterSetName='Compose')][Parameter(ParameterSetName='Context')][string]$RepositoryPath,
-    [Parameter(ParameterSetName='Compose')][Parameter(ParameterSetName='Context')][string]$Repository,
-    [Parameter(ParameterSetName='Compose')][Parameter(ParameterSetName='Context')][string]$ProjectId,
-    [Parameter(ParameterSetName='Compose')][Parameter(ParameterSetName='Context')][string]$CheckoutPath,
-    [Parameter(ParameterSetName='Compose')][Parameter(ParameterSetName='Context')][string]$CheckoutMapPath,
+    [Parameter(ParameterSetName='Compose')][Parameter(ParameterSetName='Preset')][string]$Objective,
+    [Parameter(ParameterSetName='Compose')][Parameter(ParameterSetName='Preset')][string]$OutputPath,
+    [Parameter(ParameterSetName='Home')][Parameter(ParameterSetName='List')][Parameter(ParameterSetName='Compose')][Parameter(ParameterSetName='Preset')][Parameter(ParameterSetName='Context')][string]$RepositoryPath,
+    [Parameter(ParameterSetName='Compose')][Parameter(ParameterSetName='Preset')][Parameter(ParameterSetName='Context')][string]$Repository,
+    [Parameter(ParameterSetName='Compose')][Parameter(ParameterSetName='Preset')][Parameter(ParameterSetName='Context')][string]$ProjectId,
+    [Parameter(ParameterSetName='Compose')][Parameter(ParameterSetName='Preset')][Parameter(ParameterSetName='Context')][string]$CheckoutPath,
+    [Parameter(ParameterSetName='Compose')][Parameter(ParameterSetName='Preset')][Parameter(ParameterSetName='Context')][string]$CheckoutMapPath,
     [string]$ConfigPath,[string]$SessionId
 )
 $ErrorActionPreference='Stop'
@@ -61,7 +66,7 @@ try {
     # #474: prompt reads never integrate pending writes (knowledge.ps1 -FlushPending does).
     # Memory discovery must remain available even if the prompt catalog is broken.
     if(!$Context){$catalog=Read-SBWorkflowCatalog $brain}
-    if(!$ConfigPath -and $PSCmdlet.ParameterSetName -in @('Context','Compose')){
+    if(!$ConfigPath -and $PSCmdlet.ParameterSetName -in @('Context','Compose','Preset')){
         Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Host.psm1')
         $candidateConfig=Get-SBHostConfigPath $brain
         if(Test-Path -LiteralPath $candidateConfig){$ConfigPath=$candidateConfig}
@@ -123,10 +128,15 @@ try {
         }
         if($Context){ConvertTo-SBJson $resolved}
         else {
+            if($Preset){
+                $chosen=@{};if($Choose){foreach($k in $Choose.Keys){$chosen[[string]$k]=[string]$Choose[$k]}}
+                $body=New-SBWorkflowPresetRun $brain $catalog $Preset $resolved $Objective -Skip @($Skip|Where-Object {$_}) -Choose $chosen
+            } else {
             $resolution=Resolve-SBWorkflowPrompt $catalog $Prompt
             if($resolution.warning){Write-Warning $resolution.warning}
             $selected=@($resolution.prompt)
             $body=if($degraded){New-SBWorkflowComposition $brain $catalog $selected[0] $resolved $Objective -Standalone -Degraded $degraded}else{New-SBWorkflowComposition $brain $catalog $selected[0] $resolved $Objective}
+            }
             if($OutputPath){
                 $full=[IO.Path]::GetFullPath($OutputPath);Assert-SBPlainPath $full
                 if($config.ContainsKey('mode') -and $config.mode -eq 'portable'){$full=Assert-SBCentralDataPath $brain $full}

@@ -48,6 +48,9 @@ Add-SBMessages @{
     'prompts.deprecated.invalid' = @{ en = 'Invalid deprecation on card {0}: the successor must be another existing card' }
     'prompts.deprecated.warning' = @{ en = 'Card {0} is deprecated: {1}' }
     'prompts.central.noswitch' = @{ en = 'Central prompt: open SecondBrain; no implicit repository switch. Alternatively, from SecondBrain: secondbrain.ps1 -Sync -Repository {0}' }
+    'prompts.preset.unknown' = @{ en = 'Unknown preset: {0}; available presets: {1}' }
+    'prompts.preset.skip' = @{ en = 'Cannot skip step {1} of preset {0}: only optional steps may be skipped (steps: {2})' }
+    'prompts.preset.choice' = @{ en = 'Invalid choice for step {1} of preset {0}: {2}; choose one of {3}' }
 }
 
 # Card layout (RCTFE, #721): title line, then XML-style tags in a fixed order: role, context, task (numbered steps), format, optional examples.
@@ -416,7 +419,7 @@ Add-SBMessages @{
     'home.twoways' = @{ en = 'Two ways to use SecondBrain: in chat (`sb` command, in supported IDEs and agents) or from a script (same result, PowerShell command).' }
     'home.table.commands' = @{ en = '| Chat command | What it does | Mode | From script | Prompt card |' }
     'home.presets.title' = @{ en = 'PRESETS: ORDERED CHAINS OF CARDS FOR A BIGGER JOB' }
-    'home.presets.how' = @{ en = 'Run the steps in order, each with `sb prompt CODE: objective`. A step marked confirm needs your approval before it writes; optional steps may be skipped.' }
+    'home.presets.how' = @{ en = 'Run a whole preset with `sb prompt wf-NAME: objective` (`-Skip` skips optional steps), or run the steps one by one with `sb prompt CODE: objective`. A step marked confirm needs your approval before it writes; optional steps may be skipped.' }
     'home.presets.table' = @{ en = '| Preset | What it does | Steps |' }
     'home.flow.title' = @{ en = 'FLOW PER PRODUCT (in this order, for each repository)' }
     'home.flow.table' = @{ en = '| # | Step | In chat | From script |' }
@@ -943,6 +946,61 @@ function New-SBWorkflowComposition([string]$BrainRoot,$Catalog,$Prompt,$Context,
     ($lines -join "`n").TrimEnd()+"`n"
 }
 
+# Preset run (#801): one document that chains the composed cards of an active preset in order.
+# A confirm gate stops the agent before any write; optional steps can be skipped by name; a choice step takes its first card unless one is chosen.
+# $Key is the preset key (wf-name), the ID (wfl-xxxxxxxx) or the bare name; $Choose maps a step name to a card code or ID.
+function New-SBWorkflowPresetRun([string]$BrainRoot,$Catalog,[string]$Key,$Context,[string]$Objective,[string[]]$Skip=@(),[hashtable]$Choose=@{},[switch]$Standalone,[string]$Degraded) {
+    $flows=@(Read-SBPromptWorkflows $BrainRoot $Catalog|Where-Object {$_.status -eq 'active'})
+    $flow=@($flows|Where-Object {$_.key -ceq $Key -or $_.id -ceq $Key -or $_.key -ceq ('wf-'+$Key)})
+    if($flow.Count -ne 1){throw (New-SBError 'prompts.preset.unknown' @($Key,((@($flows|ForEach-Object key)) -join ', ')))}
+    $flow=$flow[0]
+    $names=@($flow.steps|ForEach-Object step)
+    $byId=@{};foreach($card in $Catalog.prompts){$byId[$card.id]=$card}
+    foreach($name in $Skip){
+        $match=@($flow.steps|Where-Object step -ceq $name)
+        if(!$match.Count -or $match[0].kind -ne 'optional'){throw (New-SBError 'prompts.preset.skip' @($flow.key,$name,($names -join ', ')))}
+    }
+    $selected=[ordered]@{}
+    foreach($step in $flow.steps){
+        if($step.step -cin $Skip){continue}
+        $ref=$step.ref
+        if($step.kind -eq 'choice'){
+            $options=@($step.ref)+@($step.choices)
+            if($Choose.ContainsKey($step.step)){
+                $wanted=@($options|Where-Object {$byId[$_].code -ceq $Choose[$step.step] -or $_ -ceq $Choose[$step.step]})
+                if($wanted.Count -ne 1){throw (New-SBError 'prompts.preset.choice' @($flow.key,$step.step,$Choose[$step.step],((@($options|ForEach-Object {$byId[$_].code})) -join ', ')))}
+                $ref=$wanted[0]
+            }
+        }
+        $selected[$step.step]=$ref
+    }
+    foreach($name in $Choose.Keys){
+        if(!@($flow.steps|Where-Object {$_.step -ceq $name -and $_.kind -eq 'choice'}).Count){throw (New-SBError 'prompts.preset.choice' @($flow.key,$name,$Choose[$name],'(no choice step with that name)'))}
+    }
+    $total=$flow.steps.Count
+    $lines=@(('<preset key="'+$flow.key+'" id="'+$flow.id+'" steps="'+$total+'">'),$flow.title,'',
+        'Run the steps in order. Finish one step before starting the next. A step with gate confirm: stop and ask for explicit approval before it writes anything; do not continue without a clear yes. Skipped steps are listed and not run.','')
+    $index=0
+    foreach($step in $flow.steps){
+        $index++
+        if(!$selected.Contains($step.step)){$lines+=('Step '+$index+'/'+$total+' '+$step.step+': skipped');continue}
+        $card=$byId[$selected[$step.step]]
+        $lines+=('Step '+$index+'/'+$total+' '+$step.step+' ('+$step.kind+', gate '+$step.gate+'): '+$card.code)
+    }
+    $index=0
+    foreach($step in $flow.steps){
+        $index++
+        if(!$selected.Contains($step.step)){continue}
+        $card=$byId[$selected[$step.step]]
+        $gate=if($step.gate -eq 'confirm'){'GATE: confirm. Stop and get explicit approval before this step writes anything.'}else{'GATE: auto.'}
+        $lines+=@('',('<step n="'+$index+'" of="'+$total+'" name="'+$step.step+'" kind="'+$step.kind+'" gate="'+$step.gate+'">'),$gate)
+        $lines+=(New-SBWorkflowComposition $BrainRoot $Catalog $card $Context $Objective -Standalone:$Standalone -Degraded $Degraded).TrimEnd()
+        $lines+='</step>'
+    }
+    $lines+='</preset>'
+    ($lines -join "`n")+"`n"
+}
+
 # Machine-readable catalog (schema "secondbrain.prompts.catalog" v1) for the app: categories with their prompts, English text, no icons.
 function ConvertTo-SBWorkflowCatalogData($Catalog, [string]$Category) {
     $byCategory=$Category -and @($Catalog.categories|Where-Object id -ieq $Category).Count -gt 0
@@ -1000,6 +1058,7 @@ Export-ModuleMember -Function @(
     'Get-SBWorkflowDrift',
     'Get-SBWorkflowContext',
     'New-SBWorkflowComposition',
+    'New-SBWorkflowPresetRun',
     'Get-SBWorkflowIndexPath',
     'Get-SBWorkflowIndexTargets',
     'Get-SBWorkflowField'

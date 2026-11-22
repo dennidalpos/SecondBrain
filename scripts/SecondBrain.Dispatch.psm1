@@ -70,6 +70,12 @@ function Resolve-SBDispatch([string[]]$Words=@()) {
         # sb prompt KEY: objective (the colon is optional)
         $key=$rest[0].TrimEnd(':')
         $objective=(@($rest|Select-Object -Skip 1) -join ' ')
+        # #801: sb prompt wf-NAME: objective runs a whole preset (the chain of its cards with their gates).
+        if($key -cmatch '^(wf-[a-z0-9]+(-[a-z0-9]+)*|wfl-[0-9a-f]{8})$'){
+            $preset=@('-Preset',$key)
+            if($objective){$preset+=@('-Objective',$objective)}
+            return @{script='prompts.ps1';arguments=$preset}
+        }
         $composed=@('-Compose','-Prompt',$key)
         if($objective){$composed+=@('-Objective',$objective)}
         return @{script='prompts.ps1';arguments=$composed}

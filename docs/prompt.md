@@ -26,7 +26,7 @@ See the generated [catalog](../directives/prompts/README.md).
 
 ## Presets
 
-A preset chains cards for a bigger job: `refactor`, `feature-from-issue`, `fix-defect`, `security-review`, `repo-audit`, `publish`, `site-build`, `session-start`, `session-close`, `first-setup`, `prepare-unattended`, `dossier-tidy`, `refresh-sources`, `maintenance-round`. Steps run in order, each with `sb prompt CODE: objective`. A step with the `confirm` gate asks for your approval before it writes; optional steps can be skipped. Presets live in `directives/prompts/workflows/`.
+A preset chains cards for a bigger job: `refactor`, `feature-from-issue`, `fix-defect`, `security-review`, `repo-audit`, `publish`, `site-build`, `session-start`, `session-close`, `first-setup`, `prepare-unattended`, `dossier-tidy`, `refresh-sources`, `maintenance-round`. `sb prompt wf-NAME: objective` runs a whole preset as one document: the steps in order, each with its composed card and its gate (`scripts/prompts.ps1 -Preset wf-NAME` also takes `-Skip step,...` for optional steps and `-Choose @{step=CODE}` for choice steps; an unknown preset, a skipped required step or an invalid choice is refused). You can also run the steps one by one with `sb prompt CODE: objective`. A step with the `confirm` gate asks for your approval before it writes; optional steps can be skipped. Presets live in `directives/prompts/workflows/`.
 
 ## Card structure
 
