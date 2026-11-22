@@ -63,7 +63,7 @@ pwsh -NoProfile -File scripts/knowledge.ps1 -Startup -Profile Slim -NoRecovery -
 pwsh -NoProfile -File scripts/prompts.ps1 -Show -Prompt TRK02
 ~~~
 
-Check the returned repository identity, profile and withinBudget value. A budget failure is a result to resolve, not a successful context load. The sequence was exercised from a clean Windows clone with one synthetic Git repository; no agent login was needed.
+Check the returned repository identity, profile and withinBudget value. A budget failure is a result to resolve, not a successful context load. The sequence was exercised again on 2026-11-22 from a fresh clone with one synthetic Git repository: preview, activation, Startup (`withinBudget: true`) and an empty ready-task list; no agent login was needed. If `config/local/allowlist.json` exists, the preview fails with "Repository not selectable (0 matches)" for any repository not listed there (see the limits below).
 
 For interactive selection, team setup and a new agent session, continue with [Getting started](docs/getting-started.md).
 
@@ -81,7 +81,7 @@ pwsh -NoProfile -File scripts/secondbrain.ps1 -Check
 - **Read project knowledge:** use Startup, task lookup or search; [daily use](docs/daily-use.md) explains the CLI and chat conventions.
 - **Change a task or memory:** review the operation and its approval requirements. The [MCP write guide](docs/reference/mcp-writes.md) covers the local receipt for each submitted operation.
 - **Run the ready tasks:** `scripts/run-ready-tasks.ps1` runs them one at a time with Claude Code, Codex or Gemini CLI; the [desktop orchestrator](docs/orchestratore.md) picks the repository, the directives, the model and the effort level. Open it without an IDE with `pwsh -NoProfile -File start.ps1` from the clone root. To work through the ready tasks unattended, `scripts/orchestrate-tasks.ps1` previews the selection by default; `-Run` works on a `queue/<date>` branch, commits locally and never pushes ([guide](docs/orchestrate-tasks.md)).
-- **Use prompt cards:** 127 English cards cover development, review, documentation and maintenance. [Prompt guide](docs/prompt.md).
+- **Use prompt cards:** 127 English cards cover development, review, documentation and maintenance. 14 presets chain cards for a bigger job; `scripts/prompts.ps1 -Preset wf-NAME -Objective TEXT` composes a whole preset as one document. [Prompt guide](docs/prompt.md).
 - **Back up private knowledge:** preserve the dossier and recovery records separately from Git. [Backup and recovery](docs/security.md).
 
 A new dossier has no recorded tasks, so an empty ready-task list is expected.
@@ -150,7 +150,7 @@ Servono Windows, PowerShell 7.5+ e Git 2.42+. I comandi copiabili sono nella sez
 
 ### Compiti comuni e configurazione
 
-Consulta i task pronti, carica il dossier e usa una delle 127 schede prompt. Le scritture MCP richiedono un piano e una ricevuta CLI locale per operazione. [Uso quotidiano](docs/daily-use.md) · [Scritture approvate](docs/reference/mcp-writes.md) · [Agenti e MCP](docs/ide-e-mcp.md).
+Consulta i task pronti, carica il dossier e usa una delle 127 schede prompt o uno dei 14 preset. Le scritture MCP richiedono un piano e una ricevuta CLI locale per operazione. [Uso quotidiano](docs/daily-use.md) · [Scritture approvate](docs/reference/mcp-writes.md) · [Agenti e MCP](docs/ide-e-mcp.md).
 
 ### Limiti e aiuto
 
