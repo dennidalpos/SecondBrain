@@ -23,8 +23,8 @@ Add-SBMessages @{
     'mcp.write.param.operation' = @{ en = 'Restricted operation to preview' }
     'mcp.write.param.payload' = @{ en = 'Operation data: task.status (taskId,status,reason?), task.update (taskId + one of status,reason,priority,execution,stream,awaiting,requires,evidence (1-20 "reference|outcome", passed|failed|partial|unverified; appended)), task.evidence.correct (taskId,reason,evidence[]), task.new (title,acceptance,provenance,description?,priority?,pointer?,requires?), memory.append (content), activity.append (taskId,sessionId,when,outcome,detail), history.save (path,content)' }
     'mcp.write.param.planHash' = @{ en = 'SHA-256 of the exact plan approved through the CLI' }
-    'mcp.write.preview.description' = @{ en = 'Previews a dossier write plan without writing and returns the plan with its planHash. Then call submit_dossier_write: with the plan argument if the repository has an active owner grant, otherwise after the owner approves the plan with mcp-write.ps1.' }
-    'mcp.write.submit.description' = @{ en = 'Queues one idempotent request. Repository with an active owner grant: pass the full object returned by preview_dossier_write as plan, with the same requestId and planHash. Otherwise it needs a local CLI approval receipt for that plan. MCP arguments cannot grant approval.' }
+    'mcp.write.preview.description' = @{ en = 'Previews a dossier write without writing; returns the plan and planHash.' }
+    'mcp.write.submit.description' = @{ en = 'Queues one idempotent write. With an active owner grant pass the previewed object as plan; else a CLI approval receipt is needed.' }
     'mcp.pending.disabled' = @{ en = 'Read-only consultation: new MCP writes disabled for this session or request.' }
     'mcp.description.noRecovery' = @{ en = 'Forbid writes in this call' }
     'mcp.title.get_startup_context' = @{ en = 'Startup context' }

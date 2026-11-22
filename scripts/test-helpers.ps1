@@ -16,6 +16,14 @@ function Get-SBTestRoot {
 if(!$env:GIT_TEMPLATE_DIR){
     $gitTemplate=Join-Path (Get-SBTestRoot) 'git-template'
     [IO.Directory]::CreateDirectory((Join-Path $gitTemplate 'info'))|Out-Null
-    [IO.File]::WriteAllText((Join-Path $gitTemplate 'info/exclude'),"# fixture`n")
+    # Parallel suites share this template: rewriting the file in place made a concurrent `git init` or write fail with file-in-use (#795).
+    # Create it once, atomically (temp file then move); an existing file with the same text is never touched.
+    $excludePath=Join-Path $gitTemplate 'info/exclude'
+    if(!([IO.File]::Exists($excludePath) -and [IO.File]::ReadAllText($excludePath) -ceq "# fixture`n")){
+        $excludeTemp=$excludePath+'.'+[guid]::NewGuid().ToString('N')+'.tmp'
+        [IO.File]::WriteAllText($excludeTemp,"# fixture`n")
+        try{[IO.File]::Move($excludeTemp,$excludePath,$true)}
+        catch [IO.IOException]{[IO.File]::Delete($excludeTemp)} # another suite replaced it at the same moment: same content
+    }
     $env:GIT_TEMPLATE_DIR=$gitTemplate
 }
