@@ -158,11 +158,6 @@
     },
     {
       "rule": "PSUseBOMForUnicodeEncodedFile",
-      "file": "scripts/test-orchestrator-fixture.ps1",
-      "count": 1
-    },
-    {
-      "rule": "PSUseBOMForUnicodeEncodedFile",
       "file": "scripts/test-secondbrain-agents.ps1",
       "count": 1
     },
@@ -214,16 +209,6 @@
     {
       "rule": "PSUseBOMForUnicodeEncodedFile",
       "file": "scripts/test-secondbrain-runner.ps1",
-      "count": 1
-    },
-    {
-      "rule": "PSUseBOMForUnicodeEncodedFile",
-      "file": "scripts/test-secondbrain-runtime.ps1",
-      "count": 1
-    },
-    {
-      "rule": "PSUseBOMForUnicodeEncodedFile",
-      "file": "scripts/test-secondbrain-trace.ps1",
       "count": 1
     },
     {

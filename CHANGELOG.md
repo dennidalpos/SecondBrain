@@ -2,7 +2,13 @@
 
 Formato [Keep a Changelog](https://keepachangelog.com/it-IT/1.1.0/). La numerazione segue il file `VERSION`. Questo registro cambia solo quando accetti un cambio di versione: vedi [Cambiare versione](docs/daily-use.md).
 
-> Versione corrente: **3.3.0**, numerazione reimpostata il 2026-11-04 con le funzionalità attuali conservate. Le sezioni seguenti mantengono la cronologia dei rilasci precedenti.
+> Versione corrente: **3.3.1**, numerazione reimpostata il 2026-11-04 con le funzionalità attuali conservate. Le sezioni seguenti mantengono la cronologia dei rilasci precedenti.
+
+## [3.3.1] - 2026-11-22
+
+### Changed
+- MCP write flow: clearer refusal when a grant exists but `plan` is missing, shorter MCP write tool descriptions within the size budget, and a managed-block bullet describing the preview/submit workflow.
+- Lint baseline refreshed after 3 resolved findings (98 deferred).
 
 ## [3.3.0] - 2026-11-20
 

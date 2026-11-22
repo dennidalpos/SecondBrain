@@ -33,7 +33,11 @@ $allowedPrefixes = @(
     'docs/',
     'shared/',
     'app/',
-    '.github/'
+    '.github/',
+    '.agents/skills/',
+    '.claude/skills/',
+    '.claude/agents/',
+    '.secondbrain/'
 )
 
 $allowedRootFiles = @(
@@ -50,7 +54,8 @@ $allowedRootFiles = @(
     'CODE_OF_CONDUCT.md',
     'start.ps1',
     '.gitattributes',
-    '.gitignore'
+    '.gitignore',
+    '.claude/settings.json'
 )
 
 # Local prefixes and files strictly forbidden in the Git index.
