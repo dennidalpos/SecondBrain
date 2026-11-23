@@ -173,7 +173,7 @@ if(!$NoLaunch -and $PSCmdlet.ShouldProcess($binary,(Get-SBMessage 'runnergui.wha
     }else{
         # A desktop app outlives this shell: nohup through /bin/sh detaches it and appends its output to a log under .runtime.
         $hostId=try{Get-SBHostId}catch{'ws-'+(Get-SBTextHash ([Environment]::MachineName+'|'+[Environment]::UserName)).Substring(0,16).ToLowerInvariant()}
-        $logDir=Join-Path $root ('.runtime/hosts/'+$hostId+'/logs')
+        $logDir=Join-Path (Get-SBStateRoot $root $hostId) 'logs'
         [IO.Directory]::CreateDirectory($logDir)|Out-Null
         $log=Join-Path $logDir 'runner-gui.log'
         # ProcessStartInfo.ArgumentList passes each argument as is (Start-Process would join them without quoting).

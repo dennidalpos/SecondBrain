@@ -27,7 +27,7 @@ function Get-SBAnalysisSchemaPath([string]$BrainRoot,[ValidateSet('directives','
 function Get-SBLightModel([string]$BrainRoot,[string]$Provider) {
     # Default light model of one-shot analyses: roles.light.<provider> of config/agent-models.json, replaced by the workstation override.
     $role=@{model=$null;effort=$null;source='none'}
-    foreach($path in @((Join-Path $BrainRoot 'config/agent-models.json'),(Join-Path $BrainRoot ('.runtime/hosts/'+(Get-SBHostId)+'/agent-models.local.json')))){
+    foreach($path in @((Join-Path $BrainRoot 'config/agent-models.json'),(Join-Path (Get-SBStateRoot $BrainRoot (Get-SBHostId)) 'agent-models.local.json'))){
         if(!(Test-Path -LiteralPath $path -PathType Leaf)){continue}
         try{$data=Read-SBText $path|ConvertFrom-Json -AsHashtable}catch{continue}
         if($data -isnot [hashtable] -or $data['roles'] -isnot [hashtable] -or $data.roles['light'] -isnot [hashtable] -or $data.roles.light[$Provider] -isnot [hashtable]){continue}

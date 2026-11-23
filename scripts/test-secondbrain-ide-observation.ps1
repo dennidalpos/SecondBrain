@@ -11,7 +11,7 @@ function Assert-Obs($Condition,[string]$Message){if(!$Condition){throw ('FAIL ID
 function Reject-Obs([scriptblock]$Action,[string]$Message){$rejected=$false;try{& $Action|Out-Null}catch{$rejected=$true};Assert-Obs $rejected $Message}
 $root=Join-Path (Get-SBTestRoot) ('ideobs-'+[guid]::NewGuid().ToString('N'))
 $brain=Join-Path $root 'brain';$backups=Join-Path $brain '.runtime/backups';$hostId=Get-SBHostId
-$evidenceDir=Join-Path $brain ('.runtime/hosts/'+$hostId+'/ide-evidence');[void][IO.Directory]::CreateDirectory($evidenceDir)
+$evidenceDir=Join-Path (Get-SBStateRoot $brain $hostId) 'ide-evidence';[void][IO.Directory]::CreateDirectory($evidenceDir)
 $global="# Istruzioni globali`nRevisione 1.0 fixture`n"
 $expected=Get-SBTextHash $global.Trim()
 $map=@{schemaVersion=1;workstationId=$hostId;ides=@(
@@ -76,7 +76,7 @@ Assert-Obs ((Remove-SBStaleIdeObservations $retired $brain $backups -Apply).stat
 $store=Read-SBIdeObservationStore $brain
 Assert-Obs ($store.observations.Count -eq 1 -and $store.observations[0].ideId -ceq 'claude-desktop-a' -and (Remove-SBStaleIdeObservations $retired $brain $backups -Apply).state -eq 'unchanged') 'remaining account kept; prune is idempotent'
 # #188: revision and hash for -IdeAccount come from a receipt under .runtime, not from typed values.
-$receiptDir=Join-Path $brain ('.runtime/hosts/'+$hostId+'/account-receipts');[void][IO.Directory]::CreateDirectory($receiptDir)
+$receiptDir=Join-Path (Get-SBStateRoot $brain $hostId) 'account-receipts';[void][IO.Directory]::CreateDirectory($receiptDir)
 function Put-Receipt([string]$name,$value){$path=Join-Path $receiptDir $name;[IO.File]::WriteAllText($path,($value|ConvertTo-Json -Depth 5));$path}
 $goodHash=('ab'*32)
 $good=Put-Receipt 'good.json' @{schemaVersion=1;ideId='claude-desktop-a';accountAlias='work';observedRevision='1.0';observedHash=$goodHash}

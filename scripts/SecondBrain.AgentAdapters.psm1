@@ -229,7 +229,7 @@ function Read-SBAgentConfigured([string]$Provider,$Paths) {
 function Read-SBAgentModelTable([string]$BrainRoot) {
     # Fallback table plus the workstation override (.runtime/hosts/<host>/agent-models.local.json), entries appended per provider.
     $table=@{}
-    foreach($path in @((Join-Path $BrainRoot 'config/agent-models.json'),(Join-Path $BrainRoot ('.runtime/hosts/'+(Get-SBHostId)+'/agent-models.local.json')))){
+    foreach($path in @((Join-Path $BrainRoot 'config/agent-models.json'),(Join-Path (Get-SBStateRoot $BrainRoot (Get-SBHostId)) 'agent-models.local.json'))){
         if(!(Test-Path -LiteralPath $path -PathType Leaf)){continue}
         try{$data=Read-SBText $path|ConvertFrom-Json -AsHashtable}catch{throw (New-SBError 'agents.table.invalid' @($path))}
         if($data -isnot [hashtable] -or $data.schemaVersion -ne 1 -or $data.providers -isnot [hashtable]){throw (New-SBError 'agents.table.invalid' @($path))}

@@ -14,7 +14,7 @@ $identity='github.com/test/subcli'
 $dossier=Join-Path $brain 'repos/SubCli'
 $agentDir=Join-Path $dossier 'subagents'
 $hostId=Get-SBHostId
-$runtime=Join-Path $brain ('.runtime/hosts/'+$hostId)
+$runtime=Get-SBStateRoot $brain $hostId
 $configPath=Join-Path $runtime 'workstation.json'
 $backupRoot=Join-Path $runtime 'backups'
 function Invoke-SubCli([string[]]$CliArguments){

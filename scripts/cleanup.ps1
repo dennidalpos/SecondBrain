@@ -17,6 +17,7 @@ It is not an executable manifest and removes nothing. -ProposalPath saves the pr
 -ReportPath saves it to a new .md file under .runtime (never overwritten) or regenerates .runtime/INDEX.md, a derived view with no independent data. Removes nothing.
 -CheckRuntime (read-only) checks that every hosts/<id>/repos/<repo>/<category>/<yyyyMMdd>-<slug> folder has a schema-1 MANIFEST.json whose hostId, repository, category and name match its path,
 and reports folders out of schema (unknown areas, non-conforming names, missing or inconsistent manifests, legacy layout) with a reason code; exits 1 if any. Moves or removes nothing.
+-Migrate -Layout previews the move of .runtime/hosts/<id> into state/<id>, journal/<id> (backups, 14-day expiry), work/<id> and tests/<id> (sources under state/<id>/sources); -Apply needs the layout helpers flipped to the new roots, rewrites runtimeRoot/backupRoot/localStateBackupRoot in workstation.json and records .runtime/cleanup/layout-*.json.
 -Migrate previews (without -Apply) or applies (with -Apply and -Authorization) the move into the nested layout hosts/<id>/repos/<repo>/<category>/<yyyyMMdd>-<slug>:
 flat work/evidence/report folders, host-level evidence/report folders, duplicate repository segments, non-conforming names, backup-<date>-* folders (hosts/<id>/install-backups),
 backup/* into backups/*, root *.log into logs/. Rename on the same volume only (no copies, no content deletion); writes MANIFEST.json for work/evidence/report folders;
@@ -40,7 +41,7 @@ junctions/symlinks; rechecks eligibility and content hashes before each removal,
 No backup (recreated with the owning suite/command), but records a .runtime/cleanup journal with entries, sizes, outcomes and recovery instructions.
 #>
 [CmdletBinding()]
-param([string]$ConfigPath,[string]$SessionId,[switch]$Apply,[string]$ManifestPath,[string]$Authorization,[switch]$ListStageRecords,[switch]$ListRuntime,[switch]$ProposeRuntime,[switch]$RuntimeReport,[switch]$CheckRuntime,[string]$ReportPath,[switch]$Regenerable,[switch]$Leftovers,[switch]$TestOutput,[switch]$ArchiveEvidence,[string]$DossierPath,[switch]$Migrate,[switch]$LocalState,[switch]$ListInstallBackups,[ValidateRange(1,3650)][int]$InstallBackupDays=7,[string]$Repository='github.com/dennidalpos/secondbrain',[ValidateRange(0,1000)][int]$KeepFixtures=5,[ValidateRange(0,10080)][int]$MinAgeMinutes=10,[string]$ProposalPath,[ValidateRange(1,3650)][int]$OlderThanDays=90)
+param([string]$ConfigPath,[string]$SessionId,[switch]$Apply,[string]$ManifestPath,[string]$Authorization,[switch]$ListStageRecords,[switch]$ListRuntime,[switch]$ProposeRuntime,[switch]$RuntimeReport,[switch]$CheckRuntime,[string]$ReportPath,[switch]$Regenerable,[switch]$Leftovers,[switch]$TestOutput,[switch]$ArchiveEvidence,[string]$DossierPath,[switch]$Migrate,[switch]$LocalState,[switch]$Layout,[switch]$ListInstallBackups,[ValidateRange(1,3650)][int]$InstallBackupDays=7,[string]$Repository='github.com/dennidalpos/secondbrain',[ValidateRange(0,1000)][int]$KeepFixtures=5,[ValidateRange(0,10080)][int]$MinAgeMinutes=10,[string]$ProposalPath,[ValidateRange(1,3650)][int]$OlderThanDays=90)
 $ErrorActionPreference='Stop'
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Access.psm1') -Force
@@ -63,10 +64,13 @@ Add-SBMessages @{
     'cleanup.transaction.pending' = @{ en = 'Pending transaction: cleanup suspended' }
     'cleanup.state.preview' = @{ en = 'Local state migration requires -Migrate -LocalState and is preview only' }
     'cleanup.state.override' = @{ en = 'Set SECONDBRAIN_STATE_ROOT to compare locations' }
+    'cleanup.layout.exclusive' = @{ en = 'Layout is only combinable with Migrate (and Apply with Authorization)' }
+    'cleanup.layout.notflipped' = @{ en = 'The physical layout helpers still return the old roots: the layout migration is applied only after they are flipped' }
     'cleanup.install.preview' = @{ en = 'ListInstallBackups is a separate read-only mode' }
 }
 # Writer busy beyond the wait limit: exit 3 (the message identifies the owner).
 trap { if (Test-SBWriteDeniedError $_) { Write-SBWriteDeniedDiagnostic $_ $PSCommandPath $PSBoundParameters; exit 4 }; if (Test-SBBusyError $_) { [Console]::Error.WriteLine($_.Exception.Message); exit 3 }; break }
+if($Layout -and (!$Migrate -or $LocalState -or $Regenerable -or $ManifestPath -or $ListStageRecords -or $ListRuntime -or $ProposeRuntime -or $RuntimeReport -or $CheckRuntime -or $ListInstallBackups)){throw (New-SBError 'cleanup.layout.exclusive')}
 if($LocalState){
     if(!$Migrate -or $Apply -or $ListInstallBackups -or $Regenerable -or $ListRuntime -or $ProposeRuntime -or $ListStageRecords -or $RuntimeReport -or $CheckRuntime -or $ManifestPath -or $ReportPath -or $ProposalPath){throw (New-SBError 'cleanup.state.preview')}
     if(!$env:SECONDBRAIN_STATE_ROOT){throw (New-SBError 'cleanup.state.override')}
@@ -111,6 +115,37 @@ if($ListInstallBackups){
 }
 $operation=Enter-SBOperation $config $SessionId -ReadOnly:(!$Apply -and !($RuntimeReport -and $ReportPath))
 try {
+    if($Migrate -and $Layout){
+        # #424: state/journal/work/tests layout. The preview works on any .runtime; Apply needs the helpers flipped to the new roots (step 5 of the migration).
+        $layoutPlan=Get-SBRuntimeLayoutPlan $config.brainRoot $config.workstationId
+        $rawConfig=Read-SBJson $config.configPath $null
+        $rewrite=if($rawConfig -is [Collections.IDictionary]){Get-SBRuntimeLayoutConfigRewrite $config.brainRoot $config.workstationId $rawConfig}else{@{}}
+        $summary=@{applied=$false;scope='runtime-layout';hostId=$config.workstationId;targets=$layoutPlan.targets;moves=@($layoutPlan.moves);skipped=@($layoutPlan.skipped);files=$layoutPlan.files;bytes=$layoutPlan.bytes;configRewrite=$rewrite}
+        if(!$Apply){$summary.note='Preview: nothing moved. With -Apply and -Authorization only the listed renames run (same volume, no copy, no content deleted) and workstation.json paths are rewritten.';ConvertTo-SBJson $summary;exit 0}
+        if(!$Authorization){throw (New-SBError 'cleanup.apply.authorization')}
+        $newState=[IO.Path]::GetFullPath((Join-Path $config.brainRoot ('.runtime/'+$layoutPlan.targets.state)))
+        if((Get-SBStateRoot $config.brainRoot $config.workstationId) -ine $newState){throw (New-SBError 'cleanup.layout.notflipped')}
+        if(Test-Path -LiteralPath (Get-SBTransactionMarkerPath $config.brainRoot)){throw (New-SBError 'cleanup.transaction.pending')}
+        $busy=@(Get-SBAccessStatus $config|Where-Object {$_ -is [Collections.IDictionary] -and $_.ContainsKey('sessionId') -and $_.sessionId -ne $operation.ownerSessionId -and $_.status -in @('active','unverified')})
+        if($busy.Count){throw (New-SBError 'cleanup.sessions.active' @($busy.Count))}
+        $registryDir=Join-Path $config.brainRoot '.runtime/cleanup';[IO.Directory]::CreateDirectory($registryDir)|Out-Null
+        $registryPath=Join-Path $registryDir ('layout-'+(Get-SBNow -Local).ToString('yyyyMMddTHHmmss')+'.json')
+        $record=@{schemaVersion=1;executedAt=(Get-SBNow -Local).ToString('o');authorization=$Authorization;scope='runtime-layout';status='started';hostId=$config.workstationId;planned=@($layoutPlan.moves|ForEach-Object {@{from=$_.fromRelative;to=$_.toRelative}});configRewrite=$rewrite}
+        $stream=[IO.FileStream]::new($registryPath,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
+        try{$stream.Write([Text.UTF8Encoding]::new($false).GetBytes((ConvertTo-SBJson $record)));$stream.Flush($true)}finally{$stream.Dispose()}
+        if($rewrite.Count){
+            foreach($key in $rewrite.Keys){$rawConfig[$key]=$rewrite[$key]}
+            $configBytes=[Text.UTF8Encoding]::new($false).GetBytes((ConvertTo-SBJson $rawConfig))
+            Write-SBFile $config.configPath $configBytes (Get-SBFileHash $config.configPath) $config.backupRoot -BackupDirty|Out-Null
+        }
+        $result=Invoke-SBRuntimeMigration $config.brainRoot $layoutPlan
+        $record.moved=@($result.moved);$record.failed=@($result.failed);$record.removedEmpty=@($result.removedEmpty);$record.status=if($result.failed.Count){'partial'}else{'completed'}
+        [IO.File]::WriteAllText($registryPath,(ConvertTo-SBJson $record),[Text.UTF8Encoding]::new($false))
+        $summary.applied=[bool]($result.moved.Count -and !$result.failed.Count);$summary.moved=@($result.moved);$summary.failed=@($result.failed);$summary.removedEmpty=@($result.removedEmpty);$summary.registry=$registryPath;$summary.authorization=$Authorization
+        if($result.failed.Count){$summary.status='partial'}
+        ConvertTo-SBJson $summary
+        exit $(if($result.failed.Count){1}else{0})
+    }
     if($Migrate){
         if($Regenerable -or $ManifestPath -or $ListStageRecords -or $ListRuntime -or $ProposeRuntime -or $RuntimeReport -or $CheckRuntime){throw (New-SBError 'cleanup.regenerable.exclusive')}
         $segment=Get-SBRuntimeRepoSegment $Repository

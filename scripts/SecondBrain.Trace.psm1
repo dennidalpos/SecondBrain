@@ -82,7 +82,7 @@ function Get-SBTraceTurns([string]$BrainRoot,[string]$Repository,[DateTimeOffset
 function Get-SBCapturedTraceTurns([string]$BrainRoot,[string]$Repository,[DateTimeOffset]$Since=[DateTimeOffset]::MinValue) {
     # Metadata indexes only: never load raw captured conversations to count turns.
     if(!(Test-SBRepositoryIdentity $Repository)){return 0}
-    $root=Join-Path $BrainRoot ('.runtime/hosts/'+(Get-SBHostId)+'/repos/'+(Get-SBRuntimeRepoSegment $Repository)+'/evidence')
+    $root=Join-Path (Get-SBWorkRoot $BrainRoot (Get-SBHostId)) ((Get-SBRuntimeRepoSegment $Repository)+'/evidence')
     Assert-SBPlainPath $root
     if(![IO.Directory]::Exists($root)){return 0}
     $seen=@{}

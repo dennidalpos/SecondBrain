@@ -511,14 +511,14 @@ $script:SBRuntimeManagedTopLevel = @('access','hosts','cleanup','state.json','pa
 # Read-only inventory of hosts/<id>/repos/<repo>/<area>[/<folder>] (area = category or temp). Does not follow reparse points.
 function Get-SBRuntimeNested([string]$BrainRoot,[int]$OlderThanDays=90) {
     $runtime=[IO.Path]::GetFullPath((Join-Path $BrainRoot '.runtime')).TrimEnd('\','/')
-    $hostsDir=Join-Path $runtime 'hosts'
+    $hostsDir=Get-SBHostsRoot $BrainRoot
     if(!(Test-Path -LiteralPath $hostsDir -PathType Container)){return @()}
     $cutoff=(Get-SBNow).UtcDateTime.AddDays(-$OlderThanDays)
     $options=[IO.EnumerationOptions]::new();$options.RecurseSubdirectories=$true;$options.IgnoreInaccessible=$true;$options.AttributesToSkip=[IO.FileAttributes]::ReparsePoint
     $dirs={param([string]$Path) if(Test-Path -LiteralPath $Path -PathType Container){@(Get-ChildItem -LiteralPath $Path -Directory -Force|Where-Object {!($_.Attributes -band [IO.FileAttributes]::ReparsePoint)}|Sort-Object Name)}else{@()}}
     $entries=@()
     foreach($hostDir in (& $dirs $hostsDir)){
-        foreach($repoDir in (& $dirs (Join-Path $hostDir.FullName 'repos'))){
+        foreach($repoDir in (& $dirs (Get-SBWorkRoot $BrainRoot $hostDir.Name))){
             foreach($areaDir in (& $dirs $repoDir.FullName)){
                 $areaIsCategory=$areaDir.Name -cin @('work','evidence','report','fixture','tmp')
                 $targets=if($areaIsCategory){& $dirs $areaDir.FullName}else{@($areaDir)}
@@ -551,7 +551,7 @@ function Get-SBRuntimeLegacy([string]$BrainRoot,$Entries) {
         $legacy+=@{path=$entry.name+'/';kind=$t.kind;files=$entry.files;bytes=$entry.bytes;newestWriteUtc=$entry.newestWriteUtc;suggestedPath=$t.suggested;action='spostamento proposto, non eseguito'}
     }
     # Previous per-workstation layout: hosts/<id>/repositories/<hash>/<Project>/<Runtime>.
-    $hostsDir=Join-Path $runtime 'hosts'
+    $hostsDir=Get-SBHostsRoot $BrainRoot
     if(Test-Path -LiteralPath $hostsDir -PathType Container){
         foreach($hostDir in @(Get-ChildItem -LiteralPath $hostsDir -Directory -Force|Where-Object {!($_.Attributes -band [IO.FileAttributes]::ReparsePoint)}|Sort-Object Name)){
             $old=Join-Path $hostDir.FullName 'repositories'
@@ -697,15 +697,15 @@ function Get-SBRuntimeCleanupProposal([string]$BrainRoot,[string[]]$ProtectedPat
         if($oldFiles.Count){$candidates+=@{path='mcp-handshake/';category='regenerable';action=('remove '+$oldFiles.Count+' reports older than '+$OlderThanDays+' days');folders=0;files=$oldFiles.Count;bytes=[long](($oldFiles|Measure-Object Length -Sum).Sum);oldestUtc=($oldFiles|Sort-Object LastWriteTimeUtc|Select-Object -First 1).LastWriteTimeUtc.ToString('o');recovery='recreated by rerunning test-secondbrain-mcp-handshake.ps1';references=(& $mentions 'mcp-handshake')}}
     }
     # 3. Per host: source Python environment (regenerable) and backup ZIPs beyond the two latest.
-    $hostsDir=Join-Path $runtime 'hosts'
+    $hostsDir=Get-SBHostsRoot $BrainRoot
     if(Test-Path -LiteralPath $hostsDir -PathType Container){
         foreach($hostDir in Get-ChildItem -LiteralPath $hostsDir -Directory -Force|Where-Object {!($_.Attributes -band [IO.FileAttributes]::ReparsePoint)}){
-            $python=Join-Path $hostDir.FullName 'sources/python'
+            $python=Join-Path (Get-SBSourcesRoot $BrainRoot $hostDir.Name) 'python'
             if(Test-Path -LiteralPath $python -PathType Container){
                 $m=& $measure $python
                 $candidates+=@{path=(& $relative $python)+'/';category='regenerable';action='remove the Python environment dedicated to sources';folders=1;files=$m.files;bytes=$m.bytes;oldestUtc=$m.newest.ToString('o');recovery='recreated by sources.ps1 from the dependency lock';references=0}
             }
-            $backupsDir=Join-Path $hostDir.FullName 'backups'
+            $backupsDir=Get-SBJournalRoot $BrainRoot $hostDir.Name
             $zips=@()
             if(Test-Path -LiteralPath $backupsDir -PathType Container){$zips=@(Get-ChildItem -LiteralPath $backupsDir -File -Filter '*.zip' -Force|Sort-Object LastWriteTimeUtc -Descending)}
             $oldZips=@($zips|Select-Object -Skip 2)
@@ -898,9 +898,9 @@ function Get-SBRegenerableRuntimeTargets {
                 foreach($hostDir in Get-ChildItem -LiteralPath $top.FullName -Directory -Force){
                     if($hostDir.Name -cne $HostId){$skipped+=New-SBRegenerableSkip $hostDir.FullName $runtime 'foreign-host';continue}
                     Assert-SBPlainPath $hostDir.FullName
-                    $python=Join-Path $hostDir.FullName 'sources/python'
+                    $python=Join-Path (Get-SBSourcesRoot $BrainRoot $hostDir.Name) 'python'
                     if(Test-Path -LiteralPath $python){$skipped+=New-SBRegenerableSkip $python $runtime 'unsupported-layout'}
-                    $repos=Join-Path $hostDir.FullName 'repos'
+                    $repos=Get-SBTestsRoot $BrainRoot $hostDir.Name
                     if(!(Test-Path -LiteralPath $repos -PathType Container)){continue}
                     Assert-SBPlainPath $repos
                     foreach($repoDir in Get-ChildItem -LiteralPath $repos -Directory -Force){
@@ -958,7 +958,7 @@ function ConvertTo-SBRuntimeFolderName([string]$Name,[DateTime]$Newest) {
 # flat backup-<date>-* folders (hosts/<id>/install-backups), backup/* into backups/*, root *.log into logs/.
 function Get-SBRuntimeMigrationPlan([string]$BrainRoot,[string]$HostId,[string]$Segment,[int]$MinAgeMinutes=10) {
     $runtime=[IO.Path]::GetFullPath((Join-Path $BrainRoot '.runtime')).TrimEnd('\','/')
-    $hostRoot=Join-Path $runtime ('hosts/'+$HostId)
+    $hostRoot=Get-SBStateRoot $BrainRoot $HostId
     $options=[IO.EnumerationOptions]::new();$options.RecurseSubdirectories=$true;$options.IgnoreInaccessible=$true;$options.AttributesToSkip=[IO.FileAttributes]::ReparsePoint
     $taken=@{}
     $newestOf={param([string]$Path) $t=[DateTime]::MinValue;foreach($f in ([IO.DirectoryInfo]::new($Path)).EnumerateFiles('*',$options)){if($f.LastWriteTimeUtc -gt $t){$t=$f.LastWriteTimeUtc}};if($t -eq [DateTime]::MinValue){$t=(Get-Item -LiteralPath $Path -Force).LastWriteTimeUtc};$t}
@@ -993,7 +993,7 @@ function Get-SBRuntimeMigrationPlan([string]$BrainRoot,[string]$HostId,[string]$
         if($d.Name -cmatch '^(?<c>work|evidence|report)-\d{8}-'){$c=$Matches.c;& $add $d ('host-'+$c) (Join-Path $repoRoot ($c+'/'+(ConvertTo-SBRuntimeFolderName $d.Name (& $newestOf $d.FullName)))) $c}
     }
     # 5. Repository segments of this host: merge segments without hash into the canonical one, normalize non-conforming names.
-    foreach($seg in (& $dirs (Join-Path $hostRoot 'repos'))){
+    foreach($seg in (& $dirs (Get-SBWorkRoot $BrainRoot $HostId))){
         $canonical=($seg.Name -ceq $Segment);$hasHash=($seg.Name -cmatch '-[0-9a-f]{8}$')
         foreach($category in @('work','evidence','report')){
             foreach($d in (& $dirs (Join-Path $seg.FullName $category))){
@@ -1044,6 +1044,53 @@ function Invoke-SBRuntimeMigration([string]$BrainRoot,$Plan) {
         }
     }
     @{moved=@($done);failed=@($failed);removedEmpty=@($removed)}
+}
+# Read-only plan from the old physical layout (hosts/<id>/...) to state/journal/work/tests (#424). Each move is a same-volume rename that Invoke-SBRuntimeMigration executes.
+# hosts/<id>/backups -> journal/<id>; hosts/<id>/repos/tests-* -> tests/<id>; other hosts/<id>/repos/* -> work/<id>; every other entry of hosts/<id> (sources included) -> state/<id>.
+function Get-SBRuntimeLayoutPlan([string]$BrainRoot,[string]$HostId) {
+    $runtime=[IO.Path]::GetFullPath((Join-Path $BrainRoot '.runtime')).TrimEnd('\','/')
+    $targets=Get-SBRuntimeLayoutTargets $HostId
+    $old=Join-Path $runtime ('hosts/'+$HostId)
+    $moves=@();$skipped=@()
+    $rel={param([string]$Path) $Path.Substring($runtime.Length+1).Replace('\','/')}
+    $add={param([IO.FileSystemInfo]$Item,[string]$Destination,[string]$Kind)
+        if($Item.Attributes -band [IO.FileAttributes]::ReparsePoint){$script:layoutSkipped+=@{from=(& $rel $Item.FullName);reason='reparse-point'};return}
+        $isDir=[bool]($Item.Attributes -band [IO.FileAttributes]::Directory)
+        $script:layoutMoves+=@{from=$Item.FullName;to=$Destination;fromRelative=(& $rel $Item.FullName);toRelative=(& $rel $Destination);kind=$Kind;directory=$isDir;category=$null;files=$(if($isDir){0}else{1});bytes=$(if($isDir){0}else{([IO.FileInfo]$Item).Length})}
+    }
+    $script:layoutMoves=@();$script:layoutSkipped=@()
+    if(Test-Path -LiteralPath $old -PathType Container){
+        foreach($item in @(Get-ChildItem -LiteralPath $old -Force|Sort-Object Name)){
+            if($item.Name -ceq 'backups'){& $add $item (Join-Path $runtime $targets.journal) 'journal';continue}
+            if($item.Name -ceq 'repos' -and $item.PSIsContainer){
+                if($item.Attributes -band [IO.FileAttributes]::ReparsePoint){$script:layoutSkipped+=@{from=(& $rel $item.FullName);reason='reparse-point'};continue}
+                foreach($repo in @(Get-ChildItem -LiteralPath $item.FullName -Force|Sort-Object Name)){
+                    if($repo.Name -cmatch '^tests-'){& $add $repo (Join-Path (Join-Path $runtime $targets.tests) $repo.Name) 'tests'}
+                    else{& $add $repo (Join-Path (Join-Path $runtime $targets.work) $repo.Name) 'work'}
+                }
+                continue
+            }
+            & $add $item (Join-Path (Join-Path $runtime $targets.state) $item.Name) 'state'
+        }
+    }
+    $moves=@($script:layoutMoves);$skipped=@($script:layoutSkipped)
+    Remove-Variable -Name layoutMoves,layoutSkipped -Scope Script -ErrorAction SilentlyContinue
+    @{hostId=$HostId;targets=$targets;moves=$moves;skipped=$skipped;files=@($moves|Measure-Object files -Sum).Sum;bytes=@($moves|Measure-Object bytes -Sum).Sum;segment=$null}
+}
+# New values of the persisted paths of workstation.json (runtimeRoot, backupRoot, localStateBackupRoot) once the layout is flipped; keys that point elsewhere are left alone.
+function Get-SBRuntimeLayoutConfigRewrite([string]$BrainRoot,[string]$HostId,$Config) {
+    $runtime=[IO.Path]::GetFullPath((Join-Path $BrainRoot '.runtime')).TrimEnd('\','/')
+    $targets=Get-SBRuntimeLayoutTargets $HostId
+    $old=[IO.Path]::GetFullPath((Join-Path $runtime ('hosts/'+$HostId))).TrimEnd('\','/')
+    $new=@{runtimeRoot=[IO.Path]::GetFullPath((Join-Path $runtime $targets.state));backupRoot=[IO.Path]::GetFullPath((Join-Path $runtime $targets.journal));localStateBackupRoot=[IO.Path]::GetFullPath((Join-Path $runtime $targets.journal))}
+    $rewrite=@{}
+    foreach($key in @('runtimeRoot','backupRoot','localStateBackupRoot')){
+        if(!$Config.Contains($key) -or !$Config[$key]){continue}
+        $current=[IO.Path]::GetFullPath([string]$Config[$key]).TrimEnd('\','/')
+        $expected=if($key -eq 'runtimeRoot'){$old}else{$old+[IO.Path]::DirectorySeparatorChar+'backups'}
+        if($current -ieq $expected){$rewrite[$key]=$new[$key]}
+    }
+    $rewrite
 }
 function Remove-SBRuntimeTree([string]$Path,[string]$BrainRoot) {
     # Remove a folder under .runtime without following junctions/symlinks (unlink only), clearing read-only attributes (Git objects).
@@ -1293,6 +1340,41 @@ function Test-SBCheckoutScope($Config,[string]$Checkout) {
 function Get-SBLocalRoot([string]$BrainRoot,[string]$WorkstationId='default') {
     if($WorkstationId -notmatch '^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$'){throw (New-SBError 'core.workstation.invalid')}
     [IO.Path]::GetFullPath((Join-Path $BrainRoot ('.runtime/hosts/'+$WorkstationId)))
+}
+# Physical areas of .runtime (#424): state/<id>, journal/<id>, work/<id>, tests/<id>. Until the layout flip (step 5 of the migration) every helper
+# returns the old location under hosts/<id>; callers ask these helpers instead of building .runtime/hosts paths.
+function Get-SBHostsRoot([string]$BrainRoot) {
+    [IO.Path]::GetFullPath((Join-Path $BrainRoot '.runtime/hosts'))
+}
+function Get-SBStateRoot([string]$BrainRoot,[string]$WorkstationId='default') {
+    Get-SBLocalRoot $BrainRoot $WorkstationId
+}
+function Get-SBJournalRoot([string]$BrainRoot,[string]$WorkstationId='default') {
+    Join-Path (Get-SBLocalRoot $BrainRoot $WorkstationId) 'backups'
+}
+function Get-SBWorkRoot([string]$BrainRoot,[string]$WorkstationId='default') {
+    Join-Path (Get-SBLocalRoot $BrainRoot $WorkstationId) 'repos'
+}
+function Get-SBTestsRoot([string]$BrainRoot,[string]$WorkstationId='default') {
+    Join-Path (Get-SBLocalRoot $BrainRoot $WorkstationId) 'repos'
+}
+function Get-SBSourcesRoot([string]$BrainRoot,[string]$WorkstationId='default') {
+    Join-Path (Get-SBStateRoot $BrainRoot $WorkstationId) 'sources'
+}
+# Target layout of the migration, relative to .runtime (decisions: sources under state/<id>, tests per host, journal expiry 14 days).
+function Get-SBRuntimeLayoutTargets([string]$WorkstationId) {
+    if($WorkstationId -notmatch '^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$'){throw (New-SBError 'core.workstation.invalid')}
+    @{state="state/$WorkstationId";journal="journal/$WorkstationId";work="work/$WorkstationId";tests="tests/$WorkstationId";sources="state/$WorkstationId/sources";journalExpiryDays=14}
+}
+# Perimeter of the physical areas as relative regexes (backup.ps1): journal (never archived again), regenerable test and source folders, closed work folders.
+function Get-SBRuntimeAreaPatterns {
+    @{
+        include=@('.runtime/hosts')
+        runtimePrefix='.runtime/hosts/'
+        journal='^\.runtime/hosts/[^/]+/backups/'
+        regenerable=@('^\.runtime/hosts/[^/]+/repos/(fixture|tmp|tests)-[^/]+/','^\.runtime/hosts/[^/]+/repos/[^/]+/(fixture|tmp|temp)/','^\.runtime/hosts/[^/]+/sources/python/')
+        workFolder='^(\.runtime/hosts/[^/]+/repos/[^/]+/work/[^/]+)/'
+    }
 }
 function Get-SBWorkstationStateRoot([string]$BrainRoot,[string]$WorkstationId) {
     $legacy=Get-SBLocalRoot $BrainRoot $WorkstationId
@@ -1566,6 +1648,16 @@ Export-ModuleMember -Function @(
     'Resolve-SBWorkingRepository',
     'Test-SBCheckoutScope',
     'Get-SBLocalRoot',
+    'Get-SBHostsRoot',
+    'Get-SBStateRoot',
+    'Get-SBJournalRoot',
+    'Get-SBWorkRoot',
+    'Get-SBTestsRoot',
+    'Get-SBSourcesRoot',
+    'Get-SBRuntimeLayoutTargets',
+    'Get-SBRuntimeAreaPatterns',
+    'Get-SBRuntimeLayoutPlan',
+    'Get-SBRuntimeLayoutConfigRewrite',
     'Get-SBWorkstationStateRoot',
     'Assert-SBSetupStatePath',
     'Assert-SBCentralDataPath',

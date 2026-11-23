@@ -13,7 +13,7 @@ Add-SBMessages @{
 $script:SBIdeObservationFields=@('ideId','workstationId','profile','environment','accountAlias','accountVerified','observedAt','observedHash','loadingVerified','sessionId','evidencePath','evidenceSha256')
 
 function Get-SBIdeObservationStorePath([string]$BrainRoot) {
-    Join-Path ([IO.Path]::GetFullPath($BrainRoot)) ('.runtime/hosts/'+(Get-SBHostId)+'/ide-observations.json')
+    Join-Path (Get-SBStateRoot ([IO.Path]::GetFullPath($BrainRoot)) (Get-SBHostId)) 'ide-observations.json'
 }
 
 function Find-SBIdeEntry($Map,[string]$IdeId) {
@@ -26,7 +26,7 @@ function Find-SBIdeEntry($Map,[string]$IdeId) {
 function Get-SBIdeObservationPackage($Ide,[string]$GlobalText,[string]$BrainRoot,[string]$WorkstationId) {
     $hash=Get-SBTextHash $GlobalText.Trim()
     $revision=if($GlobalText -match 'Revisi(?:on|one) (\d+(?:\.\d+)+)'){$Matches[1]}else{'unknown'}
-    $evidenceDir=Join-Path ([IO.Path]::GetFullPath($BrainRoot)) ('.runtime/hosts/'+$WorkstationId+'/ide-evidence')
+    $evidenceDir=Join-Path (Get-SBStateRoot ([IO.Path]::GetFullPath($BrainRoot)) $WorkstationId) 'ide-evidence'
     $template=[ordered]@{ideId=$Ide.id;workstationId=$WorkstationId;profile=$(if($Ide.ContainsKey('profile')){$Ide.profile}else{'default'});observedAt='<ISO 8601 UTC, at most 15 minutes old>';
         observedHash=$hash;loadingVerified=$true;sessionId='<id of the NEW session>';evidencePath=(Join-Path $evidenceDir ($Ide.id+'.txt'));evidenceSha256='<sha256 of the evidence file>'}
     if($Ide.ContainsKey('environment')){$template.environment=$Ide.environment}

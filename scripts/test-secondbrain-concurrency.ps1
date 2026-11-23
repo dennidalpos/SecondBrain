@@ -123,7 +123,7 @@ try {
     Invoke-Case 'trace' (Join-Path $root 'trace') {
         $brain=Join-Path $root 'trace/brain';$checkout=Join-Path $root 'trace/work/repo-a'
         foreach($dir in @($brain,$checkout)){[IO.Directory]::CreateDirectory($dir)|Out-Null}
-        $hostDir=Join-Path $brain ('.runtime/hosts/'+(Get-SBHostId));[IO.Directory]::CreateDirectory($hostDir)|Out-Null
+        $hostDir=Get-SBStateRoot $brain (Get-SBHostId);[IO.Directory]::CreateDirectory($hostDir)|Out-Null
         [IO.File]::WriteAllText((Join-Path $hostDir 'workstation.json'),(ConvertTo-SBJson @{schemaVersion=1;bindings=@(@{identity='github.com/acme/repo-a';path=$checkout})}))
         $outcomes=Invoke-Race 6 {param($i,$a) 1..15|ForEach-Object {[void](Add-SBTraceEvent $a[0] 'stop' (ConvertTo-Json -Compress -InputObject @{persistence='allowed';policyEvidence='synthetic race';session_id=("sess-$i");cwd=$a[1]}))}} @($brain,$checkout)
         $files=@(Get-ChildItem -LiteralPath (Join-Path $brain '.runtime/trace') -Recurse -File -Filter '*.jsonl')

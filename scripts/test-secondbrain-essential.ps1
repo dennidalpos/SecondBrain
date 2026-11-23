@@ -68,7 +68,7 @@ if($LASTEXITCODE){throw 'Git fixture init failed'}
 & git -C $repo remote add origin 'https://github.com/test/essential.git'
 if($LASTEXITCODE){throw 'Git fixture remote failed'}
 Check ((& git -C $repo rev-parse --show-toplevel).Replace('\','/') -ceq $repo.Replace('\','/')) 'Git fixture is isolated'
-$hostId=Get-SBHostId;$runtime=Join-Path $brain ('.runtime/hosts/'+$hostId);$configPath=Join-Path $runtime 'workstation.json'
+$hostId=Get-SBHostId;$runtime=Get-SBStateRoot $brain $hostId;$configPath=Join-Path $runtime 'workstation.json'
 $cfg=@{schemaVersion=1;mode='portable';brainRoot=$brain;workstationId=$hostId;runtimeRoot=$runtime;backupRoot=(Join-Path $runtime 'backups');repositoryRoot=$brain;coordinationRoot=(Join-Path $brain '.runtime/access');bindings=@(@{identity=$identity;path=$repo;remoteIdentity=$identity;repositoryFiles=@()});ides=@();sessionTimeoutMinutes=30;lockWaitMs=1000;configPath=$configPath}
 Put $configPath (ConvertTo-SBJson $cfg)
 $argsBase=@{BrainRoot=$brain;Identity=$identity;WorkingRepository=$identity}

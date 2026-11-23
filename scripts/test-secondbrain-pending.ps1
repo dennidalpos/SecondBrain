@@ -18,7 +18,7 @@ $dossier=Join-Path $brain 'repos/Pending'
 $checkout=Join-Path $fixture 'checkout'
 $identity='github.com/test/pending'
 $hostId=Get-SBHostId
-$runtime=Join-Path $brain ('.runtime/hosts/'+$hostId)
+$runtime=Get-SBStateRoot $brain $hostId
 $configPath=Join-Path $runtime 'workstation.json'
 $sessions=@();$holder=$null
 function Invoke-PendingCli([string]$Script,[string[]]$CliArguments){

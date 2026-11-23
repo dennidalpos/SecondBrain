@@ -153,7 +153,7 @@ function Test-ProcessAlive($ProcessId) {
 }
 function Get-RunFolders {
     # Work folders live in the workstation area (.runtime/hosts/<host>/repos/<repo>/report); runs are told apart by kind and checkout.
-    $pattern = Join-Path $SecondBrain '.runtime/hosts/*/repos/*/report/*task-run*'
+    $pattern = Join-Path (Get-SBHostsRoot $SecondBrain) '*/repos/*/report/*task-run*'
     @(Get-ChildItem -Path $pattern -Directory -ErrorAction SilentlyContinue | Sort-Object Name | Where-Object {
         $file = Join-Path $_.FullName 'status.json'
         if (-not (Test-Path -LiteralPath $file)) { return $false }

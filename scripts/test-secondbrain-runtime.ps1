@@ -289,7 +289,7 @@ $cliBrain=Join-Path $root 'cli';$cliScripts=Join-Path $cliBrain 'scripts'
 foreach($file in @('cleanup.ps1','SecondBrain.Core.psm1','SecondBrain.Messages.psm1','SecondBrain.Access.psm1','SecondBrain.Host.psm1')){
     Write-RuntimeFixture (Join-Path $cliScripts $file) (Read-SBText (Join-Path $PSScriptRoot $file))
 }
-$cliHost=Get-SBHostId;$cliHostRoot=Join-Path $cliBrain ('.runtime/hosts/'+$cliHost)
+$cliHost=Get-SBHostId;$cliHostRoot=Get-SBStateRoot $cliBrain $cliHost
 $cliConfig=Join-Path $cliHostRoot 'workstation.json'
 Write-RuntimeFixture $cliConfig (ConvertTo-SBJson @{schemaVersion=1;mode='portable';workstationId=$cliHost;runtimeRoot=$cliHostRoot;backupRoot=(Join-Path $cliHostRoot 'backups');bindings=@();ides=@()})
 Write-RuntimeFixture (Join-Path $cliBrain 'config/shared.json') (ConvertTo-SBJson @{schemaVersion=1;allowedOwners=@('fixture');excludedDirectories=@()})

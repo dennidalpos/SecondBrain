@@ -1,4 +1,4 @@
-﻿# Included by essential after test-mcp-writes.ps1 (group mcp-writes). Fixtures for rename-identity.ps1 (#792) and the standing-grant onboarding hooks (#793).
+# Included by essential after test-mcp-writes.ps1 (group mcp-writes). Fixtures for rename-identity.ps1 (#792) and the standing-grant onboarding hooks (#793).
 $igRoot=Join-Path $fixture 'identity-grants'
 function New-IGBrain([string]$Name){
     $path=Join-Path $igRoot $Name
@@ -29,7 +29,7 @@ function New-IGRename([string]$Name,$Aliases){
     [void](Invoke-SBGit $checkout @('init','-q'));[void](Invoke-SBGit $checkout @('remote','add','origin',('https://'+$to+'.git')))
     $dossier=New-IGDossier $path 'Moved' $from $Aliases $from
     [void](New-IGDossier $path 'Bystander' ('github.com/test/'+$Name+'-other') $null $from)
-    $runtime=Join-Path $path ('.runtime/hosts/'+(Get-SBHostId));$configPath=Join-Path $runtime workstation.json
+    $runtime=Get-SBStateRoot $path (Get-SBHostId);$configPath=Join-Path $runtime workstation.json
     Put $configPath (ConvertTo-SBJson @{schemaVersion=1;mode='portable';brainRoot=$path;workstationId=(Get-SBHostId);runtimeRoot=$runtime;backupRoot=(Join-Path $runtime backups);bindings=@(@{identity=$from;remoteIdentity=$to;path=$checkout});ides=@();activityLogEnabled=$true})
     @{brain=$path;configPath=$configPath;from=$from;to=$to;dossier=$dossier;checkout=$checkout}
 }
@@ -88,7 +88,7 @@ try {
         $gCheckouts[$name]=$dir
         [void](New-IGDossier $gb ('Ig'+$name.ToUpperInvariant()) ('github.com/test/ig-'+$name) $null ('github.com/test/ig-'+$name))
     }
-    $gRuntime=Join-Path $gb ('.runtime/hosts/'+(Get-SBHostId));$gConfigPath=Join-Path $gRuntime workstation.json
+    $gRuntime=Get-SBStateRoot $gb (Get-SBHostId);$gConfigPath=Join-Path $gRuntime workstation.json
     $gBindings=@(foreach($name in 'a','b','c','e'){@{identity=('github.com/test/ig-'+$name);remoteIdentity=('github.com/test/ig-'+$name);path=$gCheckouts[$name]}})
     Put $gConfigPath (ConvertTo-SBJson @{schemaVersion=1;mode='portable';brainRoot=$gb;workstationId=(Get-SBHostId);runtimeRoot=$gRuntime;backupRoot=(Join-Path $gRuntime backups);bindings=$gBindings;ides=@();activityLogEnabled=$true})
     Put (Join-Path $gb 'scripts/secondbrain.ps1') @'

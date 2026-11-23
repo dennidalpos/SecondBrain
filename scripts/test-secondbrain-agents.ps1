@@ -132,7 +132,7 @@ Assert-AgentError {Get-SBAgentProvider 'other'} 'claude, codex, gemini' 'an unkn
 Assert-Agent ((Get-SBAgentProviderForPath 'C:\x\codex.cmd') -ceq 'codex' -and $null -eq (Get-SBAgentProviderForPath 'fake-agent.ps1')) 'provider from the executable name'
 
 # Workstation override: entries appended to the fallback table.
-$override=Join-Path $brain ('.runtime/hosts/'+(Get-SBHostId)+'/agent-models.local.json')
+$override=Join-Path (Get-SBStateRoot $brain (Get-SBHostId)) 'agent-models.local.json'
 Write-AgentFixture $override '{"schemaVersion":1,"providers":{"gemini":{"models":[{"id":"gemini-local","label":"Local"}],"efforts":[]}}}'
 Assert-Agent (@((Read-SBAgentModelTable $brain).gemini.models|Where-Object {$_.id -eq 'gemini-local'}).Count -eq 1) 'the local override adds models'
 Write-AgentFixture $override '{"schemaVersion":2}'
@@ -321,13 +321,13 @@ try{
     Assert-AgentError {Invoke-FakeOneShot 'quota' 'quota'} 'limit' 'a quota envelope stops the analysis as a limit'
     # An exhaustion observed by a runner of this workstation blocks the analysis before the CLI starts.
     $now=[DateTimeOffset]::UtcNow
-    $statusDir=Join-Path $brain ('.runtime/hosts/'+(Get-SBHostId)+'/repos/r1/report/20261112-runner-run-000000-1')
+    $statusDir=Join-Path (Get-SBWorkRoot $brain (Get-SBHostId)) 'r1/report/20261112-runner-run-000000-1'
     Write-AgentFixture (Join-Path $statusDir 'status.json') (ConvertTo-SBJson @{quotaObserved=@{provider='claude';state='exhausted';resetAt=$now.AddHours(2).ToString('o');observedAt=$now.ToString('o')}})
     Assert-AgentError {Invoke-FakeOneShot 'valid' 'blocked'} 'quota|Quota' 'an exhausted quota stops the analysis before the CLI runs'
     Assert-Agent (@(Get-ChildItem -LiteralPath (Join-Path $fixture 'oneshot-log/blocked') -Filter 'prompt-*.txt' -ErrorAction SilentlyContinue).Count -eq 0) 'the CLI is not started when the quota is exhausted'
     Remove-Item -LiteralPath $statusDir -Recurse -Force
     # #681: the queue's own status.json (folder *-task-run*) is read too; fresh and stale observations, and none at all.
-    $queueDir=Join-Path $brain ('.runtime/hosts/'+(Get-SBHostId)+'/repos/r1/report/20261112-task-run-1')
+    $queueDir=Join-Path (Get-SBWorkRoot $brain (Get-SBHostId)) 'r1/report/20261112-task-run-1'
     $none681=Get-SBRunnerQuotaObservation $brain (Get-SBHostId) 'claude'
     $q0=Get-SBAgentQuota -Provider claude -Observation $none681
     Assert-Agent ($q0.state -eq 'unknown' -and (Get-SBQueueQuotaDecision -Quota $q0).action -eq 'go') 'no observation: unknown, and the queue goes on'

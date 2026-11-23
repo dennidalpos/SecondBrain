@@ -422,7 +422,7 @@ function Test-SBSetupPreflight([string]$BrainRoot,[switch]$ReadOnly) {
     $gitExit=1
     $gitDetail=if($git){try{$value=(& $git.Source --version 2>&1|Out-String).Trim();$gitExit=$LASTEXITCODE;$value}catch{''}}else{''}
     $checks+=Test-SBGitRequirement $gitDetail $gitExit
-    $writable=@{name='runtime-scrivibile';ok=$false;blocking=$true;detail='.runtime/hosts/'+(Get-SBHostId)}
+    $writable=@{name='runtime-scrivibile';ok=$false;blocking=$true;detail=[IO.Path]::GetRelativePath($BrainRoot,(Get-SBStateRoot $BrainRoot (Get-SBHostId))).Replace('\','/')}
     if(!$ReadOnly){
         try{
             $hostRoot=Get-SBWorkstationStateRoot $BrainRoot (Get-SBHostId);[void][IO.Directory]::CreateDirectory($hostRoot)

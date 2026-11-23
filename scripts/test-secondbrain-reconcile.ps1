@@ -21,7 +21,7 @@ $dossier=Join-Path $brain 'repos/Reconcile'
 $checkout=Join-Path $fixture 'checkout'
 $identity='github.com/test/reconcile'
 $hostId=Get-SBHostId
-$runtime=Join-Path $brain ('.runtime/hosts/'+$hostId)
+$runtime=Get-SBStateRoot $brain $hostId
 $configPath=Join-Path $runtime 'workstation.json'
 $scope=Get-SBScopeKey $identity
 $sessionId=$null;$lock=$null

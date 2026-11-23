@@ -20,7 +20,7 @@ $f5Task.seq=1;$f5Task.title='#001 — Synthetic task'
 Put (Join-Path $f5Dossier tracker.json) (ConvertTo-SBJson @{schemaVersion=1;repository=$f5Id;updatedAt=[DateTimeOffset]::UtcNow.ToString('o');tasks=@($f5Task);history=@();extensions=@{lastSeq=1}})
 [void](Invoke-SBGit $f5Repo @('init','-q'))
 [void](Invoke-SBGit $f5Repo @('remote','add','origin','https://github.com/test/f5.git'))
-$f5Runtime=Join-Path $f5Brain ('.runtime/hosts/'+(Get-SBHostId))
+$f5Runtime=Get-SBStateRoot $f5Brain (Get-SBHostId)
 $f5ConfigPath=Join-Path $f5Runtime workstation.json
 $f5Config=@{schemaVersion=1;mode='portable';brainRoot=$f5Brain;workstationId=(Get-SBHostId);runtimeRoot=$f5Runtime;backupRoot=(Join-Path $f5Runtime backups);bindings=@(@{identity=$f5Id;remoteIdentity=$f5Id;path=$f5Repo});ides=@();activityLogEnabled=$true}
 Put $f5ConfigPath (ConvertTo-SBJson $f5Config)

@@ -170,7 +170,7 @@ Assert-Cycle ((Save-SBCycleTurn $brain $envelope $workspace2 $backups -AllowedAt
 Assert-Cycle ((Save-SBCycleTurn $brain $envelope $workspace $backups -AllowedAttachmentPaths @($asset) -Apply).state -eq 'conflict') 'damaged stored original cannot be reported as a valid duplicate'
 $scripts=Join-Path $brain 'scripts';[void][IO.Directory]::CreateDirectory($scripts)
 Get-ChildItem -LiteralPath $PSScriptRoot -File|Where-Object {$_.Name -notlike 'test-*'}|Copy-Item -Destination $scripts
-$hostId=Get-SBHostId;$runtime=Join-Path $brain ('.runtime/hosts/'+$hostId);$configPath=Join-Path $runtime 'workstation.json'
+$hostId=Get-SBHostId;$runtime=Get-SBStateRoot $brain $hostId;$configPath=Join-Path $runtime 'workstation.json'
 $cfg=@{schemaVersion=1;mode='portable';brainRoot=$brain;workstationId=$hostId;runtimeRoot=$runtime;backupRoot=$backups;repositoryRoot=$brain;coordinationRoot=(Join-Path $brain '.runtime/access');bindings=@(@{identity=$repo;path=$root;remoteIdentity=$repo});ides=@();sessionTimeoutMinutes=30;lockWaitMs=1000;configPath=$configPath}
 [IO.File]::WriteAllText($configPath,(ConvertTo-SBJson $cfg))
 $permit.client='codex';$permit.turnId='native-turn';$permit.lastUserSha256=Get-SBTextHash (ConvertTo-SBJson $current);$permit.workspace=$workspace

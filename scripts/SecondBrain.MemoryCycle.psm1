@@ -55,7 +55,7 @@ function Get-SBCycleAdapter([ValidateSet('claude-code','codex','antigravity','vs
       fallback=(Get-SBMessage 'cycle.adapter.fallback')}
     if($ObservationPath){
         [void](Resolve-SBCycleDossier $BrainRoot $Repository)
-        $observationScope=[IO.Path]::GetFullPath((Join-Path $BrainRoot ('.runtime/hosts/'+(Get-SBHostId)+'/repos/'+(Get-SBRuntimeRepoSegment $Repository)+'/evidence'))).TrimEnd('\','/')+[IO.Path]::DirectorySeparatorChar
+        $observationScope=[IO.Path]::GetFullPath((Join-Path (Get-SBWorkRoot $BrainRoot (Get-SBHostId)) ((Get-SBRuntimeRepoSegment $Repository)+'/evidence'))).TrimEnd('\','/')+[IO.Path]::DirectorySeparatorChar
         if(![IO.Path]::GetFullPath($ObservationPath).StartsWith($observationScope,[StringComparison]::OrdinalIgnoreCase)){throw (New-SBError 'cycle.invalid' @('observation scope'))}
         Assert-SBPlainPath $ObservationPath
         $observation=Read-SBJson $ObservationPath $null
@@ -279,7 +279,7 @@ function ConvertTo-SBCycleTurn($Envelope) {
 }
 
 function Assert-SBCycleWorkspace([string]$BrainRoot,[string]$Repository,[string]$Workspace) {
-    $prefix=Join-Path $BrainRoot ('.runtime/hosts/'+(Get-SBHostId)+'/repos/'+(Get-SBRuntimeRepoSegment $Repository)+'/evidence')
+    $prefix=Join-Path (Get-SBWorkRoot $BrainRoot (Get-SBHostId)) ((Get-SBRuntimeRepoSegment $Repository)+'/evidence')
     $full=[IO.Path]::GetFullPath($Workspace)
     if(!$full.StartsWith([IO.Path]::GetFullPath($prefix).TrimEnd('\','/')+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase)){
         throw (New-SBError 'cycle.workspace')
@@ -478,7 +478,7 @@ function Get-SBCycleContext([string]$BrainRoot,[string]$Repository,[string[]]$Ta
     $revision=Get-SBTextHash ($index.revision+':'+(ConvertTo-SBJson @($TaskIds))+':'+$Budget)
     $warnings=@();$indexPath=Join-Path $dir 'knowledge-index.json';Assert-SBPlainPath $indexPath;$persisted=Read-SBJson $indexPath $null
     if(!$persisted){$warnings+='index-missing'}elseif($persisted.repository -cne $Repository -or $persisted.revision -cne $index.revision){$warnings+='index-stale'}
-    $evidence=Join-Path $BrainRoot ('.runtime/hosts/'+(Get-SBHostId)+'/repos/'+(Get-SBRuntimeRepoSegment $Repository)+'/evidence')
+    $evidence=Join-Path (Get-SBWorkRoot $BrainRoot (Get-SBHostId)) ((Get-SBRuntimeRepoSegment $Repository)+'/evidence')
     $pending=0
     if([IO.Directory]::Exists($evidence)){
         Assert-SBPlainPath $evidence

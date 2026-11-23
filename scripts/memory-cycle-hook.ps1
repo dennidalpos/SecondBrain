@@ -17,7 +17,7 @@ try{
     if($PermitSha256 -cnotmatch '^[A-Fa-f0-9]{64}$' -or ![Console]::IsInputRedirected -or ![IO.File]::Exists($PermitPath)){exit 0}
     $brain=(Get-SBBrainRootPath)
     $permitFull=[IO.Path]::GetFullPath($PermitPath)
-    $permitRoot=[IO.Path]::GetFullPath((Join-Path $brain ('.runtime/hosts/'+(Get-SBHostId)+'/repos'))).TrimEnd('\','/')+[IO.Path]::DirectorySeparatorChar
+    $permitRoot=[IO.Path]::GetFullPath((Get-SBWorkRoot $brain (Get-SBHostId))).TrimEnd('\','/')+[IO.Path]::DirectorySeparatorChar
     if(!$permitFull.StartsWith($permitRoot,[StringComparison]::OrdinalIgnoreCase)){exit 0}
     Assert-SBPlainPath $PermitPath
     if((Get-SBFileHash $permitFull) -cne $PermitSha256){exit 0}

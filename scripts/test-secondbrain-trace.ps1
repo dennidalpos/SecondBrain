@@ -10,7 +10,7 @@ $root=Join-Path (Get-SBTestRoot) ('secondbrain-trace-'+[guid]::NewGuid().ToStrin
 try {
     $brain=Join-Path $root 'brain';$checkout=Join-Path $root 'work/repo-a';$other=Join-Path $root 'work/altro'
     foreach($dir in @($brain,$checkout,(Join-Path $checkout 'src'),$other)){[IO.Directory]::CreateDirectory($dir)|Out-Null}
-    $hostDir=Join-Path $brain ('.runtime/hosts/'+(Get-SBHostId));[IO.Directory]::CreateDirectory($hostDir)|Out-Null
+    $hostDir=Get-SBStateRoot $brain (Get-SBHostId);[IO.Directory]::CreateDirectory($hostDir)|Out-Null
     [IO.File]::WriteAllText((Join-Path $hostDir 'workstation.json'),(ConvertTo-SBJson @{schemaVersion=1;bindings=@(@{identity='github.com/acme/repo-a';path=$checkout})}))
 
     # Event: metadata only, repository resolved from path, no prompt text.

@@ -16,7 +16,7 @@ $checkout=Join-Path $Root 'checkout'
 $identity='github.com/test/orchestrator-e2e'
 $dossier=Join-Path $brain 'repos/OrchestratorE2E'
 $hostId=Get-SBHostId
-$runtime=Join-Path $brain ('.runtime/hosts/'+$hostId)
+$runtime=Get-SBStateRoot $brain $hostId
 $configPath=Join-Path $runtime 'workstation.json'
 [IO.Directory]::CreateDirectory((Join-Path $brain 'scripts'))|Out-Null
 Get-ChildItem -LiteralPath $PSScriptRoot -File|Copy-Item -Destination (Join-Path $brain 'scripts')

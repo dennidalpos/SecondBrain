@@ -60,10 +60,10 @@ if ($Verify) {
         $backupDirs = @()
         if ($cfg -and $cfg.backupRoot) { $backupDirs += $cfg.backupRoot }
         $backupDirs += (Join-Path $brain '.runtime/backups')
-        $hostsDir = Join-Path $brain '.runtime/hosts'
+        $hostsDir = Get-SBHostsRoot $brain
         if (Test-Path -LiteralPath $hostsDir) {
             Get-ChildItem -LiteralPath $hostsDir -Directory | ForEach-Object {
-                $hBackup = Join-Path $_.FullName 'backups'
+                $hBackup = Get-SBJournalRoot $brain $_.Name
                 if (Test-Path -LiteralPath $hBackup) { $backupDirs += $hBackup }
             }
         }
@@ -159,18 +159,20 @@ if ($usedDefaultName) {
     $baseName = [IO.Path]::GetFileNameWithoutExtension($resolvedOutput); $suffix = 1
     while (Test-Path -LiteralPath $resolvedOutput) { $suffix++; $resolvedOutput = Join-Path (Split-Path $resolvedOutput) ($baseName + '-' + $suffix + '.zip') }
 }
+$areaPatterns = Get-SBRuntimeAreaPatterns
 $includeTargets = @(
     @{ type = 'dir';  path = 'repos' },
     @{ type = 'dir';  path = 'workstation' },
     @{ type = 'dir';  path = 'shared' },
-    @{ type = 'dir';  path = '.runtime/hosts' }
+    @{ type = 'dir';  path = $areaPatterns.include[0] }
 )
 
 if ($Customer) {
     # Customer backup: only the repository dossiers of that customer (PARA entities, active or archived); workstation data and global indexes are left out.
     $customerEntities = @(Get-SBParaEntities $brain @() | Where-Object { (Test-SBRepoDossier $_) -and (Test-SBCustomerMatch $_.customer $Customer) })
     if (!$customerEntities.Count) { throw (New-SBError 'backup.customer.none' @($Customer)) }
-    $includeTargets = @($customerEntities | ForEach-Object { @{ type = 'dir'; path = $_.path } })
+    $areaPatterns = Get-SBRuntimeAreaPatterns
+$includeTargets = @($customerEntities | ForEach-Object { @{ type = 'dir'; path = $_.path } })
 }
 
 $fileList = [System.Collections.Generic.List[PSCustomObject]]::new()
@@ -194,19 +196,16 @@ foreach ($target in $includeTargets) {
                 }
                 $rel = [IO.Path]::GetRelativePath($brain, $item.FullName).Replace('\', '/')
                 # Workstation backups and journals are excluded from a new archive.
-                if ($rel -match '^\.runtime/hosts/[^/]+/backups/' -or $item.FullName.StartsWith($backupRoot.TrimEnd('\','/') + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
+                if ($rel -match $areaPatterns.journal -or $item.FullName.StartsWith($backupRoot.TrimEnd('\','/') + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
                     continue
                 }
                 # Regenerable runtime data is excluded (#396): fixture/tmp/test folders, python source environments, caches and closed work folders.
                 # Evidence, reports, configuration and the dossier are always kept.
-                if ($rel.StartsWith('.runtime/hosts/', [StringComparison]::Ordinal)) {
-                    if ($rel -match '^\.runtime/hosts/[^/]+/repos/(fixture|tmp|tests)-[^/]+/' -or
-                        $rel -match '^\.runtime/hosts/[^/]+/repos/[^/]+/(fixture|tmp|temp)/' -or
-                        $rel -match '^\.runtime/hosts/[^/]+/sources/python/' -or
-                        $rel -match '/cache/') {
+                if ($rel.StartsWith($areaPatterns.runtimePrefix, [StringComparison]::Ordinal)) {
+                    if (($areaPatterns.regenerable | Where-Object { $rel -match $_ }) -or $rel -match '/cache/') {
                         continue
                     }
-                    if ($rel -match '^(\.runtime/hosts/[^/]+/repos/[^/]+/work/[^/]+)/') {
+                    if ($rel -match $areaPatterns.workFolder) {
                         $workKey = $Matches[1]
                         if (-not $closedWork.ContainsKey($workKey)) {
                             $manifestPath = Join-Path $brain ($workKey + '/MANIFEST.json')
