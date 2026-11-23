@@ -14,6 +14,11 @@ Add-SBMessages @{
     'prompts.workflow.invalid' = @{ en = 'Invalid workflow definition: {0}; fix it following config/prompt-workflow.schema.json' }
     'prompts.workflow.step' = @{ en = 'Workflow {0} cites a card that does not exist: {1}' }
     'prompts.workflow.pack' = @{ en = 'Workflow {0} uses card {1} from a pack the workflow does not belong to' }
+    'prompts.pack.disabled' = @{ en = 'Card {0} belongs to the optional pack {1}, which is not enabled on this workstation: enable it with `pwsh -NoProfile -File scripts/prompts.ps1 -Packs -Pack {1} -Enable`' }
+    'prompts.pack.unknown' = @{ en = 'Unknown pack: {0}. Optional packs: {1}' }
+    'prompts.pack.invalid' = @{ en = 'Invalid pack state file: {0}; fix or delete it (config/local is Git-ignored)' }
+    'prompts.pack.state' = @{ en = 'Pack {0}: {1} ({2} cards, {3} workflows)' }
+    'prompts.pack.changed' = @{ en = 'Pack {0} is now {1} on this workstation.' }
     'prompts.category.invalid' = @{ en = 'Duplicate or invalid category: use a unique category id in catalog.json' }
     'prompts.name.conflict' = @{ en = 'Duplicate or conflicting prompt identifier: {0}; choose a new code, codes are never reused' }
     'prompts.category.unknown' = @{ en = 'Unknown category: {0}; use a category listed in catalog.json' }
@@ -231,6 +236,47 @@ function Read-SBPromptWorkflows([string]$BrainRoot,$Catalog) {
     $flows
 }
 
+# Optional packs (site, llm) are hidden until enabled on the workstation: config/local/prompt-packs.json (Git-ignored), core is always on.
+$script:SBOptionalPacks=@('site','llm')
+function Get-SBPromptPackPath([string]$BrainRoot) { Join-Path $BrainRoot 'config/local/prompt-packs.json' }
+function Get-SBEnabledPromptPacks([string]$BrainRoot) {
+    $path=Get-SBPromptPackPath $BrainRoot
+    if(!(Test-Path -LiteralPath $path -PathType Leaf)){return @()}
+    $data=Read-SBJson $path $null
+    if(!$data -or $data.schemaVersion -ne 1 -or !$data.ContainsKey('packs')){throw (New-SBError 'prompts.pack.invalid' @($path))}
+    $packs=@($data.packs|ForEach-Object {[string]$_})
+    foreach($pack in $packs){if($pack -cnotin $script:SBOptionalPacks){throw (New-SBError 'prompts.pack.invalid' @($path))}}
+    @($packs|Select-Object -Unique)
+}
+function Set-SBPromptPack([string]$BrainRoot,[string]$Pack,[bool]$Enabled) {
+    if($Pack -cnotin $script:SBOptionalPacks){throw (New-SBError 'prompts.pack.unknown' @($Pack,($script:SBOptionalPacks -join ', ')))}
+    $current=@(Get-SBEnabledPromptPacks $BrainRoot)
+    $next=@(if($Enabled){$current+@($Pack)}else{$current|Where-Object {$_ -cne $Pack}})|Select-Object -Unique|Sort-Object
+    $target=Get-SBPromptPackPath $BrainRoot
+    Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Host.psm1')
+    $backup=Get-SBWorkstationStateRoot $BrainRoot (Get-SBHostId)
+    [void][IO.Directory]::CreateDirectory((Split-Path $target))
+    Write-SBFile $target ([Text.Encoding]::UTF8.GetBytes((ConvertTo-SBJson ([ordered]@{schemaVersion=1;packs=@($next)})))) (Get-SBFileHash $target) $backup|Out-Null
+    @($next)
+}
+# The catalog as one workstation sees it: core cards plus the enabled packs. The generated index and validations use the whole catalog.
+function Select-SBPackCatalog($Catalog,[string[]]$Packs=@()) {
+    $view=@{}; foreach($key in $Catalog.Keys){$view[$key]=$Catalog[$key]}
+    $view.prompts=@($Catalog.prompts|Where-Object {$_.pack -eq 'core' -or $_.pack -cin $Packs})
+    $view
+}
+function Assert-SBPromptPackEnabled([string]$BrainRoot,$Prompt) {
+    if($Prompt.pack -eq 'core'){return}
+    if($Prompt.pack -cnotin @(Get-SBEnabledPromptPacks $BrainRoot)){throw (New-SBError 'prompts.pack.disabled' @($Prompt.code,$Prompt.pack))}
+}
+function Format-SBPromptPackStatus([string]$BrainRoot,$Catalog) {
+    $enabled=@(Get-SBEnabledPromptPacks $BrainRoot)
+    $flows=@(Read-SBPromptWorkflows $BrainRoot $Catalog)
+    (@(foreach($pack in $script:SBOptionalPacks){
+        Get-SBMessage 'prompts.pack.state' @($pack,$(if($pack -cin $enabled){'enabled'}else{'hidden'}),@($Catalog.prompts|Where-Object pack -eq $pack).Count,@($flows|Where-Object {$_.ContainsKey('pack') -and $_.pack -eq $pack}).Count)
+    }) -join "`n")+"`n"
+}
+
 function New-SBWorkflowPromptId($Catalog) {
     $taken=@($Catalog.prompts|ForEach-Object id)
     do{$id='pmt-'+(New-SBId).Substring(0,8)}while($id -in $taken)
@@ -341,7 +387,8 @@ function Get-SBWorkflowLegend {
 }
 
 # Scope: category ID (system) or code prefix (SYS), case-insensitive.
-function Format-SBWorkflowList($Catalog, [string]$Category, [switch]$Compact) {
+function Format-SBWorkflowList($Catalog, [string]$Category, [switch]$Compact, [string[]]$Packs=@(), [switch]$AllPacks) {
+    if(!$AllPacks){$Catalog=Select-SBPackCatalog $Catalog $Packs}
     $byCategory=$Category -and @($Catalog.categories|Where-Object id -ieq $Category).Count -gt 0
     $byPrefix=$Category -and !$byCategory -and @($Catalog.prompts|Where-Object {(Get-SBWorkflowPrefix $_) -ieq $Category}).Count -gt 0
     if($Category -and !$byCategory -and !$byPrefix){
@@ -803,7 +850,8 @@ function Format-SBWorkflowHome([string]$BrainRoot, $Catalog, $State=$null, [Vali
             $lines+=('['+$choice+'] `'+$command.command+'` — '+$command.does+' ('+$command.mode+')'+$cardText)
         }
     }
-    $presetFlows=@(if($isHome){Read-SBPromptWorkflows $BrainRoot $Catalog|Where-Object {$_.status -eq 'active'}})
+    $homePacks=@(Get-SBEnabledPromptPacks $BrainRoot)
+    $presetFlows=@(if($isHome){Read-SBPromptWorkflows $BrainRoot $Catalog|Where-Object {$_.status -eq 'active' -and (!$_.ContainsKey('pack') -or $_.pack -eq 'core' -or $_.pack -cin $homePacks)}})
     if($presetFlows.Count){
         $byIdPreset=@{};foreach($card in $Catalog.prompts){$byIdPreset[$card.id]=$card}
         $lines+=@('',(Get-SBWorkflowMessage 'home.presets.title'),'',(Get-SBWorkflowMessage 'home.presets.how'),'')
@@ -846,7 +894,7 @@ function Get-SBWorkflowIndexTargets { @{language='en';path=(Get-SBWorkflowIndexP
 function New-SBWorkflowIndex([string]$BrainRoot) {
     $catalog=Read-SBWorkflowCatalog $BrainRoot -ValidateBodies
     $text=@(('# '+(Get-SBWorkflowMessage 'index.title')),'',(Get-SBWorkflowMessage 'index.generated'),'',(Get-SBWorkflowMessage 'index.chat'),'',(Get-SBWorkflowMessage 'index.cli'),'',
-        '```text',(Format-SBWorkflowList $catalog),'```','') -join "`n"
+        '```text',(Format-SBWorkflowList $catalog -AllPacks),'```','') -join "`n"
     @{catalog=$catalog;text=$text;path=(Get-SBWorkflowIndexPath)}
 }
 
@@ -984,6 +1032,7 @@ function New-SBWorkflowComposition([string]$BrainRoot,$Catalog,$Prompt,$Context,
         $suggested=if(@($Context.repositories).Count -eq 1 -and $Context.repositories[0].identity){[string]$Context.repositories[0].identity}else{'<identity>'}
         throw (New-SBError 'prompts.central.noswitch' @($suggested))
     }
+    Assert-SBPromptPackEnabled $BrainRoot $Prompt
     $body=Read-SBWorkflowPrompt $BrainRoot $Prompt $Catalog
     $tags=Get-SBWorkflowTags $body
     $T=Get-SBWorkflowText $Prompt
@@ -1022,8 +1071,11 @@ function New-SBWorkflowComposition([string]$BrainRoot,$Catalog,$Prompt,$Context,
 # A confirm gate stops the agent before any write; optional steps can be skipped by name; a choice step takes its first card unless one is chosen.
 # $Key is the preset key (wf-name), the ID (wfl-xxxxxxxx) or the bare name; $Choose maps a step name to a card code or ID.
 function New-SBWorkflowPresetRun([string]$BrainRoot,$Catalog,[string]$Key,$Context,[string]$Objective,[string[]]$Skip=@(),[hashtable]$Choose=@{},[switch]$Standalone,[string]$Degraded) {
-    $flows=@(Read-SBPromptWorkflows $BrainRoot $Catalog|Where-Object {$_.status -eq 'active'})
-    $flow=@($flows|Where-Object {$_.key -ceq $Key -or $_.id -ceq $Key -or $_.key -ceq ('wf-'+$Key)})
+    $allFlows=@(Read-SBPromptWorkflows $BrainRoot $Catalog|Where-Object {$_.status -eq 'active'})
+    $enabledPacks=@(Get-SBEnabledPromptPacks $BrainRoot)
+    $flows=@($allFlows|Where-Object {!$_.ContainsKey('pack') -or $_.pack -eq 'core' -or $_.pack -cin $enabledPacks})
+    $flow=@($allFlows|Where-Object {$_.key -ceq $Key -or $_.id -ceq $Key -or $_.key -ceq ('wf-'+$Key)})
+    if($flow.Count -eq 1 -and $flow[0] -notin $flows){throw (New-SBError 'prompts.pack.disabled' @($flow[0].key,$flow[0].pack))}
     if($flow.Count -ne 1){throw (New-SBError 'prompts.preset.unknown' @($Key,((@($flows|ForEach-Object key)) -join ', ')))}
     $flow=$flow[0]
     $names=@($flow.steps|ForEach-Object step)
@@ -1074,7 +1126,8 @@ function New-SBWorkflowPresetRun([string]$BrainRoot,$Catalog,[string]$Key,$Conte
 }
 
 # Machine-readable catalog (schema "secondbrain.prompts.catalog" v1) for the app: categories with their prompts, English text, no icons.
-function ConvertTo-SBWorkflowCatalogData($Catalog, [string]$Category) {
+function ConvertTo-SBWorkflowCatalogData($Catalog, [string]$Category, [string[]]$Packs=@()) {
+    $Catalog=Select-SBPackCatalog $Catalog $Packs
     $byCategory=$Category -and @($Catalog.categories|Where-Object id -ieq $Category).Count -gt 0
     $byPrefix=$Category -and !$byCategory -and @($Catalog.prompts|Where-Object {(Get-SBWorkflowPrefix $_) -ieq $Category}).Count -gt 0
     if($Category -and !$byCategory -and !$byPrefix){throw (New-SBError 'prompts.scope.unknown' @((@($Catalog.categories|ForEach-Object id)) -join ', '))}
@@ -1108,6 +1161,7 @@ function ConvertTo-SBWorkflowHomeData($State) {
 
 Export-ModuleMember -Function @(
     'ConvertTo-SBWorkflowCatalogData','ConvertTo-SBWorkflowHomeData',
+    'Get-SBEnabledPromptPacks','Set-SBPromptPack','Format-SBPromptPackStatus','Assert-SBPromptPackEnabled',
     'Read-SBWorkflowCatalog',
     'Resolve-SBWorkflowPrompt',
     'Read-SBPromptAliases',

@@ -49,9 +49,16 @@ foreach($p in $prompts){
 Assert-Prompts (!$rctfeBad.Count) ('every card follows the RCTFE schema:'+($rctfeBad -join '; '))
 Assert-Prompts ($catalog.catalogVersion -ge 2) 'catalog at version 2 (RCTFE cards)'
 Assert-Prompts (@($prompts|Where-Object {$_.kind -notin 'system','user'}).Count -eq 0 -and @($prompts|Where-Object {($_.category -in $systemCategories) -ne ($_.kind -eq 'system')}).Count -eq 0) 'kind: system only for the sb system categories, user for the others'
-$catalogJson=ConvertFrom-Json -InputObject (ConvertTo-SBJson (ConvertTo-SBWorkflowCatalogData $catalog $null)) -AsHashtable
+$catalogJson=ConvertFrom-Json -InputObject (ConvertTo-SBJson (ConvertTo-SBWorkflowCatalogData $catalog $null -Packs @('site','llm'))) -AsHashtable
 $jsonPrompts=@($catalogJson.categories|ForEach-Object {$_.prompts})
 Assert-Prompts ($jsonPrompts.Count -eq $prompts.Count -and @($jsonPrompts|Where-Object {$_.kind -notin 'system','user'}).Count -eq 0 -and @($catalogJson.categories|Where-Object {$cat=$_; @($cat.prompts|Where-Object {($cat.id -in $systemCategories) -ne ($_.kind -eq 'system')}).Count}).Count -eq 0) '#748: the app catalog JSON carries kind for every prompt'
+# #571: optional packs are hidden by default and shown once enabled.
+$coreCount=@($prompts|Where-Object pack -eq 'core').Count
+$defaultJson=ConvertFrom-Json -InputObject (ConvertTo-SBJson (ConvertTo-SBWorkflowCatalogData $catalog $null)) -AsHashtable
+Assert-Prompts (@($defaultJson.categories|ForEach-Object {$_.prompts}).Count -eq $coreCount -and $coreCount -lt $prompts.Count) '#571: the default catalog lists only core cards'
+$siteList=Format-SBWorkflowList $catalog $null -Compact -Packs @('site')
+Assert-Prompts ((Format-SBWorkflowList $catalog $null -Compact) -notmatch '\bSIT01\b' -and $siteList -match '\bSIT01\b' -and $siteList -notmatch '\bLLM01\b') '#571: enabling a pack lists its cards only'
+Assert-Prompts ((Format-SBWorkflowList $catalog $null -AllPacks) -match '\bLLM01\b') '#571: the generated index covers every pack'
 $costar=@(Get-ChildItem -LiteralPath (Join-Path $brain 'scripts'),(Join-Path $brain 'docs'),(Join-Path $brain 'directives') -Recurse -File -Include *.ps1,*.psm1,*.md -ErrorAction SilentlyContinue|Where-Object {$_.FullName -notmatch '[\\/]proposals[\\/]' -and $_.Name -ne 'test-secondbrain-prompts.ps1' -and (Select-String -LiteralPath $_.FullName -Pattern 'CO-STAR' -Quiet)})
 Assert-Prompts (!$costar.Count) ('nessun riferimento a CO-STAR in script e documenti: '+(($costar|ForEach-Object Name) -join ', '))
 # Every related code exists; every category is used.
@@ -388,7 +395,7 @@ try{
 # #570: the repository's own workflow definitions load, and the managed start chain of the home screen comes from wf-session-start.
 $liveCatalog=Read-SBWorkflowCatalog $brain
 $liveFlows=@(Read-SBPromptWorkflows $brain $liveCatalog)
-Assert-Prompts ($liveFlows.Count -eq 16 -and 'wf-session-start' -in $liveFlows.key -and 'wf-prepare-unattended' -in $liveFlows.key) ('#570: the 16 workflow definitions of the repository load (found '+$liveFlows.Count+')')
+Assert-Prompts ($liveFlows.Count -eq 18 -and 'wf-session-start' -in $liveFlows.key -and 'wf-prepare-unattended' -in $liveFlows.key) ('#570: the 18 workflow definitions of the repository load (found '+$liveFlows.Count+')')
 $startChain=@(Get-SBWorkflowStartChain @{repository=@{location='repo-managed'}} $liveCatalog $liveFlows)
 $startFlow=@($liveFlows|Where-Object key -ceq 'wf-session-start')[0]
 Assert-Prompts ($startChain.Count -ge $startFlow.steps.Count -and $startChain[0] -match '^`sb prompt [A-Z]{3}\d\d` — ') '#570: the managed start chain lists the steps of wf-session-start'

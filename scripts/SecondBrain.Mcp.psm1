@@ -467,7 +467,7 @@ function Invoke-SBMcpToolCall([string]$BrainRoot, [string]$ToolName, $Arguments)
             $catalog = Read-SBWorkflowCatalog $BrainRoot
             $category = if ($Arguments.ContainsKey('category')) { [string]$Arguments.category } else { $null }
             $compact = $Arguments.ContainsKey('compact') -and [bool]$Arguments.compact
-            $listing = Format-SBWorkflowList $catalog $category -Compact:$compact
+            $listing = Format-SBWorkflowList $catalog $category -Compact:$compact -Packs @(Get-SBEnabledPromptPacks $BrainRoot)
             # #589: private cards are listed only for their own repository (repositoryPath); none without it.
             $private = Get-SBMcpPrivateAssets $BrainRoot $Arguments $catalog
             if ($private) { $listing = $listing.TrimEnd() + "`n" + (Format-SBPrivatePromptList $private) }

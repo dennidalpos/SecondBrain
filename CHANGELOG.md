@@ -11,7 +11,7 @@ Formato [Keep a Changelog](https://keepachangelog.com/it-IT/1.1.0/). La numerazi
 - The base catalog follows the tasks shared by public prompt libraries (Claude Code common workflows, GitHub Copilot prompt files and cookbook, OpenAI Codex cookbook, awesome-copilot community skills, read on 2026-11-22). 22 cards were added to close gaps against them (onboarding plan, plan from an issue, design-pattern and data-access refactors, test doubles, retrospective, repository activity summary, conventional commit message and others).
 - The `sb` commands run on a separate system layer of cards (kind `system`: SES, TRK, KNW, WKS, DIR, UPK). Roles are unchanged. The `sb prompt` home lists every command with its purpose, mode, script and prompt card, plus the presets.
 - Presets: 16 workflows (`improve-tests` added with #570; new in 4.0: `refactor`, `feature-from-issue`, `fix-defect`, `security-review`); `repo-audit` and `publish` follow the new cards.
-- Site and company-AI cards live in the optional packs `site` (SIT) and `llm` (LLM).
+- Site and company-AI cards live in the optional packs `site` (SIT) and `llm` (LLM). They are hidden by default and enabled per workstation with `prompts.ps1 -Packs -Pack <name> -Enable`; each pack has a preset (`wf-site-plan`, `wf-llm-adoption`).
 - Contract (`docs/reference/asset-contracts.md`): codes are renamed without alias; `aliases.json` keeps only retired-code tombstones.
 
 ### Removed

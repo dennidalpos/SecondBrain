@@ -66,6 +66,8 @@ A repository prompt works only on the repository it runs from; central prompts r
 | `web` | Websites and web apps (optional pack) | SIT01, SIT02, SIT03, SIT04, SIT05, SIT06, SIT07, SIT08, SIT09 |
 | `ai` | AI features and company AI (optional pack) | LLM01, LLM02, LLM03, LLM04, LLM05, LLM06, LLM07, LLM08, LLM09 |
 
+Optional packs (`site`, `llm`) are hidden until enabled on the workstation: lists, the app catalog and the home presets show core only, and composing a hidden card or preset names the pack to enable. `scripts/prompts.ps1 -Packs` shows the state; `-Packs -Pack site -Enable` (or `-Disable`) changes it in the Git-ignored `config/local/prompt-packs.json`. Each pack carries a preset: `wf-site-plan` (site) and `wf-llm-adoption` (llm).
+
 **Central SecondBrain: run from the SecondBrain checkout**
 
 | ID | Area | Codes |

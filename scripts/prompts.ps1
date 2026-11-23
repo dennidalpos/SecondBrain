@@ -20,6 +20,10 @@ pwsh -NoProfile -File scripts/prompts.ps1 -Show -Prompt QUA05
 pwsh -NoProfile -File scripts/prompts.ps1 -Compose -Prompt QUA05 -Objective 'Diagnose the Windows job'
 .EXAMPLE
 pwsh -NoProfile -File scripts/prompts.ps1 -Preset wf-fix-defect -Objective 'Fix the login crash' -Skip review-change
+.EXAMPLE
+pwsh -NoProfile -File scripts/prompts.ps1 -Packs
+.EXAMPLE
+pwsh -NoProfile -File scripts/prompts.ps1 -Packs -Pack site -Enable
 #>
 [CmdletBinding(DefaultParameterSetName='Home')]
 param(
@@ -36,6 +40,10 @@ param(
     [Parameter(Mandatory,ParameterSetName='Context')][switch]$Context,
     [Parameter(Mandatory,ParameterSetName='Show')]
     [Parameter(Mandatory,ParameterSetName='Compose')][ValidatePattern('^([A-Z]{2,4}[0-9]{2}|pmt-[0-9a-f]{8})$')][string]$Prompt,
+    [Parameter(Mandatory,ParameterSetName='Packs')][switch]$Packs,
+    [Parameter(ParameterSetName='Packs')][ValidateSet('site','llm')][string]$Pack,
+    [Parameter(ParameterSetName='Packs')][switch]$Enable,
+    [Parameter(ParameterSetName='Packs')][switch]$Disable,
     [Parameter(ParameterSetName='List')][string]$Category,
     [Parameter(ParameterSetName='Compose')][Parameter(ParameterSetName='Preset')][string]$Objective,
     [Parameter(ParameterSetName='Compose')][Parameter(ParameterSetName='Preset')][string]$OutputPath,
@@ -59,6 +67,7 @@ Add-SBMessages @{
     'promptscli.goal.empty' = @{ en = 'Empty goal: give the goal with -Objective' }
     'promptscli.output.txt' = @{ en = 'New TXT output required: give -OutputPath a TXT file that does not exist yet' }
     'promptscli.bootstrap' = @{ en = 'Bootstrap: use the current SecondBrain checkout, with no preset paths.' }
+    'promptscli.pack.action' = @{ en = 'Give exactly one of -Enable or -Disable with -Pack' }
     'promptscli.output.created' = @{ en = 'Created: {0}' }
 }
 $brain=(Get-SBBrainRootPath)
@@ -78,9 +87,9 @@ try {
         if($Json){ConvertTo-SBJson (ConvertTo-SBWorkflowHomeData $homeState)}else{Format-SBWorkflowHome $brain $catalog $homeState -Menu $Menu}
     } elseif($PSCmdlet.ParameterSetName -eq 'List' -and $Json){
         # Documented in docs/orchestratore.md: public catalog only, English text.
-        ConvertTo-SBJson (ConvertTo-SBWorkflowCatalogData $catalog $Category)
+        ConvertTo-SBJson (ConvertTo-SBWorkflowCatalogData $catalog $Category -Packs @(Get-SBEnabledPromptPacks $brain))
     } elseif($PSCmdlet.ParameterSetName -eq 'List'){
-        $listing=Format-SBWorkflowList $catalog $Category -Compact:$Compact
+        $listing=Format-SBWorkflowList $catalog $Category -Compact:$Compact -Packs @(Get-SBEnabledPromptPacks $brain)
         # #589: with -RepositoryPath, the private cards of that repository's dossier follow the public list; never without it.
         if($RepositoryPath){
             Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Knowledge.psm1')
@@ -93,8 +102,13 @@ try {
             }
         }
         $listing
+    } elseif($PSCmdlet.ParameterSetName -eq 'Packs'){
+        if($Pack -and ($Enable -eq $Disable)){throw (New-SBError 'promptscli.pack.action')}
+        if($Pack){[void](Set-SBPromptPack $brain $Pack ([bool]$Enable));Get-SBMessage 'prompts.pack.changed' @($Pack,$(if($Enable){'enabled'}else{'hidden'}))}
+        Format-SBPromptPackStatus $brain $catalog
     } elseif($Show){
         $resolution=Resolve-SBWorkflowPrompt $catalog $Prompt
+        Assert-SBPromptPackEnabled $brain $resolution.prompt
         if($resolution.warning){Write-Warning $resolution.warning}
         $selected=@($resolution.prompt)
         $showBody=Read-SBWorkflowPrompt $brain $selected[0] $catalog
