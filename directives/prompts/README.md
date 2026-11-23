@@ -321,6 +321,12 @@ REVIEW AND AUDIT
   • Needs: a repository and read access
   • Example: find unused code in the services folder
 
+🔭 REV10 | Merge audit findings into one report with a ranked remediation plan
+  • ID: pmt-856042e3
+  • Scope: repo | Mode: read
+  • Needs: The findings of the audit cards already run, in this session or saved as files, and the checkout
+  • Example: REV10: merge the audit findings into one report with a remediation plan
+
 
 SECURITY, PRIVACY AND LICENSES
 🔭 RSK01 | Analyze threats, trust boundaries and abuse scenarios
@@ -571,6 +577,12 @@ SB SYSTEM: TASKS, MEMORY AND TRACKER
   • Needs: managed repository, active dossier and user confirmation
   • Example: sb prompt TRK11: set or remove the greenfield lock on this repository
 
+⛔ TRK12 | Apply a tracker triage: close integrated tasks, cancel the non-integrable
+  • ID: pmt-f19b9c51
+  • Scope: repo | Mode: write
+  • Needs: The TRK03 triage report, the tracker and the working tree
+  • Example: TRK12: apply the tracker triage and close the tasks already integrated
+
 
 WEBSITES AND WEB APPS (OPTIONAL PACK)
 🔥 SIT01 | Define the requirements, audience and success criteria of a site or app
@@ -755,7 +767,7 @@ SB SYSTEM: WORKSTATION, IDES AND MCP
   • Needs: SecondBrain root, target IDEs and confirmation before writing
   • Example: sb prompt WKS07: install the mcp server in vscode and claude code
 
-🔥 WKS08 | Analyze a project, propose skills and install the selected ones
+🔥 WKS08 | Analyze a project, propose skills, install or update the selected ones
   • ID: pmt-3d7b91c4
   • Scope: central | Mode: write
   • Needs: a project checkout, the agents and scope to install into, and confirmation before each write

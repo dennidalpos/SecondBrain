@@ -2467,7 +2467,7 @@
       "kind": "system",
       "role": "project.skills",
       "category": "workstation",
-      "summary": "Analyze a project, propose skills and install the selected ones",
+      "summary": "Analyze a project, propose skills, install or update the selected ones",
       "target": "central",
       "mode": "write",
       "destructive": false,
@@ -2477,7 +2477,9 @@
       "requires": "a project checkout, the agents and scope to install into, and confirmation before each write",
       "example": "sb skills: analyze this project and install the useful skills for claude-code and codex",
       "file": "WKS08.md",
-      "related": []
+      "related": [
+        "pmt-9ef61b3d"
+      ]
     },
     {
       "id": "pmt-e498353a",
@@ -2657,6 +2659,49 @@
       "related": [
         "pmt-29b3278f",
         "pmt-1456d6b9"
+      ]
+    },
+    {
+      "id": "pmt-856042e3",
+      "code": "REV10",
+      "kind": "user",
+      "category": "review",
+      "summary": "Merge audit findings into one report with a ranked remediation plan",
+      "target": "repository",
+      "mode": "read",
+      "scope": "repo",
+      "requires": "The findings of the audit cards already run, in this session or saved as files, and the checkout",
+      "example": "REV10: merge the audit findings into one report with a remediation plan",
+      "destructive": false,
+      "surface": "chat",
+      "pack": "core",
+      "file": "REV10.md",
+      "related": [
+        "pmt-c692cc23",
+        "pmt-7dc63766",
+        "pmt-6b494996",
+        "pmt-fe014372"
+      ]
+    },
+    {
+      "id": "pmt-f19b9c51",
+      "code": "TRK12",
+      "kind": "system",
+      "category": "tracker",
+      "summary": "Apply a tracker triage: close integrated tasks, cancel the non-integrable",
+      "target": "repository",
+      "mode": "write",
+      "scope": "repo",
+      "requires": "The TRK03 triage report, the tracker and the working tree",
+      "example": "TRK12: apply the tracker triage and close the tasks already integrated",
+      "destructive": true,
+      "surface": "chat",
+      "pack": "core",
+      "file": "TRK12.md",
+      "related": [
+        "pmt-cc2c5f5a",
+        "pmt-876bccc6",
+        "pmt-c1e1e70c"
       ]
     }
   ]
