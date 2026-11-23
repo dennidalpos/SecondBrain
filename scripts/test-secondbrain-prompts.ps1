@@ -388,7 +388,7 @@ try{
 # #570: the repository's own workflow definitions load, and the managed start chain of the home screen comes from wf-session-start.
 $liveCatalog=Read-SBWorkflowCatalog $brain
 $liveFlows=@(Read-SBPromptWorkflows $brain $liveCatalog)
-Assert-Prompts ($liveFlows.Count -eq 15 -and 'wf-session-start' -in $liveFlows.key -and 'wf-prepare-unattended' -in $liveFlows.key) ('#570: the 15 workflow definitions of the repository load (found '+$liveFlows.Count+')')
+Assert-Prompts ($liveFlows.Count -eq 16 -and 'wf-session-start' -in $liveFlows.key -and 'wf-prepare-unattended' -in $liveFlows.key) ('#570: the 16 workflow definitions of the repository load (found '+$liveFlows.Count+')')
 $startChain=@(Get-SBWorkflowStartChain @{repository=@{location='repo-managed'}} $liveCatalog $liveFlows)
 $startFlow=@($liveFlows|Where-Object key -ceq 'wf-session-start')[0]
 Assert-Prompts ($startChain.Count -ge $startFlow.steps.Count -and $startChain[0] -match '^`sb prompt [A-Z]{3}\d\d` — ') '#570: the managed start chain lists the steps of wf-session-start'

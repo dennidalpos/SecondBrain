@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "id": "wfl-7b3d2f48",
+  "key": "wf-improve-tests",
+  "title": "Improve test coverage: find weak spots, add tests, verify, review, commit",
+  "revision": 1,
+  "status": "active",
+  "steps": [
+    {
+      "step": "find-gaps",
+      "ref": "pmt-de5f1d8d",
+      "kind": "required",
+      "gate": "auto"
+    },
+    {
+      "step": "add-tests",
+      "ref": "pmt-08bff671",
+      "kind": "required",
+      "gate": "confirm"
+    },
+    {
+      "step": "verify",
+      "ref": "pmt-ef96dea5",
+      "kind": "required",
+      "gate": "auto"
+    },
+    {
+      "step": "review-change",
+      "ref": "pmt-27896824",
+      "kind": "optional",
+      "gate": "auto"
+    },
+    {
+      "step": "prepare-commits",
+      "ref": "pmt-3e3728b6",
+      "kind": "optional",
+      "gate": "confirm"
+    }
+  ]
+}
