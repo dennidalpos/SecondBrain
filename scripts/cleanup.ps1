@@ -34,6 +34,7 @@ that no tracked file mentions. The preview lists each with size, files and refer
 -Regenerable previews (without -Apply) or removes (with -Apply and -Authorization quoting the user's explicit request) only regenerable .runtime folders:
 only hosts/<current-host>/repos/<repo>/fixture|tmp folders beyond the latest -KeepFixtures, with a valid schema-1 MANIFEST.json
 matching path and current owner, status closed and expiry strictly before today (the expiry day is retained).
+Also the top-level entries of the journal root (backups) untouched for 14 days, except stage records that are not completed.
 Legacy folders, missing/invalid manifests, Python, handshake reports and empty top-level folders are excluded.
 Fixed scope, no name-based selection; skips folders
 written within the latest -MinAgeMinutes, containing configuration paths or reparse points; refuses pending transactions or active access sessions; does not follow

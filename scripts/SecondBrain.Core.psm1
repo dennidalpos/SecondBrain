@@ -881,6 +881,33 @@ function Get-SBRuntimeTestOutput([string]$RuntimeRoot,[ValidateRange(1,3650)][in
     }
     @{targets=$selected;skipped=$skipped;reviewOnly=$reviewOnly;bytes=[int64](@($selected|ForEach-Object {$_.bytes})|Measure-Object -Sum).Sum}
 }
+# Journal expiry (#424): top-level entries of journal/<id> (today hosts/<id>/backups) untouched for journalExpiryDays are regenerable; stage records not completed stay.
+function Get-SBJournalExpiryTargets {
+    param([string]$BrainRoot,[string]$HostId,[string]$Runtime,[int]$ExpiryDays=14)
+    $targets=@();$skipped=@()
+    $journal=Get-SBJournalRoot $BrainRoot $HostId
+    if(!(Test-Path -LiteralPath $journal -PathType Container)){return @{targets=@();skipped=@()}}
+    Assert-SBPlainPath $journal
+    $limit=(Get-SBNow).UtcDateTime.AddDays(-$ExpiryDays)
+    foreach($entry in @(Get-ChildItem -LiteralPath $journal -Force)){
+        if($entry.Attributes -band [IO.FileAttributes]::ReparsePoint){$skipped+=New-SBRegenerableSkip $entry.FullName $Runtime 'reparse-point';continue}
+        $files=0L;$bytes=0L;$newest=$entry.LastWriteTimeUtc;$snapshot=@();$code=$null
+        $items=@(if($entry.PSIsContainer){Get-ChildItem -LiteralPath $entry.FullName -Recurse -Force}else{$entry})
+        foreach($item in $items){
+            if($item.Attributes -band [IO.FileAttributes]::ReparsePoint){$code='reparse-point';break}
+            if($item.LastWriteTimeUtc -gt $newest){$newest=$item.LastWriteTimeUtc}
+            if(!$item.PSIsContainer){$files++;$bytes+=$item.Length;$snapshot+=@{path=[IO.Path]::GetRelativePath($entry.FullName,$item.FullName);bytes=$item.Length;ticks=$item.LastWriteTimeUtc.Ticks}}
+        }
+        if(!$code -and $newest -gt $limit){continue}
+        if(!$code -and $entry.Extension -ceq '.stage'){
+            try{$record=Read-SBJson $entry.FullName $null;if($record -isnot [Collections.IDictionary] -or $record.status -cne 'completed'){$code='journal-open'}}catch{$code='journal-open'}
+        }
+        if($code){$skipped+=New-SBRegenerableSkip $entry.FullName $Runtime $code;continue}
+        $targets+=@{path=$entry.FullName;relative=[IO.Path]::GetRelativePath($Runtime,$entry.FullName).Replace('\','/');kind='journal';files=$files;bytes=$bytes;newestWriteUtc=$newest.ToString('o');
+            fingerprint=(Get-SBTextHash (ConvertTo-SBJson @($snapshot|Sort-Object path)));recovery=(Get-SBMessage 'core.runtime.regenerable.recovery')}
+    }
+    @{targets=$targets;skipped=$skipped}
+}
 function Get-SBRegenerableRuntimeTargets {
     param([string]$BrainRoot,[string[]]$ProtectedPaths=@(),[ValidateRange(0,1000)][int]$KeepFixtures=5,[ValidateRange(0,10080)][int]$MinAgeMinutes=10,
         [string]$HostId,[string]$OwnerUser,[string]$OwnerComputer)
@@ -900,6 +927,8 @@ function Get-SBRegenerableRuntimeTargets {
                     Assert-SBPlainPath $hostDir.FullName
                     $python=Join-Path (Get-SBSourcesRoot $BrainRoot $hostDir.Name) 'python'
                     if(Test-Path -LiteralPath $python){$skipped+=New-SBRegenerableSkip $python $runtime 'unsupported-layout'}
+                    $expired=Get-SBJournalExpiryTargets $BrainRoot $hostDir.Name $runtime 14
+                    $targets+=@($expired.targets);$skipped+=@($expired.skipped)
                     $repos=Get-SBTestsRoot $BrainRoot $hostDir.Name
                     if(!(Test-Path -LiteralPath $repos -PathType Container)){continue}
                     Assert-SBPlainPath $repos
@@ -936,7 +965,10 @@ function Remove-SBRegenerableRuntimeTarget {
     if($current.Count -ne 1 -or !$Target.ContainsKey('fingerprint') -or $current[0].fingerprint -cne $Target.fingerprint){
         return @{removed=$false;relative=$Target.relative;reasonCode='target-changed';reason=(Get-SBMessage 'core.runtime.reason.target-changed')}
     }
-    Remove-SBRuntimeTree $current[0].path $BrainRoot
+    if([IO.File]::Exists($current[0].path)){
+        if((Get-Item -LiteralPath $current[0].path -Force).Attributes -band [IO.FileAttributes]::ReparsePoint){throw (New-SBError 'core.runtime.reparse')}
+        [IO.File]::Delete($current[0].path)
+    }else{Remove-SBRuntimeTree $current[0].path $BrainRoot}
     @{removed=$true;relative=$current[0].relative;kind=$current[0].kind;files=$current[0].files;bytes=$current[0].bytes;recovery=$current[0].recovery}
 }
 

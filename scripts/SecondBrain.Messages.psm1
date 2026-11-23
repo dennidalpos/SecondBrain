@@ -78,6 +78,7 @@ Add-SBMessages @{
     'core.runtime.reason.manifest-not-closed' = @{ en = 'manifest is not closed: data retained' }
     'core.runtime.reason.manifest-expiry-invalid' = @{ en = 'manifest expiry missing or invalid' }
     'core.runtime.reason.manifest-not-expired' = @{ en = 'expiry has not passed (the expiry day is included)' }
+    'core.runtime.reason.journal-open' = @{ en = 'journal record is not completed: data retained' }
     'core.runtime.reason.retention' = @{ en = 'folder is among the latest retained per repository and category' }
     'core.runtime.reason.inspection-failed' = @{ en = 'inspection incomplete: the plan does not permit removal' }
     'core.runtime.reason.target-changed' = @{ en = 'target changed or no longer eligible after selection: data retained' }

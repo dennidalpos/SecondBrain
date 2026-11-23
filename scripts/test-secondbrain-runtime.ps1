@@ -415,4 +415,19 @@ $archiveApplied=((& pwsh @archiveArgs -Apply -Authorization 'Task 414 synthetic 
 Assert-Runtime ($LASTEXITCODE -eq 0 -and $archiveApplied.applied -and $archiveApplied.archived.Count -eq 2 -and !(Test-Path -LiteralPath $oldEvidence) -and !(Test-Path -LiteralPath $oldReport)) 'archive Apply with Authorization removes the originals'
 Assert-Runtime ((Read-SBText (Join-Path $archiveDossier 'history/runtime-archive/evidence/20200101-old-proof/proof/out.txt')) -ceq 'proof 20200101-old-proof' -and (Test-Path -LiteralPath (Join-Path $archiveDossier 'history/runtime-archive/report/20200102-old-report/MANIFEST.json'))) 'archived copies are in the dossier history with identical content'
 Assert-Runtime ((Test-Path -LiteralPath $freshEvidence) -and (Test-Path -LiteralPath $openEvidence)) 'recent and open folders are kept'
+# Journal expiry (#424): entries of the journal root untouched for 14 days are selected, recent and open stage records are kept.
+$jBrain=Join-Path $root 'journal-expiry'
+$jRoot=Get-SBJournalRoot $jBrain $identity.HostId
+[IO.Directory]::CreateDirectory((Join-Path $jRoot 'old-tx'))|Out-Null
+$jOld=Join-Path $jRoot 'old-tx';[IO.File]::WriteAllText((Join-Path $jOld 'manifest.json'),'{}')
+$jStale=Join-Path $jRoot 'old.stage';[IO.File]::WriteAllText($jStale,'{"status":"completed"}')
+$jOpen=Join-Path $jRoot 'open.stage';[IO.File]::WriteAllText($jOpen,'{"status":"started"}')
+$jFresh=Join-Path $jRoot 'fresh.stage';[IO.File]::WriteAllText($jFresh,'{"status":"completed"}')
+foreach($p in @((Join-Path $jOld 'manifest.json'),$jOld,$jStale,$jOpen)){(Get-Item -LiteralPath $p).LastWriteTimeUtc=[DateTime]::UtcNow.AddDays(-15)}
+$jPlan=Get-SBRegenerableRuntimeTargets $jBrain @() 5 0 @identity
+$jTargets=@($jPlan.targets|Where-Object kind -ceq 'journal'|ForEach-Object {Split-Path $_.path -Leaf}|Sort-Object)
+Assert-Runtime (($jTargets -join ',') -ceq 'old-tx,old.stage') 'journal entries older than 14 days are selected'
+Assert-Runtime (@($jPlan.skipped|Where-Object {$_.reasonCode -ceq 'journal-open'}).Count -eq 1) 'open journal record is retained with a reason'
+$jOutcome=Remove-SBRegenerableRuntimeTarget (@($jPlan.targets|Where-Object {(Split-Path $_.path -Leaf) -ceq 'old.stage'})[0]) $jBrain @() 5 0 @identity
+Assert-Runtime ($jOutcome.removed -and !(Test-Path -LiteralPath $jStale) -and (Test-Path -LiteralPath $jFresh) -and (Test-Path -LiteralPath $jOpen)) 'expired journal file removed, fresh and open ones kept'
 "SUCCESS RUNTIME: $script:runtimeChecks checks"
