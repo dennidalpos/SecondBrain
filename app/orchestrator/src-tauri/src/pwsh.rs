@@ -132,6 +132,19 @@ pub fn run_json(pwsh: &str, root: &Path, script: &str, args: &[String]) -> Resul
     parse_json_output(&stdout)
 }
 
+/// Runs one script to completion and returns its stdout unchanged (plain-text output such as prompts.ps1 -Compose).
+pub fn run_text(pwsh: &str, root: &Path, script: &str, args: &[String]) -> Result<String, String> {
+    let output = script_command(pwsh, root, script, args)
+        .output()
+        .map_err(|e| format!("PowerShell start failed ({pwsh}): {e}. Install PowerShell 7.5+ or set the path in Settings."))?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    if !output.status.success() {
+        let text = format!("{}\n{}", String::from_utf8_lossy(&output.stderr).trim(), stdout.trim());
+        return Err(format!("{script} ended with code {}: {}", exit_code_text(output.status.code()), text.trim()));
+    }
+    Ok(stdout.into_owned())
+}
+
 /// Stops the process and every child (the agent started by the runner).
 pub fn kill_tree(pid: u32) -> Result<(), String> {
     let status = if cfg!(windows) {

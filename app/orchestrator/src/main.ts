@@ -937,7 +937,7 @@ async function start() {
     if (state.launch.rootError) setError("repo-error", state.launch.rootError);
   }
   initRegistry(() => state.repo);
-  initPrompts(currentLight);
+  initPrompts(currentLight, () => state.repo ?? "");
   initTracker();
   initWorkstation(() => state.identity ?? "");
   initAnalysis({ repo: () => state.repo, identity: () => state.identity, light: currentLight, onChange: () => { renderSkipped(); } });

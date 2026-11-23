@@ -392,6 +392,10 @@
           <button id="pr-refresh">Refresh</button>
         </div>
         <p id="pr-error" class="error" hidden></p>
+        <div class="row">
+          <label class="grow">Search the library<input id="pr-search" type="search" placeholder="Code, summary or area" /></label>
+          <label>Area<select id="pr-area"><option value="">All areas</option></select></label>
+        </div>
         <h3>My prompts</h3>
         <table class="tasks"><thead><tr><th>ID</th><th>Title</th><th>Size</th><th>Created</th><th></th></tr></thead><tbody id="pr-mine"></tbody></table>
         <p id="pr-mine-empty" class="muted small" hidden>No prompt of your own yet: use New prompt, or duplicate a default.</p>
@@ -424,7 +428,13 @@
     <dialog id="pr-view-dialog" class="wide" aria-labelledby="pr-view-title">
       <h3 id="pr-view-title">Prompt</h3>
       <pre id="pr-view-text" class="prompt-text" tabindex="0"></pre>
-      <div class="dialog-actions"><button id="pr-view-duplicate">Duplicate</button><button id="pr-view-close">Close</button></div>
+      <div id="pr-compose-box" hidden>
+        <label>Objective (optional)<input id="pr-objective" type="text" maxlength="2000" /></label>
+        <p id="pr-compose-note" class="muted small"></p>
+        <pre id="pr-composed" class="prompt-text" hidden tabindex="0"></pre>
+        <p id="pr-compose-error" class="error" hidden></p>
+      </div>
+      <div class="dialog-actions"><button id="pr-compose-btn" hidden>Compose</button><button id="pr-copy" hidden>Copy</button><button id="pr-view-duplicate">Duplicate</button><button id="pr-view-close">Close</button></div>
     </dialog>
     <dialog id="pr-wizard-dialog" class="wide" aria-labelledby="pr-wizard-title">
       <h3 id="pr-wizard-title">New prompt</h3>

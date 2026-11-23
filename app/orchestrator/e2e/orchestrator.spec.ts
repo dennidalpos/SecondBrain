@@ -870,6 +870,48 @@ test("prompts: the tab lists system prompts read-only, validates the RCTFE wizar
   await closeApp(app);
 });
 
+test("prompts: search, areas and compose match prompts.ps1 -Compose, and a write card cannot be composed (#575)", async () => {
+  const app = await launch({ repo: fixture.checkout });
+  const { page } = app;
+  const count = async () => Number(/\d+/.exec(await page.locator("#pr-system-count").innerText())![0]);
+  await page.locator('.steps button[data-tab="prompts"]').click();
+  await expect(page.locator("#pr-system-count")).toHaveText(/\(\d+\)/, { timeout: 60_000 });
+  const total = await count();
+  // Search narrows the list; an area limits it to one category; clearing both restores it.
+  await page.locator("#pr-search").fill("QUA05");
+  await expect(page.locator("#pr-system tr")).toHaveCount(1);
+  await page.locator("#pr-search").fill("");
+  await expect(page.locator("#pr-system-count")).toHaveText(`(${total})`);
+  expect(await page.locator("#pr-area option").count()).toBeGreaterThan(2);
+  await page.locator("#pr-area").selectOption({ index: 1 });
+  expect(await count()).toBeLessThan(total);
+  await page.locator("#pr-area").selectOption("");
+  // A read card composes to exactly what prompts.ps1 -Compose prints for the same repository and objective.
+  await page.locator("#pr-search").fill("QUA05");
+  await page.locator('#pr-system tr[data-id="QUA05"] button', { hasText: "View" }).click();
+  await page.locator("#pr-objective").fill("Diagnose the Windows job");
+  await page.locator("#pr-compose-btn").click();
+  await expect(page.locator("#pr-composed")).toBeVisible({ timeout: 60_000 });
+  const ui = await page.locator("#pr-composed").textContent();
+  const cli = spawnSync("pwsh", ["-NoProfile", "-File", path.join(fixture.brain, "scripts", "prompts.ps1"), "-Compose", "-Prompt", "QUA05", "-Objective", "Diagnose the Windows job", "-RepositoryPath", fixture.checkout, "-ConfigPath", fixture.config],
+    { encoding: "utf8", env: { ...process.env, SECONDBRAIN_HOME: fixture.brain } });
+  expect(cli.status).toBe(0);
+  expect((ui ?? "").trim()).toBe(cli.stdout.trim());
+  await expect(page.locator("#pr-copy")).toBeVisible();
+  await page.locator("#pr-view-close").click();
+  // A card that is not read-only offers no Compose.
+  const writeCode = await page.evaluate(async () => {
+    const cat = await (window as any).__TAURI_INTERNALS__.invoke("read_catalog");
+    return cat.categories.flatMap((c: any) => c.prompts).find((p: any) => p.kind === "system" && p.mode !== "read")?.code as string | undefined;
+  });
+  expect(writeCode).toBeTruthy();
+  await page.locator("#pr-search").fill(writeCode!);
+  await page.locator(`#pr-system tr[data-id="${writeCode}"] button`, { hasText: "View" }).click();
+  await expect(page.locator("#pr-compose-btn")).toBeHidden();
+  await expect(page.locator("#pr-compose-box")).toBeHidden();
+  await closeApp(app);
+});
+
 test("screenshots of every tab with synthetic data (only with SB_E2E_SHOTS)", async () => {
   const out = process.env.SB_E2E_SHOTS;
   test.skip(!out, "SB_E2E_SHOTS not set");

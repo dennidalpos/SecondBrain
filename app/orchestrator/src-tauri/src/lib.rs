@@ -182,6 +182,36 @@ async fn read_prompt_card(app: AppHandle, code: String) -> Result<Value, String>
     script(app, "prompts.ps1", vec!["-Show".into(), "-Json".into(), "-Prompt".into(), code]).await
 }
 
+/// Arguments of prompts.ps1 -Compose: the card by code, the optional objective, the optional repository checkout.
+fn compose_args(code: &str, objective: &str, repo: Option<&str>) -> Result<Vec<String>, String> {
+    if !code.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') || code.is_empty() || code.len() > 16 {
+        return Err("Invalid prompt code.".to_string());
+    }
+    if objective.chars().count() > 2_000 {
+        return Err("The objective is too long.".to_string());
+    }
+    let mut args: Vec<String> = vec!["-Compose".into(), "-Prompt".into(), code.into()];
+    if !objective.trim().is_empty() {
+        args.push("-Objective".into());
+        args.push(objective.trim().to_string());
+    }
+    if let Some(p) = repo.filter(|p| !p.trim().is_empty()) {
+        args.push("-RepositoryPath".into());
+        args.push(checkout(p)?);
+    }
+    Ok(args)
+}
+
+#[tauri::command]
+async fn compose_prompt(app: AppHandle, code: String, objective: String, repo: Option<String>) -> Result<String, String> {
+    // The composed prompt exactly as prompts.ps1 -Compose prints it (plain text; nothing is written or started).
+    let args = compose_args(&code, &objective, repo.as_deref())?;
+    let (pwsh_path, root) = context(&app)?;
+    tauri::async_runtime::spawn_blocking(move || pwsh::run_text(&pwsh_path, &root, "prompts.ps1", &args))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
 #[tauri::command]
 async fn user_prompts_list(app: AppHandle) -> Result<Value, String> {
     // The user's own prompts (user-prompts.ps1 -List, outside Git in .runtime/user-prompts).
@@ -1081,6 +1111,7 @@ pub fn run() {
             resolve_repository,
             read_catalog,
             read_prompt_card,
+            compose_prompt,
             user_prompts_list,
             user_prompt_preview,
             user_prompt_create,
@@ -1126,7 +1157,16 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-    use super::{workstation_args, workstation_command_line, WorkstationRequest, followup_args, analysis_args, browser_args, enrichment_decision_args, git_update_args, agent_wizard_args, queue_args, registry_args, repo_argument, valid_token, QueueRequest, RegistryQuery};
+    use super::{compose_args, workstation_args, workstation_command_line, WorkstationRequest, followup_args, analysis_args, browser_args, enrichment_decision_args, git_update_args, agent_wizard_args, queue_args, registry_args, repo_argument, valid_token, QueueRequest, RegistryQuery};
+
+    #[test]
+    fn compose_args_validate_the_code_and_pass_the_objective() {
+        assert!(compose_args("QUA05; rm", "", None).is_err());
+        assert!(compose_args("", "", None).is_err());
+        assert_eq!(compose_args("QUA05", "  ", None).unwrap(), vec!["-Compose", "-Prompt", "QUA05"]);
+        assert_eq!(compose_args("QUA05", " Diagnose ", None).unwrap(), vec!["-Compose", "-Prompt", "QUA05", "-Objective", "Diagnose"]);
+        assert!(compose_args("QUA05", &"x".repeat(2_001), None).is_err());
+    }
 
     fn queue(task_ids: &[&str], resume: Option<&str>) -> QueueRequest {
         QueueRequest {

@@ -1,6 +1,6 @@
 // Prompts tab (#722): system prompts read-only, default prompts to view and duplicate, the user's own prompts (stored outside Git by
 // user-prompts.ps1) to create with an RCTFE wizard, preview and delete. The scripts stay the final judge of every rule.
-import { $, call, el, errorText, fmtStamp, input, onBusyClick, setError, type LightChoice } from "./common";
+import { $, call, el, errorText, fmtStamp, input, onBusyClick, option, setError, type LightChoice } from "./common";
 import type { Catalog, CatalogPrompt } from "./home";
 
 interface UserPrompt {
@@ -15,6 +15,9 @@ type Fields = UserPrompt["fields"];
 const BUDGET = 3500;
 let viewing: { text: string; fields: Fields } | null = null;
 let previewed: string | null = null;
+let composeCard: CatalogPrompt | null = null;
+let library: Catalog["categories"] = [];
+let repoPath: () => string = () => "";
 
 const area = (id: string) => $<HTMLTextAreaElement>(id);
 const dialog = (id: string) => $<HTMLDialogElement>(id);
@@ -59,12 +62,46 @@ function row(cells: (string | Node)[], testId: string): HTMLTableRowElement {
   return tr;
 }
 
+/** Library filter: free text over code, summary and area title, optionally limited to one area. */
+export function filterLibrary(cats: Catalog["categories"], query: string, areaId: string): CatalogPrompt[] {
+  const q = query.trim().toLowerCase();
+  return cats.filter((c) => !areaId || c.id === areaId)
+    .flatMap((c) => c.prompts.filter((p) => !q || [p.code, p.summary, c.title].some((s) => s.toLowerCase().includes(q))));
+}
+
+/** Only a read card is composed for an agent here: write and other modes stay with the commands that guard them. */
+export function canCompose(p: CatalogPrompt | null): boolean { return !!p && p.mode === "read"; }
+
+function renderLibrary() {
+  const query = input("pr-search").value, areaId = ($("pr-area") as HTMLSelectElement).value;
+  const hits = filterLibrary(library, query, areaId);
+  const system = hits.filter((p) => p.kind === "system"), defaults = hits.filter((p) => p.kind === "user");
+  catalogRows(system, $("pr-system"));
+  catalogRows(defaults, $("pr-default"));
+  $("pr-system-count").textContent = `(${system.length})`;
+  $("pr-default-count").textContent = `(${defaults.length})`;
+  if (query.trim() || areaId) {
+    (document.getElementById("pr-system-box") as HTMLDetailsElement).open = system.length > 0;
+    (document.getElementById("pr-default-box") as HTMLDetailsElement).open = defaults.length > 0;
+  }
+}
+
+function resetCompose() {
+  const ok = canCompose(composeCard);
+  $("pr-compose-box").hidden = !ok; $("pr-compose-btn").hidden = !ok; $("pr-copy").hidden = true;
+  $("pr-composed").hidden = true; setError("pr-compose-error", null);
+  input("pr-objective").value = "";
+  $("pr-compose-note").textContent = ok ? "Compose resolves the card for the selected repository, exactly as prompts.ps1 -Compose does." : "";
+}
+
 async function showCard(code: string) {
   const card = await call<Card>("read_prompt_card", { code }, "pr-error");
   if (!card) return;
   $("pr-view-title").textContent = `${card.code} — ${card.summary}`;
   $("pr-view-text").textContent = card.text;
   viewing = { text: card.text, fields: parseCard(card.text) };
+  composeCard = library.flatMap((c) => c.prompts).find((p) => p.code === code) ?? null;
+  resetCompose();
   $("pr-view-duplicate").hidden = false;
   dialog("pr-view-dialog").showModal();
 }
@@ -80,12 +117,12 @@ function catalogRows(list: CatalogPrompt[], body: HTMLElement) {
 export async function showPrompts() {
   $("pr-state").textContent = "Loading…";
   const [catalog, mine] = await Promise.all([call<Catalog>("read_catalog", {}, "pr-error"), call<UserPromptList>("user_prompts_list", {}, "pr-error")]);
-  const all: CatalogPrompt[] = catalog ? catalog.categories.flatMap((c) => c.prompts) : [];
-  const system = all.filter((p) => p.kind === "system"), defaults = all.filter((p) => p.kind === "user");
-  catalogRows(system, $("pr-system"));
-  catalogRows(defaults, $("pr-default"));
-  $("pr-system-count").textContent = `(${system.length})`;
-  $("pr-default-count").textContent = `(${defaults.length})`;
+  library = catalog ? catalog.categories : [];
+  const all: CatalogPrompt[] = library.flatMap((c) => c.prompts);
+  const areaSel = $("pr-area") as HTMLSelectElement, keep = areaSel.value;
+  areaSel.replaceChildren(option("", "All areas"), ...library.map((c) => option(c.id, c.title)));
+  areaSel.value = library.some((c) => c.id === keep) ? keep : "";
+  renderLibrary();
   const prompts = mine?.prompts ?? [];
   $("pr-mine").replaceChildren(...prompts.map((p) => {
     const view = el("button", { textContent: "View" });
@@ -93,6 +130,7 @@ export async function showPrompts() {
       $("pr-view-title").textContent = `${p.id} — ${p.title}`;
       $("pr-view-text").textContent = p.text;
       viewing = { text: p.text, fields: p.fields };
+      composeCard = null; resetCompose();
       $("pr-view-duplicate").hidden = false;
       dialog("pr-view-dialog").showModal();
     });
@@ -111,7 +149,19 @@ export async function showPrompts() {
 /** The draft of the light model (#753): it fills the wizard and nothing else; the person previews and saves. */
 interface Draft { provider: string; model: string | null; effort: string | null; fields: Omit<Fields, "directive"> }
 
-export function initPrompts(light: () => LightChoice | null) {
+export function initPrompts(light: () => LightChoice | null, repo: () => string = () => "") {
+  repoPath = repo;
+  $("pr-search").addEventListener("input", renderLibrary);
+  $("pr-area").addEventListener("change", renderLibrary);
+  onBusyClick($("pr-compose-btn"), async () => {
+    if (!canCompose(composeCard)) return;
+    const text = await call<string>("compose_prompt", { code: composeCard!.code, objective: input("pr-objective").value, repo: repoPath() || null }, "pr-compose-error");
+    if (text === null) return;
+    $("pr-composed").hidden = false; $("pr-composed").textContent = text; $("pr-copy").hidden = false;
+  }, "Composing…");
+  $("pr-copy").addEventListener("click", () => {
+    void navigator.clipboard.writeText($("pr-composed").textContent ?? "").then(() => { $("pr-compose-note").textContent = "Copied."; }, (e) => setError("pr-compose-error", e));
+  });
   $("pr-refresh").addEventListener("click", () => void showPrompts());
   $("pr-new").addEventListener("click", () => openWizard({ title: "", role: "", context: "", task: "", format: "", directive: "" }));
   $("pr-view-close").addEventListener("click", () => dialog("pr-view-dialog").close());
