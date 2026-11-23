@@ -184,7 +184,49 @@ function Find-SBFollowUpMatch($Finding,$Tasks,[string]$SourceId){
     }
     $null
 }
-function New-SBTaskRunPrompt($Task,[string]$ScriptsRoot,[string]$CheckoutPath,[string]$FindingsPath){
+# P14 (#578): a task may name a card or workflow (extensions.card / extensions.workflow: an ID, a role or a key) and select subagent definitions
+# (extensions.subagents: names or IDs). Pure resolution over a catalog, workflows and definition entries read by the caller; a task naming none
+# gives $null and its prompt stays as it was. Delegation is opt-in through the task, depth one, inside the parent's permissions, budget stated.
+function Resolve-SBTaskAssets($Task,$Catalog,$Workflows=@(),$Agents=@(),$ParentPermissions=$null){
+    $field={param($o,[string]$n) if($o -is [Collections.IDictionary]){$o[$n]}else{Get-SBRunnerValue $o $n}}
+    $ext=& $field $Task 'extensions'
+    $named={param([string]$n) $v=if($ext){& $field $ext $n}else{$null};if($null -ne $v -and ([string]$v).Trim()){([string]$v).Trim()}else{$null}}
+    $cardKey=& $named 'card';$flowKey=& $named 'workflow'
+    $agentKeys=@(@(if($ext){& $field $ext 'subagents'})|Where-Object {$_ -and ([string]$_).Trim()}|ForEach-Object {([string]$_).Trim()})
+    if(!$cardKey -and !$flowKey -and !$agentKeys.Count){return $null}
+    $result=[ordered]@{card=$null;workflow=$null;subagents=@()}
+    if($cardKey){
+        $hit=@(@($Catalog.prompts)|Where-Object {$_.id -ceq $cardKey -or $_.code -ceq $cardKey -or ($_.ContainsKey('role') -and $_.role -ceq $cardKey)})
+        if($hit.Count -ne 1){throw (New-SBError 'prompts.code.unavailable' @($cardKey))}
+        $result.card=[ordered]@{id=$hit[0].id;code=$hit[0].code;summary=$hit[0].summary;mode=$hit[0].mode;file=$hit[0].file}
+    }
+    if($flowKey){
+        $hit=@(@($Workflows)|Where-Object {$_.id -ceq $flowKey -or $_.key -ceq $flowKey})
+        if($hit.Count -ne 1){throw (New-SBError 'prompts.code.unavailable' @($flowKey))}
+        $result.workflow=[ordered]@{id=$hit[0].id;key=$hit[0].key;steps=@(@($hit[0].steps)|ForEach-Object {$_.step})}
+    }
+    foreach($key in $agentKeys){
+        $hit=@(@($Agents)|Where-Object {$_.definition.name -ceq $key -or ($_.definition.Contains('id') -and $_.definition.id -ceq $key)})
+        if($hit.Count -ne 1){throw (New-SBError 'subagent.invalid' @($key))}
+        $d=$hit[0].definition
+        $permissions=Resolve-SBSubagentPermissions $d $ParentPermissions
+        $budget=if($d.Contains('bounds') -and $d.bounds.Contains('budget')){$d.bounds.budget}else{$null}
+        $result.subagents+=,[ordered]@{name=$d.name;id=$(if($d.Contains('id')){$d.id}else{$null});tools=@($permissions.tools);write=$permissions.write;depth=1;budget=$budget}
+    }
+    $result
+}
+function Format-SBTaskAssetsLine($Assets){
+    if(!$Assets){return $null}
+    $lines=@()
+    if($Assets.card){$lines+="Card named by the task: $($Assets.card.summary) ($($Assets.card.id), mode $($Assets.card.mode)). Load it with the secondbrain MCP get_prompt tool or sb prompt and follow its procedure; it never widens the limits below."}
+    if($Assets.workflow){$lines+="Workflow named by the task: $($Assets.workflow.key) ($($Assets.workflow.id)), steps in order: $(@($Assets.workflow.steps) -join ', ')."}
+    if(@($Assets.subagents).Count){
+        $each=@($Assets.subagents)|ForEach-Object {$b=if($_.budget){ConvertTo-Json $_.budget -Compress}else{'none declared: state one'};"$($_.name) (tools $(@($_.tools) -join '/'), write $($_.write), budget $b)"}
+        $lines+="Subagents allowed for this task (delegation depth one: a delegate never delegates, commits, pushes, publishes or asks the user, and its questions return to you): $($each -join '; '). State scope, budget and expected output when delegating, and verify every result before relying on it."
+    }
+    if($lines.Count){$lines -join "`n"}else{$null}
+}
+function New-SBTaskRunPrompt($Task,[string]$ScriptsRoot,[string]$CheckoutPath,[string]$FindingsPath,$Assets=$null){
     $id=Get-SBRunnerValue $Task 'id'
     # With a scripts root and a checkout (multi-repository run) the agent starts in a product checkout, where scripts/knowledge.ps1 does not exist:
     # the extra line gives it the absolute SecondBrain tools and the checkout that resolves the dossier.
@@ -205,6 +247,7 @@ function New-SBTaskRunPrompt($Task,[string]$ScriptsRoot,[string]$CheckoutPath,[s
         $decided,
         $filesLine,
         $checksLine,
+        (Format-SBTaskAssetsLine $Assets),
         'Procedure: read AGENTS.md, load the context with scripts/knowledge.ps1 -Startup, read the task with scripts/knowledge.ps1 -Task, do the work, verify every acceptance criterion with available, working tools, then update the status with scripts/knowledge.ps1 -UpdateTaskId.',
         'Scope: work only on the repository of this checkout and its tracker; do not read, take or update tasks of other repositories, do not use -All, -AllDossiers or all=true, and do not pass -Repository of another repository.',
         'Forbidden: commit, push, publication or deletion; applying dossier.compact or cleanups; any other task. If a confirmation or a live proof is needed, stop and report the limit in the task state without closing it.',
@@ -228,4 +271,4 @@ function Get-SBRunnerAcceptance($Task,[DateTimeOffset]$AttemptStartedAt) {
     }
     'unverified'
 }
-Export-ModuleMember -Function @('Get-SBRunnerReadinessReason','Get-SBRunnerOpenDecisions','Get-SBRunnerAcceptance','Get-SBRunnerValue','Test-SBProjectIsolation','Assert-SBProjectIsolation','Get-SBRunnerExcludedStreams','Test-SBRunnableTask','Get-SBRunnerExclusionReason','Get-SBRunnerExclusions','Select-SBRunnableTasks','New-SBTaskRunPrompt','ConvertTo-SBFindingKey','Read-SBRunnerFindings','Find-SBFollowUpMatch','Get-SBRunnerScopeVariables','Get-SBRunnerReadScope','Assert-SBRunnerReadScope')
+Export-ModuleMember -Function @('Get-SBRunnerReadinessReason','Get-SBRunnerOpenDecisions','Get-SBRunnerAcceptance','Get-SBRunnerValue','Test-SBProjectIsolation','Assert-SBProjectIsolation','Get-SBRunnerExcludedStreams','Test-SBRunnableTask','Get-SBRunnerExclusionReason','Get-SBRunnerExclusions','Select-SBRunnableTasks','New-SBTaskRunPrompt','Resolve-SBTaskAssets','ConvertTo-SBFindingKey','Read-SBRunnerFindings','Find-SBFollowUpMatch','Get-SBRunnerScopeVariables','Get-SBRunnerReadScope','Assert-SBRunnerReadScope')

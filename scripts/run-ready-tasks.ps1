@@ -311,6 +311,27 @@ function Invoke-RunnerChild([string[]]$ScriptArgs){
 $configArgs=if($ConfigPath){@('-ConfigPath',$ConfigPath)}else{@()}
 $script:deferredUpdates=@();$script:deferredFindings=@();$script:testWriterHold=$null;$script:lastUpdateOutput=$null
 $knowledge=Join-Path $PSScriptRoot 'knowledge.ps1'
+# #578: the card, workflow and subagent definitions a task names (extensions.card, extensions.workflow, extensions.subagents). Nothing is loaded for
+# a task that names none. Subagents are inside the runner agent's own tools (tracker reads, MCP writes) and only the task enables them.
+function Get-RunnerTaskAssets($Task,[string]$Identity){
+    $ext=if($Task.PSObject.Properties['extensions']){$Task.extensions}else{$null}
+    if(!$ext){return $null}
+    $has={param([string]$n) $p=$ext.PSObject.Properties[$n];$p -and $null -ne $p.Value -and @($p.Value|Where-Object {$_ -and ([string]$_).Trim()}).Count}
+    if(!(& $has 'card') -and !(& $has 'workflow') -and !(& $has 'subagents')){return $null}
+    Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Prompts.psm1') -Force
+    $brain=(Read-SBConfiguration $ConfigPath -ReadOnly).brainRoot
+    $plain=ConvertTo-Json $Task -Depth 20|ConvertFrom-Json -AsHashtable
+    $catalog=Read-SBWorkflowCatalog $brain
+    $flows=@(Read-SBPromptWorkflows $brain $catalog)
+    $agents=@()
+    if(& $has 'subagents'){
+        Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Subagents.psm1') -Force
+        $dossier=Resolve-SBParaPath $brain (Resolve-SBWorkingDossier $brain $Identity)
+        $agents=@(Read-SBSubagentDefinitions $dossier $catalog)
+    }
+    $tools=Get-SBSubagentTools
+    Resolve-SBTaskAssets $plain $catalog $flows $agents @{tools=@($tools.read)+@($tools.write);write=$true}
+}
 if(!$Run){Initialize-RunnerInvocation}
 # One repository only: the given checkout. When it is not the SecondBrain checkout, prompts carry the absolute SecondBrain tool paths.
 $targets=@(@{identity=$null;path=[IO.Path]::GetFullPath($CheckoutPath)});$skipped=@()
@@ -434,8 +455,11 @@ if($totalSelected -eq 0){ConvertTo-SBJson @{run=$false;message=(Get-SBMessage 'r
 if(!$Run){
     $preview=@()
     foreach($p in $plans){foreach($t in $p.tasks){
-        $prompt=if($external){New-SBTaskRunPrompt $t $PSScriptRoot $p.target.path}else{New-SBTaskRunPrompt $t}
-        $preview+=,[ordered]@{repository=$p.target.identity;id=$t.id;seq=$t.seq;priority=$t.priority;title=$t.title;prompt=$prompt}
+        $assets=Get-RunnerTaskAssets $t (Resolve-RunnerIdentity $p $t)
+        $prompt=if($external){New-SBTaskRunPrompt $t $PSScriptRoot $p.target.path -Assets $assets}else{New-SBTaskRunPrompt $t -Assets $assets}
+        $entry=[ordered]@{repository=$p.target.identity;id=$t.id;seq=$t.seq;priority=$t.priority;title=$t.title;prompt=$prompt}
+        if($assets){$entry.card=$assets.card;$entry.workflow=$assets.workflow;$entry.subagents=@($assets.subagents)}
+        $preview+=,$entry
     }}
     Show-RunnerLine 'runner.progress.preview' @($totalSelected,$plans.Count)
     ConvertTo-SBJson @{run=$false;agent=$AgentPath;provider=$Provider;model=$Model;effort=$Effort;arguments=@($AgentArguments);omitted=$omitted;computerUse=$allowComputerUse;timeoutMinutes=$TimeoutMinutes;tasks=$preview;skipped=$skipped};exit 0
@@ -589,7 +613,8 @@ foreach($plan in $plans){
         # The executor of this session (tool, mode, model, effort, run): the agent's tracker writes record it in the dossier ledger.
         $agentEnv['SECONDBRAIN_EXECUTOR']=(ConvertTo-Json ([ordered]@{tool=$Provider;mode='runner';model=$script:runStatus.resolvedModel;effort=$script:runStatus.resolvedEffort;runId=$script:runStatus.runId}) -Compress)
         $findingsFile=Join-Path $root 'findings.json'
-        $prompt=if($external){New-SBTaskRunPrompt $task $PSScriptRoot $checkout -FindingsPath $findingsFile}else{New-SBTaskRunPrompt $task -FindingsPath $findingsFile}
+        $assets=Get-RunnerTaskAssets $task $identity
+        $prompt=if($external){New-SBTaskRunPrompt $task $PSScriptRoot $checkout -FindingsPath $findingsFile -Assets $assets}else{New-SBTaskRunPrompt $task -FindingsPath $findingsFile -Assets $assets}
         # Resume note: the interrupted task of a -Resume, or the one this run stopped on before waiting for the reset.
         $interrupted=if($script:interruptedHere -and [string]$script:interruptedHere.id -eq [string]$task.id){$script:interruptedHere}elseif($script:resumeFrom -and $script:resumeFrom.interrupted -is [hashtable] -and [string]$script:resumeFrom.interrupted.id -eq [string]$task.id){$script:resumeFrom.interrupted}else{$null}
         if($interrupted){

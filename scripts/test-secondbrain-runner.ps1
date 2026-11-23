@@ -296,6 +296,30 @@ switch($Mode){
     $firstDiff=0;while($firstDiff -lt [Math]::Min($output.result.Length,$expectedPrompt.Length) -and $output.result[$firstDiff] -ceq $expectedPrompt[$firstDiff]){$firstDiff++}
     Assert-Runner ($output.result -ceq $expectedPrompt) ('the agent received the fixed prompt on stdin (lengths '+$output.result.Length+'/'+$expectedPrompt.Length+', first difference at '+$firstDiff+'; got: '+$output.result.Substring(0,[Math]::Min(60,$output.result.Length))+')')
 
+    # #578: a task naming a card, a workflow or subagents shows them resolved in its prompt; a task naming none gets the same prompt as before.
+    Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Prompts.psm1') -Force
+    Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Subagents.psm1') -Force
+    $realBrain=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+    $realCatalog=Read-SBWorkflowCatalog $realBrain
+    $realFlows=@(Read-SBPromptWorkflows $realBrain $realCatalog)
+    $someCard=$realCatalog.prompts[0];$someFlow=$realFlows[0]
+    $plainTask=[pscustomobject]@{id='R-9';seq=9;extensions=@{}}
+    Assert-Runner ($null -eq (Resolve-SBTaskAssets $plainTask $realCatalog $realFlows)) 'task without card, workflow or subagents resolves to nothing'
+    Assert-Runner ((New-SBTaskRunPrompt $plainTask -Assets $null) -ceq (New-SBTaskRunPrompt $plainTask)) 'task without a card gets the prompt as before'
+    $named=@{id='R-9';seq=9;extensions=@{card=$someCard.id;workflow=$someFlow.key}}
+    $assets=Resolve-SBTaskAssets $named $realCatalog $realFlows
+    $namedPrompt=New-SBTaskRunPrompt $named -Assets $assets
+    Assert-Runner ($assets.card.id -ceq $someCard.id -and $assets.workflow.id -ceq $someFlow.id -and $namedPrompt.Contains($someCard.id) -and $namedPrompt.Contains($someFlow.key) -and !$namedPrompt.Contains('Subagents allowed')) 'the prompt shows the resolved card and workflow, and no subagents unless the task selects them'
+    $newAgent={param([string]$n,[string]$hex,$tools,[bool]$write) @{definition=@{schemaVersion=2;id="agt-$hex";name=$n;revision=1;status='active';description='Test agent';role='Test role';context='Test context';permissions=@{tools=$tools;write=$write};output=@{kind='text'};bounds=@{depth=1;budget=@{turns=5}}}}}
+    $agent=& $newAgent 'reviewer' '0000000a' @('get_task') $false
+    $withAgent=Resolve-SBTaskAssets @{id='R-9';seq=9;extensions=@{subagents=@('reviewer')}} $realCatalog $realFlows @($agent) @{tools=@('get_task');write=$true}
+    Assert-Runner ($withAgent.subagents[0].depth -eq 1 -and $withAgent.subagents[0].write -eq $false -and (New-SBTaskRunPrompt $plainTask -Assets $withAgent).Contains('depth one')) 'a selected subagent resolves inside the parent permissions with depth one and its budget'
+    $widened=& $newAgent 'wide' '0000000b' @('submit_dossier_write') $true
+    $refused=try{[void](Resolve-SBTaskAssets @{id='R-9';seq=9;extensions=@{subagents=@('wide')}} $realCatalog $realFlows @($widened) @{tools=@('get_task');write=$false});$false}catch{$true}
+    Assert-Runner $refused 'a subagent asking beyond the parent permissions is refused'
+    $unknown=try{[void](Resolve-SBTaskAssets @{id='R-9';extensions=@{card='pmt-00000000'}} $realCatalog $realFlows);$false}catch{$true}
+    Assert-Runner $unknown 'an unknown card is an error'
+
     Close-RunnerPhase 'ok'
     # Quota: the run stops at the first exhausted-plan answer and the runner itself never writes the tracker.
     $hash=Get-SBFileHash $trackerPath
