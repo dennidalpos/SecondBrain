@@ -879,7 +879,7 @@ test("prompts: search, areas and compose match prompts.ps1 -Compose, and a write
   const total = await count();
   // Search narrows the list; an area limits it to one category; clearing both restores it.
   await page.locator("#pr-search").fill("QUA05");
-  await expect(page.locator("#pr-system tr")).toHaveCount(1);
+  await expect(page.locator("#pr-default tr")).toHaveCount(1);
   await page.locator("#pr-search").fill("");
   await expect(page.locator("#pr-system-count")).toHaveText(`(${total})`);
   expect(await page.locator("#pr-area option").count()).toBeGreaterThan(2);
@@ -888,7 +888,7 @@ test("prompts: search, areas and compose match prompts.ps1 -Compose, and a write
   await page.locator("#pr-area").selectOption("");
   // A read card composes to exactly what prompts.ps1 -Compose prints for the same repository and objective.
   await page.locator("#pr-search").fill("QUA05");
-  await page.locator('#pr-system tr[data-id="QUA05"] button', { hasText: "View" }).click();
+  await page.locator('#pr-default tr[data-id="QUA05"] button', { hasText: "View" }).click();
   await page.locator("#pr-objective").fill("Diagnose the Windows job");
   await page.locator("#pr-compose-btn").click();
   await expect(page.locator("#pr-composed")).toBeVisible({ timeout: 60_000 });
