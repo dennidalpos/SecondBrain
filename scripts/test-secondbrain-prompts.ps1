@@ -214,6 +214,13 @@ foreach($entry in @(Get-SBWorkflowCommands)){
     $scriptName=[regex]::Match($entry.script,'^scripts/([A-Za-z0-9.-]+\.ps1)').Groups[1].Value
     Assert-Prompts ($scriptName -and (Test-Path -LiteralPath (Join-Path $PSScriptRoot $scriptName))) "command '$($entry.command)' points to an existing script"
 }
+# The command reference page lists every registry command, and the menus (home, maintenance, mcp) place each one.
+$liveCatalogForMenus=Read-SBWorkflowCatalog $brain
+$commandsDoc=Read-SBText (Join-Path $brain 'docs/reference/commands.md')
+foreach($entry in @(Get-SBWorkflowCommands)){Assert-Prompts ($commandsDoc.Contains('| `'+$entry.command+'` |')) "docs/reference/commands.md lists '$($entry.command)'"}
+$menuText=@('home','maintenance','mcp')|ForEach-Object {Format-SBWorkflowHome $brain $liveCatalogForMenus $null -Menu $_}
+$menuText=$menuText -join "`n"
+foreach($entry in @(Get-SBWorkflowCommands)){if($entry.command -notin @('sb prompt')){Assert-Prompts ($menuText.Contains('`'+$entry.command+'`')) "a menu lists '$($entry.command)'"}}
 # #724: every registry command resolves through the sb dispatcher to an existing script; help lists them all.
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Dispatch.psm1') -Force
 foreach($entry in @(Get-SBWorkflowCommands)){

@@ -11,6 +11,15 @@ Add-SBMessages @{
 # are passed through to the script. The prompt forms with a key or text are handled in Resolve-SBDispatch.
 function Get-SBDispatchTable {
     @(
+        @{words='home';script='prompts.ps1';args=@()},
+        @{words='maintenance';script='prompts.ps1';args=@('-Menu','maintenance')},
+        @{words='mcp';script='prompts.ps1';args=@('-Menu','mcp')},
+        @{words='mcp status';script='mcp-maintenance.ps1';args=@('-Status')},
+        @{words='mcp realign';script='mcp-maintenance.ps1';args=@('-Realign')},
+        @{words='mcp pair';script='mcp-server.ps1';args=@('-Pair')},
+        @{words='mcp package';script='mcp-server.ps1';args=@('-ExportPackage')},
+        @{words='runner gui';script='runner.ps1';args=@('-Mode','gui')},
+        @{words='runner cli';script='runner.ps1';args=@('-Mode','cli')},
         @{words='activate';script='secondbrain.ps1';args=@('-Setup','-Interactive')},
         @{words='setup';script='setup-status.ps1';args=@()},
         @{words='skills';script='skills.ps1';args=@()},

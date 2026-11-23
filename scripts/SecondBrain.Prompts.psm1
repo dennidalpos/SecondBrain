@@ -377,7 +377,7 @@ function Format-SBWorkflowList($Catalog, [string]$Category, [switch]$Compact) {
 }
 
 Add-SBMessages @{
-    'home.title' = @{ en = 'SECONDBRAIN — PROMPTS AND COMMANDS' }
+    'home.title' = @{ en = 'SECONDBRAIN — HOME (sb home)' }
     'home.where' = @{ en = 'WHERE YOU ARE' }
     'home.next' = @{ en = 'NEXT STEP' }
     'home.station.active' = @{ en = 'Workstation: activated ({0}), {1} managed repositories, {2} IDE integrations.' }
@@ -417,12 +417,36 @@ Add-SBMessages @{
     'home.catalog' = @{ en = 'Full catalog ({0} prompts in {1} areas): {2}' }
     'home.present' = @{ en = 'PRESENTATION (for the agent): show this screen in the language the user writes in, translating every title, description and label; keep `sb` commands, prompt codes, file paths and links verbatim. Render it as a terminal-style multiple-choice menu: the repository state first, then the numbered choices in their groups, ending with the full-catalog link, and let the user answer with a number or a command.' }
     'home.menu' = @{ en = 'MENU — pick a number or type the command; [CODE] is the prompt card behind a command.' }
+    'home.title.maintenance' = @{ en = 'SECONDBRAIN — MAINTENANCE (sb maintenance)' }
+    'home.title.mcp' = @{ en = 'SECONDBRAIN — MCP (sb mcp)' }
+    'home.channel.mcp' = @{ en = 'Channel: MCP (preferred), this screen came from the MCP server.' }
+    'home.channel.cli' = @{ en = 'Channel: CLI. Use MCP when it is available and aligned (`sb mcp status` checks it); the CLI is the fallback.' }
+    'home.channel.rule' = @{ en = 'MCP is the preferred channel: every read goes through the MCP tools first, and the CLI scripts are used only when MCP is unavailable or not aligned.' }
+    'home.section.tasks' = @{ en = 'TASKS AND SESSION' }
+    'home.section.run' = @{ en = 'AUTONOMOUS EXECUTION' }
+    'home.section.prompts' = @{ en = 'MENUS, PROMPTS AND CATALOG' }
+    'home.section.repo' = @{ en = 'REPOSITORY AND PUBLICATION' }
+    'home.section.maint' = @{ en = 'MAINTENANCE' }
+    'home.section.align' = @{ en = 'ACTIVATION AND ALIGNMENT' }
+    'home.section.data' = @{ en = 'DOSSIER AND DATA' }
+    'home.section.state' = @{ en = 'STATE AND CHECKS' }
+    'home.section.lifecycle' = @{ en = 'REPOSITORY LIFECYCLE' }
+    'home.section.mcp' = @{ en = 'MCP: CHECK, PAIR, REALIGN' }
+    'cmd.home' = @{ en = 'This menu: repository state, the active channel (MCP or CLI), the commands by section and the link to the full catalog.' }
+    'cmd.maintenance' = @{ en = 'Opens the maintenance menu: activation, alignment, dossier and data, state and checks, repository lifecycle.' }
+    'cmd.mcp' = @{ en = 'Opens the MCP menu: check the connection, pair an IDE, realign, export the package.' }
+    'cmd.mcpstatus' = @{ en = 'Checks which IDE configurations carry the SecondBrain MCP server; -Handshake also runs the stdio handshake. Nothing is written.' }
+    'cmd.mcppair' = @{ en = 'Previews the MCP configuration for one IDE (-Target) or all; -Apply writes it after saving a backup.' }
+    'cmd.mcprealign' = @{ en = 'Finds the IDEs whose MCP configuration is missing and previews the fix; -Apply writes it with a backup. Until aligned, the CLI is used instead of MCP.' }
+    'cmd.mcppackage' = @{ en = 'Exports the portable MCP package (launcher and modules) to import the connection elsewhere.' }
+    'cmd.runnergui' = @{ en = 'Runner in the desktop app (Orchestrator); the app is built when stale. Same as sb runner with the desktop choice.' }
+    'cmd.runnercli' = @{ en = 'Runner on the command line, without the desktop app. Same as sb runner with the command-line choice.' }
     'home.choose' = @{ en = 'Your choice: a number from the menu, an `sb` command, or `sb prompt list` for the whole catalog.' }
     'home.relpath' = @{ en = 'Path relative to the SecondBrain root: {0}' }
     'home.twoways' = @{ en = 'Two ways to use SecondBrain: in chat (`sb` command, in supported IDEs and agents) or from a script (same result, PowerShell command: see the flow-per-product guide).' }
     'home.table.commands' = @{ en = '| Chat command | What it does | Mode | From script | Prompt card |' }
-    'home.presets.title' = @{ en = 'PRESETS: ORDERED CHAINS OF CARDS FOR A BIGGER JOB' }
-    'home.presets.how' = @{ en = 'Run a whole preset with `sb prompt wf-NAME: objective` (`-Skip` skips optional steps), or run the steps one by one with `sb prompt CODE: objective`. A step marked confirm needs your approval before it writes; optional steps may be skipped.' }
+    'home.presets.title' = @{ en = 'GUIDED FLOWS (PRESETS): ONE COMMAND, SEVERAL PROMPTS IN ORDER' }
+    'home.presets.how' = @{ en = 'A guided flow chains several prompt cards for a bigger job, such as fixing a defect from triage to commit. Run a whole preset with `sb prompt wf-NAME: objective` (`-Skip` skips optional steps), or run the steps one by one with `sb prompt CODE: objective`. A step marked confirm needs your approval before it writes; optional steps may be skipped.' }
     'home.presets.table' = @{ en = '| Preset | What it does | Steps |' }
     'home.flow.title' = @{ en = 'FLOW PER PRODUCT (in this order, for each repository)' }
     'home.flow.table' = @{ en = '| # | Step | In chat | From script |' }
@@ -433,7 +457,7 @@ Add-SBMessages @{
     'mode.write' = @{ en = 'write' }
     'mode.verify' = @{ en = 'verify' }
     'mode.card' = @{ en = 'per the card' }
-    'cmd.prompt' = @{ en = 'This screen: link to the full catalog and the available commands.' }
+    'cmd.prompt' = @{ en = 'Same screen as sb home (kept so existing instructions keep working); the other sb prompt forms list, show and run prompt cards.' }
     'cmd.list' = @{ en = 'Compact list of all prompts, one line each, by area.' }
     'cmd.scope' = @{ en = 'Prompts of one area with ID, scope and requirements (area id or prefix: test, TST, system, SYS).' }
     'cmd.show' = @{ en = 'Full card of a prompt; KEY is an ID (pmt-…) or code.' }
@@ -452,7 +476,7 @@ Add-SBMessages @{
     'cmd.next' = @{ en = 'Proposes the next steps for the repository after a task or a run, each with the reason. Nothing is written.' }
     'cmd.pending' = @{ en = 'Lists the queued dossier writes of the repository (applied, pending, conflict, invalid). Nothing is integrated.' }
     'cmd.pendingflush' = @{ en = 'Integrates the queued dossier writes of the own dossier; conflicts stay queued (resolve them with sb reconcile tasks).' }
-    'cmd.queue' = @{ en = 'Alternative queue for the autonomous tasks of the current repository (orchestrate-tasks.ps1), independent of the runner: use it while maintenance tasks change the runner. Preview by default; -Start runs it detached on a queue/<date> branch with local commits only; -Provider claude|codex|gemini, -OnlyIds, -ExcludeIds, -MaxTasks.' }
+    'cmd.queue' = @{ en = 'Alternative to the runner, only for when many autonomous tasks change the main runner itself (orchestrate-tasks.ps1). Before starting, the agent asks with the structured question tool for the provider (claude, codex or gemini), then the model and the effort that provider offers, and passes them as -Provider, -Model, -Effort. Preview by default; -Start runs it detached on a queue/<date> branch with local commits only; -OnlyIds, -ExcludeIds, -MaxTasks.' }
     'cmd.queuestatus' = @{ en = 'Shows the latest queue run of the repository (phase, pid alive, current task, counters, notice, last events). Nothing is written.' }
     'cmd.queuestop' = @{ en = 'Asks the active queue run of the repository to end before the next task (stop.flag).' }
     'cmd.runnerstatus' = @{ en = 'Shows whether the task runner of the repository is working, stalled, finished or orphaned and what the agent did last; -List shows the recent runs, -Stop stops the active one.' }
@@ -525,6 +549,7 @@ function Get-SBWorkflowIndexPath {
 # `aliases` is kept empty: the Italian verbs were removed in 3.0 (English-only product).
 function Get-SBWorkflowCommands {
     @(
+        @{command='sb home';aliases=@();scope='repository';does=(Get-SBWorkflowMessage 'cmd.home');mode=(Get-SBWorkflowMessage 'mode.read');script='scripts/prompts.ps1'},
         @{command='sb prompt';aliases=@();scope='repository';does=(Get-SBWorkflowMessage 'cmd.prompt');mode=(Get-SBWorkflowMessage 'mode.read');script='scripts/prompts.ps1'},
         @{command='sb prompt list';aliases=@();scope='repository';does=(Get-SBWorkflowMessage 'cmd.list');mode=(Get-SBWorkflowMessage 'mode.read');script='scripts/prompts.ps1 -List -Compact'},
         @{command='sb prompt area AREA';aliases=@();scope='repository';does=(Get-SBWorkflowMessage 'cmd.scope');mode=(Get-SBWorkflowMessage 'mode.read');script='scripts/prompts.ps1 -List -Category AREA'},
@@ -537,6 +562,8 @@ function Get-SBWorkflowCommands {
         @{command='sb sync';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.sync');mode=(Get-SBWorkflowMessage 'mode.write');script='scripts/secondbrain.ps1 -Sync'},
         @{command='sb compact';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.compact');mode=(Get-SBWorkflowMessage 'mode.write');script='scripts/knowledge.ps1 -Compact -Mechanical [-Apply] | -Compact -CandidatePath FILE'},
         @{command='sb runner';aliases=@();scope='repository';does=(Get-SBWorkflowMessage 'cmd.runner');mode=(Get-SBWorkflowMessage 'mode.run');script='scripts/runner.ps1'},
+        @{command='sb runner gui';aliases=@();scope='repository';does=(Get-SBWorkflowMessage 'cmd.runnergui');mode=(Get-SBWorkflowMessage 'mode.run');script='scripts/runner.ps1 -Mode gui'},
+        @{command='sb runner cli';aliases=@();scope='repository';does=(Get-SBWorkflowMessage 'cmd.runnercli');mode=(Get-SBWorkflowMessage 'mode.run');script='scripts/runner.ps1 -Mode cli'},
         @{command='sb queue';aliases=@();scope='repository';does=(Get-SBWorkflowMessage 'cmd.queue');mode=(Get-SBWorkflowMessage 'mode.run');script='scripts/queue.ps1 [-Start] [-Provider claude|codex|gemini] [-OnlyIds IDS] [-ExcludeIds IDS] [-MaxTasks N]'},
         @{command='sb queue status';aliases=@();scope='repository';does=(Get-SBWorkflowMessage 'cmd.queuestatus');mode=(Get-SBWorkflowMessage 'mode.read');script='scripts/queue.ps1 -Status'},
         @{command='sb queue stop';aliases=@();scope='repository';does=(Get-SBWorkflowMessage 'cmd.queuestop');mode=(Get-SBWorkflowMessage 'mode.write');script='scripts/queue.ps1 -Stop'},
@@ -552,6 +579,12 @@ function Get-SBWorkflowCommands {
         @{command='sb projects';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.projects');mode=(Get-SBWorkflowMessage 'mode.read');script='scripts/projects.ps1 -List'},
         @{command='sb status';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.status');mode=(Get-SBWorkflowMessage 'mode.read');script='scripts/secondbrain.ps1 -Setup -Status'},
         @{command='sb ides';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.ides');mode=(Get-SBWorkflowMessage 'mode.verify');script='scripts/ide-map.ps1 -Verify'},
+        @{command='sb maintenance';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.maintenance');mode=(Get-SBWorkflowMessage 'mode.read');script='scripts/prompts.ps1 -Menu maintenance'},
+        @{command='sb mcp';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.mcp');mode=(Get-SBWorkflowMessage 'mode.read');script='scripts/prompts.ps1 -Menu mcp'},
+        @{command='sb mcp status';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.mcpstatus');mode=(Get-SBWorkflowMessage 'mode.verify');script='scripts/mcp-maintenance.ps1 -Status [-Handshake] [-Target IDE]'},
+        @{command='sb mcp pair';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.mcppair');mode=(Get-SBWorkflowMessage 'mode.write');script='scripts/mcp-server.ps1 -Pair [-Target IDE] [-Apply]'},
+        @{command='sb mcp realign';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.mcprealign');mode=(Get-SBWorkflowMessage 'mode.write');script='scripts/mcp-maintenance.ps1 -Realign [-Apply] [-Target IDE]'},
+        @{command='sb mcp package';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.mcppackage');mode=(Get-SBWorkflowMessage 'mode.write');script='scripts/mcp-server.ps1 -ExportPackage [-OutDir DIR]'},
         @{command='sb backup';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.backup');mode=(Get-SBWorkflowMessage 'mode.write');script='scripts/backup.ps1 [-Customer NAME]'},
         @{command='sb backup verify';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.backupverify');mode=(Get-SBWorkflowMessage 'mode.verify');script='scripts/backup.ps1 -Verify'},
         @{command='sb sources';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.sources');mode=(Get-SBWorkflowMessage 'mode.verify');script='scripts/sources.ps1 -Check'},
@@ -572,6 +605,25 @@ function Get-SBWorkflowCommands {
 $script:SBWorkflowCommandRoles=@{
     'sb activate'='workstation.activate';'sb setup'='workstation.setup';'sb skills'='project.skills';'sb check'='workstation.check';'sb sync'='directives.sync'
     'sb compact'='dossier.compact';'sb runner'='runner.choice';'sb reconcile tasks'='tasks.reconcile';'sb stop'='session.stop';'sb publish check'='publication.check'
+}
+
+# Menu sections, in display order: which commands `sb home`, `sb maintenance` and `sb mcp` list under each heading.
+$script:SBWorkflowSections=[ordered]@{
+    tasks=@('sb tasks','sb next','sb pending','sb pending flush','sb reconcile tasks','sb stop')
+    run=@('sb runner','sb runner gui','sb runner cli','sb runner status','sb queue','sb queue status','sb queue stop')
+    prompts=@('sb home','sb prompt list','sb prompt area AREA','sb prompt show KEY','sb prompt KEY: objective')
+    repo=@('sb skills','sb publish check','sb grants')
+    maint=@('sb maintenance','sb mcp')
+    align=@('sb activate','sb setup','sb check','sb sync','sb resync','sb directives check','sb directives propose','sb prompts check','sb sources')
+    data=@('sb compact','sb backup','sb backup verify','sb recover','sb cleanup','sb bindings')
+    state=@('sb projects','sb status','sb ides')
+    lifecycle=@('sb onboard','sb offboard','sb uninstall')
+    mcp=@('sb mcp status','sb mcp pair','sb mcp realign','sb mcp package','sb grants','sb ides')
+}
+$script:SBWorkflowMenus=@{
+    home=@('tasks','run','prompts','repo','maint')
+    maintenance=@('align','data','state','lifecycle')
+    mcp=@('mcp')
 }
 
 # Getting-started guides: root-relative path (optional anchor) and intended audience. A test verifies file existence.
@@ -688,15 +740,17 @@ function Get-SBWorkflowStartChain($State,$Catalog=$null,$Workflows=@()) {
     $steps
 }
 
-function Format-SBWorkflowHome([string]$BrainRoot, $Catalog, $State=$null) {
+function Format-SBWorkflowHome([string]$BrainRoot, $Catalog, $State=$null, [ValidateSet('home','maintenance','mcp')][string]$Menu='home', [ValidateSet('cli','mcp')][string]$Channel='cli') {
     $indexPath=Get-SBWorkflowIndexPath
     $index=Resolve-SBParaPath $BrainRoot $indexPath
     $areas=@($Catalog.prompts|ForEach-Object category|Select-Object -Unique).Count
     $root=([IO.Path]::GetFullPath($BrainRoot) -replace '\\','/').TrimEnd('/')
-    $lines=@((Get-SBWorkflowMessage 'home.title'),'',(Get-SBWorkflowMessage 'home.present'),'')
-    if($State){
+    $isHome=$Menu -eq 'home'
+    $lines=@((Get-SBWorkflowMessage $(if($isHome){'home.title'}else{'home.title.'+$Menu})),'',(Get-SBWorkflowMessage 'home.present'),'')
+    if($State -and $isHome){
         $lines+=(Get-SBWorkflowMessage 'home.where')
         $lines+=('- '+$(if($State.activated){Get-SBWorkflowMessage 'home.station.active' @($State.hostId,$State.repositories,$State.ides)}else{Get-SBWorkflowMessage 'home.station.inactive' @($State.hostId)}))
+        $lines+=('- '+(Get-SBWorkflowMessage ('home.channel.'+$Channel)))
         if($State.repository){
             $repositoryLabel=if($State.repository.identity){$State.repository.identity+$(if($State.repository.managed){Get-SBWorkflowMessage 'home.repo.managed'}else{Get-SBWorkflowMessage 'home.repo.unmanaged'})}else{Get-SBWorkflowMessage 'home.repo.noidentity'}
             $lines+=('- '+(Get-SBWorkflowMessage 'home.repo.line' @($repositoryLabel,($State.repository.path -replace '\\','/'))))
@@ -722,17 +776,21 @@ function Format-SBWorkflowHome([string]$BrainRoot, $Catalog, $State=$null) {
         if($State.repository -and $State.repository.Contains('location') -and $State.repository.location -eq 'repo-unmanaged'){$lines+=@((Get-SBWorkflowMessage 'home.degraded'),'')}
     }
     $indexLink='['+$indexPath+']('+($index -replace '\\','/')+')'
-    $lines+=@((Get-SBWorkflowMessage 'home.catalog' @(@($Catalog.prompts).Count,$areas,$indexLink)),
-        (Get-SBWorkflowLegend),'',
-        (Get-SBWorkflowMessage 'home.twoways'),'',
-        (Get-SBWorkflowMessage 'home.menu'))
+    if($isHome){
+        $lines+=@((Get-SBWorkflowMessage 'home.catalog' @(@($Catalog.prompts).Count,$areas,$indexLink)),
+            (Get-SBWorkflowLegend),'',
+            (Get-SBWorkflowMessage 'home.twoways'),'',
+            (Get-SBWorkflowMessage 'home.channel.rule'))
+    }
+    $lines+=@('',(Get-SBWorkflowMessage 'home.menu'))
     $choice=0
-    # Two groups: commands for the repository you are in, and SecondBrain activation and maintenance; outside a project and in SecondBrain the latter come first.
-    $groups=@(@{scope='repository';title='home.commands.repo'},@{scope='secondbrain';title='home.commands.brain'})
-    if($State -and $State.repository -and $State.repository.Contains('location') -and $State.repository.location -in @('none','secondbrain')){[array]::Reverse($groups)}
-    foreach($g in $groups){
-        $lines+=@('',(Get-SBWorkflowMessage $g.title),'')
-        foreach($command in @(Get-SBWorkflowCommands|Where-Object {$_.scope -eq $g.scope})){
+    # The menus are sections of the command registry: the home shows the daily work, `sb maintenance` and `sb mcp` open the rest.
+    $byCommand=@{};foreach($entry in @(Get-SBWorkflowCommands)){$byCommand[$entry.command]=$entry}
+    foreach($sectionId in $script:SBWorkflowMenus[$Menu]){
+        $lines+=@('',(Get-SBWorkflowMessage ('home.section.'+$sectionId)),'')
+        $members=@($script:SBWorkflowSections[$sectionId])
+        foreach($commandName in $members){
+            $command=$byCommand[$commandName]
             $cardText=''
             if($script:SBWorkflowCommandRoles.ContainsKey($command.command)){
                 $roleName=$script:SBWorkflowCommandRoles[$command.command]
@@ -743,7 +801,7 @@ function Format-SBWorkflowHome([string]$BrainRoot, $Catalog, $State=$null) {
             $lines+=('['+$choice+'] `'+$command.command+'` — '+$command.does+' ('+$command.mode+')'+$cardText)
         }
     }
-    $presetFlows=@(Read-SBPromptWorkflows $BrainRoot $Catalog|Where-Object {$_.status -eq 'active'})
+    $presetFlows=@(if($isHome){Read-SBPromptWorkflows $BrainRoot $Catalog|Where-Object {$_.status -eq 'active'}})
     if($presetFlows.Count){
         $byIdPreset=@{};foreach($card in $Catalog.prompts){$byIdPreset[$card.id]=$card}
         $lines+=@('',(Get-SBWorkflowMessage 'home.presets.title'),'',(Get-SBWorkflowMessage 'home.presets.how'),'')
@@ -753,6 +811,10 @@ function Format-SBWorkflowHome([string]$BrainRoot, $Catalog, $State=$null) {
             $lines+=('['+$choice+'] `'+$flow.key+'` — '+$flow.title+': '+$stepText)
         }
         $lines+=('','`?` optional step, `!` asks for your confirmation.')
+    }
+    if(!$isHome){
+        $lines+=@('',(Get-SBWorkflowMessage 'home.choose'))
+        return (($lines -join "`n")+"`n")
     }
     if($State -and $State.activated){
         $lines+=@('',(Get-SBWorkflowMessage 'home.flow.title'),'')

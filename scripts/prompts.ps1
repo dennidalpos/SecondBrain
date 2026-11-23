@@ -24,6 +24,7 @@ pwsh -NoProfile -File scripts/prompts.ps1 -Preset wf-fix-defect -Objective 'Fix 
 [CmdletBinding(DefaultParameterSetName='Home')]
 param(
     [Parameter(ParameterSetName='Home')][switch]$Start,
+    [Parameter(ParameterSetName='Home')][ValidateSet('home','maintenance','mcp')][string]$Menu='home',
     [Parameter(ParameterSetName='List')][switch]$List,
     [Parameter(ParameterSetName='List')][switch]$Compact,
     [Parameter(ParameterSetName='Home')][Parameter(ParameterSetName='List')][Parameter(ParameterSetName='Show')][switch]$Json,
@@ -74,7 +75,7 @@ try {
     if($ConfigPath){$config=Read-SBConfiguration $ConfigPath -ReadOnly;$lock=Enter-SBOperation $config $SessionId -ReadOnly;Write-SBReadWarnings $lock $config}
     if($PSCmdlet.ParameterSetName -eq 'Home'){
         $homeState=Get-SBWorkflowState $brain $(if($RepositoryPath){$RepositoryPath}else{(Get-Location).Path})
-        if($Json){ConvertTo-SBJson (ConvertTo-SBWorkflowHomeData $homeState)}else{Format-SBWorkflowHome $brain $catalog $homeState}
+        if($Json){ConvertTo-SBJson (ConvertTo-SBWorkflowHomeData $homeState)}else{Format-SBWorkflowHome $brain $catalog $homeState -Menu $Menu}
     } elseif($PSCmdlet.ParameterSetName -eq 'List' -and $Json){
         # Documented in docs/orchestratore.md: public catalog only, English text.
         ConvertTo-SBJson (ConvertTo-SBWorkflowCatalogData $catalog $Category)
