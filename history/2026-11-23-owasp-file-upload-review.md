@@ -17,3 +17,7 @@ Upstream still serves the content of the candidate rejected on 2026-11-22 (finge
 2. Owner decision on accepting the candidate; only then rerun `sources.ps1 -Check`.
 
 `sources.ps1 -Check` (exit 1): `owasp-file-upload` reports `verification-stale`; the same run reports `changed` for `nist-ssdf`, `verification-stale` for `ec-ai-framework`, and many `mapping-missing` issues, all outside this task.
+
+## Rerun (2026-11-23, second session)
+
+-Collect returned unchanged again (versionId 20261120-77436177c9b43bc5); no new version, no transcript (converter still missing). sources.ps1 -Check exit 1, outcome identical to the run above; acceptedVersion untouched. Acceptance stays with the owner.
