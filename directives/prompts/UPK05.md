@@ -16,7 +16,7 @@ Inputs:
 1. State the change, the reason and the files and revisions it affects; check that it is not already covered.
 2. Write the proposal in `directives/proposals/` with the exact texts, in Italian and English where required.
 3. Run `scripts/approve-revision.ps1 -Preview` and review the diff and the hashes.
-4. Ask the owner to approve; apply only after an explicit yes (see TRK11 for versioning locks).
+4. Ask the owner to approve; apply only after an explicit yes (see TRK13 and TRK11 for versioning locks).
 5. Propose the version with a multiple-choice question; if accepted, update every location and record only that version in `CHANGELOG.md`.
 6. Run UPK01 and `scripts/publication.ps1`; ask separately before any commit or push.
 </task>

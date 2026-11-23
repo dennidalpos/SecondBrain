@@ -26,6 +26,7 @@ Inputs:
 Contract file(s), Design notes (decisions and reasons), Examples, Compatibility and migration notes.
 
 Constraints:
+- Show the plan and wait for approval before writing contract files; never delete files, branches or history.
 - Do not break existing consumers without an explicit decision.
 - Keep personal data to the minimum the use cases need.
 

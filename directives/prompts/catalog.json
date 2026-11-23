@@ -400,7 +400,7 @@
       "category": "plan",
       "summary": "Design API contracts, data models and compatibility",
       "target": "repository",
-      "mode": "read",
+      "mode": "write",
       "destructive": false,
       "scope": "repo",
       "surface": "chat",
@@ -2526,7 +2526,7 @@
       "kind": "system",
       "role": "lifecycle.greenfield.remove",
       "category": "tracker",
-      "summary": "Set or remove the greenfield lock (versions, changelog, migrations, aliases)",
+      "summary": "Remove the greenfield lock and apply the version rule again",
       "target": "repository",
       "mode": "write",
       "destructive": false,
@@ -2534,11 +2534,33 @@
       "surface": "chat",
       "pack": "core",
       "requires": "managed repository, active dossier and user confirmation",
-      "example": "sb prompt TRK11: set or remove the greenfield lock on this repository",
+      "example": "sb prompt TRK11: remove the greenfield lock on this repository",
       "file": "TRK11.md",
       "related": [
         "pmt-5f9f93e0",
-        "pmt-fd98d7ce"
+        "pmt-fd98d7ce",
+        "pmt-33766c25"
+      ]
+    },
+    {
+      "id": "pmt-33766c25",
+      "code": "TRK13",
+      "kind": "system",
+      "role": "lifecycle.greenfield.set",
+      "category": "tracker",
+      "summary": "Set the greenfield lock (versions, changelog, migrations, aliases)",
+      "target": "repository",
+      "mode": "write",
+      "destructive": false,
+      "scope": "repo",
+      "surface": "chat",
+      "pack": "core",
+      "requires": "managed repository, active dossier and user confirmation",
+      "example": "sb prompt TRK13: set the greenfield lock on this repository",
+      "file": "TRK13.md",
+      "related": [
+        "pmt-5f9f93e0",
+        "pmt-29b3278f"
       ]
     },
     {
@@ -2658,6 +2680,7 @@
       "file": "UPK05.md",
       "related": [
         "pmt-29b3278f",
+        "pmt-33766c25",
         "pmt-1456d6b9"
       ]
     },
@@ -2694,7 +2717,7 @@
       "scope": "repo",
       "requires": "The TRK03 triage report, the tracker and the working tree",
       "example": "TRK12: apply the tracker triage and close the tasks already integrated",
-      "destructive": true,
+      "destructive": false,
       "surface": "chat",
       "pack": "core",
       "file": "TRK12.md",

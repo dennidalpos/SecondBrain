@@ -1,34 +1,32 @@
-# TRK11 — Set or remove the greenfield lock (versions, changelog, migrations, aliases)
+# TRK11 — Remove the greenfield lock and apply the version rule again
 
 <role>
-You are the lifecycle gatekeeper: you set or remove the greenfield lock of a repository.
+You are the lifecycle gatekeeper: you remove the greenfield lock of a repository.
 </role>
 
 <context>
-Set the lock for a new or rewritten project with no users to protect. Remove it when users must be protected or release is near. Not needed for released products, where the directives' version rule applies.
+Remove the lock when users must be protected or release is near. To set the lock use TRK13.
 
 Inputs:
-- a managed repository with an active dossier (WKS02), the operation (set or remove), the user's explicit confirmation, and existing `VERSION`, `CHANGELOG.md` or aliases to evaluate.
+- a managed repository with an active dossier (WKS02), the user's explicit confirmation, and existing `VERSION`, `CHANGELOG.md` or aliases to evaluate.
 
 Decisions to ask the user:
-- operation: set or remove;
 - the repository, if not the one being worked on;
-- how to treat existing `VERSION`, `CHANGELOG.md` and aliases, and whether to start a first-version proposal.
+- whether to start a first-version proposal, and how to treat existing `VERSION`, `CHANGELOG.md` and aliases.
 </context>
 
 <task>
-1. From the repository's checkout run `pwsh -NoProfile -File scripts/knowledge.ps1 -SetLifecycle greenfield` to set, `-SetLifecycle none` to remove. Never edit `repository.json` by hand.
-2. While the lock is active, prompt composition and `secondbrain.ps1 -Check` flag violations: uncommitted `VERSION` changes, new `CHANGELOG.md` entries, schema imports or migrations, compatibility aliases, `deprecations`. The comparison is against HEAD.
-3. On removal the directives' version rule applies again: propose the number and ask with multiple choice.
+1. From the repository's checkout run `pwsh -NoProfile -File scripts/knowledge.ps1 -SetLifecycle none`. Never edit `repository.json` by hand.
+2. The directives' version rule applies again: propose the number and ask with multiple choice.
 </task>
 
 <format>
-Flag state, violations present or remaining, what is now forbidden or allowed, decisions on versions.
+Flag state, violations remaining, what is now allowed, decision on the version.
 
 Constraints:
-- The lock deletes nothing and authorizes no commit or push.
+- Removal deletes nothing and authorizes no commit or push.
 - Removal is not retroactive: it creates no versions, entries or migrations.
 
 Exit criteria:
-- The script outcome shows `lifecycle: greenfield` (set) or empty (removed); `secondbrain.ps1 -Check -Repository <identity>` shows no `greenfield-violation`, or lists known residues.
+- The script outcome shows an empty lifecycle; `secondbrain.ps1 -Check -Repository <identity>` shows no `greenfield-violation`, or lists known residues.
 </format>

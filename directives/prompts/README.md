@@ -105,9 +105,9 @@ REQUIREMENTS, DESIGN AND PLANNING
   • Needs: alternatives to evaluate and project constraints
   • Example: compare SQLite and JSON for local persistence
 
-🔭 PLN04 | Design API contracts, data models and compatibility
+🔥 PLN04 | Design API contracts, data models and compatibility
   • ID: pmt-83764c0d
-  • Scope: repo | Mode: read
+  • Scope: repo | Mode: write
   • Needs: requirements or current schema with its version
   • Example: design the JSON schema and API contracts for the task list
 
@@ -571,17 +571,23 @@ SB SYSTEM: TASKS, MEMORY AND TRACKER
   • Needs: recent decisions or changes not yet recorded
   • Example: sb prompt TRK10: align context.md and memory.md after completing a task
 
-🔥 TRK11 | Set or remove the greenfield lock (versions, changelog, migrations, aliases)
+🔥 TRK11 | Remove the greenfield lock and apply the version rule again
   • ID: pmt-29b3278f
   • Scope: repo | Mode: write
   • Needs: managed repository, active dossier and user confirmation
-  • Example: sb prompt TRK11: set or remove the greenfield lock on this repository
+  • Example: sb prompt TRK11: remove the greenfield lock on this repository
 
-⛔ TRK12 | Apply a tracker triage: close integrated tasks, cancel the non-integrable
+🔥 TRK12 | Apply a tracker triage: close integrated tasks, cancel the non-integrable
   • ID: pmt-f19b9c51
   • Scope: repo | Mode: write
   • Needs: The TRK03 triage report, the tracker and the working tree
   • Example: TRK12: apply the tracker triage and close the tasks already integrated
+
+🔥 TRK13 | Set the greenfield lock (versions, changelog, migrations, aliases)
+  • ID: pmt-33766c25
+  • Scope: repo | Mode: write
+  • Needs: managed repository, active dossier and user confirmation
+  • Example: sb prompt TRK13: set the greenfield lock on this repository
 
 
 WEBSITES AND WEB APPS (OPTIONAL PACK)
