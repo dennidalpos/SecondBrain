@@ -5,6 +5,5 @@
   "runtimeRoot": ".runtime/hosts/example",
   "backupRoot": ".runtime/hosts/example/backups",
   "bindings": [],
-  "ides": [],
-  "startupBudget": 25000
+  "ides": []
 }

@@ -53,7 +53,7 @@ function Limit-SBAnalysisText([string]$Text,[int]$Max) {
 function New-SBDirectivesAnalysisPrompt {
     # Prompt of the directive proposal: the analysis.directives card, the blocks already loaded in every session (global, common, current dossier text,
     # AGENTS.md outside the managed blocks) and the character budget. The agent reads the checkout itself with read-only tools.
-    param([string]$BrainRoot,[string]$Identity,[string]$GlobalText,[string]$CommonText,[string]$DossierText,[string]$AgentsOutside,[int]$Budget=25000,[int]$UsedCharacters=0,[string]$Language='it')
+    param([string]$BrainRoot,[string]$Identity,[string]$GlobalText,[string]$CommonText,[string]$DossierText,[string]$AgentsOutside,[int]$UsedCharacters=0,[string]$Language='it')
     $lang=Get-SBAnalysisLanguageName $Language
     @(
         (Get-SBPromptCardText $BrainRoot 'analysis.directives'),
@@ -61,7 +61,7 @@ function New-SBDirectivesAnalysisPrompt {
         '# Task for this session',
         "Repository: $Identity. The current directory is its checkout: survey it with your read-only tools (manifests, build and test scripts, CI workflows, folder structure, existing guides), then propose the repository-specific directives.",
         "Write titles, bodies and rationales in $lang. Bodies are Markdown, without HTML comments, without absolute paths and without template placeholders in double braces.",
-        "Character budget: every session loads about $UsedCharacters of $Budget characters already; keep the proposal short (aim for 1,500 to 3,000 characters in total).",
+        "Character budget: every session loads about $UsedCharacters characters of directives already; keep the proposal short (aim for 1,500 to 3,000 characters in total).",
         '',
         '## Global directives (already loaded in every session, do not repeat)',
         (Limit-SBAnalysisText $GlobalText 9000),

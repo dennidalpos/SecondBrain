@@ -359,4 +359,60 @@ try{
     Reject-Sub { Resume-SBAgentRun -RunRoot $runRoot -RunId $started.runId -Dossier $dossier } 'a finished run cannot resume'
     Reject-Sub { Get-SBAgentRunInspection $runRoot 'run-zzzzzzzz' } 'an invalid run ID is refused'
 }finally{if(!$fixtureProc.HasExited){$fixtureProc.Kill($true)}}
+# Workflow runs (#576): pinned state, gates, stop and resume on the shipped wf-dossier-tidy (confirm gate on its second step); nothing is launched.
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.WorkflowRuns.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Prompts.psm1') -Force
+$realBrain=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+$flowCatalog=Read-SBWorkflowCatalog $realBrain
+$flow=@(Read-SBPromptWorkflows $realBrain $flowCatalog|Where-Object key -ceq 'wf-dossier-tidy')[0]
+$wfRoot=Join-Path $brain '.runtime/workflow-runs'
+$wf=Start-SBWorkflowRun -BrainRoot $realBrain -RunRoot $wfRoot -Repository $repo -Workflow $flow -Catalog $flowCatalog -Objective 'Tidy'
+Assert-Sub ($wf.state -ceq 'running' -and $wf.total -eq 3 -and $wf.done -eq 0 -and $wf.workflow.id -ceq $flow.id -and $wf.workflow.revision -eq $flow.revision) 'a workflow run starts pinned to the workflow ID and revision'
+$wfFile=Join-Path $wfRoot ($wf.runId+'/workflow-run.json')
+$wfText=Get-Content -Raw -LiteralPath $wfFile
+Assert-Sub ((Read-SBWorkflowRun $wfRoot $wf.runId).run.pinned.Count -eq 3 -and $wfText -notmatch '<role>' -and $wfText -notmatch 'Reorder the tracker: development') 'the state pins card hashes and does not copy card or workflow text'
+Assert-Sub ((Test-SBWorkflowRunPins $realBrain $wfRoot $wf.runId).changed.Count -eq 0) 'the pinned cards are unchanged'
+Reject-Sub { Complete-SBWorkflowStep -RunRoot $wfRoot -RunId $wf.runId -Step 'reorder-tracker' } 'a step that did not start cannot be recorded'
+Assert-Sub ((Step-SBWorkflowRun -RunRoot $wfRoot -RunId $wf.runId).steps[0].status -ceq 'running') 'an auto step starts at once'
+Assert-Sub ((Step-SBWorkflowRun -RunRoot $wfRoot -RunId $wf.runId).result -ceq 'running') 'advancing twice does not start another step'
+$wf1=Complete-SBWorkflowStep -RunRoot $wfRoot -RunId $wf.runId -Step 'reorder-tracker' -Evidence 'history/tidy-1'
+Assert-Sub ($wf1.done -eq 1 -and $wf1.steps[0].evidence -ceq 'history/tidy-1' -and $wf1.current -ceq 'compact') 'recording a step keeps its evidence and moves to the next'
+$gate=Step-SBWorkflowRun -RunRoot $wfRoot -RunId $wf.runId
+Assert-Sub ($gate.state -ceq 'waiting-user' -and $gate.steps[1].status -ceq 'waiting-user' -and $gate.steps[1].decisionId -cmatch '^dec-[0-9a-f]{8}$' -and $gate.steps[1].decision.status -ceq 'open') 'a confirm gate opens a decision and the run waits'
+Reject-Sub { Complete-SBWorkflowStep -RunRoot $wfRoot -RunId $wf.runId -Step 'compact' } 'a gated step cannot be recorded before the answer'
+Assert-Sub ((Step-SBWorkflowRun -RunRoot $wfRoot -RunId $wf.runId).result -ceq 'waiting') 'advancing does not pass an unanswered gate'
+Assert-Sub ((Stop-SBWorkflowRun -RunRoot $wfRoot -RunId $wf.runId).state -ceq 'stopped') 'a waiting run stops'
+Reject-Sub { Step-SBWorkflowRun -RunRoot $wfRoot -RunId $wf.runId } 'a stopped run does not advance'
+$wfBack=Resume-SBWorkflowRun -RunRoot $wfRoot -RunId $wf.runId
+Assert-Sub ($wfBack.steps[0].status -ceq 'done' -and $wfBack.steps[1].status -ceq 'waiting-user' -and $wfBack.state -ceq 'waiting-user' -and $wfBack.done -eq 1) 'resume keeps the verified step done and the gate waiting'
+Reject-Sub { Set-SBWorkflowGateAnswer -RunRoot $wfRoot -RunId $wf.runId -Step 'reorder-tracker' -Answer yes } 'only a step that waits can be answered'
+Assert-Sub ((Set-SBWorkflowGateAnswer -RunRoot $wfRoot -RunId $wf.runId -Step 'compact' -Answer no).state -ceq 'stopped') 'declining a required gate stops the run'
+Assert-Sub ((Resume-SBWorkflowRun -RunRoot $wfRoot -RunId $wf.runId).steps[1].status -ceq 'pending') 'after a refusal the step is asked again on resume'
+$ask=Step-SBWorkflowRun -RunRoot $wfRoot -RunId $wf.runId
+Assert-Sub ($ask.steps[1].status -ceq 'waiting-user' -and $ask.steps[1].decisionId -cne $gate.steps[1].decisionId) 'a refused gate opens a fresh decision'
+$yes=Set-SBWorkflowGateAnswer -RunRoot $wfRoot -RunId $wf.runId -Step 'compact' -Answer yes
+Assert-Sub ($yes.state -ceq 'running' -and $yes.steps[1].decision.by -ceq 'user' -and $yes.steps[1].status -ceq 'pending') 'the person answering yes lets the step start'
+Assert-Sub ((Step-SBWorkflowRun -RunRoot $wfRoot -RunId $wf.runId).steps[1].status -ceq 'running') 'an approved gate starts the step without asking again'
+$failedRun=Complete-SBWorkflowStep -RunRoot $wfRoot -RunId $wf.runId -Step 'compact' -Outcome failed -Evidence 'broke'
+Assert-Sub ($failedRun.state -ceq 'failed' -and $failedRun.steps[0].status -ceq 'done') 'a failed step fails the run and leaves done steps alone'
+$retry=Resume-SBWorkflowRun -RunRoot $wfRoot -RunId $wf.runId
+Assert-Sub ($retry.steps[1].status -ceq 'pending' -and $retry.steps[1].evidence -ceq '' -and $retry.steps[0].status -ceq 'done' -and $retry.state -ceq 'running') 'resume retries the failed step and never repeats a done one'
+$null=Step-SBWorkflowRun -RunRoot $wfRoot -RunId $wf.runId
+$null=Complete-SBWorkflowStep -RunRoot $wfRoot -RunId $wf.runId -Step 'compact'
+$null=Step-SBWorkflowRun -RunRoot $wfRoot -RunId $wf.runId
+$last=Complete-SBWorkflowStep -RunRoot $wfRoot -RunId $wf.runId -Step 'align'
+Assert-Sub ($last.state -ceq 'finished' -and $last.done -eq 3 -and !$last.current) 'the last verified step finishes the run'
+Reject-Sub { Resume-SBWorkflowRun -RunRoot $wfRoot -RunId $wf.runId } 'a finished run cannot resume'
+Assert-Sub ((Get-SBWorkflowRunInspection $wfRoot).count -eq 1) 'inspect lists the runs'
+Reject-Sub { Get-SBWorkflowRunInspection $wfRoot 'run-zzzzzzzz' } 'an invalid workflow run ID is refused'
+Reject-Sub { Start-SBWorkflowRun -BrainRoot $realBrain -RunRoot $wfRoot -Repository $repo -Workflow $flow -Catalog $flowCatalog -Skip @('compact') } 'a required step cannot be skipped'
+Reject-Sub { Start-SBWorkflowRun -BrainRoot $realBrain -RunRoot $wfRoot -Repository 'not an identity' -Workflow $flow -Catalog $flowCatalog } 'an invalid repository identity is refused'
+$fixed=@($flowCatalog.prompts)[0]
+$optFlow=[ordered]@{id='wfl-0a0b0c0d';key='wf-synthetic';title='t';revision=2;status='active';steps=@([ordered]@{step='one';ref=$fixed.id;kind='required';gate='auto'},[ordered]@{step='two';ref=$fixed.id;kind='optional';gate='auto'},[ordered]@{step='pick';ref=$fixed.id;kind='choice';gate='auto';choices=@($fixed.id,@($flowCatalog.prompts)[1].id)})}
+$opt=Start-SBWorkflowRun -BrainRoot $realBrain -RunRoot $wfRoot -Repository $repo -Workflow $optFlow -Catalog $flowCatalog -Skip @('two')
+Assert-Sub ($opt.steps[1].status -ceq 'skipped' -and $opt.done -eq 0) 'an optional step can start skipped'
+$null=Step-SBWorkflowRun -RunRoot $wfRoot -RunId $opt.runId;$null=Complete-SBWorkflowStep -RunRoot $wfRoot -RunId $opt.runId -Step 'one'
+Reject-Sub { Step-SBWorkflowRun -RunRoot $wfRoot -RunId $opt.runId } 'a choice step needs one of its cards'
+Reject-Sub { Step-SBWorkflowRun -RunRoot $wfRoot -RunId $opt.runId -Option 'pmt-ffffffff' } 'a card outside the choices is refused'
+Assert-Sub ((Step-SBWorkflowRun -RunRoot $wfRoot -RunId $opt.runId -Option $fixed.id).steps[2].choice -ceq $fixed.id) 'the chosen card is recorded'
 'SUCCESS SUBAGENTS: '+$script:subChecks+' checks; retained fixture '+$root

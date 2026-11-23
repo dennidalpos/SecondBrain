@@ -130,7 +130,7 @@ $script:SBRepositoryPointerFiles=@('CLAUDE.md','GEMINI.md')
 function New-SBPortableConfiguration([string]$BrainRoot,[string]$WorkstationId=(Get-SBHostId)) {
     $root=Get-SBLocalRoot $BrainRoot $WorkstationId
     @{schemaVersion=1;mode='portable';workstationId=$WorkstationId;runtimeRoot=$root;backupRoot=(Join-Path $root 'backups');repositoryRoot=[IO.Path]::GetFullPath($BrainRoot);
-      bindings=@();ides=@();startupBudget=25000}
+      bindings=@();ides=@()}
 }
 function Get-SBPortableGlobal([string]$BrainRoot) {
     $revision=Get-SBApprovedDirectiveRevision $BrainRoot

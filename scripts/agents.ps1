@@ -104,9 +104,8 @@ function Get-AgentsComposedBlock([string]$Common,[string]$Specific){
 }
 function Get-AgentsCounts($Blocks,[string]$Specific){
     $composed=Get-AgentsComposedBlock $Blocks.common $Specific
-    $budget=25000
     $loaded=$Blocks.global.Length+$Blocks.outside.Length+$composed.Length
-    [ordered]@{global=$Blocks.global.Length;common=$Blocks.common.Length;dossier=$Specific.Length;agentsOutside=$Blocks.outside.Length;composed=$composed.Length;loaded=$loaded;budget=$budget;percent=[math]::Round(100*$loaded/$budget,1)}
+    [ordered]@{global=$Blocks.global.Length;common=$Blocks.common.Length;dossier=$Specific.Length;agentsOutside=$Blocks.outside.Length;composed=$composed.Length;loaded=$loaded}
 }
 function Initialize-AgentsWork($Repo,[string]$Slug,[string]$Task){
     [string](Invoke-AgentsStep 'work.ps1' (@('-Repository',[string]$Repo.identity,'-Category','work','-Slug',$Slug,'-Init','-Task',$Task,'-Client','orchestrator')+$configArgs)).root
@@ -197,7 +196,7 @@ try{
                 $root=Initialize-AgentsWork $repo $slug 'Analisi delle direttive di repository (orchestratore, analysis.directives)'
                 try{
                     $counts=Get-AgentsCounts $blocks $blocks.dossier
-                    $prompt=New-SBDirectivesAnalysisPrompt -BrainRoot $brain -Identity ([string]$repo.identity) -GlobalText $blocks.global -CommonText $blocks.common -DossierText $blocks.dossier -AgentsOutside $blocks.outside -Budget $counts.budget -UsedCharacters ($counts.loaded-$counts.dossier) -Language $lang
+                    $prompt=New-SBDirectivesAnalysisPrompt -BrainRoot $brain -Identity ([string]$repo.identity) -GlobalText $blocks.global -CommonText $blocks.common -DossierText $blocks.dossier -AgentsOutside $blocks.outside -UsedCharacters ($counts.loaded-$counts.dossier) -Language $lang
                     $out=Invoke-SBAgentOneShot -Provider $Provider[0] -Model $Model -Effort $Effort -Prompt $prompt -SchemaPath (Get-SBAnalysisSchemaPath $brain 'directives') -CheckoutPath ([string]$repo.checkout) -OutputFolder $root -BrainRoot $brain -TimeoutSeconds $TimeoutSeconds -AllowCustomModel:$AllowCustomModel
                     $markdown=ConvertTo-SBDirectivesMarkdown $out.result
                     ConvertTo-SBJson ([ordered]@{
