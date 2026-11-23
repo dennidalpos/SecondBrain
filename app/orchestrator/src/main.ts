@@ -126,6 +126,16 @@ function updateSteps() {
   tab("queue").classList.toggle("done", state.run.active || state.run.verdict === "finished");
   renderNoRepoNote();
   renderHome();
+  syncRunControls();
+}
+/** Stop and Abort only act on a live queue: disabled, with the reason as a tooltip, when nothing runs. */
+function syncRunControls() {
+  const live = state.run.active || state.run.starting;
+  for (const id of ["run-stop", "run-abort"]) {
+    const b = $<HTMLButtonElement>(id);
+    b.disabled = !live;
+    b.title = live ? "" : "No queue is running";
+  }
 }
 // Home: read-only status and navigation; it never starts a run.
 function renderHome() {
@@ -670,7 +680,7 @@ function addResult(r: RunRecord) {
   // #613: the process outcome (badge) and the task acceptance are separate; done without evidence from the attempt is reopened.
   const acceptance = el("span", { className: "acceptance-" + (r.acceptance ?? "unknown") },
     r.acceptance === "verified" ? "verified" : r.acceptance === "unverified" ? (r.reopened === true ? "unverified · reopened" : r.reopened === "deferred" ? "unverified · reopen queued" : "unverified") : r.acceptance === "open" ? "open" : "—");
-  [String(r.seq), r.id, badge, `${r.statusBefore} → ${r.statusAfter}`, acceptance, String(r.seconds), el("span", { className: "mono small" }, r.folder)].forEach((c) => tr.append(el("td", {}, c)));
+  [String(r.seq), r.id, badge, `${r.statusBefore} → ${r.statusAfter}`, acceptance, String(r.seconds), el("span", { className: "mono small", title: r.folder }, r.folder.split(/[\/]/).filter(Boolean).pop() ?? r.folder)].forEach((c) => tr.append(el("td", {}, c)));
   $("run-results").append(tr);
 }
 function clearSteps() { $("run-problem-list").replaceChildren(); $("run-problems").hidden = true; $("run-steps-count").textContent = "0"; }

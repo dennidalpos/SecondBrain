@@ -187,7 +187,7 @@
         </div>
         <p id="q-error" class="error" hidden></p>
         <table class="tasks">
-          <thead><tr><th></th><th>#</th><th>ID</th><th>Title</th><th>Priority</th><th></th></tr></thead>
+          <thead><tr><th><span class="sr-only">Select</span></th><th>#</th><th>ID</th><th>Title</th><th>Priority</th><th><span class="sr-only">Move up</span></th></tr></thead>
           <tbody id="q-tasks"></tbody>
         </table>
         <div id="q-pager" class="row pager" hidden>
@@ -204,7 +204,7 @@
           <span id="q-analysis-state" class="muted small"></span>
         </div>
         <table class="tasks">
-          <thead><tr><th></th><th>#</th><th>ID</th><th>Title</th><th>Reason</th><th>Analysis</th><th></th></tr></thead>
+          <thead><tr><th><span class="sr-only">Select</span></th><th>#</th><th>ID</th><th>Title</th><th>Reason</th><th>Analysis</th><th><span class="sr-only">Actions</span></th></tr></thead>
           <tbody id="q-skipped"></tbody>
         </table>
         <div class="next"><button id="q-start" class="primary">Start the queue</button></div>
@@ -236,8 +236,8 @@
           </section>
           <p id="run-error" class="error" hidden></p>
           <div class="row">
-            <button id="run-stop">Stop after the current task</button>
-            <button id="run-abort" class="danger">Abort now</button>
+            <button id="run-stop" disabled title="No queue is running">Stop after the current task</button>
+            <button id="run-abort" class="danger" disabled title="No queue is running">Abort now</button>
             <span class="spacer"></span>
             <button id="run-refresh">Refresh status</button>
           </div>
@@ -245,7 +245,7 @@
         <div id="run-problems" class="warning" role="alert" hidden><strong>Agent problems</strong><ul id="run-problem-list" class="small"></ul></div>
         <details id="run-steps-box"><summary>Agent steps (<span id="run-steps-count">0</span>)</summary><ol id="run-steps" class="steps-log"></ol></details>
         <h3>Outcomes</h3>
-        <table class="tasks">
+        <table class="tasks outcomes">
           <thead><tr><th>#</th><th>ID</th><th>Outcome</th><th>Status</th><th>Acceptance</th><th>Seconds</th><th>Folder</th></tr></thead>
           <tbody id="run-results"></tbody>
         </table>

@@ -192,7 +192,7 @@ export async function loadNextStepsInto(repo: string, ids: { list: string; state
   const request = token();
   const r = await call<{ steps: NextStep[] }>("next_steps", { repo }, ids.error);
   if (request !== nextRequest) return;
-  if (!r) { $(ids.state).textContent = ""; return; }
+  if (!r) { $(ids.state).textContent = "The proposals could not be read."; return; }
   $(ids.state).textContent = r.steps.length ? `${r.steps.length} proposals` : "Nothing to propose: the tracker, the last run and the setup are in order.";
   $(ids.list).replaceChildren(...r.steps.map((s) => stepItem(s, repo, ids.error)));
 }
