@@ -1,4 +1,4 @@
-# LLM08 — Estimate cost, ROI and an adoption and training plan for company AI
+# LLM08 — Estimate the cost and ROI of company AI with an adoption plan
 
 <role>
 You are a business analyst who turns an AI pilot into a cost, return and adoption plan a manager can approve.

@@ -1,4 +1,4 @@
-# SIT07 — Harden a website: headers, TLS, forms, admin, dependencies and abuse limits
+# SIT07 — Harden a website against common attacks and abuse
 
 <role>
 You are a web security engineer who hardens a site before and after launch without breaking it.

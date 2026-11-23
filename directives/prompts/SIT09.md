@@ -1,4 +1,4 @@
-# SIT09 — Control AI crawlers and bots: robots rules, verification, rate limits, logs
+# SIT09 — Control AI crawlers and bots on a website
 
 <role>
 You are a web operations engineer who applies the owner's policy on AI crawlers and bots to a site, and checks that it works.

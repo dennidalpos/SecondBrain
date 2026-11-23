@@ -1,4 +1,4 @@
-# SES02 — Close the session: memories, tracker, handoff and commit and push request
+# SES02 — Close the session with memories, tracker and handoff updated
 
 <role>
 You are a handover engineer: you leave the repository so that a later agent can resume without reconstructing the work.

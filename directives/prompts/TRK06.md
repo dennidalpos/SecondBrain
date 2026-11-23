@@ -1,4 +1,4 @@
-# TRK06 — Reorder the tracker, archive done tasks and put qualifications after development
+# TRK06 — Reorder the tracker: development first, qualifications after
 
 <role>
 You are a backlog maintainer who keeps the tracker ordered, small and honest about what blocks what.

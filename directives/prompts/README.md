@@ -491,13 +491,13 @@ SB SYSTEM: SESSIONS
   • Needs: any folder; a managed repository adds the dossier, the tracker and the alignment check
   • Example: SES01: start the session in this repository and propose the next tasks
 
-🔥 SES02 | Close the session: memories, tracker, handoff and commit and push request
+🔥 SES02 | Close the session with memories, tracker and handoff updated
   • ID: pmt-76604e4a
   • Scope: repo | Mode: write
   • Needs: state of the work done, defined next tasks and delivery destination
   • Example: sb prompt SES02: close the session and ask for commit and push
 
-🔥 SES03 | Stop the agent, save the session and hand it over to another IDE or account
+🔥 SES03 | Stop the agent and hand the session over to another IDE or account
   • ID: pmt-039a5879
   • Scope: repo | Mode: write
   • Needs: the task in progress, the Git state of the checkout and the person's choice for uncommitted work
@@ -529,7 +529,7 @@ SB SYSTEM: TASKS, MEMORY AND TRACKER
   • Needs: working tree, recent history and any backlog or notes
   • Example: inspect the repo and detect leftover tasks
 
-🔥 TRK04 | Run ready autonomous tasks with the runner, monitor and record the outcome
+🔥 TRK04 | Run ready autonomous tasks with the runner and record the outcome
   • ID: pmt-802ff569
   • Scope: repo | Mode: write
   • Needs: ready autonomous tasks, the desktop runner (scripts/runner.ps1) or the command line (run-ready-tasks.ps1, launcher) and the user's go-ahead for -Run
@@ -541,7 +541,7 @@ SB SYSTEM: TASKS, MEMORY AND TRACKER
   • Needs: tracker with blocked tasks, their state reasons and acceptance criteria, and the answers of the user to a structured interview
   • Example: TRK05: review the blocked tasks and make the ones without a real prerequisite autonomous
 
-🔥 TRK06 | Reorder the tracker, archive done tasks and put qualifications after development
+🔥 TRK06 | Reorder the tracker: development first, qualifications after
   • ID: pmt-c1e1e70c
   • Scope: repo | Mode: write
   • Needs: tracker with its archive, the priority scheme chosen by the user and the list of tasks with real prerequisites
@@ -553,7 +553,7 @@ SB SYSTEM: TASKS, MEMORY AND TRACKER
   • Needs: one task the runner skips, its reason and dependencies, the checkout read-only and the owner's answers to multiple-choice questions
   • Example: TRK07: analyze task #42 and ask me only what is needed to make it autonomous
 
-🔥 TRK08 | Prepare tasks for unattended runs one at a time, then start the queue
+🔥 TRK08 | Prepare tasks for unattended runs, one at a time
   • ID: pmt-210af3b0
   • Scope: repo | Mode: write
   • Needs: candidate tasks from `sb queue -Candidates`, the checkout read-only, the owner's answers to multiple-choice questions and the owner's go-ahead to start
@@ -627,7 +627,7 @@ WEBSITES AND WEB APPS (OPTIONAL PACK)
   • Needs: a built and tested application, the hosting target and the delivery owner
   • Example: SIT06: prepare the production release, monitoring and handover notes
 
-🔥 SIT07 | Harden a website: headers, TLS, forms, admin, dependencies and abuse limits
+🔥 SIT07 | Harden a website against common attacks and abuse
   • ID: pmt-5dfba80d
   • Scope: repo | Mode: write
   • Needs: the site code and configuration, its hosting target and write access to the repository
@@ -639,7 +639,7 @@ WEBSITES AND WEB APPS (OPTIONAL PACK)
   • Needs: the live or staging site, the domain owner's access to the search tools, write access to the repository
   • Example: SIT08: verify what is indexed and update sitemap, robots and webmaster tools
 
-🔥 SIT09 | Control AI crawlers and bots: robots rules, verification, rate limits, logs
+🔥 SIT09 | Control AI crawlers and bots on a website
   • ID: pmt-f1fdcecb
   • Scope: repo | Mode: write
   • Needs: the site, its access logs or CDN/WAF console and the owner's policy on AI use of content
@@ -647,7 +647,7 @@ WEBSITES AND WEB APPS (OPTIONAL PACK)
 
 
 AI FEATURES AND COMPANY AI (OPTIONAL PACK)
-🔭 LLM01 | Assess company AI use cases, data readiness and feasibility, then rank them
+🔭 LLM01 | Rank company AI use cases by data readiness and feasibility
   • ID: pmt-9e1ebedb
   • Scope: repo | Mode: read
   • Needs: a description of the business processes and data, and the stakeholders to interview
@@ -677,7 +677,7 @@ AI FEATURES AND COMPANY AI (OPTIONAL PACK)
   • Needs: the document sources, their permissions and a set of real questions to answer
   • Example: LLM05: design retrieval over the company manuals and test it on real questions
 
-🔥 LLM06 | Evaluate, monitor and operate an AI system in production
+🔥 LLM06 | Operate an AI system in production with evaluation and monitoring
   • ID: pmt-866ddd80
   • Scope: repo | Mode: write
   • Needs: a running AI feature, a representative evaluation set and access to its logs
@@ -689,7 +689,7 @@ AI FEATURES AND COMPANY AI (OPTIONAL PACK)
   • Needs: the AI system design, the data it processes and the jurisdiction
   • Example: LLM07: assess privacy, security and compliance risks of the company chatbot
 
-🔭 LLM08 | Estimate cost, ROI and an adoption and training plan for company AI
+🔭 LLM08 | Estimate the cost and ROI of company AI with an adoption plan
   • ID: pmt-6c6771d0
   • Scope: repo | Mode: read
   • Needs: the ranked use cases (AIS01), expected volumes and the current process cost
@@ -711,7 +711,7 @@ SB SYSTEM: DOSSIER, SOURCES AND ENTITIES
   • Needs: dossier to compact and verifiable history
   • Example: sb prompt KNW02: compact the dossier history preserving facts and toc
 
-🔥 KNW03 | Create, update and archive projects, areas and resources of the central PARA
+🔥 KNW03 | Manage projects, areas and resources of the central PARA
   • ID: pmt-4e1b7c52
   • Scope: central | Mode: write
   • Needs: goal of the PARA entity and a write session on the SecondBrain clone
@@ -723,7 +723,7 @@ SB SYSTEM: DOSSIER, SOURCES AND ENTITIES
   • Needs: the registry resource and the scope to check
   • Example: check the registry before the release
 
-🔥 KNW05 | Collect or update authoritative sources and rebuild the source views
+🔥 KNW05 | Collect authoritative sources and rebuild the source views
   • ID: pmt-6800e67e
   • Scope: central | Mode: write
   • Needs: the registry and the user decision on each candidate
@@ -773,7 +773,7 @@ SB SYSTEM: WORKSTATION, IDES AND MCP
   • Needs: SecondBrain root, target IDEs and confirmation before writing
   • Example: sb prompt WKS07: install the mcp server in vscode and claude code
 
-🔥 WKS08 | Analyze a project, propose skills, install or update the selected ones
+🔥 WKS08 | Install or update the skills selected after a project analysis
   • ID: pmt-3d7b91c4
   • Scope: central | Mode: write
   • Needs: a project checkout, the agents and scope to install into, and confirmation before each write
@@ -787,7 +787,7 @@ SB SYSTEM: WORKSTATION, IDES AND MCP
 
 
 SB SYSTEM: CATALOG, DIRECTIVES AND SKILLS
-🔥 DIR01 | Add, change or retire a prompt card or preset of the catalog
+🔥 DIR01 | Maintain a prompt card or preset of the catalog
   • ID: pmt-364616bb
   • Scope: central | Mode: write
   • Needs: the card or preset to add, change or retire
@@ -813,7 +813,7 @@ SB SYSTEM: SECONDBRAIN UPKEEP
   • Needs: the backup archives, the manifest and an empty scratch folder for the restore
   • Example: UPK02: test the latest backup by restoring it into a scratch folder
 
-🔥 UPK03 | Review .runtime and clean up in preview; apply only with authorization
+⛔ UPK03 | Review .runtime and clean up in preview; apply only with authorization
   • ID: pmt-ba610991
   • Scope: central | Mode: write
   • Needs: the checkout, no active sessions and the owner's authorization before any deletion

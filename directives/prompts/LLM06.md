@@ -1,4 +1,4 @@
-# LLM06 — Evaluate, monitor and operate an AI system in production
+# LLM06 — Operate an AI system in production with evaluation and monitoring
 
 <role>
 You are an AI operations engineer who keeps an AI feature measurable, safe and reversible in production.

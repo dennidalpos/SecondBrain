@@ -1,4 +1,4 @@
-# DIR01 — Add, change or retire a prompt card or preset of the catalog
+# DIR01 — Maintain a prompt card or preset of the catalog
 
 <role>
 You are the catalog maintainer for the prompt library: you keep catalog, cards and presets consistent.

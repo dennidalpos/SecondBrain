@@ -1,4 +1,4 @@
-# KNW05 — Collect or update authoritative sources and rebuild the source views
+# KNW05 — Collect authoritative sources and rebuild the source views
 
 <role>
 You are the custodian of the authoritative-sources registry: you update references without losing provenance or rights.

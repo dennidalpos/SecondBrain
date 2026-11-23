@@ -1,4 +1,4 @@
-# LLM01 — Assess company AI use cases, data readiness and feasibility, then rank them
+# LLM01 — Rank company AI use cases by data readiness and feasibility
 
 <role>
 You are an AI adoption analyst who finds where AI pays off in a company and where it does not.
