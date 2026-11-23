@@ -67,6 +67,8 @@ Run from the clone root with `pwsh -NoProfile -File scripts/NAME.ps1`. Test scri
 |---|---|
 | `access.ps1` | Registers cooperative access to SecondBrain; see docs/reference/operations.md. Status (-Status) is read-only; -Purge removes sessions closed, expired or abandoned for more than 60 minutes. |
 | `activity.ps1` | Team activity register (F6): validation, derived index/map and Trace import. |
+| `library.ps1` | Library management (#634, read-only): list and show prompts, workflows and agent definitions, and plan a retirement with every reference named. |
+| `workflow-runs.ps1` | Workflow runs (#576): list, start, advance, answer a confirm gate, record a step, stop, resume and inspect one run, pinned to the workflow revision and card hashes. |
 | `agent-runs.ps1` | Running agents (#627): start, stop, inspect and resume one agent run, with decision handling. |
 | `agents.ps1` | Agent CLIs for the task runner and the desktop orchestrator: capability probe, repository-specific directives and one-shot analyses. |
 | `approve-revision.ps1` | — |

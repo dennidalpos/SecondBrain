@@ -222,7 +222,8 @@ test("directives: light-model proposal, preview, approve and apply, reload; the 
   await expect(page.locator("#dir-target")).toContainText("AGENTS.managed.md");
   // The global, common and composed blocks are shown read-only with the startup budget.
   await expect(page.locator("#dir-global")).not.toBeEmpty({ timeout: 60_000 });
-  await expect(page.locator("#dir-budget")).toContainText("%");
+  await expect(page.locator("#dir-budget")).toContainText("characters");
+  await expect(page.locator("#dir-budget")).not.toContainText("%");
   await expect(page.locator("#dir-light")).toContainText("Claude Code");
   await page.locator("#dir-propose").click();
   await expect(page.locator("#dir-analysis")).toBeVisible({ timeout: 120_000 });
@@ -910,6 +911,130 @@ test("prompts: search, areas and compose match prompts.ps1 -Compose, and a write
   await expect(page.locator("#pr-compose-btn")).toBeHidden();
   await expect(page.locator("#pr-compose-box")).toBeHidden();
   await closeApp(app);
+});
+
+test("workflows: a run persists step state, a confirm gate blocks until answered, and a stopped run resumes after a restart without repeating done steps (#576)", async () => {
+  test.setTimeout(600_000);
+  let app = await launch({ repo: fixture.checkout });
+  let page = app.page;
+  await expect(page.locator("#repo-label")).toHaveText(fixture.identity, { timeout: 60_000 });
+  const step = (name: string) => page.locator(`#wf-steps tr[data-step="${name}"]`);
+  await page.locator('.steps button[data-tab="workflows"]').click();
+  await expect(page.locator("#wf-flow option")).not.toHaveCount(0, { timeout: 60_000 });
+  await page.locator("#wf-flow").selectOption("wf-dossier-tidy");
+  await page.locator("#wf-objective").fill("Tidy the fixture dossier");
+  await page.locator("#wf-start").click();
+  await expect(page.locator("#wf-detail")).toBeVisible({ timeout: 60_000 });
+  await expect(page.locator("#wf-steps tr")).toHaveCount(3);
+  await expect(step("reorder-tracker")).toHaveAttribute("data-status", "pending");
+  // An auto step starts at once; the person records its outcome with an evidence pointer.
+  await page.locator("#wf-begin").click();
+  await expect(step("reorder-tracker")).toHaveAttribute("data-status", "running", { timeout: 60_000 });
+  await page.locator("#wf-evidence").fill("history/tidy-1");
+  await page.locator("#wf-record-done").click();
+  await expect(step("reorder-tracker")).toHaveAttribute("data-status", "done", { timeout: 60_000 });
+  // The next step is a confirm gate: it blocks and nothing runs until the person answers.
+  await page.locator("#wf-begin").click();
+  await expect(page.locator("#wf-gate-box")).toBeVisible({ timeout: 60_000 });
+  await expect(step("compact")).toHaveAttribute("data-status", "waiting-user");
+  await expect(page.locator("#wf-record-box")).toBeHidden();
+  await expect(page.locator("#wf-begin-box")).toBeHidden();
+  const runId = ((await page.locator("#wf-title").textContent()) ?? "").split("— ").pop()!.trim();
+  const runFile = path.join(fixture.brain, ".runtime", "workflow-runs", runId, "workflow-run.json");
+  const saved = JSON.parse(fs.readFileSync(runFile, "utf8"));
+  expect(saved.state).toBe("waiting-user");
+  expect(saved.steps[1].decision.status).toBe("open");
+  expect(saved.steps[0].evidence).toBe("history/tidy-1");
+  expect(saved.workflow.revision).toBeGreaterThan(0);
+  expect(Object.keys(saved.pinned).length).toBe(3);
+  expect(JSON.stringify(saved)).not.toContain("<role>");
+  // Stop, close the window, reopen: the run is found stopped with its verified step still done.
+  await page.locator("#wf-stop").click();
+  await expect(page.locator("#wf-resume")).toBeVisible({ timeout: 60_000 });
+  await closeApp(app);
+  app = await launch({ repo: fixture.checkout });
+  page = app.page;
+  await expect(page.locator("#repo-label")).toHaveText(fixture.identity, { timeout: 60_000 });
+  await page.locator('.steps button[data-tab="workflows"]').click();
+  await expect(page.locator(`#wf-runs tr[data-id="${runId}"]`)).toContainText("stopped", { timeout: 60_000 });
+  await page.locator(`#wf-runs tr[data-id="${runId}"] button`, { hasText: "Open" }).click();
+  await expect(step("reorder-tracker")).toHaveAttribute("data-status", "done");
+  await page.locator("#wf-resume").click();
+  // The gate is still waiting: declining is not an answer the run can skip past; answering yes lets the step start.
+  await expect(page.locator("#wf-gate-box")).toBeVisible({ timeout: 60_000 });
+  await page.locator("#wf-gate-yes").click();
+  await expect(page.locator("#wf-begin-box")).toBeVisible({ timeout: 60_000 });
+  await page.locator("#wf-begin").click();
+  await expect(step("compact")).toHaveAttribute("data-status", "running", { timeout: 60_000 });
+  await page.locator("#wf-record-done").click();
+  await expect(step("compact")).toHaveAttribute("data-status", "done", { timeout: 60_000 });
+  await page.locator("#wf-begin").click();
+  await expect(step("align")).toHaveAttribute("data-status", "running", { timeout: 60_000 });
+  await page.locator("#wf-record-done").click();
+  await expect(page.locator("#wf-done")).toBeVisible({ timeout: 60_000 });
+  expect(JSON.parse(fs.readFileSync(runFile, "utf8")).state).toBe("finished");
+  expect(JSON.parse(fs.readFileSync(runFile, "utf8")).steps[1].decision.by).toBe("user");
+  await closeApp(app);
+});
+
+test("library management: prompts, workflows and agents are searchable with a preview, and a retirement shows its references and refuses a breaking one (#634)", async () => {
+  test.setTimeout(600_000);
+  // An agent definition in the fixture dossier (schema 1, as the subagent tests write it) for the third view.
+  const agentDir = path.join(fixture.dossier, "subagents");
+  fs.mkdirSync(agentDir, { recursive: true });
+  fs.writeFileSync(path.join(agentDir, "e2e-reviewer.json"), JSON.stringify({ schemaVersion: 1, name: "e2e-reviewer", description: "Reads tasks and searches knowledge.", role: "You are a read-only reviewer.", context: "Start from the tracker task; cite sources.", permissions: { tools: ["get_task", "search_knowledge"], write: false } }));
+  const app = await launch({ repo: fixture.checkout });
+  const { page } = app;
+  await expect(page.locator("#repo-label")).toHaveText(fixture.identity, { timeout: 60_000 });
+  await page.locator('.steps button[data-tab="assets"]').click();
+  // Prompts: the list, a search that narrows it, the card as preview and a retirement refused because workflows use the card.
+  await expect(page.locator("#lib-rows tr")).not.toHaveCount(0, { timeout: 60_000 });
+  const all = await page.locator("#lib-rows tr").count();
+  await page.locator("#lib-search").fill("QUA05");
+  await expect(page.locator("#lib-rows tr")).toHaveCount(1, { timeout: 60_000 });
+  expect(all).toBeGreaterThan(1);
+  await page.locator('#lib-rows tr[data-id="QUA05"] button', { hasText: "View" }).click();
+  await expect(page.locator("#lib-preview")).toContainText("<role>", { timeout: 60_000 });
+  await page.locator("#lib-search").fill("TRK06");
+  await expect(page.locator("#lib-rows tr")).toHaveCount(1, { timeout: 60_000 });
+  await page.locator('#lib-rows tr[data-id="TRK06"] button', { hasText: "Retire" }).click();
+  await expect(page.locator("#lib-retire-box")).toHaveAttribute("data-verdict", "refused", { timeout: 60_000 });
+  await expect(page.locator("#lib-retire-lines")).toContainText("wf-dossier-tidy");
+  await expect(page.locator("#lib-refs")).toContainText("workflow wf-dossier-tidy");
+  // Workflows: the list with a search, the steps as preview and a retirement reported as unavailable.
+  await page.locator('#lib-kinds button[data-kind="workflow"]').click();
+  await page.locator("#lib-search").fill("");
+  await expect(page.locator('#lib-rows tr[data-id="wf-dossier-tidy"]')).toBeVisible({ timeout: 60_000 });
+  await page.locator("#lib-search").fill("tidy");
+  await expect(page.locator("#lib-rows tr")).toHaveCount(1, { timeout: 60_000 });
+  await page.locator('#lib-rows tr[data-id="wf-dossier-tidy"] button', { hasText: "View" }).click();
+  await expect(page.locator("#lib-preview")).toContainText("1. reorder-tracker", { timeout: 60_000 });
+  await page.locator('#lib-rows tr[data-id="wf-dossier-tidy"] button', { hasText: "Retire" }).click();
+  await expect(page.locator("#lib-retire-box")).toHaveAttribute("data-verdict", "unavailable", { timeout: 60_000 });
+  // Agents: the definition written above, its preview and a retirement with no reference is not refused.
+  await page.locator('#lib-kinds button[data-kind="agent"]').click();
+  await page.locator("#lib-search").fill("");
+  await expect(page.locator('#lib-rows tr[data-id="e2e-reviewer"]')).toBeVisible({ timeout: 60_000 });
+  await page.locator('#lib-rows tr[data-id="e2e-reviewer"] button', { hasText: "View" }).click();
+  await expect(page.locator("#lib-preview")).toContainText("read-only reviewer", { timeout: 60_000 });
+  await page.locator('#lib-rows tr[data-id="e2e-reviewer"] button', { hasText: "Retire" }).click();
+  await expect(page.locator("#lib-retire-box")).toHaveAttribute("data-verdict", "allowed", { timeout: 60_000 });
+  await expect(page.locator("#lib-retire-lines")).toContainText("subagents.ps1 -Operation Retire");
+  // A task that names the agent makes the same retirement refused: the reference is the task, not a file.
+  await closeApp(app);
+  const trackerFile = fixture.tracker;
+  const tracker = JSON.parse(fs.readFileSync(trackerFile, "utf8"));
+  const first = tracker.tasks.find((t: any) => t.status !== "done");
+  first.extensions = { ...(first.extensions ?? {}), subagents: ["e2e-reviewer"] };
+  fs.writeFileSync(trackerFile, JSON.stringify(tracker, null, 2));
+  const again = await launch({ repo: fixture.checkout });
+  await expect(again.page.locator("#repo-label")).toHaveText(fixture.identity, { timeout: 60_000 });
+  await again.page.locator('.steps button[data-tab="assets"]').click();
+  await again.page.locator('#lib-kinds button[data-kind="agent"]').click();
+  await again.page.locator('#lib-rows tr[data-id="e2e-reviewer"] button', { hasText: "Retire" }).click();
+  await expect(again.page.locator("#lib-retire-box")).toHaveAttribute("data-verdict", "refused", { timeout: 60_000 });
+  await expect(again.page.locator("#lib-retire-lines")).toContainText("task ");
+  await closeApp(again);
 });
 
 test("screenshots of every tab with synthetic data (only with SB_E2E_SHOTS)", async () => {

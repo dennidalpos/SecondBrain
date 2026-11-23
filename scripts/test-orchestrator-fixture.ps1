@@ -22,7 +22,7 @@ $configPath=Join-Path $runtime 'workstation.json'
 Get-ChildItem -LiteralPath $PSScriptRoot -File|Copy-Item -Destination (Join-Path $brain 'scripts')
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'templates') -Destination (Join-Path $brain 'scripts') -Recurse
 Put (Join-Path $brain 'VERSION') (Read-SBText (Join-Path $real 'VERSION'))
-foreach($f in @('config/tracker.schema.json','config/agent-models.json','config/task-runs.schema.json','config/analysis/directives.schema.json','config/analysis/task.schema.json','config/analysis/prompt-draft.schema.json','config/prompt-catalog.schema.json','config/prompt-catalog.schema2.json')){Put (Join-Path $brain $f) (Read-SBText (Join-Path $real $f))}
+foreach($f in @('config/tracker.schema.json','config/agent-models.json','config/task-runs.schema.json','config/analysis/directives.schema.json','config/analysis/task.schema.json','config/analysis/prompt-draft.schema.json','config/prompt-catalog.schema.json','config/prompt-catalog.schema2.json','config/prompt-workflow.schema.json')){Put (Join-Path $brain $f) (Read-SBText (Join-Path $real $f))}
 Put (Join-Path $brain 'config/shared.json') (ConvertTo-SBJson @{schemaVersion=1;allowedOwners=@('test');excludedDirectories=@('.git')})
 # Approved directives exactly as in this checkout (their hashes stay valid); proposals are not needed.
 [IO.Directory]::CreateDirectory((Join-Path $brain 'directives'))|Out-Null

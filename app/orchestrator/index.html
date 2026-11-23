@@ -24,10 +24,14 @@
       <button role="tab" id="tabbtn-repo" aria-controls="tab-repo" data-tab="repo" aria-selected="false">Repository</button>
       <button role="tab" id="tabbtn-workstation" aria-controls="tab-workstation" data-tab="workstation" aria-selected="false">Workstation</button>
       <button role="tab" id="tabbtn-directives" aria-controls="tab-directives" data-tab="directives">Directives</button>
-      <button role="tab" id="tabbtn-queue" aria-controls="tab-queue" data-tab="queue">Queue</button>
-      <button role="tab" id="tabbtn-run" aria-controls="tab-run" data-tab="run">Run</button>
+      <span class="steps-sep" aria-hidden="true"></span>
+      <button role="tab" id="tabbtn-queue" aria-controls="tab-queue" data-tab="queue" aria-label="Queue"><span class="num" aria-hidden="true">1</span>Queue</button>
+      <button role="tab" id="tabbtn-run" aria-controls="tab-run" data-tab="run" aria-label="Run"><span class="num" aria-hidden="true">2</span>Run</button>
       <button role="tab" id="tabbtn-registry" aria-controls="tab-registry" data-tab="registry">Registry</button>
       <button role="tab" id="tabbtn-tracker" aria-controls="tab-tracker" data-tab="tracker">Tracker</button>
+      <span class="steps-sep" aria-hidden="true"></span>
+      <button role="tab" id="tabbtn-workflows" aria-controls="tab-workflows" data-tab="workflows">Workflows</button>
+      <button role="tab" id="tabbtn-assets" aria-controls="tab-assets" data-tab="assets">Assets</button>
       <button role="tab" id="tabbtn-prompts" aria-controls="tab-prompts" data-tab="prompts">Prompts</button>
       <span class="spacer"></span>
       <button role="tab" id="tabbtn-settings" aria-controls="tab-settings" data-tab="settings" class="settings-tab">Settings</button>
@@ -129,7 +133,6 @@
         </div>
         <p id="dir-light" class="muted small"></p>
         <div class="budget" id="dir-budget-box" hidden>
-          <div class="budget-bar"><span id="dir-budget-fill"></span></div>
           <span id="dir-budget" class="muted small"></span>
         </div>
         <p id="dir-state" class="muted small"></p>
@@ -167,9 +170,9 @@
           <label>Timeout per task (min) <input id="q-timeout" type="number" min="1" max="240" value="30" /></label>
           <label>Stall warning after (min) <input id="q-stall" type="number" min="1" max="240" value="5" /></label>
         </div>
-        <div class="row">
-          <label class="inline" title="At the plan limit the runner stays active, waits for the reset and resumes from the interrupted task"><input id="q-wait" type="checkbox" checked /> Resume automatically when the limits reset</label>
-          <label class="inline">maximum wait (hours) <input id="q-wait-hours" type="number" min="1" max="168" value="24" /></label>
+        <div class="grid">
+          <label class="inline wait-check" title="At the plan limit the runner stays active, waits for the reset and resumes from the interrupted task"><input id="q-wait" type="checkbox" checked /> Resume automatically when the limits reset</label>
+          <label>Maximum wait (hours) <input id="q-wait-hours" type="number" min="1" max="168" value="24" /></label>
         </div>
         <div class="row">
           <label class="inline"><input id="q-custom-on" type="checkbox" /> Model not in the list</label>
@@ -382,6 +385,62 @@
         <div class="row"><button id="trk-prev">← Previous</button><button id="trk-next">Next →</button></div>
       </section>
 
+      <section id="tab-workflows" class="panel" role="tabpanel" aria-labelledby="tabbtn-workflows" hidden>
+        <h2>Workflows</h2>
+        <p class="muted">A run is pinned to the workflow revision and to its cards, keeps the status of every step on this workstation (.runtime/workflow-runs) and resumes from the first step that is not done. Nothing is launched from here: you run each step and record the outcome; a confirm gate waits for your answer.</p>
+        <div class="row">
+          <label class="grow">Workflow<select id="wf-flow"></select></label>
+          <label class="grow">Objective (optional)<input id="wf-objective" type="text" maxlength="2000" /></label>
+          <button id="wf-start" class="primary" disabled>Start run</button>
+          <span class="spacer"></span>
+          <span id="wf-state" class="muted small"></span>
+          <button id="wf-refresh">Refresh</button>
+        </div>
+        <div id="wf-skips" class="small"></div>
+        <p id="wf-error" class="error" hidden></p>
+        <h3>Runs</h3>
+        <table class="tasks"><thead><tr><th>Run</th><th>Workflow</th><th>State</th><th>Steps</th><th>Updated</th><th></th></tr></thead><tbody id="wf-runs"></tbody></table>
+        <p id="wf-runs-empty" class="muted small" hidden>No run yet for this repository.</p>
+        <div id="wf-detail" hidden>
+          <h3 id="wf-title"></h3>
+          <p id="wf-run-state" class="muted small"></p>
+          <table class="tasks"><thead><tr><th>Step</th><th>Card</th><th>Kind</th><th>Status</th><th>Evidence</th></tr></thead><tbody id="wf-steps"></tbody></table>
+          <div id="wf-choice-box" class="row" hidden><label class="grow">Choose the card for this step<select id="wf-choice"></select></label></div>
+          <div id="wf-begin-box" class="row" hidden><span id="wf-begin-note" class="muted small"></span><span class="spacer"></span><button id="wf-begin" class="primary">Begin step</button></div>
+          <div id="wf-gate-box" class="row" hidden><strong id="wf-gate-question"></strong><span class="spacer"></span><button id="wf-gate-yes" class="primary">Yes, run it</button><button id="wf-gate-no">No</button></div>
+          <div id="wf-record-box" hidden>
+            <p id="wf-record-note" class="muted small"></p>
+            <div class="row"><label class="grow">Evidence pointer (optional)<input id="wf-evidence" type="text" maxlength="1000" /></label><button id="wf-record-done" class="primary">Mark done</button><button id="wf-record-failed">Mark failed</button></div>
+          </div>
+          <div class="row"><button id="wf-resume" hidden>Resume</button><button id="wf-stop" hidden>Stop run</button><span id="wf-done" class="muted small" hidden>All steps are done.</span><span class="spacer"></span><button id="wf-close">Close</button></div>
+        </div>
+      </section>
+      <section id="tab-assets" class="panel" role="tabpanel" aria-labelledby="tabbtn-assets" hidden>
+        <h2>Library management</h2>
+        <p class="muted">Prompts, workflows and agent definitions with the assets that use them. A retirement is only planned here: every reference is listed, one that would break an active asset is refused, and the command that applies it is shown. Nothing is written from this tab.</p>
+        <div class="row" id="lib-kinds" role="group" aria-label="Kind of asset">
+          <button data-kind="prompt" aria-pressed="true">Prompts</button>
+          <button data-kind="workflow" aria-pressed="false">Workflows</button>
+          <button data-kind="agent" aria-pressed="false">Agents</button>
+          <span class="spacer"></span>
+          <span id="lib-state" class="muted small"></span>
+          <button id="lib-refresh">Refresh</button>
+        </div>
+        <div class="row"><label class="grow">Search<input id="lib-search" type="search" placeholder="Key, title or ID" /></label></div>
+        <p id="lib-error" class="error" hidden></p>
+        <table class="tasks"><thead><tr><th>Key</th><th>Title</th><th>Status</th><th>Used by</th><th></th></tr></thead><tbody id="lib-rows"></tbody></table>
+        <p id="lib-empty" class="muted small" hidden></p>
+        <div id="lib-detail" hidden>
+          <h3 id="lib-detail-title"></h3>
+          <p id="lib-refs" class="muted small"></p>
+          <pre id="lib-preview" class="box" hidden></pre>
+          <div id="lib-retire-box" hidden>
+            <p><strong id="lib-verdict"></strong></p>
+            <ul id="lib-retire-lines" class="small"></ul>
+          </div>
+          <div class="row"><span class="spacer"></span><button id="lib-close">Close</button></div>
+        </div>
+      </section>
       <section id="tab-prompts" class="panel" role="tabpanel" aria-labelledby="tabbtn-prompts" hidden>
         <h2>Prompts</h2>
         <p class="muted">System prompts are read-only. Default prompts can be viewed and duplicated. Your own prompts are stored on this workstation outside Git (.runtime/user-prompts) and can be deleted.</p>

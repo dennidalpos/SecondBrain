@@ -7,6 +7,8 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { $, busy, call, el, fmtDuration, onBusyClick, input, option, select, setError, since, baseName, type AgentCaps, type AgentStatus, type LightChoice, type Source } from "./common";
 import { initRegistry, showRegistry } from "./registry";
 import { initPrompts, showPrompts } from "./prompts";
+import { initWorkflows, showWorkflows } from "./workflows";
+import { initLibrary, showLibrary } from "./library";
 import { refreshHomeStatus } from "./home";
 import { initWorkstation, refreshWorkstation } from "./workstation";
 import { initTracker, showRunEndNextSteps, showTracker } from "./tracker";
@@ -26,7 +28,7 @@ export function quotaLabel(q: QuotaReading): string {
 }
 interface RunRecord { id: string; seq: number; state: string; exitCode: number | null; statusBefore: string; statusAfter: string; seconds: number; folder: string; parked: boolean | string; process?: string; acceptance?: string; reopened?: boolean | string }
 interface Settings { secondbrainHome: string; pwshPath: string; recentRepos: string[]; lightProvider?: string; lightModel?: string; lightEffort?: string }
-interface DirectiveCounts { global: number; common: number; dossier: number; agentsOutside: number; composed: number; loaded: number; budget: number; percent: number }
+interface DirectiveCounts { global: number; common: number; dossier: number; agentsOutside: number; composed: number; loaded: number }
 interface DirectivesRead {
   managedBlock: string | null; dossierDirectives: string; agentsFile: string; dossierRelative: string;
   globalBlock?: string; commonBlock?: string; agentsOutside?: string; composedPreview?: string; counts?: DirectiveCounts;
@@ -114,6 +116,8 @@ function selectTab(name: string) {
   if (name === "registry") showRegistry();
   if (name === "tracker") showTracker();
   if (name === "prompts") void showPrompts();
+  if (name === "workflows") void showWorkflows();
+  if (name === "assets") void showLibrary();
   if (name === "workstation") void refreshWorkstation();
 }
 // G04 (#631): sections are reachable directly; step-by-step navigation exists only inside the wizards. The selected repository
@@ -284,6 +288,8 @@ async function doLoadRepository(path: string): Promise<boolean> {
       return false;
     }
     state.repo = path; state.identity = repo.identity;
+    if (state.tab === "workflows") void showWorkflows();
+    if (state.tab === "assets") void showLibrary();
     $("repo-label").textContent = repo.identity;
     $("repo-tracker").textContent = repo.tracker ?? "";
     const facts = $("repo-info");
@@ -373,12 +379,8 @@ function updateComposed() {
   $("dir-composed").textContent = composed;
   $("dir-composed-count").textContent = composed.length.toLocaleString();
   const loaded = d.counts.global + d.counts.agentsOutside + composed.length;
-  const pct = Math.round((1000 * loaded) / d.counts.budget) / 10;
   $("dir-budget-box").hidden = false;
-  const fill = $("dir-budget-fill");
-  fill.style.width = Math.min(100, pct) + "%";
-  fill.dataset.level = pct >= 80 ? "high" : pct >= 50 ? "mid" : "low";
-  $("dir-budget").textContent = `Directives loaded in every session: ${loaded.toLocaleString()} of ${d.counts.budget.toLocaleString()} characters of the startup cap (${pct}%) — global ${d.counts.global.toLocaleString()}, AGENTS.md outside the blocks ${d.counts.agentsOutside.toLocaleString()}, repository block ${composed.length.toLocaleString()}. The dossier startup package is added to these.`;
+  $("dir-budget").textContent = `Directives loaded in every session: ${loaded.toLocaleString()} characters — global ${d.counts.global.toLocaleString()}, AGENTS.md outside the blocks ${d.counts.agentsOutside.toLocaleString()}, repository block ${composed.length.toLocaleString()}. The dossier startup package is added to these.`;
 }
 async function readDirectives() {
   if (!state.repo) return;
@@ -439,12 +441,16 @@ async function probeAgents() {
   // An empty choice previewed with the runner default (claude).
   if (state.repo && (before || "claude") !== (state.provider || "claude")) refreshTasks();
 }
+/** Why an agent cannot be chosen and what to do about it (the card used to show only the status). */
+export function unavailableHint(a: { name: string; status: AgentStatus }): string {
+  return a.status === "not-found" ? `Not installed: install the ${a.name} CLI, then press Detect again.` : `The ${a.name} CLI did not answer: check that it starts in a terminal, then press Detect again.`;
+}
 function renderAgents() {
   $("q-agents").replaceChildren(...state.agents.map((a) => {
     const ready = a.status === "ready";
     const radio = el("input", { type: "radio", name: "agent", value: a.provider, checked: a.provider === state.provider, disabled: !ready });
     radio.addEventListener("change", () => { state.provider = a.provider; renderAgentOptions(); renderLightLabels(); refreshTasks(); });
-    const meta = [a.version, a.origin ? ORIGIN_LABEL[a.origin] : "", ready && a.supports.streamJson ? "live steps" : ""].filter(Boolean).join(" · ");
+    const meta = ready ? [a.version, a.origin ? ORIGIN_LABEL[a.origin] : "", a.supports.streamJson ? "live steps" : ""].filter(Boolean).join(" · ") : unavailableHint(a);
     return el("label", { className: "agent" + (ready ? "" : " off"), title: a.path ?? "" }, radio,
       el("span", { className: "agent-name" }, a.name),
       el("span", { className: "tag" + (ready ? " ok" : " warn") }, STATUS_LABEL[a.status] ?? a.status),
@@ -938,6 +944,8 @@ async function start() {
   }
   initRegistry(() => state.repo);
   initPrompts(currentLight, () => state.repo ?? "");
+  initWorkflows(() => state.identity ?? "");
+  initLibrary(() => state.identity ?? "");
   initTracker();
   initWorkstation(() => state.identity ?? "");
   initAnalysis({ repo: () => state.repo, identity: () => state.identity, light: currentLight, onChange: () => { renderSkipped(); } });

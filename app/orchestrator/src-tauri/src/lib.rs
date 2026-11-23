@@ -264,6 +264,135 @@ async fn read_workflows(app: AppHandle, path: Option<String>) -> Result<Value, S
     script(app, "prompts.ps1", args).await
 }
 
+fn is_hex_id(value: &str, prefix: &str) -> bool {
+    value.len() == prefix.len() + 8 && value.starts_with(prefix) && value[prefix.len()..].chars().all(|c| matches!(c, '0'..='9' | 'a'..='f'))
+}
+
+fn is_slug(value: &str) -> bool {
+    !value.is_empty() && value.len() <= 64 && value.chars().next().is_some_and(|c| c.is_ascii_lowercase()) && value.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+}
+
+/// Arguments of `workflow-runs.ps1` for one operation, validated here so the window can only ask for what the script documents.
+/// Operations that change a run carry -Apply: the click on the button is the explicit call, and nothing resumes by itself.
+fn workflow_run_args(operation: &str, identity: &str, key: &str, run_id: &str, step: &str, option: &str, answer: &str, outcome: &str, evidence: &str, objective: &str, skip: &[String]) -> Result<Vec<String>, String> {
+    if identity.trim().is_empty() || identity.len() > 200 || identity.starts_with('-') {
+        return Err("Select a repository first.".into());
+    }
+    let op = match operation {
+        "list" => "List", "start" => "Start", "step" => "Step", "answer" => "Answer", "complete" => "Complete", "stop" => "Stop", "resume" => "Resume", "inspect" => "Inspect",
+        _ => return Err("Unknown workflow operation.".into()),
+    };
+    let mut args: Vec<String> = vec!["-Operation".into(), op.into(), "-Repository".into(), identity.into(), "-RunRoot".into(), ".runtime/workflow-runs".into()];
+    let mut push = |flag: &str, value: &str| { args.push(flag.into()); args.push(value.into()); };
+    match op {
+        "Start" => {
+            if !key.starts_with("wf-") || key.len() < 4 || key.len() > 64 || !key[3..].chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-') {
+                return Err("Invalid workflow key.".into());
+            }
+            push("-Key", key);
+            if objective.len() > 2000 {
+                return Err("The objective is too long.".into());
+            }
+            if !objective.trim().is_empty() {
+                push("-Objective", objective.trim());
+            }
+            if !skip.is_empty() {
+                if skip.iter().any(|s| !is_slug(s)) {
+                    return Err("Invalid step name to skip.".into());
+                }
+                push("-Skip", &skip.join(","));
+            }
+        }
+        "Step" | "Answer" | "Complete" | "Stop" | "Resume" | "Inspect" => {
+            if op != "Inspect" || !run_id.is_empty() {
+                if !is_hex_id(run_id, "run-") {
+                    return Err("Invalid run ID.".into());
+                }
+                push("-RunId", run_id);
+            }
+            if op == "Step" && !option.is_empty() {
+                if !is_hex_id(option, "pmt-") {
+                    return Err("Invalid card ID.".into());
+                }
+                push("-Option", option);
+            }
+            if op == "Answer" || op == "Complete" {
+                if !is_slug(step) {
+                    return Err("Invalid step name.".into());
+                }
+                push("-Step", step);
+            }
+            if op == "Answer" {
+                if answer != "yes" && answer != "no" {
+                    return Err("The answer is yes or no.".into());
+                }
+                push("-Answer", answer);
+            }
+            if op == "Complete" {
+                if outcome != "done" && outcome != "failed" {
+                    return Err("The outcome is done or failed.".into());
+                }
+                push("-Outcome", outcome);
+                if evidence.len() > 1000 {
+                    return Err("The evidence pointer is too long.".into());
+                }
+                if !evidence.trim().is_empty() {
+                    push("-Evidence", evidence.trim());
+                }
+            }
+        }
+        _ => {}
+    }
+    if !matches!(op, "List" | "Inspect") {
+        args.push("-Apply".into());
+    }
+    Ok(args)
+}
+
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+async fn workflow_run(app: AppHandle, operation: String, identity: String, key: Option<String>, run_id: Option<String>, step: Option<String>, option: Option<String>, answer: Option<String>, outcome: Option<String>, evidence: Option<String>, objective: Option<String>, skip: Option<Vec<String>>) -> Result<Value, String> {
+    // Workflow runs (workflow-runs.ps1, state in .runtime/workflow-runs/<run>/workflow-run.json): the window tracks state and launches nothing.
+    let args = workflow_run_args(&operation, &identity, key.as_deref().unwrap_or(""), run_id.as_deref().unwrap_or(""), step.as_deref().unwrap_or(""), option.as_deref().unwrap_or(""), answer.as_deref().unwrap_or(""), outcome.as_deref().unwrap_or(""), evidence.as_deref().unwrap_or(""), objective.as_deref().unwrap_or(""), skip.as_deref().unwrap_or(&[]))?;
+    script(app, "workflow-runs.ps1", args).await
+}
+
+/// Arguments of `library.ps1` (read-only): list, show or plan the retirement of one prompt, workflow or agent definition.
+fn library_args(operation: &str, identity: &str, kind: &str, query: &str, id: &str) -> Result<Vec<String>, String> {
+    if identity.trim().is_empty() || identity.len() > 200 || identity.starts_with('-') {
+        return Err("Select a repository first.".into());
+    }
+    let op = match operation { "list" => "List", "show" => "Show", "retire" => "Retire", _ => return Err("Unknown library operation.".into()) };
+    if !["prompt", "workflow", "agent"].contains(&kind) {
+        return Err("Unknown library kind.".into());
+    }
+    let mut args: Vec<String> = vec!["-Operation".into(), op.into(), "-Kind".into(), kind.into(), "-Repository".into(), identity.into()];
+    if op == "List" {
+        if query.len() > 100 || query.chars().any(|c| c.is_control()) {
+            return Err("The search text is too long.".into());
+        }
+        if !query.trim().is_empty() {
+            args.push("-Query".into());
+            args.push(query.trim().into());
+        }
+    } else {
+        let hex = is_hex_id(id, "pmt-") || is_hex_id(id, "wfl-");
+        if !(hex || is_slug(id)) || id.starts_with('-') {
+            return Err("Invalid asset ID.".into());
+        }
+        args.push("-Id".into());
+        args.push(id.into());
+    }
+    Ok(args)
+}
+
+#[tauri::command]
+async fn library(app: AppHandle, operation: String, identity: String, kind: String, query: Option<String>, id: Option<String>) -> Result<Value, String> {
+    // Library management (library.ps1, read-only): the retirement is only planned here; the lifecycle commands do the writing.
+    let args = library_args(&operation, &identity, &kind, query.as_deref().unwrap_or(""), id.as_deref().unwrap_or(""))?;
+    script(app, "library.ps1", args).await
+}
+
 #[tauri::command]
 async fn read_setup_status(app: AppHandle) -> Result<Value, String> {
     // Setup status as JSON (setup-status.ps1); -ExitZero keeps "recommendations pending" (exit 1) from being read as a failure.
@@ -1117,6 +1246,8 @@ pub fn run() {
             user_prompt_create,
             user_prompt_delete,
             read_workflows,
+            workflow_run,
+            library,
             read_setup_status,
             list_tasks,
             read_directives,
@@ -1157,7 +1288,43 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-    use super::{compose_args, workstation_args, workstation_command_line, WorkstationRequest, followup_args, analysis_args, browser_args, enrichment_decision_args, git_update_args, agent_wizard_args, queue_args, registry_args, repo_argument, valid_token, QueueRequest, RegistryQuery};
+    use super::{library_args, workflow_run_args, compose_args, workstation_args, workstation_command_line, WorkstationRequest, followup_args, analysis_args, browser_args, enrichment_decision_args, git_update_args, agent_wizard_args, queue_args, registry_args, repo_argument, valid_token, QueueRequest, RegistryQuery};
+
+    #[test]
+    fn workflow_run_args_validate_every_field_and_apply_only_changes() {
+        let id = "github.com/o/r";
+        let run = |op: &str, run_id: &str, step: &str, answer: &str, outcome: &str| workflow_run_args(op, id, "wf-fix-defect", run_id, step, "", answer, outcome, "", "", &[]);
+        assert!(workflow_run_args("list", "", "", "", "", "", "", "", "", "", &[]).is_err());
+        assert!(!workflow_run_args("list", id, "", "", "", "", "", "", "", "", &[]).unwrap().contains(&"-Apply".to_string()));
+        assert!(!run("inspect", "", "", "", "").unwrap().contains(&"-Apply".to_string()));
+        assert!(run("step", "run-0a1b2c3d", "", "", "").unwrap().contains(&"-Apply".to_string()));
+        assert!(run("step", "run-0A1B2C3D", "", "", "").is_err());
+        assert!(run("step", "../x", "", "", "").is_err());
+        assert!(run("answer", "run-0a1b2c3d", "compact", "maybe", "").is_err());
+        assert!(run("answer", "run-0a1b2c3d", "Compact; x", "yes", "").is_err());
+        assert_eq!(run("answer", "run-0a1b2c3d", "compact", "yes", "").unwrap()[6..], ["-RunId", "run-0a1b2c3d", "-Step", "compact", "-Answer", "yes", "-Apply"]);
+        assert!(run("complete", "run-0a1b2c3d", "compact", "", "later").is_err());
+        assert!(run("delete", "run-0a1b2c3d", "", "", "").is_err());
+        assert!(workflow_run_args("start", id, "wf-x; rm", "", "", "", "", "", "", "", &[]).is_err());
+        assert!(workflow_run_args("start", id, "wf-fix-defect", "", "", "", "", "", "", "", &["Bad Step".to_string()]).is_err());
+        let started = workflow_run_args("start", id, "wf-fix-defect", "", "", "", "", "", "", " Crash ", &["review-change".to_string(), "x".to_string()]).unwrap();
+        assert!(started.windows(2).any(|w| w == ["-Objective", "Crash"]) && started.windows(2).any(|w| w == ["-Skip", "review-change,x"]));
+    }
+
+    #[test]
+    fn library_args_validate_the_kind_the_query_and_the_id() {
+        let id = "github.com/o/r";
+        assert!(library_args("list", "", "prompt", "", "").is_err());
+        assert!(library_args("delete", id, "prompt", "", "").is_err());
+        assert!(library_args("list", id, "tool", "", "").is_err());
+        assert_eq!(library_args("list", id, "agent", " review ", "").unwrap()[6..], ["-Query", "review"]);
+        assert!(library_args("list", id, "prompt", &"x".repeat(101), "").is_err());
+        assert!(library_args("show", id, "prompt", "", "").is_err());
+        assert!(library_args("show", id, "prompt", "", "-Apply").is_err());
+        assert!(library_args("retire", id, "prompt", "", "pmt-0A1B2C3D").is_err());
+        assert_eq!(library_args("retire", id, "prompt", "", "pmt-0a1b2c3d").unwrap()[6..], ["-Id", "pmt-0a1b2c3d"]);
+        assert_eq!(library_args("show", id, "agent", "", "code-reviewer").unwrap()[6..], ["-Id", "code-reviewer"]);
+    }
 
     #[test]
     fn compose_args_validate_the_code_and_pass_the_objective() {

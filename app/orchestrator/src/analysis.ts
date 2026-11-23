@@ -141,12 +141,17 @@ function renderQuestions(body: HTMLElement, primary: HTMLButtonElement) {
     set.dataset.question = a.question ?? "";
     form.append(set);
   });
+  const hint = el("p", { className: "muted small", id: "an-send-hint" });
   const update = () => {
     const sets = [...form.querySelectorAll<HTMLFieldSetElement>("fieldset")];
-    primary.disabled = busy || !sets.length || sets.some((s) => !s.querySelector("input:checked"));
+    const missing = sets.filter((s) => !s.querySelector("input:checked")).length;
+    primary.disabled = busy || !sets.length || missing > 0;
+    const why = missing > 0 ? `Answer ${missing} more question${missing === 1 ? "" : "s"} to send.` : "";
+    hint.textContent = why;
+    primary.title = why;
   };
   form.addEventListener("change", update);
-  body.append(form);
+  body.append(form, hint);
   if (v.round >= v.maxRounds) {
     body.append(el("p", { className: "warning" }, "Last round reached: another round is not possible with these answers. Restart the analysis from the queue if needed."));
     primary.hidden = true;
