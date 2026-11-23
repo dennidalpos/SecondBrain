@@ -345,7 +345,7 @@ function Limit-SBSlimStartup($Parts,$Projection,[string[]]$TaskIds,[int]$Budget)
     @{minimum=$minimum.Length;omitted=$references}
 }
 function Get-SBStartupContext {
-    param([string]$BrainRoot,[string]$Dossier,[string]$CheckoutPath,[string[]]$TaskIds=@(),[int]$Budget=25000,$Entities=@(),[switch]$ReadyOnly,[ValidateSet('Slim','Full')][string]$Profile='Full',[string]$PreviousRevision,[string]$DirectiveCheckout)
+    param([string]$BrainRoot,[string]$Dossier,[string]$CheckoutPath,[string[]]$TaskIds=@(),[int]$Budget=0,$Entities=@(),[switch]$ReadyOnly,[ValidateSet('Slim','Full')][string]$Profile='Full',[string]$PreviousRevision,[string]$DirectiveCheckout)
     if($Profile -eq 'Slim' -and !$PSBoundParameters.ContainsKey('Budget')){$Budget=Get-SBSlimStartupBudget}
     $record=Read-SBJson (Join-Path $Dossier 'repository.json') $null
     if(!$record){throw (New-SBError 'knowledge.dossier.invalid')}
@@ -376,7 +376,7 @@ function Get-SBStartupContext {
 # Compaction supplies the final planned texts and agent view, before its transaction.
 function New-SBStartupPackage {
     param($Record,$Tracker,[string]$TOC,[string]$ContextText,[string]$MemoryText,[string]$AgentViewHash,
-        [string[]]$TaskIds=@(),[int]$Budget=25000,[switch]$ReadyOnly,[ValidateSet('Slim','Full')][string]$Profile='Full')
+        [string[]]$TaskIds=@(),[int]$Budget=0,[switch]$ReadyOnly,[ValidateSet('Slim','Full')][string]$Profile='Full')
     $slim=($Profile -eq 'Slim')
     $trData=if($tracker.ContainsKey('graph')){$tracker.graph}elseif($tracker.ContainsKey('data')){$tracker.data}else{$null}
     $trRel=if($tracker.ContainsKey('related')){$tracker.related}else{@{}}
@@ -418,8 +418,9 @@ function New-SBStartupPackage {
       diagnostic=$(if($minimum -gt $Budget){Get-SBMessage 'knowledge.startup.minimum' @($minimum)});
       parts=$parts;loadedParts=@($parts.Keys|Sort-Object);omittedParts=@($omitted);taskSource=$tracker.path;originalsTruncated=$false;unit='characters-not-tokens'}
 }
-# Initial loading limit (Slim profile): single source for knowledge.ps1 -Startup and secondbrain.ps1 -Check.
-function Get-SBSlimStartupBudget { 25000 }
+# Initial loading limit (Slim profile): none by default (0). Capping the first load would need a model to rewrite what does not fit, so the
+# package keeps the essential tiers whole and compaction is mechanical at every task close; an explicit -Budget still applies.
+function Get-SBSlimStartupBudget { 0 }
 # Characters of directive text always in context outside the startup package: the checkout's AGENTS.md and the global instructions
 # of the agents that read a file (the largest counts, since a session loads one agent's file). Read-only; unreadable files count as 0.
 function Get-SBDirectiveCharacters([string]$CheckoutPath) {
@@ -955,8 +956,9 @@ function Invoke-SBDossierCompaction {
     if($Apply){[void](Assert-SBCentralDataPath $root $BackupRoot);Invoke-SBParaTransaction $ops $BackupRoot $root|Out-Null}
     @{repository=$record.identity;applied=[bool]$Apply;archives=$archives;operations=$ops.Count;originalsPreserved=$true;manifest=$manifestPath}
 }
-# Mechanical, lossless tiering (no model): when the startup context (Slim package plus directive text) reaches TriggerPercent of the budget,
-# the oldest dated `## ` sections of context.md and memory.md are marked <!-- sb:tier=history --> until the total falls to TargetPercent.
+# Mechanical, lossless tiering (no model): every dated `## ` section of context.md and memory.md older than OlderThanDays is marked
+# <!-- sb:tier=history -->, oldest first. With an explicit -Budget it only runs when the startup context (Slim package plus directive text)
+# reaches TriggerPercent of it and stops when the total falls to TargetPercent; with no budget (the default) it takes every eligible section.
 # Nothing is rewritten or deleted: marked sections stay in the files and are retrievable with -Section / -Search. A section is eligible only
 # when its newest ISO date (yyyy-MM-dd) is older than OlderThanDays; undated sections, the required context sections, sections that are
 # already history and sections holding an active sb:decision marker are never touched. Originals are archived by hash like -Compact,
@@ -986,9 +988,9 @@ function Invoke-SBMechanicalTiering {
         $sources[$name]=$text.Replace("`r`n","`n")
     }
     $before=(& $measure $sources['context.md'] $sources['memory.md'])+$directive
-    $target=[int][Math]::Floor($Budget*$TargetPercent/100.0)
+    $target=if($Budget -gt 0){[int][Math]::Floor($Budget*$TargetPercent/100.0)}else{0}
     $result=@{repository=$record.identity;applied=$false;action='none';budget=$Budget;targetCharacters=$target;triggerPercent=$TriggerPercent;beforeCharacters=$before;afterCharacters=$before;demoted=@();operations=0;originalsPreserved=$true;unit='characters-not-tokens'}
-    if($Budget -le 0 -or $before -le $target -or (100.0*$before/$Budget) -lt $TriggerPercent){return $result}
+    if($Budget -gt 0 -and ($before -le $target -or (100.0*$before/$Budget) -lt $TriggerPercent)){return $result}
     $cutoff=(Get-SBNow).AddDays(-$OlderThanDays)
     $required=@($script:SBContextSections.english)+@($script:SBContextSections.italian)
     $candidates=@()

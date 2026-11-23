@@ -471,7 +471,8 @@ Add-SBMessages @{
     'cmd.runner' = @{ en = 'Asks with a multiple choice for the desktop runner (recommended) or the command line, then opens the runner on the current repository with scripts/runner.ps1 -Mode auto|gui|cli: the desktop app is built when stale and, if it cannot open, the command line takes over by itself (preview, then runner.choice).' }
     'cmd.reconcile' = @{ en = 'tasks.reconcile: plans the reconciliation of conflicting or invalid queued writes and orphan receipts of the repository; -Apply retires duplicates and orphans and re-plans safe stale requests, -Decide ID=OPTION executes the choice the owner made. Nothing is deleted.' }
     'cmd.stop' = @{ en = 'session.stop: stops the agent, saves the session in the dossier (handoff report, tracker, next step) and prepares it to be resumed from another IDE or account with session.resume.' }
-    'cmd.compact' = @{ en = 'dossier.compact: compacts the given dossier preserving originals, facts and TOC (preview, then -Apply). Alias: sb compact. With -Mechanical no model is used: the oldest dated sections move to the history tier, losslessly; it also runs by itself when a task is closed and the context is at 80% of the budget.' }
+    'cmd.compact' = @{ en = 'dossier.compact, mechanical and lossless: marks the dated sections older than 30 days as history tier and reports the initial context usage; no model. It runs by itself at the end of every task; originals stay in history/compaction and the history stays readable by level.' }
+    'cmd.compactai' = @{ en = 'Compacts the dossier further with the light model of the provider you pick (claude haiku, gemini flash-lite, codex low effort): read-only run, preview of the candidate, then -Apply with your -ReviewNote; originals are archived by hash.' }
     'cmd.tasks' = @{ en = 'Lists the open tasks of the repository tracker; add -ReadyOnly for the tasks the runner can take. Nothing is written.' }
     'cmd.next' = @{ en = 'Proposes the next steps for the repository after a task or a run, each with the reason. Nothing is written.' }
     'cmd.pending' = @{ en = 'Lists the queued dossier writes of the repository (applied, pending, conflict, invalid). Nothing is integrated.' }
@@ -534,7 +535,7 @@ Add-SBMessages @{
     'flow.6' = @{ en = 'Work in the repository (done by the agent, within the session permissions).' }
     'flow.7' = @{ en = 'Before the push: publishability check.' }
     'flow.8' = @{ en = 'Close the task: tracker status, memory and context, then Sync and Check.' }
-    'flow.9' = @{ en = 'If Check asks for compaction: preview, then apply.' }
+    'flow.9' = @{ en = 'Compaction is mechanical at every task close (no model); for a deeper pass with the light model of your provider: preview, then apply.' }
     'index.title' = @{ en = 'Prompt catalog' }
     'index.generated' = @{ en = 'Index generated from catalog.json and the Markdown cards with scripts/build-prompts.ps1. Do not edit this index by hand.' }
     'index.chat' = @{ en = 'In the chat: `sb prompt`, `sb prompt list`, `sb prompt area quality`, `sb prompt show REV01`, `sb prompt REV01: description`. Every prompt has an immutable ID (`pmt-` and 8 hex digits) and a stable code that is never reused: ID and code resolve to the same prompt. Codes are rewritten without aliases in 4.0: an old code is unknown.' }
@@ -561,6 +562,7 @@ function Get-SBWorkflowCommands {
         @{command='sb check';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.check');mode=(Get-SBWorkflowMessage 'mode.verify');script='scripts/secondbrain.ps1 -Check'},
         @{command='sb sync';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.sync');mode=(Get-SBWorkflowMessage 'mode.write');script='scripts/secondbrain.ps1 -Sync'},
         @{command='sb compact';aliases=@();scope='secondbrain';does=(Get-SBWorkflowMessage 'cmd.compact');mode=(Get-SBWorkflowMessage 'mode.write');script='scripts/knowledge.ps1 -Compact -Mechanical [-Apply] | -Compact -CandidatePath FILE'},
+        @{command='sb compact ai';aliases=@();scope='repository';does=(Get-SBWorkflowMessage 'cmd.compactai');mode=(Get-SBWorkflowMessage 'mode.write');script='scripts/compact-ai.ps1 -Provider claude|codex|gemini [-Apply -ReviewNote TEXT]'},
         @{command='sb runner';aliases=@();scope='repository';does=(Get-SBWorkflowMessage 'cmd.runner');mode=(Get-SBWorkflowMessage 'mode.run');script='scripts/runner.ps1'},
         @{command='sb runner gui';aliases=@();scope='repository';does=(Get-SBWorkflowMessage 'cmd.runnergui');mode=(Get-SBWorkflowMessage 'mode.run');script='scripts/runner.ps1 -Mode gui'},
         @{command='sb runner cli';aliases=@();scope='repository';does=(Get-SBWorkflowMessage 'cmd.runnercli');mode=(Get-SBWorkflowMessage 'mode.run');script='scripts/runner.ps1 -Mode cli'},
@@ -615,7 +617,7 @@ $script:SBWorkflowSections=[ordered]@{
     repo=@('sb skills','sb publish check','sb grants')
     maint=@('sb maintenance','sb mcp')
     align=@('sb activate','sb setup','sb check','sb sync','sb resync','sb directives check','sb directives propose','sb prompts check','sb sources')
-    data=@('sb compact','sb backup','sb backup verify','sb recover','sb cleanup','sb bindings')
+    data=@('sb compact','sb compact ai','sb backup','sb backup verify','sb recover','sb cleanup','sb bindings')
     state=@('sb projects','sb status','sb ides')
     lifecycle=@('sb onboard','sb offboard','sb uninstall')
     mcp=@('sb mcp status','sb mcp pair','sb mcp realign','sb mcp package','sb grants','sb ides')

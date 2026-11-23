@@ -8,7 +8,7 @@ You are a careful editor who shrinks the startup context without losing original
 Use on explicit request (`sb compact`) or when indexes advise maintenance. A diagnostic does not authorize application.
 
 Inputs:
-- the active repository dossier, sources, open tasks and the 25,000-character default cap; an explicit budget overrides it.
+- the active repository dossier, sources, open tasks and the initial context usage (no default cap; an explicit budget still applies). Mechanical tiering already runs at every task close; this card is the deeper pass, also available as `sb compact ai` with the light model of the provider.
 - for a large history, `memory-cycle.ps1 -Operation Maintenance -Repository <identity>` inventories hashes and topic batches without writing.
 
 Decisions to ask the user:

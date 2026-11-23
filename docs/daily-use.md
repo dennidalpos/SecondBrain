@@ -43,12 +43,17 @@ See the [per-repository workflow](product-flow.md) for the order of operations.
 
 ### Mechanical compaction (no model)
 
-`knowledge.ps1 -Compact -Mechanical` moves the oldest dated `##` sections of `context.md` and `memory.md` to the history tier (`<!-- sb:tier=history -->`) until the startup context (package plus directive text) is at 70% of the budget (`-TargetPercent`). It rewrites nothing and deletes nothing: the sections stay in the files, are left out of the startup package, and remain available through `-Section` and `-Search`. Originals are archived by hash in `history/compaction/`, and `memory.agent.md` and `index.md` are regenerated in the same transaction.
+The startup context has no character cap: the essential tiers load whole, and compaction is mechanical at the end of every task. `knowledge.ps1 -Compact -Mechanical` moves every dated `##` section of `context.md` and `memory.md` older than 30 days to the history tier (`<!-- sb:tier=history -->`), oldest first. With an explicit `-Budget` it stops at `-TargetPercent` (default 70%) of that budget instead. It rewrites nothing and deletes nothing: the sections stay in the files, are left out of the startup package, and remain available through `-Section` and `-Search`. Originals are archived by hash in `history/compaction/`, and `memory.agent.md` and `index.md` are regenerated in the same transaction.
 
 - Eligible: sections whose newest `yyyy-MM-dd` date is older than `-OlderThanDays` (default 30). Never touched: undated sections, the required context sections, sections already in history, sections with an active `sb:decision` marker.
-- Without `-Apply` it only previews; `-TriggerPercent N` makes it act only when the context is at N% of the budget or more.
-- It runs by itself when a task is closed with `knowledge.ps1 -UpdateTaskId <id> -Status done`, at 80% of the budget. Opt out with `-NoAutoCompact` or `SECONDBRAIN_AUTO_COMPACT=0`. A failure is reported on stderr and never changes the exit code of the close.
+- Without `-Apply` it only previews; with an explicit `-Budget`, `-TriggerPercent N` makes it act only when the context is at N% of the budget or more.
+- It runs by itself every time a task is closed with `knowledge.ps1 -UpdateTaskId <id> -Status done`, and then reports the initial context usage (characters and estimated tokens, before and after) and the command for the deeper pass. Opt out with `-NoAutoCompact` or `SECONDBRAIN_AUTO_COMPACT=0`. A failure is reported on stderr and never changes the exit code of the close.
 - Undo: restore the archived original from `history/compaction/<hash>/`, or remove the marker line.
+- The rest of the history stays readable by level when needed: `history/index.md`, `-Section <title>`, `-Search`, `-Startup -Profile Full`.
+
+### Deeper pass with a cheap model
+
+`sb compact ai -Provider claude|codex|gemini` asks the light model of that provider (`roles.light` of `config/agent-models.json`: claude haiku, gemini flash-lite, codex with low effort; `agent-models.local.json` overrides it) to summarize `context.md` and `memory.md`. The model runs read-only and its answer becomes a candidate in a work folder. The command prints the sizes before and after and changes nothing; `sb compact ai -CandidatePath <candidate> -Apply -ReviewNote "<what you checked>"` applies it after your review and archives the originals by hash. `-ResultFile` reuses a saved answer without calling the model.
 
 ## Folders and the dossier
 

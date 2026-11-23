@@ -23,7 +23,7 @@ flowchart LR
 | Implement authorized work | Agent in the product repository | Follow repository instructions and session permissions |
 | Check before any authorized push | `sb prompt RSK07` | `scripts/publication.ps1 -RepositoryPath <product>` |
 | Close authorized work | `sb prompt SES02` | Update permitted tracker/context/memory, then Sync and Check |
-| Compact only when necessary | `sb compact` | `knowledge.ps1 -Compact -Mechanical` (no model, lossless tiering; add `-Apply` to write) or `-Compact -CandidatePath <file>` for a reviewed rewrite; inspect before Apply |
+| Compaction | `sb compact` · `sb compact ai` | Mechanical and lossless at every task close (`knowledge.ps1 -Compact -Mechanical`; add `-Apply` to write by hand); `scripts/compact-ai.ps1 -Provider <p>` for the light-model pass, then `-CandidatePath <file> -Apply -ReviewNote <text>` after your review |
 
 Knowledge lookups never write; pending writes are integrated only by an explicit `knowledge.ps1 -FlushPending`. Audits that propose tracker changes leave the tracker unchanged; do not close a task simply because some code exists.
 

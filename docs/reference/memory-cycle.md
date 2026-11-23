@@ -52,7 +52,7 @@ Structured active/superseded markers coexist with older memory lines. Agent view
 
 ## Loading and maintenance
 
-Slim defaults to 25,000 characters and explicitly selected TaskIds; Full retains the full task projection. PreviousRevision can return changed=false without repeating parts. A changed packet does not guarantee replacement of client history. Essential sections/tasks are not dropped to manufacture budget compliance.
+Slim has no default character cap (an explicit budget still applies) and loads explicitly selected TaskIds; Full retains the full task projection. PreviousRevision can return changed=false without repeating parts. A changed packet does not guarantee replacement of client history. Essential sections/tasks are not dropped to manufacture budget compliance.
 
 turns-index stores capture metadata transactionally. Notices distinguish captured and legacy turns; one collector per event avoids duplicates. KNW02 maintains batch history with preview/confirmation; SES02 handles incremental closure. Historical permissions are not current authorization.
 

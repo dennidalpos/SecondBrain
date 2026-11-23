@@ -25,6 +25,7 @@ function Get-SBDispatchTable {
         @{words='skills';script='skills.ps1';args=@()},
         @{words='check';script='secondbrain.ps1';args=@('-Check')},
         @{words='sync';script='secondbrain.ps1';args=@('-Sync')},
+        @{words='compact ai';script='compact-ai.ps1';args=@()},
         @{words='compact';script='knowledge.ps1';args=@('-Compact','-Mechanical')},
         @{words='queue status';script='queue.ps1';args=@('-Status')},
         @{words='queue stop';script='queue.ps1';args=@('-Stop')},

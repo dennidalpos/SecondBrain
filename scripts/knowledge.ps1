@@ -9,7 +9,7 @@ param([Parameter(ParameterSetName='Tasks')][switch]$Tasks,[Parameter(ParameterSe
     [Parameter(ParameterSetName='Compact')][switch]$Mechanical,[Parameter(ParameterSetName='Compact')][ValidateRange(0,3650)][int]$OlderThanDays=30,[Parameter(ParameterSetName='Compact')][ValidateRange(1,100)][int]$TargetPercent=70,[Parameter(ParameterSetName='Compact')][ValidateRange(0,100)][int]$TriggerPercent=0,
     [Parameter(ParameterSetName='TaskUpdate')][switch]$NoAutoCompact,
     [Parameter(Mandatory,ParameterSetName='ArchiveTasks')][switch]$ArchiveTasks,
-    [Parameter(Mandatory,ParameterSetName='Search')][string]$Search,[Parameter(ParameterSetName='Search')][Parameter(ParameterSetName='Startup')][Parameter(ParameterSetName='Compact')][int]$Budget=25000,
+    [Parameter(Mandatory,ParameterSetName='Search')][string]$Search,[Parameter(ParameterSetName='Search')][Parameter(ParameterSetName='Startup')][Parameter(ParameterSetName='Compact')][int]$Budget=0,
     [Parameter(Mandatory,ParameterSetName='TaskUpdate')][string]$UpdateTaskId,[Parameter(ParameterSetName='TaskUpdate')][string]$Status,[Parameter(ParameterSetName='TaskUpdate')][string]$StateReason,
     [Parameter(Mandatory,ParameterSetName='TaskBatch')][string]$UpdateTasksFile,
     [Parameter(Mandatory,ParameterSetName='FileSave')][string]$SaveFile,
@@ -72,7 +72,8 @@ Add-SBMessages @{
     'knowledgecli.repository.checkout' = @{ en = 'Working repository not resolvable: run from the checkout or give -CheckoutPath' }
     'knowledgecli.params.incompatible' = @{ en = 'Incompatible parameters: -All and -Repository' }
     'knowledgecli.mechanical.candidate' = @{ en = '-Mechanical builds its own plan: do not combine it with -CandidatePath' }
-    'knowledgecli.autocompact.notice' = @{ en = 'Task closed: {0} dossier section(s) moved to the history tier ({1} -> {2} characters, nothing deleted; originals in history/compaction). Opt out with -NoAutoCompact or SECONDBRAIN_AUTO_COMPACT=0' }
+    'knowledgecli.autocompact.notice' = @{ en = 'Task closed: {0} dossier section(s) moved to the history tier (nothing deleted; originals in history/compaction). Initial context now {1} characters (~{2} tokens, characters/4; {3} before). Opt out with -NoAutoCompact or SECONDBRAIN_AUTO_COMPACT=0' }
+    'knowledgecli.autocompact.ai' = @{ en = 'To compact further with the light model of your provider: sb compact ai (preview first; -Apply writes after your review). The rest of the history stays readable by level: -Section, -Search, history/index.md.' }
     'knowledgecli.autocompact.failed' = @{ en = 'Automatic tiering skipped: {0}' }
     'knowledgecli.task.needsinfo' = @{ en = 'Task {0} is autonomous but not self-sufficient for the unattended runner. Ask the user for: {1}. Skip only if the user said otherwise, or set execution user_required.' }
 }
@@ -104,7 +105,7 @@ try{
         $pendingResult=Invoke-SBPendingWrites -BrainRoot $brain -Config $config -SessionId $SessionId -WaitMs (Get-SBLockWaitMs $config) -Repository $flushRepository
         if($pendingResult.applied.Count -or $pendingResult.conflicts.Count -or $pendingResult.pending -or $pendingResult.errors.Count){[Console]::Error.WriteLine((Format-SBPendingNotice $pendingResult))}
     }
-    # Full is unlimited unless -Budget is explicit; Slim and Compact share the 25,000 default (Get-SBSlimStartupBudget).
+    # No cap on the first load by default (Get-SBSlimStartupBudget is 0): an explicit -Budget still applies to Slim, Full and Compact.
     # Search has a default limit (-1: 20 matches and 10,000 characters); explicit -Limit 0 / -Budget 0 removes it.
     $effectiveBudget = if($PSBoundParameters.ContainsKey('Budget')){ $Budget } elseif($Compact -or ($Startup -and $Profile -eq 'Slim')){ Get-SBSlimStartupBudget } elseif($Search){ -1 } elseif($Startup){ 0 } else { Get-SBSlimStartupBudget }
     $effectiveLimit = if($PSBoundParameters.ContainsKey('Limit')){ $Limit } else { -1 }
@@ -349,16 +350,20 @@ try{
     if($Roadmap -and $Format -eq 'Markdown'){ConvertTo-SBRoadmapMarkdown $result}
     elseif($Search -or $All){(ConvertTo-SBStableValue $result|ConvertTo-Json -Depth 40 -Compress)}else{ConvertTo-SBJson $result}
     if($Startup -and !$result.withinBudget){exit 1}
-    # Automatic, lossless tiering when a task is closed: a separate writer process (this one holds a read-only lock) marks the oldest dated
-    # sections as history only when the startup context reaches 80% of the budget. It never changes this command's output or exit code.
+    # Automatic, lossless tiering at the end of every task: a separate writer process (this one holds a read-only lock) marks the dated
+    # sections older than 30 days as history, then reports the initial context usage and the command for the model-assisted compaction.
+    # It never changes this command's output or exit code.
     if($UpdateTaskId -and $Status -ceq 'done' -and !$NoAutoCompact -and $env:SECONDBRAIN_AUTO_COMPACT -ne '0'){
         try{
-            $childArguments=@('-NoProfile','-File',$PSCommandPath,'-Compact','-Mechanical','-Apply','-TriggerPercent','80')
+            $childArguments=@('-NoProfile','-File',$PSCommandPath,'-Compact','-Mechanical','-Apply')
             foreach($pair in @(@('-CheckoutPath',$CheckoutPath),@('-ConfigPath',$ConfigPath),@('-SessionId',$SessionId))){if($pair[1]){$childArguments+=@($pair[0],$pair[1])}}
             $childText=(& pwsh @childArguments 2>&1|Out-String)
             if($LASTEXITCODE -ne 0){throw $childText.Trim()}
             $auto=$childText|ConvertFrom-Json -AsHashtable
-            if($auto.action -ceq 'tiered' -and $auto.applied){[Console]::Error.WriteLine((Get-SBMessage 'knowledgecli.autocompact.notice' @(@($auto.demoted).Count,$auto.beforeCharacters,$auto.afterCharacters)))}
+            $usage=if($auto.action -ceq 'tiered' -and $auto.applied){[int]$auto.afterCharacters}else{[int]$auto.beforeCharacters}
+            $moved=if($auto.action -ceq 'tiered' -and $auto.applied){@($auto.demoted).Count}else{0}
+            [Console]::Error.WriteLine((Get-SBMessage 'knowledgecli.autocompact.notice' @($moved,$usage,[int][Math]::Ceiling($usage/4),[int]$auto.beforeCharacters)))
+            [Console]::Error.WriteLine((Get-SBMessage 'knowledgecli.autocompact.ai'))
         }catch{[Console]::Error.WriteLine((Get-SBMessage 'knowledgecli.autocompact.failed' @(($_.Exception.Message -split "`n")[0])))}
     }
     # Exit contract: 0 only when the requested write is applied; 5 = accepted but not applied yet (deferred or conflict).
