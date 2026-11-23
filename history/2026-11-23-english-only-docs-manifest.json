@@ -1,0 +1,32 @@
+{
+  "task": "SB-ENONLY-P05-20261113",
+  "seq": 584,
+  "date": "2026-11-23",
+  "status": "proposed-awaiting-owner-review",
+  "deleteNothing": true,
+  "inventory": {
+    "itMdPages": [],
+    "messageEntriesIt": 0,
+    "italianCards": 0,
+    "italianTextRemaining": [
+      { "path": "README.md", "lines": "137-159", "kind": "section '## Italiano' (5 subsections) plus the switch link on line 4", "englishEquivalent": "README.md (English body above, same subsections)" }
+    ],
+    "staleStatements": [
+      { "path": "docs/reference/tree.md", "lines": "12-13", "issue": "says prompts keep Italian counterparts and docs keep retained Italian sources; none exist" },
+      { "path": "docs/reference/asset-contracts.md", "lines": "41,153,158", "issue": "describes Italian cards, Italian sb verb aliases and renumbering with aliases; superseded by catalog 4.0 (no aliases, English only)" },
+      { "path": "AGENTS.md", "lines": "30", "issue": "still says Italian cards, it entries and *.it.md pages exist; update only after owner go-ahead" }
+    ],
+    "keepAsData": [
+      "scripts/SecondBrain.Knowledge.psm1 Italian section headings (parser compatibility, decision D#ba6b59)",
+      "scripts/SecondBrain.Sources.psm1 Italian legal source patterns",
+      "docs/reference/portable-brain.md line 47 (documents the parser compatibility)",
+      "shared/authoritative-sources/** transcripts (third-party originals)",
+      "CHANGELOG.md historical entries"
+    ]
+  },
+  "removals": [
+    { "path": "README.md#italiano", "action": "remove section lines 137-159 and the 'Italiano' link on line 4", "replacement": "README.md (English)", "needsOwnerApproval": true }
+  ],
+  "pathMigrationMap": [],
+  "changelogEntry": "CHANGELOG 4.0.0 line 75 already records the *.it.md removal. On removal add: README.md#italiano -> README.md."
+}
