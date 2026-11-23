@@ -1328,11 +1328,11 @@ mod tests {
 
     #[test]
     fn compose_args_validate_the_code_and_pass_the_objective() {
-        assert!(compose_args("QUA05; rm", "", None).is_err());
+        assert!(compose_args("ZZZ99; rm", "", None).is_err());
         assert!(compose_args("", "", None).is_err());
-        assert_eq!(compose_args("QUA05", "  ", None).unwrap(), vec!["-Compose", "-Prompt", "QUA05"]);
-        assert_eq!(compose_args("QUA05", " Diagnose ", None).unwrap(), vec!["-Compose", "-Prompt", "QUA05", "-Objective", "Diagnose"]);
-        assert!(compose_args("QUA05", &"x".repeat(2_001), None).is_err());
+        assert_eq!(compose_args("ZZZ99", "  ", None).unwrap(), vec!["-Compose", "-Prompt", "ZZZ99"]);
+        assert_eq!(compose_args("ZZZ99", " Diagnose ", None).unwrap(), vec!["-Compose", "-Prompt", "ZZZ99", "-Objective", "Diagnose"]);
+        assert!(compose_args("ZZZ99", &"x".repeat(2_001), None).is_err());
     }
 
     fn queue(task_ids: &[&str], resume: Option<&str>) -> QueueRequest {

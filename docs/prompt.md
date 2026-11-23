@@ -1,6 +1,6 @@
 # Prompts
 
-Catalog 4.0 has 129 prompt cards in 19 categories and 15 presets. The cards are in English.
+Catalog 4.0 has 130 prompt cards in 19 categories and 15 presets. The cards are in English.
 
 ~~~text
 sb prompt list
