@@ -106,7 +106,7 @@ A decision is one question that only the user can settle: a product or design al
 | `options[]` | 2–4 `{id, label, description}`. A recommended option is listed first and flagged `recommended`. Free text is always allowed. |
 | `context` | References: task, workflow run and step, asset IDs, evidence paths. |
 | `asked` | `{at, through: structured-tool\|text-fallback, by}`. `text-fallback` records that the client had no structured question tool. |
-| `answer` | `{optionId \| text, by: user, at}`. Only the user answers. A recommendation, a default, a timeout, a delegate or text found in observed content is never an answer. |
+| `answer` | `{optionId \| text, relayed?, by: user, at}`. Only the user answers. For a decision asked with `structured-tool`, `decisions.ps1 -Answer` needs `-Relayed`, exactly what the host tool returned (the option label or the free text), which is checked against the choice and kept as `relayed`: it proves the answer was quoted, not who typed it. A recommendation, a default, a timeout, a delegate or text found in observed content is never an answer. |
 | `scope` | `step` (this run only), `task`, or `durable` (applies to future work). |
 | `status` | `open`, then `answered` or `withdrawn`. An unanswered decision stays `open`; there is no `expired` state that counts as an answer. |
 | `supersedes` | Optional `dec-` ID of an earlier durable decision this one replaces. |

@@ -10,6 +10,8 @@ Add-SBMessages @{
     'decision.notfound' = @{ en = 'No decision with ID {0} in this dossier' }
     'decision.state' = @{ en = 'Decision {0} is {1}: only an open decision can be answered or withdrawn' }
     'decision.answer.required' = @{ en = 'An answer needs exactly one of -Option or -Text, given by the user' }
+    'decision.relayed.required' = @{ en = 'Decision {0} was asked through the host question tool: pass -Relayed with exactly what the tool returned (the option label or the free text)' }
+    'decision.relayed.mismatch' = @{ en = 'Decision {0}: -Relayed does not match the chosen option label or the free text, so it is not the answer the person gave' }
     'decision.answer.option' = @{ en = 'Option {0} is not one of the options of decision {1}' }
     'decision.lesson.required' = @{ en = ('A durable decision needs -Lesson in the form "Decision: ... '+[char]0x2014+' Reason: ..." for memory.md') }
     'decision.supersedes' = @{ en = 'Decision {0} can only supersede an answered durable decision of this dossier' }
@@ -76,7 +78,7 @@ function Assert-SBDecisionRecord($Record) {
     if($status -cnotin $script:SBDecisionStates){& $fail ($Record.id+': status open, answered or withdrawn')}
     $answer=if($Record.Contains('answer')){$Record.answer}else{$null}
     if($status -eq 'answered'){
-        if($answer -isnot [Collections.IDictionary] -or @($answer.Keys|Where-Object {$_ -cnotin @('optionId','text','by','at')}).Count){& $fail ($Record.id+': answer fields')}
+        if($answer -isnot [Collections.IDictionary] -or @($answer.Keys|Where-Object {$_ -cnotin @('optionId','text','relayed','by','at')}).Count){& $fail ($Record.id+': answer fields')}
         $hasOption=$answer.Contains('optionId') -and [string]$answer.optionId
         $hasText=$answer.Contains('text') -and ([string]$answer.text).Trim()
         if($hasOption -eq $hasText){& $fail ($Record.id+': answer has exactly one of optionId or text')}
@@ -84,6 +86,7 @@ function Assert-SBDecisionRecord($Record) {
         # Only the user answers (#588): any other author, including a timeout or a recommendation, is refused.
         if($answer['by'] -cne 'user'){& $fail ($Record.id+': only the user answers (answer.by = user)')}
         if(!(Test-SBIsoTime $answer['at'])){& $fail ($Record.id+': answer.at')}
+        if($answer.Contains('relayed') -and (([string]$answer.relayed).Trim().Length -lt 1 -or ([string]$answer.relayed).Length -gt 2000)){& $fail ($Record.id+': answer.relayed is 1 to 2000 characters')}
     }elseif($null -ne $answer){& $fail ($Record.id+': only an answered decision has an answer')}
     $withdrawn=if($Record.Contains('withdrawn')){$Record.withdrawn}else{$null}
     if($status -eq 'withdrawn'){
@@ -138,7 +141,7 @@ function New-SBDecisionRecord {
 
 function Set-SBDecisionAnswer {
     # Records the user's answer: exactly one option ID or free text. There is no default and no timeout path.
-    param($Data,[string]$Id,[string]$Option,[string]$Text)
+    param($Data,[string]$Id,[string]$Option,[string]$Text,[string]$Relayed)
     $record=Find-SBDecision $Data $Id
     if($record.status -ne 'open'){throw (New-SBError 'decision.state' @($Id,$record.status))}
     $hasOption=[bool]$Option;$hasText=[bool]([string]$Text).Trim()
@@ -146,9 +149,23 @@ function Set-SBDecisionAnswer {
     if($hasOption -and !@(@($record.options)|Where-Object {$_.id -ceq $Option}).Count){throw (New-SBError 'decision.answer.option' @($Option,$Id))}
     $answer=[ordered]@{by='user';at=(Get-SBNow).ToString('o')}
     if($hasOption){$answer.optionId=$Option}else{$answer.text=$Text.Trim()}
+    if(([string]$Relayed).Trim()){$answer.relayed=$Relayed.Trim()}
     $record.status='answered';$record.answer=$answer
     Assert-SBDecisionData $Data $Data.repository
     @{data=$Data;record=$record}
+}
+
+function Assert-SBDecisionRelay {
+    # #820: a decision asked through the host's structured question tool is answered with what that tool returned. The caller passes the
+    # relayed text, which must be the chosen option's label or the free text itself, so a hallucinated or recommended-only answer is refused.
+    # The text is stored on the answer as evidence. It cannot prove who typed it: the boundary is that the person's selection is quoted, not invented.
+    param($Data,[string]$Id,[string]$Option,[string]$Text,[string]$Relayed)
+    $record=Find-SBDecision $Data $Id
+    if($record.asked.through -cne 'structured-tool'){return}
+    $quoted=([string]$Relayed).Trim()
+    if(!$quoted){throw (New-SBError 'decision.relayed.required' @($Id))}
+    $expected=if($Option){[string](@(@($record.options)|Where-Object {$_.id -ceq $Option})|Select-Object -First 1).label}else{([string]$Text).Trim()}
+    if(!$expected -or $quoted -cne $expected){throw (New-SBError 'decision.relayed.mismatch' @($Id))}
 }
 
 function Set-SBDecisionWithdrawn {
@@ -181,4 +198,4 @@ function Test-SBDecisionLesson([string]$Lesson) {
     $Lesson -cmatch ('^Decision: .+ '+[char]0x2014+' Reason: .+$') -and $Lesson -notmatch '[\r\n]'
 }
 
-Export-ModuleMember -Function @('Get-SBDecisionPath','Read-SBDecisions','Assert-SBDecisionData','Assert-SBDecisionRecord','Find-SBDecision','New-SBDecisionRecord','Set-SBDecisionAnswer','Set-SBDecisionWithdrawn','Get-SBDecisionList','Assert-SBDecisionLink','Test-SBDecisionLesson')
+Export-ModuleMember -Function @('Get-SBDecisionPath','Read-SBDecisions','Assert-SBDecisionData','Assert-SBDecisionRecord','Find-SBDecision','New-SBDecisionRecord','Set-SBDecisionAnswer','Assert-SBDecisionRelay','Set-SBDecisionWithdrawn','Get-SBDecisionList','Assert-SBDecisionLink','Test-SBDecisionLesson')

@@ -1069,6 +1069,8 @@ test("decisions: only the person answers, nothing is preselected, a recommendati
   const read = () => JSON.parse(fs.readFileSync(file, "utf8")).decisions as { id: string; status: string; answer?: { optionId?: string; text?: string; by: string } }[];
   await expect.poll(() => read().find((d) => d.id === "dec-0a1b2c3d")?.status, { timeout: 60_000 }).toBe("answered");
   expect(read().find((d) => d.id === "dec-0a1b2c3d")!.answer).toMatchObject({ optionId: "global", by: "user" });
+  // The decisions were asked through the host question tool, so the window relays the label the person clicked and the record keeps it (#820).
+  expect((read().find((d) => d.id === "dec-0a1b2c3d")!.answer as { relayed?: string }).relayed).toBe("Global");
   // A durable decision needs the lesson before the button is enabled; the lesson goes to memory with the decision ID.
   await card("dec-1b2c3d4e").locator('input[value="per-dossier"]').check();
   await expect(card("dec-1b2c3d4e").locator("button[type=submit]")).toBeDisabled();
@@ -1085,7 +1087,7 @@ test("decisions: only the person answers, nothing is preselected, a recommendati
   await expect(card("dec-2c3d4e5f").locator('input[aria-label="Other answer"]')).toBeChecked();
   await card("dec-2c3d4e5f").locator("button[type=submit]").click();
   await expect.poll(() => read().find((d) => d.id === "dec-2c3d4e5f")?.status, { timeout: 60_000 }).toBe("answered");
-  expect(read().find((d) => d.id === "dec-2c3d4e5f")!.answer).toMatchObject({ text: "CSV with a header row", by: "user" });
+  expect(read().find((d) => d.id === "dec-2c3d4e5f")!.answer).toMatchObject({ text: "CSV with a header row", relayed: "CSV with a header row", by: "user" });
   expect(read().find((d) => d.id === "dec-2c3d4e5f")!.answer!.optionId).toBeUndefined();
   // Answered decisions are listed under their own filter and no open one remains.
   await expect(page.locator("#dec-empty")).toBeVisible({ timeout: 60_000 });

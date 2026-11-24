@@ -73,7 +73,9 @@ function card(d: Decision): HTMLElement {
   onBusyClick(send, async () => {
     const p = answerPayload(chosen(), otherText.value);
     if (!p) return;
-    const r = await call<Answered>("decisions", { operation: "answer", repo: checkout(), id: d.id, ...p, lesson: lesson?.value ?? "" }, "dec-error");
+    // What the person just chose, as the window showed it: a decision asked through the host question tool checks it against the option label or the text (#820).
+    const relayed = "option" in p ? d.options.find((o) => o.id === p.option)?.label ?? "" : p.text;
+    const r = await call<Answered>("decisions", { operation: "answer", repo: checkout(), id: d.id, ...p, relayed, lesson: lesson?.value ?? "" }, "dec-error");
     if (r) await showDecisions();
   }, "Recording…");
   form.addEventListener("submit", (e) => e.preventDefault());

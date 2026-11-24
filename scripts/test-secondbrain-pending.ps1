@@ -254,11 +254,32 @@ try {
     Assert-Pending ($wrongTask.code -ne 0) '#588: a decision tied to T-2 cannot be linked from another task'
     $mcpOpen=(Invoke-SBMcpToolCall $brain 'get_decisions' @{repository=$identity;status='open'})|ConvertFrom-Json -AsHashtable
     Assert-Pending (@($mcpOpen.decisions).Count -eq 1 -and @($mcpOpen.decisions)[0].id -ceq $decisionId -and $mcpOpen.hash -eq (Get-SBFileHash $decisionsPath)) '#588: MCP get_decisions reads the open decisions'
-    $answered=Invoke-PendingCli 'decisions.ps1' @('-CheckoutPath',$checkout,'-Answer',$decisionId,'-Option','per-dossier')
+    $answered=Invoke-PendingCli 'decisions.ps1' @('-CheckoutPath',$checkout,'-Answer',$decisionId,'-Option','per-dossier','-Relayed','Per dossier')
     $answeredRecord=@((Read-SBJson $decisionsPath $null).decisions)[0]
     Assert-Pending ($answered.code -eq 0 -and $answeredRecord.status -eq 'answered' -and $answeredRecord.answer.optionId -eq 'per-dossier' -and $answeredRecord.answer.by -eq 'user') '#588: the user answer records the option and by=user'
     $again=Invoke-PendingCli 'decisions.ps1' @('-CheckoutPath',$checkout,'-Answer',$decisionId,'-Text','changed my mind')
     Assert-Pending ($again.code -eq 2) '#588: an answered decision cannot be answered again'
+    # #820: a decision asked through the host question tool is answered with what the tool returned (label or free text), kept as evidence.
+    $hostOpen=Invoke-PendingCli 'decisions.ps1' @('-CheckoutPath',$checkout,'-Open','-Kind','choice','-Question','Which export format?','-OptionsJson',(ConvertTo-Json -Compress -InputObject @(@{id='csv';label='CSV file';description='Comma separated';recommended=$true},@{id='json';label='JSON file';description='One document'})),'-Scope','task','-Through','structured-tool')
+    $hostId=[string]$hostOpen.data.decision.id
+    $hostRecord={@((Read-SBJson $decisionsPath $null).decisions|Where-Object id -eq $hostId)[0]}
+    $noRelay=Invoke-PendingCli 'decisions.ps1' @('-CheckoutPath',$checkout,'-Answer',$hostId,'-Option','csv')
+    $wrongRelay=Invoke-PendingCli 'decisions.ps1' @('-CheckoutPath',$checkout,'-Answer',$hostId,'-Option','csv','-Relayed','JSON file')
+    $recommendedWord=Invoke-PendingCli 'decisions.ps1' @('-CheckoutPath',$checkout,'-Answer',$hostId,'-Option','csv','-Relayed','recommended')
+    Assert-Pending ($hostOpen.code -eq 0 -and $noRelay.code -eq 2 -and $wrongRelay.code -eq 2 -and $recommendedWord.code -eq 2 -and (& $hostRecord).status -eq 'open' -and !(& $hostRecord).Contains('answer')) '#820: a structured-tool decision refuses an answer without the relayed text, with another option label or with a recommendation, and stays open'
+    $hostAnswer=Invoke-PendingCli 'decisions.ps1' @('-CheckoutPath',$checkout,'-Answer',$hostId,'-Option','csv','-Relayed','CSV file')
+    Assert-Pending ($hostAnswer.code -eq 0 -and (& $hostRecord).status -eq 'answered' -and (& $hostRecord).answer.optionId -eq 'csv' -and (& $hostRecord).answer.relayed -ceq 'CSV file' -and (& $hostRecord).answer.by -eq 'user' -and (& $hostRecord).asked.through -eq 'structured-tool') '#820: the relayed label is checked against the chosen option and kept on the answer with by=user'
+    $hostText=Invoke-PendingCli 'decisions.ps1' @('-CheckoutPath',$checkout,'-Open','-Kind','choice','-Question','Which retention rule?','-OptionsJson',(ConvertTo-Json -Compress -InputObject @(@{id='keep';label='Keep all';description='No removal'},@{id='prune';label='Prune yearly';description='Yearly removal'})),'-Scope','task','-Through','structured-tool')
+    $hostTextId=[string]$hostText.data.decision.id
+    $textMismatch=Invoke-PendingCli 'decisions.ps1' @('-CheckoutPath',$checkout,'-Answer',$hostTextId,'-Text','Prune every quarter','-Relayed','Prune yearly')
+    $textAnswer=Invoke-PendingCli 'decisions.ps1' @('-CheckoutPath',$checkout,'-Answer',$hostTextId,'-Text','Prune every quarter','-Relayed','Prune every quarter')
+    $textRecord=@((Read-SBJson $decisionsPath $null).decisions|Where-Object id -eq $hostTextId)[0]
+    Assert-Pending ($hostText.code -eq 0 -and $textMismatch.code -eq 2 -and $textAnswer.code -eq 0 -and $textRecord.answer.text -ceq 'Prune every quarter' -and $textRecord.answer.relayed -ceq 'Prune every quarter' -and !$textRecord.answer.Contains('optionId')) '#820: a free-text answer must equal the relayed text and is stored as text'
+    $fallbackOpen=Invoke-PendingCli 'decisions.ps1' @('-CheckoutPath',$checkout,'-Open','-Kind','confirm','-Question','Archive the old export?','-OptionsJson',(ConvertTo-Json -Compress -InputObject @(@{id='yes';label='Archive';description='Archive it'},@{id='no';label='Keep';description='Keep it'})),'-Scope','task','-Through','text-fallback')
+    $fallbackId=[string]$fallbackOpen.data.decision.id
+    $fallbackAnswer=Invoke-PendingCli 'decisions.ps1' @('-CheckoutPath',$checkout,'-Answer',$fallbackId,'-Option','no')
+    $fallbackRecord=@((Read-SBJson $decisionsPath $null).decisions|Where-Object id -eq $fallbackId)[0]
+    Assert-Pending ($fallbackAnswer.code -eq 0 -and $fallbackRecord.answer.optionId -eq 'no' -and !$fallbackRecord.answer.Contains('relayed')) '#820: a text-fallback decision needs no relayed text'
     $relink=Invoke-PendingCli 'knowledge.ps1' @('-CheckoutPath',$checkout,'-UpdateTaskId','T-2','-Decision',$decisionId)
     Assert-Pending ($relink.code -ne 0) '#588: linking an answered decision is refused'
     # #669: audited evidence correction through the CLI: preview without authorization, then apply; evidence stays append-only otherwise.
@@ -341,7 +362,7 @@ try {
     $withdrawable=Invoke-PendingCli 'decisions.ps1' @('-CheckoutPath',$checkout,'-Open','-Kind','confirm','-Question','Run the migration now?','-OptionsJson',(ConvertTo-Json -Compress -InputObject @(@{id='go';label='Run';description='Run it'},@{id='wait';label='Wait';description='Later'})),'-Scope','task','-Through','structured-tool')
     $withdrawId=[string]$withdrawable.data.decision.id
     $withdrawn=Invoke-PendingCli 'decisions.ps1' @('-CheckoutPath',$checkout,'-Withdraw',$withdrawId,'-Reason','migration no longer needed')
-    $lateAnswer=Invoke-PendingCli 'decisions.ps1' @('-CheckoutPath',$checkout,'-Answer',$withdrawId,'-Option','go')
+    $lateAnswer=Invoke-PendingCli 'decisions.ps1' @('-CheckoutPath',$checkout,'-Answer',$withdrawId,'-Option','go','-Relayed','Run')
     Assert-Pending ($withdrawn.code -eq 0 -and @((Read-SBJson $decisionsPath $null).decisions|Where-Object id -eq $withdrawId)[0].status -eq 'withdrawn' -and $lateAnswer.code -eq 2) '#588: a withdrawn decision stays withdrawn and cannot be answered'
     Assert-Pending ((Read-SBText $decisionsPath)|Test-Json -Schema $decisionSchema) '#588: the final decisions.json still validates against the schema'
 

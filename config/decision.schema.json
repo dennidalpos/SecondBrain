@@ -59,6 +59,7 @@
           "properties": {
             "optionId": { "type": "string" },
             "text": { "type": "string", "minLength": 1 },
+            "relayed": { "type": "string", "minLength": 1, "maxLength": 2000 },
             "by": { "const": "user" },
             "at": { "$ref": "#/$defs/isoTime" }
           },

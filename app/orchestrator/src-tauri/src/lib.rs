@@ -395,7 +395,7 @@ async fn library(app: AppHandle, operation: String, identity: String, kind: Stri
 
 /// Arguments of `decisions.ps1`: the decisions of the working repository (read-only) or the answer to one open decision. The answer is
 /// exactly one listed option ID or free text typed by the person; the window never sends a default, a recommendation or a timeout (#616).
-fn decisions_args(operation: &str, repo_path: &str, id: &str, option: &str, text: &str, lesson: &str) -> Result<Vec<String>, String> {
+fn decisions_args(operation: &str, repo_path: &str, id: &str, option: &str, text: &str, relayed: &str, lesson: &str) -> Result<Vec<String>, String> {
     let dir = checkout(repo_path)?;
     match operation {
         "list" => Ok(vec!["-List".into(), "-CheckoutPath".into(), dir]),
@@ -422,6 +422,14 @@ fn decisions_args(operation: &str, repo_path: &str, id: &str, option: &str, text
                 args.push("-Text".into());
                 args.push(text.trim().into());
             }
+            // What the window showed and the person chose (the option label or the typed text): a decision asked through the host tool checks it (#820).
+            if relayed.len() > 2000 || relayed.chars().any(|c| c.is_control()) {
+                return Err("The relayed answer is too long or has control characters.".into());
+            }
+            if !relayed.trim().is_empty() {
+                args.push("-Relayed".into());
+                args.push(relayed.trim().into());
+            }
             if lesson.len() > 600 || lesson.chars().any(|c| c.is_control()) {
                 return Err("The lesson is too long or has control characters.".into());
             }
@@ -438,9 +446,9 @@ fn decisions_args(operation: &str, repo_path: &str, id: &str, option: &str, text
 }
 
 #[tauri::command]
-async fn decisions(app: AppHandle, operation: String, repo: String, id: Option<String>, option: Option<String>, text: Option<String>, lesson: Option<String>) -> Result<Value, String> {
+async fn decisions(app: AppHandle, operation: String, repo: String, id: Option<String>, option: Option<String>, text: Option<String>, relayed: Option<String>, lesson: Option<String>) -> Result<Value, String> {
     // User decision records (decisions.ps1, decisions.json of the dossier): listing reads; an answer is queued as one reviewed file.save.
-    let args = decisions_args(&operation, &repo, id.as_deref().unwrap_or(""), option.as_deref().unwrap_or(""), text.as_deref().unwrap_or(""), lesson.as_deref().unwrap_or(""))?;
+    let args = decisions_args(&operation, &repo, id.as_deref().unwrap_or(""), option.as_deref().unwrap_or(""), text.as_deref().unwrap_or(""), relayed.as_deref().unwrap_or(""), lesson.as_deref().unwrap_or(""))?;
     script(app, "decisions.ps1", args).await
 }
 
@@ -1367,23 +1375,24 @@ mod tests {
     fn decisions_args_send_only_what_the_person_chose() {
         let dir = std::env::temp_dir().to_string_lossy().into_owned();
         // Listing is read-only and needs an existing checkout.
-        assert_eq!(decisions_args("list", &dir, "", "", "", "").unwrap()[..2], ["-List", "-CheckoutPath"]);
-        assert!(decisions_args("list", "Z:/no/such/folder", "", "", "", "").is_err());
-        assert!(decisions_args("withdraw", &dir, "dec-0a1b2c3d", "a", "", "").is_err());
+        assert_eq!(decisions_args("list", &dir, "", "", "", "", "").unwrap()[..2], ["-List", "-CheckoutPath"]);
+        assert!(decisions_args("list", "Z:/no/such/folder", "", "", "", "", "").is_err());
+        assert!(decisions_args("withdraw", &dir, "dec-0a1b2c3d", "a", "", "", "").is_err());
         // An answer is exactly one listed option ID or free text: neither or both is refused, so no default can be sent.
-        assert!(decisions_args("answer", &dir, "dec-0a1b2c3d", "", "", "").is_err());
-        assert!(decisions_args("answer", &dir, "dec-0a1b2c3d", "yes", "also this", "").is_err());
-        assert!(decisions_args("answer", &dir, "dec-0A1B2C3D", "yes", "", "").is_err());
-        assert!(decisions_args("answer", &dir, "-Apply", "yes", "", "").is_err());
-        assert!(decisions_args("answer", &dir, "dec-0a1b2c3d", "-Apply", "", "").is_err());
-        assert!(decisions_args("answer", &dir, "dec-0a1b2c3d", "", &"x".repeat(2001), "").is_err());
-        assert!(decisions_args("answer", &dir, "dec-0a1b2c3d", "yes", "", "bell\u{7}").is_err());
-        let by_option = decisions_args("answer", &dir, "dec-0a1b2c3d", "per-dossier", "", "").unwrap();
+        assert!(decisions_args("answer", &dir, "dec-0a1b2c3d", "", "", "", "").is_err());
+        assert!(decisions_args("answer", &dir, "dec-0a1b2c3d", "yes", "also this", "", "").is_err());
+        assert!(decisions_args("answer", &dir, "dec-0A1B2C3D", "yes", "", "", "").is_err());
+        assert!(decisions_args("answer", &dir, "-Apply", "yes", "", "", "").is_err());
+        assert!(decisions_args("answer", &dir, "dec-0a1b2c3d", "-Apply", "", "", "").is_err());
+        assert!(decisions_args("answer", &dir, "dec-0a1b2c3d", "", &"x".repeat(2001), "", "").is_err());
+        assert!(decisions_args("answer", &dir, "dec-0a1b2c3d", "yes", "", "", "bell\u{7}").is_err());
+        let by_option = decisions_args("answer", &dir, "dec-0a1b2c3d", "per-dossier", "", "", "").unwrap();
         assert_eq!(by_option[..4], ["-Answer", "dec-0a1b2c3d", "-Option", "per-dossier"]);
         assert!(!by_option.contains(&"-Text".to_string()));
-        let by_text = decisions_args("answer", &dir, "dec-0a1b2c3d", "", "  my own answer ", "Decision: x - Reason: y").unwrap();
+        let by_text = decisions_args("answer", &dir, "dec-0a1b2c3d", "", "  my own answer ", "my own answer", "Decision: x - Reason: y").unwrap();
         assert_eq!(by_text[..4], ["-Answer", "dec-0a1b2c3d", "-Text", "my own answer"]);
-        assert_eq!(by_text[4..6], ["-Lesson", "Decision: x - Reason: y"]);
+        assert_eq!(by_text[4..8], ["-Relayed", "my own answer", "-Lesson", "Decision: x - Reason: y"]);
+        assert_eq!(decisions_args("answer", &dir, "dec-0a1b2c3d", "per-dossier", "", "Per dossier", "").unwrap()[4..6], ["-Relayed", "Per dossier"]);
     }
 
     #[test]

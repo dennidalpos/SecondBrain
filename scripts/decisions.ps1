@@ -7,12 +7,13 @@ User decision records of the working repository's dossier (decisions.json, asset
 (config/decision.schema.json, rules in SecondBrain.Decisions.psm1) and is queued as one file.save with the expected hash,
 so it is journaled, backed up and never overwrites a newer file. -WhatIf prints the plan and the new content hash without queuing.
 Only the user answers: -Answer takes exactly one -Option or -Text and records answer.by=user. There is no default, no
-recommendation-as-answer and no timeout: an unanswered decision stays open. A durable answer also needs -Lesson
+recommendation-as-answer and no timeout: an unanswered decision stays open. A decision asked through the host's structured question tool (-Through structured-tool) also needs -Relayed: exactly what that tool returned (the chosen option's label, or the free text), kept on the answer as evidence (#820).
+A durable answer also needs -Lesson
 ("Decision: ... <em dash> Reason: ..."), appended to memory.md with the decision ID.
 .EXAMPLE
 pwsh -NoProfile -File scripts/decisions.ps1 -Open -Kind choice -Question "Which lock key?" -OptionsJson '[{"id":"dossier","label":"Per dossier","description":"...","recommended":true},{"id":"global","label":"Global","description":"..."}]' -Scope task -TaskId TASK-476 -Through structured-tool
 .EXAMPLE
-pwsh -NoProfile -File scripts/decisions.ps1 -Answer dec-0a1b2c3d -Option dossier
+pwsh -NoProfile -File scripts/decisions.ps1 -Answer dec-0a1b2c3d -Option dossier -Relayed "Per dossier"
 #>
 [CmdletBinding(DefaultParameterSetName='List')]
 param(
@@ -32,6 +33,7 @@ param(
     [Parameter(Mandatory,ParameterSetName='Answer')][ValidatePattern('^dec-[0-9a-f]{8}$')][string]$Answer,
     [Parameter(ParameterSetName='Answer')][string]$Option,
     [Parameter(ParameterSetName='Answer')][string]$Text,
+    [Parameter(ParameterSetName='Answer')][string]$Relayed,
     [Parameter(ParameterSetName='Answer')][string]$Lesson,
     [Parameter(Mandatory,ParameterSetName='Withdraw')][ValidatePattern('^dec-[0-9a-f]{8}$')][string]$Withdraw,
     [Parameter(Mandatory,ParameterSetName='Withdraw')][string]$Reason,
@@ -78,7 +80,8 @@ try{
                 if(!(Test-SBDecisionLesson $Lesson)){throw (New-SBError 'decision.lesson.required')}
                 $memoryLine='- '+$Lesson.Trim()+' ('+$Answer+')'+"`n"
             }
-            $change=Set-SBDecisionAnswer -Data $set.data -Id $Answer -Option $Option -Text $Text
+            Assert-SBDecisionRelay -Data $set.data -Id $Answer -Option $Option -Text $Text -Relayed $Relayed
+            $change=Set-SBDecisionAnswer -Data $set.data -Id $Answer -Option $Option -Text $Text -Relayed $Relayed
         }
         'Withdraw' {$change=Set-SBDecisionWithdrawn -Data $set.data -Id $Withdraw -Reason $Reason}
     }
