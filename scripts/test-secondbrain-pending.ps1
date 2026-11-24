@@ -1,13 +1,13 @@
 #requires -Version 7.5
 $ErrorActionPreference='Stop'
-Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
-Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Access.psm1')
-Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Host.psm1')
-Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Entity.psm1')
-Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Tracker.psm1')
-Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Knowledge.psm1')
-Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Pending.psm1')
-Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Mcp.psm1')
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Access.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Host.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Entity.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Tracker.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Knowledge.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Pending.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Mcp.psm1') -Force
 . (Join-Path $PSScriptRoot 'test-git-environment.ps1')
 $null=Enter-SBTestGitEnvironment # process-only Git configuration, so the suite also runs on its own (#822)
 . (Join-Path $PSScriptRoot 'test-helpers.ps1')
@@ -438,8 +438,10 @@ try {
     [void](Restore-SBParaTransaction $marker.manifest $brain $cfg.backupRoot)
     Assert-Pending ((Complete-SBPendingSubmission $afterCrash $cfg).applied -and !(Get-SBPendingTransaction $brain)) 'normal recovery releases the gate and deferred work is integrated'
     $activeRequest=New-SBPendingWrite -BrainRoot $brain -Repository $identity -Operation file.append -Arguments @{relativePath='memory.md';content="After active transaction`n"} -Config $cfg
-    $holder=Enter-SBOperation $cfg -WaitMs 0
+    # A child process from the earlier steps (MCP server, access.ps1) can still release writer.lock under load: wait for it (#825), then require the guard.
+    $holder=Enter-SBOperation $cfg -WaitMs 20000
     $normalGuard=Get-SBWriteGuard;$observed=@{state=$null}
+    Assert-Pending ($normalGuard -is [scriptblock]) 'the live transaction holder installs the write guard'
     $wrappedGuard={
         & $normalGuard
         if(!$observed.state -and (Get-SBPendingTransaction $brain)){$observed.state=(Invoke-SBPendingWrites -BrainRoot $brain -Config $cfg).state}
