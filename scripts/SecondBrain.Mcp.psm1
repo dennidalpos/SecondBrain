@@ -86,13 +86,13 @@ Add-SBMessages @{
     'mcp.description.search_knowledge.category' = @{ en = 'Categories (default: all but prompt)' }
     'mcp.description.search_knowledge.previousRevision' = @{ en = 'Previous revision: if unchanged, unchanged=true' }
     'mcp.description.search_knowledge.limit' = @{ en = 'Maximum matches (0 = all)' }
-    'mcp.description.list_prompts' = @{ en = 'Prompt catalog by category; compact=true: one line per prompt.' }
+    'mcp.description.list_prompts' = @{ en = 'Prompt catalog by category, then the guided flows (wf-NAME presets); compact=true: one line per prompt.' }
     'mcp.description.list_prompts.category' = @{ en = 'Category or code prefix' }
     'mcp.description.list_prompts.compact' = @{ en = 'One line per prompt' }
     'mcp.description.get_prompt_home' = @{ en = 'sb prompt screen: sb commands and scripts; with repositoryPath, state and next step.' }
     'mcp.description.get_prompt_home.repositoryPath' = @{ en = 'Working checkout' }
-    'mcp.description.get_prompt' = @{ en = 'Composed prompt by code or ID (e.g. workstation.activate); objective sets the goal.' }
-    'mcp.description.get_prompt.prompt' = @{ en = 'Code, pmt-... ID or alias' }
+    'mcp.description.get_prompt' = @{ en = 'Composed prompt by code or ID (e.g. workstation.activate), or a whole guided flow by preset key (wf-NAME, e.g. wf-security-review) or private key (<repo-slug>/<name>); objective sets the goal.' }
+    'mcp.description.get_prompt.prompt' = @{ en = 'Code, pmt-... ID, alias, preset key wf-NAME or wfl-... ID, or private key (needs repositoryPath)' }
     'mcp.description.check_publication' = @{ en = 'Publication check (working tree, index, history): summary; detail=true full report.' }
     'mcp.description.check_publication.repositoryPath' = @{ en = 'Git root or checkout' }
     'mcp.description.check_publication.detail' = @{ en = 'Full report' }
@@ -471,6 +471,8 @@ function Invoke-SBMcpToolCall([string]$BrainRoot, [string]$ToolName, $Arguments)
             # #589: private cards are listed only for their own repository (repositoryPath); none without it.
             $private = Get-SBMcpPrivateAssets $BrainRoot $Arguments $catalog
             if ($private) { $listing = $listing.TrimEnd() + "`n" + (Format-SBPrivatePromptList $private) }
+            # Presets (wf-NAME) are listed with the cards: get_prompt takes their key (#590 audit).
+            if (!$category) { $listing = $listing.TrimEnd() + "`n" + (Format-SBPresetList $BrainRoot $catalog $private) }
             return $listing
         }
         'get_prompt_home' {
@@ -485,10 +487,22 @@ function Invoke-SBMcpToolCall([string]$BrainRoot, [string]$ToolName, $Arguments)
             $objective = if ($Arguments.ContainsKey('objective')) { [string]$Arguments.objective } else { '' }
             # #589: a namespaced key (<repo-slug>/<name>) or a private pmt- ID resolves only in its own repository's dossier.
             $requested = [string]$Arguments.prompt
-            if ($requested.Contains('/') -or ($requested -cmatch '^pmt-[0-9a-f]{8}$' -and !@($catalog.prompts | Where-Object { $_.id -ceq $requested }).Count)) {
+            $privateFlowId = $requested -cmatch '^wfl-[0-9a-f]{8}$' -and !@(Read-SBPromptWorkflows $BrainRoot $catalog | Where-Object { $_.id -ceq $requested }).Count
+            if ($requested.Contains('/') -or $privateFlowId -or ($requested -cmatch '^pmt-[0-9a-f]{8}$' -and !@($catalog.prompts | Where-Object { $_.id -ceq $requested }).Count)) {
                 $private = Get-SBMcpPrivateAssets $BrainRoot $Arguments $catalog
                 if (!$private) { throw (New-SBError 'private.notfound' @($requested)) }
-                return New-SBPrivatePromptComposition $private (Resolve-SBPrivatePrompt $private $requested) $objective
+                return New-SBPrivateComposition $BrainRoot $catalog $private $requested @{repositories=@();project=$null;sourceRegistry=$null} $objective -Standalone
+            }
+            # A preset key (wf-NAME or wfl- ID) composes the whole guided flow, like `sb prompt wf-NAME: objective`.
+            if (Test-SBPresetKey $requested) {
+                $presetContext = @{repositories=@();project=$null;sourceRegistry=$null}
+                if ($Arguments.ContainsKey('repositoryPath') -and $Arguments.repositoryPath) {
+                    try { $presetContext = Get-SBWorkflowContext -Config (Read-SBConfiguration -ReadOnly) -RepositoryPath ([string]$Arguments.repositoryPath) } catch { Write-Verbose $_.Exception.Message }
+                }
+                if (@($presetContext.repositories).Count) {
+                    try { return New-SBWorkflowPresetRun $BrainRoot $catalog $requested $presetContext $objective } catch { Write-Verbose $_.Exception.Message; $presetContext = @{repositories=@();project=$null;sourceRegistry=$null} }
+                }
+                return New-SBWorkflowPresetRun $BrainRoot $catalog $requested $presetContext $objective -Standalone
             }
             $resolution = Resolve-SBWorkflowPrompt $catalog $requested
             # With repositoryPath the composition carries that repository's context and ready tasks in next_steps; a checkout without

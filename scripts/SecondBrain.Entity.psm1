@@ -4,14 +4,14 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 Add-SBMessages @{
     'para.gitupdate.invalid' = @{ en = 'Invalid gitUpdate: mode must be commit-push-main, branch-pr or none; branch must be a plain branch name' }
-    'para.path.unconfined' = @{ en = 'PARA path is not relative or not confined' }
-    'para.path.outside' = @{ en = 'Path outside the PARA root' }
-    'para.reparse.knowledge' = @{ en = 'Reparse point in PARA knowledge' }
-    'para.metadata.missing' = @{ en = 'Missing PARA metadata: {0}' }
-    'para.metadata.invalid' = @{ en = 'Invalid PARA metadata' }
-    'para.status.invalid' = @{ en = 'Invalid PARA status' }
-    'para.id.duplicate' = @{ en = 'Duplicate PARA identifier: {0}' }
-    'para.category.diverged' = @{ en = 'PARA category and path diverge' }
+    'para.path.unconfined' = @{ en = 'Entity path is not relative or not confined' }
+    'para.path.outside' = @{ en = 'Path outside the SecondBrain root' }
+    'para.reparse.knowledge' = @{ en = 'Reparse point in knowledge folders' }
+    'para.metadata.missing' = @{ en = 'Missing entity metadata: {0}' }
+    'para.metadata.invalid' = @{ en = 'Invalid entity metadata' }
+    'para.status.invalid' = @{ en = 'Invalid entity status' }
+    'para.id.duplicate' = @{ en = 'Duplicate entity ID: {0}' }
+    'para.category.diverged' = @{ en = 'Entity type and path diverge' }
     'para.brief.missing' = @{ en = 'Missing brief: {0}' }
     'para.project.field' = @{ en = 'Invalid project field: {0}' }
     'para.tracker.reference' = @{ en = 'Invalid tracker reference' }
@@ -22,7 +22,7 @@ Add-SBMessages @{
     'para.area.linkmissing' = @{ en = 'Linked repository dossier or area does not exist: {0}' }
     'para.tracker.unlinked' = @{ en = 'Tracker not linked to the project dossiers' }
     'para.tracker.localmissing' = @{ en = 'Local tracker does not exist' }
-    'para.index.stale' = @{ en = 'PARA index needs updating' }
+    'para.index.stale' = @{ en = 'Entity view needs updating' }
     'para.transaction.outside' = @{ en = 'Transactional operation outside scope' }
     'para.transaction.duplicate' = @{ en = 'Duplicate destination in the transaction' }
     'para.transaction.changed' = @{ en = 'Content changed: {0}' }
@@ -153,15 +153,15 @@ function Get-SBParaIndex([string]$BrainRoot,[string[]]$AllowedOwners) {
         if($eligible){$candidates+=@{id=$item.id;reason=$item.status}}
     }
     $data=@{schemaVersion=1;entities=@($entities|ForEach-Object {@{id=$_.id;kind=$_.kind;title=$_.title;status=$_.status;path=$_.path;archived=$_.archived}});archiveCandidates=@($candidates)}
-    $lines=@('# Indice PARA','')
+    $lines=@('# Entity view','')
     foreach($item in $entities){$label=$item.title.Replace('[','\[').Replace(']','\]');$lines+='- ['+$label+']('+[Uri]::EscapeUriString($item.path+'/brief.md')+'): '+$item.kind+' / '+$item.status+$(if($item.archived){' / archived'}else{''})}
-    $lines+=@('','## Proposte di archiviazione','')
+    $lines+=@('','## Archive candidates','')
     foreach($item in $candidates){$lines+='- '+$item.id+': '+$item.reason}
     @{json=(ConvertTo-SBJson $data);markdown=($lines -join "`n")+"`n";entities=$entities;candidates=$candidates}
 }
 
 function Update-SBParaIndex($Config,[switch]$Check) {
-    # No index files any more (para-index.json and PARA.md are gone): the entity list is read from the folders. Kept so callers stay valid.
+    # Build the entity view from the folders on demand.
     Get-SBParaIndex $Config.brainRoot $Config.allowedOwners
 }
 
@@ -300,7 +300,7 @@ function Restore-SBParaTransaction([string]$ManifestPath,[string]$BrainRoot,[str
     }
 }
 
-# After a rollback, removes the folders that a created file leaves empty, from its parent up to (excluding) the first-level PARA folder.
+# After a rollback, removes the folders that a created file leaves empty, from its parent up to (excluding) the top-level entity folder.
 # Stops at the first non-empty folder; paths outside the brain (allowed runtime paths) are left alone.
 function Remove-SBParaEmptyAncestors([string]$Path,[string]$BrainRoot) {
     $root=[IO.Path]::GetFullPath($BrainRoot).TrimEnd('\','/')

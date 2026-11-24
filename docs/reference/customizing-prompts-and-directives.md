@@ -44,11 +44,11 @@ AGENTS.md is the common repository source. Managed CLAUDE.md/GEMINI.md pointers 
 
 Existing IDE files without approved managed blocks are not silently adopted. Dirty/conflicting files are preserved. Update source/generator, not the distributed block. See [adapters](adapters.md) and [MCP setup](mcp-setup.md).
 
-## Repository and PARA context
+## Repository and entity context
 
-Use explicit Repository/CheckoutPath when needed; ProjectId and Repository are alternative composition contexts. Resolve identity from Git/bindings/PARA, not display names. An absent checkout is not authority to archive a dossier.
+Use explicit Repository/CheckoutPath when needed; ProjectId and Repository are alternative composition contexts. Resolve the repository identity from Git or its binding. Find the matching `repository.json` under `repos/`. An absent checkout is not authority to archive a dossier.
 
-Use KNW03/entity.ps1 for projects/resources/status/archive operations. PARA views are generated. Tracker import, task edits, terminal history and compaction have their own validated CLI transactions; no prompt rewrite authorizes them implicitly.
+Use KNW03/entity.ps1 for projects/resources/status/archive operations. The entity tool generates its view from `entity.json` files. Tracker import, task edits, terminal history and compaction have their own validated CLI transactions; no prompt rewrite authorizes them implicitly.
 
 ## Working rules and verification
 

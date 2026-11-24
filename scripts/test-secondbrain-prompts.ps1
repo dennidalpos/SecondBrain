@@ -285,6 +285,42 @@ try{
     Assert-PrivateRefused {Resolve-SBPrivatePrompt $setA 'beta/notes'} 'private.notfound' '#589: another repository private key does not resolve here'
     $summary=Test-SBPrivateAssets -BrainRoot $privateRoot -PublicCatalog $catalog
     Assert-Prompts ($summary.dossiers -eq 2 -and $summary.prompts -eq 4 -and $summary.workflows -eq 1) '#589: the workstation check validates every dossier with private assets'
+    # #590: a private workflow runs and resumes through the workflow-run engine like a public one.
+    Import-Module (Join-Path $PSScriptRoot 'SecondBrain.WorkflowRuns.psm1') -Force
+    $privRuns=Join-Path $privateRoot '.runtime/workflow-runs'
+    $privFlow=@($setA.workflows)[0]
+    $pr=Start-SBWorkflowRun -BrainRoot $brain -RunRoot $privRuns -Repository 'github.com/acme/acme-app' -Workflow $privFlow -Catalog $catalog -PrivateSet $setA -Skip @('clean')
+    Assert-Prompts ($pr.state -ceq 'running' -and $pr.total -eq 3 -and $pr.workflow.key -ceq 'acme-app/release' -and (Read-SBWorkflowRun $privRuns $pr.runId).run.pinned.Count -eq 3) '#590: a private workflow starts, pinned to its public and private cards'
+    Assert-Prompts ((Test-SBWorkflowRunPins $brain $privRuns $pr.runId $setA).changed.Count -eq 0) '#590: the private pins are unchanged'
+    $null=Step-SBWorkflowRun -RunRoot $privRuns -RunId $pr.runId;$null=Complete-SBWorkflowStep -RunRoot $privRuns -RunId $pr.runId -Step 'check'
+    $privGate=Step-SBWorkflowRun -RunRoot $privRuns -RunId $pr.runId
+    Assert-Prompts ($privGate.state -ceq 'waiting-user' -and $privGate.steps[1].decisionId -cmatch '^dec-[0-9a-f]{8}$') '#590: a private confirm gate opens a decision and the run waits'
+    $null=Stop-SBWorkflowRun -RunRoot $privRuns -RunId $pr.runId
+    Assert-Prompts ((Resume-SBWorkflowRun -RunRoot $privRuns -RunId $pr.runId).steps[0].status -ceq 'done') '#590: a private run resumes without repeating a done step'
+    $null=Set-SBWorkflowGateAnswer -RunRoot $privRuns -RunId $pr.runId -Step 'sign' -Answer yes
+    $null=Step-SBWorkflowRun -RunRoot $privRuns -RunId $pr.runId
+    Assert-Prompts ((Complete-SBWorkflowStep -RunRoot $privRuns -RunId $pr.runId -Step 'sign').state -ceq 'finished') '#590: a private run finishes'
+    $choiceFlow=[ordered]@{id='wfl-a0000002';key='acme-app/pick';title='Pick';revision=1;status='active';steps=@([ordered]@{step='pick';kind='choice';gate='auto';options=@('pmt-a0000001',$publicId)})}
+    $cr=Start-SBWorkflowRun -BrainRoot $brain -RunRoot $privRuns -Repository 'github.com/acme/acme-app' -Workflow $choiceFlow -Catalog $catalog -PrivateSet $setA
+    $cw=Step-SBWorkflowRun -RunRoot $privRuns -RunId $cr.runId
+    Assert-Prompts ($cw.state -ceq 'waiting-user' -and $cw.steps[0].decision.kind -ceq 'choice' -and @($cw.steps[0].decision.options).Count -eq 2) '#590: a private choice step opens a decision'
+    Assert-Prompts ((Set-SBWorkflowGateAnswer -RunRoot $privRuns -RunId $cr.runId -Step 'pick' -Answer 'pmt-a0000001').steps[0].choice -ceq 'pmt-a0000001') '#590: the answered private choice is recorded'
+    $refused=$false;try{Start-SBWorkflowRun -BrainRoot $brain -RunRoot $privRuns -Repository 'github.com/acme/acme-app' -Workflow $flow -Catalog $catalog|Out-Null}catch{$refused=$true}
+    Assert-Prompts $refused '#590: a private card cannot be resolved without the private set'
+    # Audit: a preset key (wf-NAME) is found from any repository through the listing, the CLI helpers and MCP get_prompt.
+    $presetList=Format-SBPresetList $brain $catalog $setA
+    Assert-Prompts ($presetList.Contains('wf-security-review |') -and $presetList.Contains('acme-app/release | Release | private')) 'audit: the preset list names public presets and the private workflows of the repository'
+    Assert-Prompts ((Test-SBPresetKey 'wf-security-review') -and (Test-SBPresetKey 'wfl-a0000001') -and !(Test-SBPresetKey 'acme-app/release')) 'audit: only wf- keys and wfl- IDs are preset keys'
+    $privateComposed=New-SBPrivateComposition $brain $catalog $setA 'acme-app/release' @{repositories=@();project=$null;sourceRegistry=$null} 'Ship 1.2' -Standalone
+    Assert-Prompts ($privateComposed.Contains('<preset key="acme-app/release"') -and $privateComposed.Contains('name="sign" kind="required" gate="confirm"') -and $privateComposed.Contains('# acme-app/pkg-sign')) 'audit: a private workflow composes as a preset with its cards in order and its gates'
+    Assert-Prompts ((New-SBPrivateComposition $brain $catalog $setA 'acme-app/pkg-sign' @{repositories=@();project=$null;sourceRegistry=$null} 'x' -Standalone).Contains('private="true"')) 'audit: a private card still composes by its key'
+    Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Mcp.psm1') -Force
+    $mcpList=Invoke-SBMcpToolCall $brain 'list_prompts' @{compact=$true}
+    Assert-Prompts ($mcpList.Contains('wf-security-review |')) 'audit: MCP list_prompts lists the presets'
+    $mcpPreset=Invoke-SBMcpToolCall $brain 'get_prompt' @{prompt='wf-security-review';objective='Review the login flow'}
+    Assert-Prompts ($mcpPreset.Contains('<preset key="wf-security-review"') -and $mcpPreset.Contains('Review the login flow')) 'audit: MCP get_prompt composes a preset by its wf- key'
+    $mcpRefused=$false;try{Invoke-SBMcpToolCall $brain 'get_prompt' @{prompt='wf-does-not-exist'}|Out-Null}catch{$mcpRefused=$true}
+    Assert-Prompts $mcpRefused 'audit: MCP get_prompt refuses an unknown preset key'
     # Keys, collisions and references.
     $bad=Join-Path $privateRoot 'repos/acme-app'
     $restore={New-PrivateDossier 'acme-app' 'github.com/acme/acme-app' @($sign,$draft,$wipe) @($flow)}

@@ -5,6 +5,7 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Entity.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Tracker.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Knowledge.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
+Import-Module (Join-Path $PSScriptRoot 'SecondBrain.PrivateAssets.psm1')
 Add-SBMessages @{
     'prompts.encoding.invalid' = @{ en = 'Prompt text contains corrupted characters: {0}; save the card as UTF-8 without BOM and rebuild with build-prompts.ps1' }
     'prompts.catalog.invalid' = @{ en = 'Invalid prompt catalog: fix directives/prompts/catalog.json and rerun build-prompts.ps1 -Check' }
@@ -39,8 +40,8 @@ Add-SBMessages @{
     'prompts.scope.unknown' = @{ en = 'Unknown scope. Available: {0}' }
     'prompts.checkout.notgit' = @{ en = 'Directory does not belong to a Git checkout: pass a Git checkout with CheckoutPath' }
     'prompts.origin.missing' = @{ en = 'Origin identity missing or owner excluded: configure the checkout origin remote with an allowed owner' }
-    'prompts.para.metadata' = @{ en = 'PARA index diverges from the metadata: {0}; regenerate the index with entity.ps1 and rerun' }
-    'prompts.para.invalid' = @{ en = 'PARA index missing or invalid: regenerate the index with entity.ps1 or run sb activate (workstation.activate)' }
+    'prompts.para.metadata' = @{ en = 'The entity view and metadata differ for {0}. Check the entity with entity.ps1 -Check' }
+    'prompts.para.invalid' = @{ en = 'Missing or invalid entity metadata. Run entity.ps1 -Check' }
     'prompts.checkoutmap.invalid' = @{ en = 'Invalid checkout map: fix the file given in CheckoutMapPath' }
     'prompts.project.unavailable' = @{ en = 'Project not available: check the dossier with secondbrain.ps1 -Check' }
     'prompts.dossier.unbound' = @{ en = 'Repository not bound to an allowed dossier: bind the repository with secondbrain.ps1 -AddRepo' }
@@ -551,7 +552,7 @@ Add-SBMessages @{
     'guide.start.title' = @{ en = 'Get started' }
     'guide.start.for' = @{ en = 'Install and activate, step by step.' }
     'guide.daily.title' = @{ en = 'Daily use' }
-    'guide.daily.for' = @{ en = 'Chat commands, PARA, tasks, check before publishing.' }
+    'guide.daily.for' = @{ en = 'Chat commands, dossiers, tasks, and publication checks.' }
     'guide.product.title' = @{ en = 'Flow per product' }
     'guide.product.for' = @{ en = 'Steps in order for each repository, in chat and from a script.' }
     'guide.prompt.title' = @{ en = 'Prompts' }
@@ -1159,7 +1160,53 @@ function ConvertTo-SBWorkflowHomeData($State) {
     }
 }
 
+function Test-SBPresetKey([string]$Key) { $Key -cmatch '^(wf-[a-z0-9]+(-[a-z0-9]+)*|wfl-[0-9a-f]{8})$' }
+
+function Format-SBPresetList([string]$BrainRoot,$Catalog,$PrivateSet=$null) {
+    # Guided flows (presets) a repository can run by key: public ones of the enabled packs, then the private ones of its own dossier.
+    # `sb prompt wf-NAME: objective` and MCP get_prompt take the same key.
+    $byId=@{};foreach($p in $Catalog.prompts){$byId[$p.id]=$p}
+    $enabled=@(Get-SBEnabledPromptPacks $BrainRoot)
+    $lines=@('','GUIDED FLOWS (PRESETS): run with `sb prompt KEY: objective` or MCP get_prompt KEY')
+    foreach($f in @(Read-SBPromptWorkflows $BrainRoot $Catalog|Where-Object {$_.status -ceq 'active' -and (!$_.ContainsKey('pack') -or $_.pack -ceq 'core' -or $_.pack -cin $enabled)}|Sort-Object key)){
+        $codes=@($f.steps|ForEach-Object {$byId[$_.ref].code}) -join ' > '
+        $lines+=('  '+$f.key+' | '+$f.title+' | '+$codes)
+    }
+    if($PrivateSet){foreach($f in @(@($PrivateSet.workflows)|Where-Object {$_.status -cin @('active','deprecated')})){$lines+=('  '+$f.key+' | '+$f.title+' | private')}}
+    ($lines -join "`n")+"`n"
+}
+
+function New-SBPrivateComposition([string]$BrainRoot,$Catalog,$PrivateSet,[string]$Key,$Context,[string]$Objective,[switch]$Standalone,[string]$Degraded) {
+    # A private card (<slug>/<name>, pmt-) composes as its own prompt; a private workflow composes as a preset: its steps in order,
+    # each with the composition of its card. A step that names another workflow or offers a choice is listed for the person to resolve.
+    $flow=@(@($PrivateSet.workflows)|Where-Object {($_.key -ceq $Key -or $_.id -ceq $Key) -and $_.status -cin @('active','deprecated')})
+    if(!$flow.Count){return (New-SBPrivatePromptComposition $PrivateSet (Resolve-SBPrivatePrompt $PrivateSet $Key) $Objective)}
+    $flow=$flow[0]
+    $publicById=@{};foreach($p in $Catalog.prompts){$publicById[$p.id]=$p}
+    $privateCards=@{};foreach($c in @($PrivateSet.prompts)){$privateCards[[string]$c.id]=$c}
+    $total=@($flow.steps).Count
+    $lines=@(('<preset key="'+$flow.key+'" id="'+$flow.id+'" steps="'+$total+'" private="true">'),$flow.title,'',
+        'Run the steps in order. Finish one step before starting the next. A step with gate confirm: stop and ask for explicit approval before it writes anything; do not continue without a clear yes. A choice step: ask the user which option to run.','')
+    $index=0
+    foreach($step in @($flow.steps)){
+        $index++
+        $options=@(if($step.kind -ceq 'choice'){$step.options}else{$step.ref})
+        $lines+=@('',('<step n="'+$index+'" of="'+$total+'" name="'+$step.step+'" kind="'+$step.kind+'" gate="'+$step.gate+'">'),$(if($step.gate -ceq 'confirm'){'GATE: confirm. Stop and get explicit approval before this step writes anything.'}else{'GATE: auto.'}))
+        if($step.kind -ceq 'choice'){$lines+=('Choose one: '+(($options|ForEach-Object {if($publicById.ContainsKey([string]$_)){$publicById[[string]$_].code}elseif($privateCards.ContainsKey([string]$_)){$privateCards[[string]$_].key}else{[string]$_}}) -join ', '))}
+        else{
+            $ref=[string]$options[0]
+            if($publicById.ContainsKey($ref)){$lines+=(New-SBWorkflowComposition $BrainRoot $Catalog $publicById[$ref] $Context $Objective -Standalone:$Standalone -Degraded $Degraded).TrimEnd()}
+            elseif($privateCards.ContainsKey($ref)){$lines+=(New-SBPrivatePromptComposition $PrivateSet $privateCards[$ref] $Objective).TrimEnd()}
+            else{$lines+=('Run the workflow '+$ref+' as this step.')}
+        }
+        $lines+='</step>'
+    }
+    $lines+='</preset>'
+    ($lines -join "`n")+"`n"
+}
+
 Export-ModuleMember -Function @(
+    'Test-SBPresetKey','Format-SBPresetList','New-SBPrivateComposition',
     'ConvertTo-SBWorkflowCatalogData','ConvertTo-SBWorkflowHomeData',
     'Get-SBEnabledPromptPacks','Set-SBPromptPack','Format-SBPromptPackStatus','Assert-SBPromptPackEnabled',
     'Read-SBWorkflowCatalog',

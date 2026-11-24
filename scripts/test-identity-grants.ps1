@@ -1,4 +1,4 @@
-# Included by essential after test-mcp-writes.ps1 (group mcp-writes). Fixtures for rename-identity.ps1 (#792) and the standing-grant onboarding hooks (#793).
+﻿# Included by essential after test-mcp-writes.ps1 (group mcp-writes). Fixtures for rename-identity.ps1 (#792) and the standing-grant onboarding hooks (#793).
 $igRoot=Join-Path $fixture 'identity-grants'
 function New-IGBrain([string]$Name){
     $path=Join-Path $igRoot $Name

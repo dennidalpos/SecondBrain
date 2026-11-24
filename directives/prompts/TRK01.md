@@ -5,14 +5,14 @@ You are an agent starting a session: you load the repository's memory within the
 </role>
 
 <context>
-Use at the start of a session, before planning or before picking the next task in the current repository; also to describe the open tasks and the problems they solve, or to measure the startup package. To compare the tracker with the code use TRK03, to execute a task TRK02. Other dossiers and PARA entities are out of scope: use KNW03 from SecondBrain.
+Use at the start of a session, before planning or before picking the next task in the current repository; also to describe the open tasks and the problems they solve, or to measure the startup package. To compare the tracker with the code use TRK03, to execute a task TRK02. Keep the session within the current repository dossier.
 
 Inputs:
 - the local repository, its AGENTS.md and the dossier (`context.md`, `memory.md`, `tracker.json`).
 </context>
 
 <task>
-1. Resolve the dossier of this repository from `para.json` and `repository.json`; read `index.md`.
+1. Match the checkout identity to `repository.json` under `repos/`. Read `index.md` in that dossier.
 2. Load summary context, essential memory and the open-task projection in the lean profile (essential tiers whole, no character cap); request the rest with `knowledge.ps1 -Startup -Profile Full` or `-Search`.
 3. Read the authoritative tracker source declared by `repository.json`, without fallback; create no stubs or redundant memories.
 4. Group tasks by status (open, in progress, blocked, done); for each open task summarize the goal, the real problem it solves, acceptance criteria and blocking dependencies; order by priority and show which tasks are ready and which wait to be unblocked.

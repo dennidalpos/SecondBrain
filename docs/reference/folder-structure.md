@@ -54,7 +54,7 @@ Rules:
 | Agent | Can write | Cannot write |
 |---|---|---|
 | Session in a product repository | The repository itself; in SecondBrain only `repos/<repo>/` (through scripts or MCP) and `work.ps1` folders | Other dossiers, `workstation`, `shared`, `.runtime` by hand |
-| Session in SecondBrain | `directives/`, `scripts/`, `docs/`, `config/` and PARA through scripts | `.runtime` by hand |
+| Session in SecondBrain | `directives/`, `scripts/`, `docs/`, `config/` and dossier data through scripts | `.runtime` by hand |
 | Task runner | Only its own repository's dossier | Any other path |
 
 A path outside these rules is reported to the owner and not written.

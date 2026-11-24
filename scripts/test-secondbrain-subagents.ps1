@@ -412,7 +412,17 @@ $optFlow=[ordered]@{id='wfl-0a0b0c0d';key='wf-synthetic';title='t';revision=2;st
 $opt=Start-SBWorkflowRun -BrainRoot $realBrain -RunRoot $wfRoot -Repository $repo -Workflow $optFlow -Catalog $flowCatalog -Skip @('two')
 Assert-Sub ($opt.steps[1].status -ceq 'skipped' -and $opt.done -eq 0) 'an optional step can start skipped'
 $null=Step-SBWorkflowRun -RunRoot $wfRoot -RunId $opt.runId;$null=Complete-SBWorkflowStep -RunRoot $wfRoot -RunId $opt.runId -Step 'one'
-Reject-Sub { Step-SBWorkflowRun -RunRoot $wfRoot -RunId $opt.runId } 'a choice step needs one of its cards'
 Reject-Sub { Step-SBWorkflowRun -RunRoot $wfRoot -RunId $opt.runId -Option 'pmt-ffffffff' } 'a card outside the choices is refused'
-Assert-Sub ((Step-SBWorkflowRun -RunRoot $wfRoot -RunId $opt.runId -Option $fixed.id).steps[2].choice -ceq $fixed.id) 'the chosen card is recorded'
+# #590: an unfixed choice step opens a step-scoped dec- decision stored in workflow-run.json; the run waits until the person answers.
+$pick=Step-SBWorkflowRun -RunRoot $wfRoot -RunId $opt.runId
+Assert-Sub ($pick.state -ceq 'waiting-user' -and $pick.steps[2].status -ceq 'waiting-user' -and $pick.steps[2].decisionId -cmatch '^dec-[0-9a-f]{8}$' -and $pick.steps[2].decision.kind -ceq 'choice' -and $pick.steps[2].decision.status -ceq 'open' -and @($pick.steps[2].decision.options).Count -eq 2) 'an unfixed choice step opens a decision and the run waits'
+Assert-Sub ((Read-SBWorkflowRun $wfRoot $opt.runId).run.steps[2].decisionId -ceq $pick.steps[2].decisionId) 'the choice decision is stored in workflow-run.json'
+Assert-Sub ((Step-SBWorkflowRun -RunRoot $wfRoot -RunId $opt.runId).result -ceq 'waiting') 'advancing does not pass an unanswered choice'
+Reject-Sub { Set-SBWorkflowGateAnswer -RunRoot $wfRoot -RunId $opt.runId -Step 'pick' -Answer 'yes' } 'an answer outside the listed cards is refused'
+$picked=Set-SBWorkflowGateAnswer -RunRoot $wfRoot -RunId $opt.runId -Step 'pick' -Answer $fixed.id
+Assert-Sub ($picked.state -ceq 'running' -and $picked.steps[2].choice -ceq $fixed.id -and $picked.steps[2].decision.by -ceq 'user' -and $picked.steps[2].status -ceq 'pending') 'the person answering fixes the choice'
+Assert-Sub ((Step-SBWorkflowRun -RunRoot $wfRoot -RunId $opt.runId).steps[2].status -ceq 'running') 'an answered choice starts the step'
+$opt2=Start-SBWorkflowRun -BrainRoot $realBrain -RunRoot $wfRoot -Repository $repo -Workflow $optFlow -Catalog $flowCatalog -Skip @('two')
+$null=Step-SBWorkflowRun -RunRoot $wfRoot -RunId $opt2.runId;$null=Complete-SBWorkflowStep -RunRoot $wfRoot -RunId $opt2.runId -Step 'one'
+Assert-Sub ((Step-SBWorkflowRun -RunRoot $wfRoot -RunId $opt2.runId -Option $fixed.id).steps[2].choice -ceq $fixed.id) 'a choice given with the step is recorded without a decision'
 'SUCCESS SUBAGENTS: '+$script:subChecks+' checks; retained fixture '+$root

@@ -17,7 +17,7 @@ Add-SBMessages @{
     'sources.download.large' = @{ en = 'Download exceeds size limit' }
     'sources.access.challenge' = @{ en = 'Source access challenge required' }
     'sources.path.outside' = @{ en = 'Source path outside scope' }
-    'sources.index.invalid' = @{ en = 'PARA index missing or invalid' }
+    'sources.index.invalid' = @{ en = 'Missing or invalid entity metadata' }
     'sources.resource.unresolved' = @{ en = 'Resource resource-authoritative-sources cannot be resolved' }
     'sources.resource.metadata' = @{ en = 'Source resource metadata diverge' }
     'sources.domains.invalid' = @{ en = 'Invalid registry domains' }

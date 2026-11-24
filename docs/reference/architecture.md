@@ -4,7 +4,7 @@ SecondBrain separates distributable code and approved instructions from private 
 
 ~~~mermaid
 flowchart LR
-    A[Git identity] --> B[PARA and repository metadata]
+    A[Git identity] --> B[Entity and repository metadata]
     B --> C[Authoritative dossier and tracker]
     C --> D[Layered knowledge CLI]
     D --> E[Local stdio MCP]
@@ -15,14 +15,14 @@ flowchart LR
 
 ## Data boundary and modules
 
-Git tracks scripts, schemas, public documentation and approved instruction sources. PARA dossiers and .runtime are excluded. Ignore rules are not encryption or history scrubbing.
+Git tracks scripts, schemas, public documentation and approved instruction sources. Repository dossiers and `.runtime` are excluded. Ignore rules are not encryption or history scrubbing.
 
 | Module family | Responsibility |
 |---|---|
 | Core | Hashes, path validation, stable serialization and guarded I/O |
 | Access / Pending | Configuration, sessions, FIFO locks and deferred requests |
 | Host / Portable | Discovery, bindings and instruction distribution |
-| Para / Tracker | Entity IDs, declared tracker, graph validation and transactions |
+| Entity / Tracker | Entity IDs, declared tracker, graph validation and transactions |
 | Knowledge | Startup composition, task/section lookup, search and compaction |
 | Prompts | Catalog/card validation, context resolution and XML composition |
 | Mcp | stdio JSON-RPC and ten exposed tools, including reviewed write preview/submission |
@@ -34,7 +34,7 @@ The exact current decomposition is in scripts/SecondBrain.*.psm1. The brain may 
 
 ## Context resolution
 
-Resolve checkout identity from Git/bindings, map it through PARA and verify repository.json. Its declared tracker is authoritative; missing/invalid data is an error.
+Resolve the checkout identity from Git or its binding. Find the matching `repository.json` under `repos/`. Use the tracker that this file declares. Report missing or invalid data as an error.
 
 prompts Context resolves paths. knowledge Startup builds index, context, essential memory, selected tasks and references to deeper levels. Neither profile has a default cap on first load (an explicit budget still applies); Slim loads the essential tiers whole and, without TaskIds, no task details. Compaction is mechanical at every task close. Insufficient explicit budget reports minimumCharacters/withinBudget rather than silently dropping essential content.
 

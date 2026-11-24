@@ -52,14 +52,32 @@ function Get-SBWorkflowRunView($Run,[string]$Result) {
       createdAt=$Run.createdAt;updatedAt=$Run.updatedAt;result=$Result}
 }
 
+function Get-SBWorkflowRefFile([string]$BrainRoot,$Catalog,$PrivateSet,[string]$Ref) {
+    # File that holds an asset a step references: a public card, or (with -PrivateSet, #590) a private card or workflow of the run's own dossier.
+    $public=@(@($Catalog.prompts)|Where-Object {$_.id -ceq $Ref})
+    if($public.Count){return (Resolve-SBParaPath $BrainRoot ('directives/prompts/'+$public[0].file))}
+    if($PrivateSet){
+        $card=@(@($PrivateSet.prompts)|Where-Object {$_.id -ceq $Ref -and $_.status -cin @('active','deprecated')})
+        if($card.Count){return (Join-Path $PrivateSet.dossier ('prompts/'+$card[0].file))}
+        $flow=@(@($PrivateSet.workflows)|Where-Object {$_.id -ceq $Ref -and $_.status -cin @('active','deprecated')})
+        if($flow.Count){return (Join-Path $PrivateSet.dossier ('workflows/'+(([string]$flow[0].key -split '/',2)[1])+'.json'))}
+    }
+    $null
+}
+function Get-SBWorkflowStepChoices($Step) {
+    # Public steps list choices, private steps list options: both mean the cards a choice step offers.
+    if($Step.Contains('choices')){return @($Step.choices)}
+    if($Step.Contains('options')){return @($Step.options)}
+    @()
+}
+
 function Start-SBWorkflowRun {
     # Records a new run: every step pending (optional steps named in -Skip start skipped), the workflow revision and the card hashes pinned.
-    param([Parameter(Mandatory)][string]$BrainRoot,[Parameter(Mandatory)][string]$RunRoot,[Parameter(Mandatory)][string]$Repository,[Parameter(Mandatory)]$Workflow,[Parameter(Mandatory)]$Catalog,[string]$Objective='',[string[]]$Skip=@())
+    # -PrivateSet (Read-SBPrivateAssets of the repository's dossier) lets a private workflow, or a public one, reference private cards and workflows.
+    param([Parameter(Mandatory)][string]$BrainRoot,[Parameter(Mandatory)][string]$RunRoot,[Parameter(Mandatory)][string]$Repository,[Parameter(Mandatory)]$Workflow,[Parameter(Mandatory)]$Catalog,[string]$Objective='',[string[]]$Skip=@(),$PrivateSet=$null)
     if(!(Test-SBRepositoryIdentity $Repository)){throw (New-SBError 'workflowrun.invalid' @('repository'))}
     if($Workflow.status -cne 'active'){throw (New-SBError 'workflowrun.invalid' @('workflow: only an active workflow can run'))}
     if($Objective.Length -gt 2000 -or $Objective -match '[\x00-\x08\x0B\x0C\x0E-\x1F]'){throw (New-SBError 'workflowrun.invalid' @('objective'))}
-    $byId=@{};foreach($p in $Catalog.prompts){$byId[$p.id]=$p}
-    $known=@($Workflow.steps|ForEach-Object {$_.step})
     foreach($name in $Skip){
         $match=@($Workflow.steps|Where-Object {$_.step -ceq $name})
         if(!$match.Count){throw (New-SBError 'workflowrun.invalid' @('skip: unknown step '+$name))}
@@ -68,14 +86,16 @@ function Start-SBWorkflowRun {
     $now=Get-SBWorkflowRunTime
     $cards=[ordered]@{}
     $steps=@(foreach($s in $Workflow.steps){
-        $card=$byId[$s.ref]
-        if(!$card){throw (New-SBError 'workflowrun.invalid' @('step ref '+$s.ref))}
-        foreach($ref in @($s.ref)+@(if($s.Contains('choices')){$s.choices})){
-            if(!$cards.Contains($ref)){$c=$byId[$ref];$cards[$ref]=(Get-SBFileHash (Resolve-SBParaPath $BrainRoot ('directives/prompts/'+$c.file)))}
+        $choices=@(Get-SBWorkflowStepChoices $s)
+        $ref=if($s.Contains('ref')){[string]$s.ref}elseif($choices.Count){[string]$choices[0]}else{''}
+        foreach($r in @($ref)+$choices){
+            $file=if($r){Get-SBWorkflowRefFile $BrainRoot $Catalog $PrivateSet $r}else{$null}
+            if(!$file){throw (New-SBError 'workflowrun.invalid' @('step ref '+$r))}
+            if(!$cards.Contains($r)){$cards[$r]=(Get-SBFileHash $file)}
         }
         $skipped=$s.step -cin $Skip
-        [ordered]@{step=$s.step;ref=$s.ref;kind=$s.kind;gate=$s.gate;
-            choices=@(if($s.Contains('choices')){$s.choices});choice='';status=$(if($skipped){'skipped'}else{'pending'});
+        [ordered]@{step=$s.step;ref=$ref;kind=$s.kind;gate=$s.gate;
+            choices=$choices;choice='';status=$(if($skipped){'skipped'}else{'pending'});
             decisionId='';decision=$null;evidence='';startedAt='';endedAt=$(if($skipped){$now}else{''})}
     })
     $id=''
@@ -106,15 +126,18 @@ function Step-SBWorkflowRun {
     $step=$open[0];$now=Get-SBWorkflowRunTime
     if($step.status -ceq 'running'){return (Get-SBWorkflowRunView $run 'running')}
     if($step.status -ceq 'waiting-user'){return (Get-SBWorkflowRunView $run 'waiting')}
-    if($step.kind -ceq 'choice' -and !$step.choice){
+    if($step.kind -ceq 'choice' -and !$step.choice -and $Option){
         if($Option -cnotin @($step.choices)){throw (New-SBError 'workflowrun.step' @($RunId,$step.step,('choose one of: '+(@($step.choices) -join ', '))))}
         $step.choice=$Option
     }
+    $needsChoice=$step.kind -ceq 'choice' -and !$step.choice
     $approved=$step.decision -is [System.Collections.IDictionary] -and $step.decision.status -ceq 'answered' -and $step.decision.answer -ceq 'yes'
-    if($step.gate -ceq 'confirm' -and !$approved){
+    if($needsChoice -or ($step.gate -ceq 'confirm' -and !$approved)){
+        # #590: an unfixed choice step opens a step-scoped decision (the card to run); a confirm gate opens yes/no. Only the person answers.
         $step.status='waiting-user';$step.startedAt=$now
         $step.decisionId='dec-'+(New-SBId).Substring(0,8)
-        $step.decision=[ordered]@{status='open';kind='confirm';question=('Run step '+$step.step+'?');options=@('yes','no');answer='';answeredAt='';by=''}
+        $step.decision=if($needsChoice){[ordered]@{status='open';kind='choice';question=('Which card runs for step '+$step.step+'?');options=@($step.choices);answer='';answeredAt='';by=''}}
+            else{[ordered]@{status='open';kind='confirm';question=('Run step '+$step.step+'?');options=@('yes','no');answer='';answeredAt='';by=''}}
         $run.state='waiting-user'
         Save-SBWorkflowRun $run $r.path $r.hash
         return (Get-SBWorkflowRunView $run 'waiting')
@@ -126,14 +149,18 @@ function Step-SBWorkflowRun {
 }
 
 function Set-SBWorkflowGateAnswer {
-    # Only the person answers a confirm gate: yes lets the step start, no stops the run (an optional step is skipped instead).
-    param([Parameter(Mandatory)][string]$RunRoot,[Parameter(Mandatory)][string]$RunId,[Parameter(Mandatory)][string]$Step,[Parameter(Mandatory)][ValidateSet('yes','no')][string]$Answer)
+    # Only the person answers a step decision. Confirm gate: yes lets the step start, no stops the run (an optional step is skipped instead).
+    # Choice decision: the answer is one of the step's cards and is recorded as the step's choice.
+    param([Parameter(Mandatory)][string]$RunRoot,[Parameter(Mandatory)][string]$RunId,[Parameter(Mandatory)][string]$Step,[Parameter(Mandatory)][string]$Answer)
     $r=Read-SBWorkflowRun $RunRoot $RunId;$run=$r.run
     $s=Find-SBWorkflowStep $run $Step @('waiting-user')
     if($s.decision -isnot [System.Collections.IDictionary] -or $s.decision.status -cne 'open'){throw (New-SBError 'workflowrun.step' @($RunId,$Step,'has no open decision'))}
+    $allowed=@($s.decision.options)
+    if($Answer -cnotin $allowed){throw (New-SBError 'workflowrun.step' @($RunId,$Step,('answer one of: '+($allowed -join ', '))))}
     $now=Get-SBWorkflowRunTime
     $s.decision.status='answered';$s.decision.answer=$Answer;$s.decision.answeredAt=$now;$s.decision.by='user'
-    if($Answer -ceq 'yes'){$s.status='pending';$run.state='running'}
+    if($s.decision.kind -ceq 'choice'){$s.choice=$Answer;$s.status='pending';$run.state='running'}
+    elseif($Answer -ceq 'yes'){$s.status='pending';$run.state='running'}
     elseif($s.kind -ceq 'optional'){$s.status='skipped';$s.endedAt=$now;$run.state='running'}
     else{$s.status='pending';$run.state='stopped'}
     Save-SBWorkflowRun $run $r.path $r.hash
@@ -189,17 +216,18 @@ function Get-SBWorkflowRunInspection {
     @{runs=$views;count=$views.Count}
 }
 
-function Test-SBWorkflowRunPins([string]$BrainRoot,[string]$RunRoot,[string]$RunId) {
-    # The cards a run was pinned to: a changed card file is reported, never silently followed.
+function Test-SBWorkflowRunPins([string]$BrainRoot,[string]$RunRoot,[string]$RunId,$PrivateSet=$null) {
+    # The cards a run was pinned to: a changed card file is reported, never silently followed. A run with private assets needs -PrivateSet.
     $run=(Read-SBWorkflowRun $RunRoot $RunId).run
     $catalog=Read-SBWorkflowCatalog $BrainRoot
     $byId=@{};foreach($p in $catalog.prompts){$byId[$p.id]=$p}
     $changed=@(foreach($ref in $run.pinned.Keys){
         $p=$byId[$ref]
-        $now=if($p){Get-SBFileHash (Resolve-SBParaPath $BrainRoot ('directives/prompts/'+$p.file))}else{''}
+        $file=Get-SBWorkflowRefFile $BrainRoot $catalog $PrivateSet $ref
+        $now=if($file -and (Test-Path -LiteralPath $file -PathType Leaf)){Get-SBFileHash $file}else{''}
         if($now -cne $run.pinned[$ref]){if($p){$p.code}else{$ref}}
     })
     @{runId=$RunId;changed=$changed;pinned=$run.pinned.Count}
 }
 
-Export-ModuleMember -Function @('Start-SBWorkflowRun','Step-SBWorkflowRun','Set-SBWorkflowGateAnswer','Complete-SBWorkflowStep','Stop-SBWorkflowRun','Resume-SBWorkflowRun','Get-SBWorkflowRunInspection','Read-SBWorkflowRun','Test-SBWorkflowRunPins')
+Export-ModuleMember -Function @('Get-SBWorkflowRefFile','Start-SBWorkflowRun','Step-SBWorkflowRun','Set-SBWorkflowGateAnswer','Complete-SBWorkflowStep','Stop-SBWorkflowRun','Resume-SBWorkflowRun','Get-SBWorkflowRunInspection','Read-SBWorkflowRun','Test-SBWorkflowRunPins')

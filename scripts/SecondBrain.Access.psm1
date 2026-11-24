@@ -218,7 +218,7 @@ function Exit-SBQueue($Ticket) {
 function Open-SBWriterLock($Config, [string]$WriterPath, [int]$WaitMs, [scriptblock]$OnWait, [string]$Scope) {
     # Queue a ticket, then acquire writer.lock within the remaining wait; release the ticket as soon as the lock is acquired.
     # Per-dossier locks (#476): -Scope names the dossier; its writers share the gate (scope.gate) that a global writer holds exclusively,
-    # so dossiers run in parallel while a global writer (PARA, setup, session) still excludes every one of them.
+    # so dossiers run in parallel while a global writer (entity management, setup, session) still excludes every one of them.
     $deadline = (Get-SBNow).AddMilliseconds([Math]::Max(0, $WaitMs))
     $state = @{ notified=$false }
     $notify = { if (!$state.notified) { $state.notified = $true; if ($OnWait) { & $OnWait } } }.GetNewClosure()

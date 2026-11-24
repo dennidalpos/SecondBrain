@@ -2,7 +2,7 @@
 
 scripts/sandbox-roots.ps1 previews and exports configuration for one managed checkout. It does not change user settings, launch an agent, alter approvals, or install a global policy. The exported configuration is private workstation data and stays in a repository-owned work folder created by work.ps1.
 
-The supported operation scope is dossier reads and writes through knowledge.ps1, including pending requests, receipts and transaction journals. Setup, Sync, PARA moves, global indexes, source acquisition and memory-cycle collectors need their own write scopes. Do not use this configuration as proof that those operations are supported.
+The supported operation scope is dossier reads and writes through knowledge.ps1, including pending requests, receipts and transaction journals. Setup, Sync, entity operations, global indexes, source acquisition and memory-cycle collectors need their own write scopes. Do not use this configuration as proof that those operations are supported.
 
 ## Roots and exposure
 

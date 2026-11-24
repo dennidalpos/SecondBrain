@@ -64,7 +64,7 @@ Add-SBMessages @{
     'portable.repository.noremote' = @{ en = 'Repository without a remote: use a local identity or explicitly bind an existing dossier' }
     'portable.identity.invalid' = @{ en = 'Invalid identity: use host/owner/repo or local:<32 hexadecimal digits>' }
     'portable.identity.reconcile' = @{ en = 'Identity change requires explicit alias reconciliation: review the aliases and confirm them before retrying' }
-    'portable.dossier.ambiguous' = @{ en = 'Dossier ambiguous, archived or retired: check the PARA index and name an active dossier' }
+    'portable.dossier.ambiguous' = @{ en = 'The repository needs one active dossier. Check its identity and status' }
     'portable.alias.dossier' = @{ en = 'Alias binding requires an existing dossier and explicit review: name the dossier and confirm the review' }
     'portable.origin.bound' = @{ en = 'Origin already bound to another dossier: use that dossier or unbind it with -Setup -Unbind' }
     'portable.destination.uncensused' = @{ en = 'Uncensused destination already present: move or remove it by hand, then repeat' }
@@ -119,7 +119,7 @@ Add-SBMessages @{
     'portable.repository.notonhost' = @{ en = 'Repository not managed on this workstation: {0}' }
     'portable.observations.invalid' = @{ en = 'Invalid IDE observations: regenerate them with ide-observation.ps1' }
     'portable.identity.rebind' = @{ en = 'Identity or path changed: run -Setup again to reconcile' }
-    'portable.dossier.identity' = @{ en = 'Dossier identity diverges: check repository.json and the PARA index' }
+    'portable.dossier.identity' = @{ en = 'Dossier identity differs from the binding. Check repository.json' }
 }
 
 # SECONDBRAIN_HOME target: 'User' in production; tests redirect it to 'Process' to preserve the user's environment.
@@ -198,7 +198,7 @@ function Get-SBBindingRepositoryFiles($Binding) {
 }
 # #700: a binding keeps identity, path and the managed block hash. repositoryFiles, remoteIdentity and status stay only when they carry
 # something the others cannot derive (a reduced file selection, an origin that differs from the identity, a pending tracker import); the dossier
-# is resolved through PARA (Resolve-SBBindingDossier) and the origin guard derives from the identity (Get-SBBindingRemoteIdentity).
+# is resolved by repository identity (Resolve-SBBindingDossier) and the origin guard derives from the identity (Get-SBBindingRemoteIdentity).
 # Idempotent, and it accepts old and minimal bindings alike.
 function ConvertTo-SBMinimalBinding($Binding) {
     $get={param($name) if($Binding -is [Collections.IDictionary]){if($Binding.Contains($name)){return $Binding[$name]}}elseif($Binding.PSObject.Properties[$name]){return $Binding.PSObject.Properties[$name].Value};$null}

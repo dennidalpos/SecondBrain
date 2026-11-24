@@ -711,10 +711,10 @@ SB SYSTEM: DOSSIER, SOURCES AND ENTITIES
   • Needs: dossier to compact and verifiable history
   • Example: sb prompt KNW02: compact the dossier history preserving facts and toc
 
-🔥 KNW03 | Manage projects, areas and resources of the central PARA
+🔥 KNW03 | Manage SecondBrain entities
   • ID: pmt-4e1b7c52
   • Scope: central | Mode: write
-  • Needs: goal of the PARA entity and a write session on the SecondBrain clone
+  • Needs: entity goal and a write session on the SecondBrain clone
   • Example: sb prompt KNW03: archive the finished resource res-guida
 
 ✅ KNW04 | Check the authoritative source registry and its metadata

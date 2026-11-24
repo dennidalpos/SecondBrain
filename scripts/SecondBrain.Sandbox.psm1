@@ -11,7 +11,7 @@ Add-SBMessages @{
     'sandbox.unsupported' = @{ en = 'Automatic configuration unsupported: {0}. No files changed' }
     'sandbox.stale' = @{ en = 'Preview missing or changed: review the plan and its hash before Apply' }
     'sandbox.shared' = @{ en = 'Coordination and backups may contain other repositories data. Claude additional directories also allow reads. Rules are not an OS boundary for subprocesses' }
-    'sandbox.scope' = @{ en = 'Configuration for knowledge.ps1 dossier operations. Does not enable Sync, Setup, PARA or global maintenance. Existing IDE policies may restrict or broaden effective access; verify in a new session' }
+    'sandbox.scope' = @{ en = 'Configuration for knowledge.ps1 dossier operations. Does not enable Sync, Setup, entity management or global maintenance. Existing IDE policies may restrict or broaden effective access; verify in a new session' }
 }
 function Get-SBSandboxPlan {
     param($Config,[string]$Repository,[string]$CheckoutPath,[string]$Target,[string]$OutputDirectory)

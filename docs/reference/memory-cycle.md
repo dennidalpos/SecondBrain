@@ -1,6 +1,6 @@
 # Repository memory cycle
 
-The cycle keeps new authorized turns in a faithful registry separate from derived context/memory. It resolves one Git identity to an active PARA dossier. It does not import old chats, hidden reasoning or authentication stores automatically.
+The cycle keeps new authorized turns in a faithful registry separate from derived context/memory. It resolves one Git identity to an active repository dossier. It does not import old chats, hidden reasoning or authentication stores automatically.
 
 ## Qualification and permission
 

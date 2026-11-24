@@ -7,7 +7,8 @@ A run is a private record <run root>/<run id>/workflow-run.json (run root under 
 The run tracks state and launches nothing: the person executes each step's prompt and records the outcome.
 -Operation List: the active workflows this workstation can run (enabled packs only), with their steps. -Operation Start -Key <wf-key|wfl-id> [-Objective text] [-Skip step,step]: records the run, every step pending.
 -Operation Step -RunId [-Option pmt-id]: starts the first step that is not done; a confirm gate opens a decision and the run waits; a choice step needs -Option.
--Operation Answer -RunId -Step <slug> -Answer yes|no: the person answers a confirm gate (yes starts the step, no stops the run or skips an optional step).
+-Operation Answer -RunId -Step <slug> -Answer <answer>: the person answers the step's decision: yes|no for a confirm gate (yes starts the step, no stops the run or skips an optional step), or one of the step's card IDs for a choice step that is not fixed yet.
+A workflow key that is not public resolves to a private workflow of -Repository's dossier (<repo-slug>/<name>, #590); it runs and resumes like a public one.
 -Operation Complete -RunId -Step <slug> [-Outcome done|failed] [-Evidence text]: the person records the outcome of the running step.
 -Operation Stop -RunId: the running step goes back to pending. -Operation Resume -RunId: continues from the first step that is not done.
 -Operation Inspect [-RunId]: read-only state of one run or of all runs. -Operation Pins -RunId: reports the cards that changed since the run was pinned.
@@ -20,11 +21,11 @@ param(
     [Parameter(Mandatory)][ValidateSet('List','Start','Step','Answer','Complete','Stop','Resume','Inspect','Pins')][string]$Operation,
     [Parameter(Mandatory)][string]$Repository,[Parameter(Mandatory)][string]$RunRoot,
     [string]$Key,[string]$Objective='',[string[]]$Skip=@(),[string]$RunId,[string]$Option='',[string]$Step,
-    [ValidateSet('yes','no')][string]$Answer,[ValidateSet('done','failed')][string]$Outcome='done',[string]$Evidence='',[switch]$Apply
+    [string]$Answer,[ValidateSet('done','failed')][string]$Outcome='done',[string]$Evidence='',[switch]$Apply
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
-foreach($m in 'Core','Access','Host','Entity','Prompts','WorkflowRuns'){Import-Module (Join-Path $PSScriptRoot ('SecondBrain.'+$m+'.psm1'))}
+foreach($m in 'Core','Access','Host','Entity','Prompts','Knowledge','PrivateAssets','WorkflowRuns'){Import-Module (Join-Path $PSScriptRoot ('SecondBrain.'+$m+'.psm1'))}
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
 $brain=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 if(!(Test-SBRepositoryIdentity $Repository)){throw (New-SBError 'workflowrun.invalid' @('repository'))}
@@ -43,7 +44,15 @@ if($Operation -eq 'List'){
     ConvertTo-SBJson @{workflows=$flows;count=$flows.Count};exit 0
 }
 if($Operation -eq 'Inspect'){ConvertTo-SBJson (Get-SBWorkflowRunInspection $root $RunId);exit 0}
-if($Operation -eq 'Pins'){if(!$RunId){throw (New-SBError 'workflowrun.invalid' @('runId'))};ConvertTo-SBJson (Test-SBWorkflowRunPins $brain $root $RunId);exit 0}
+function Get-PrivateSet($catalog) {
+    # #590: the private cards and workflows of the repository's own dossier; none when the dossier cannot be resolved.
+    Read-SBPrivateAssets -Dossier (Join-Path $brain (Resolve-SBWorkingDossier $brain $Repository)) -Repository $Repository -PublicCatalog $catalog
+}
+if($Operation -eq 'Pins'){
+    if(!$RunId){throw (New-SBError 'workflowrun.invalid' @('runId'))}
+    $pinSet=$null;try{$pinSet=Get-PrivateSet (Read-SBWorkflowCatalog $brain)}catch{Write-Verbose $_.Exception.Message}
+    ConvertTo-SBJson (Test-SBWorkflowRunPins $brain $root $RunId $pinSet);exit 0
+}
 if($Operation -ne 'Start' -and !$RunId){throw (New-SBError 'workflowrun.invalid' @('runId'))}
 if($Operation -in @('Answer','Complete') -and !$Step){throw (New-SBError 'workflowrun.invalid' @('step'))}
 if($Operation -eq 'Answer' -and !$Answer){throw (New-SBError 'workflowrun.invalid' @('answer'))}
@@ -53,9 +62,17 @@ $result=switch($Operation){
         if(!$Key){throw (New-SBError 'workflowrun.invalid' @('key'))}
         $catalog=Read-SBWorkflowCatalog $brain
         $flow=@(Read-SBPromptWorkflows $brain $catalog|Where-Object {$_.key -ceq $Key -or $_.id -ceq $Key})
-        if($flow.Count -ne 1){throw (New-SBError 'workflowrun.invalid' @('key'))}
-        Assert-SBPromptPackEnabled $brain ([pscustomobject]@{pack=$(if($flow[0].ContainsKey('pack')){$flow[0].pack}else{'core'});code=$flow[0].key})
-        Start-SBWorkflowRun -BrainRoot $brain -RunRoot $root -Repository $Repository -Workflow $flow[0] -Catalog $catalog -Objective $Objective -Skip $Skip
+        $privateSet=$null
+        if($flow.Count -eq 0){
+            # Not a public workflow: a private workflow of this repository's dossier runs through the same engine.
+            $privateSet=Get-PrivateSet $catalog
+            $flow=@(@($privateSet.workflows)|Where-Object {$_.key -ceq $Key -or $_.id -ceq $Key})
+            if($flow.Count -ne 1){throw (New-SBError 'workflowrun.invalid' @('key'))}
+        }else{
+            if($flow.Count -ne 1){throw (New-SBError 'workflowrun.invalid' @('key'))}
+            Assert-SBPromptPackEnabled $brain ([pscustomobject]@{pack=$(if($flow[0].ContainsKey('pack')){$flow[0].pack}else{'core'});code=$flow[0].key})
+        }
+        Start-SBWorkflowRun -BrainRoot $brain -RunRoot $root -Repository $Repository -Workflow $flow[0] -Catalog $catalog -Objective $Objective -Skip $Skip -PrivateSet $privateSet
     }
     'Step' {Step-SBWorkflowRun -RunRoot $root -RunId $RunId -Option $Option}
     'Answer' {Set-SBWorkflowGateAnswer -RunRoot $root -RunId $RunId -Step $Step -Answer $Answer}

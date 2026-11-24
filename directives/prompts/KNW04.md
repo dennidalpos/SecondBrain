@@ -16,7 +16,7 @@ Decisions to ask the user:
 </context>
 
 <task>
-1. Resolve the registry from PARA and check its metadata.
+1. Find the registry under `shared/authoritative-sources/`. Check its metadata.
 2. Run `sources.ps1 -Check` for local checks and `-Probe` for registered endpoints.
 3. Tell accessibility, transcription, applicability and implementation apart; check dates, versions and requirements.
 4. Report coverage gaps and stale verifications.

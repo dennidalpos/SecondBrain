@@ -1,6 +1,6 @@
 # Trackers and import
 
-Resolve the active dossier by repository identity and PARA metadata. A `repository.json` declaration of `location=dossier`, `path=tracker.json` and `schemaVersion=1` makes that file authoritative. The bootstrap for a new checkout without a source tracker creates this declaration and an empty schema 1 tracker directly.
+Resolve the active dossier by repository identity in `repository.json` under `repos/`. A `repository.json` declaration of `location=dossier`, `path=tracker.json` and `schemaVersion=1` makes that file authoritative. The bootstrap for a new checkout without a source tracker creates this declaration and an empty schema 1 tracker directly.
 
 Ordinary reads of a greenfield dossier require the declaration. A missing declaration reports `tracker.greenfield.declaration.required`, a missing declared file reports `tracker.declared.missing`, and an incompatible payload version reports `tracker.schema.version`. These reads leave the files intact. An undeclared original source is discoverable for a greenfield dossier only through the explicit import workflow.
 
@@ -55,7 +55,7 @@ A source that is already schema 1 passes through the conversion unchanged: IDs, 
 
 Preparation Apply records manifest, verified exact original, candidate and recovery payload under backupRoot. A verified candidate is not yet authoritative. Activation needs separately approved concrete migration and Activate/Apply. Source changes after preparation block resume; do not edit hashes or candidate bytes to bypass it.
 
-Manifest phases are pending/prepared/copied/verified/references_updated/originals_removed/completed. Rollback ends in rolled_back. `-ResumeManifest` reads the recorded state and `-RollbackManifest` previews recovery before Apply. These explicit commands also accept validated pre-1.0 `tracker-migration` journals. Check and PARA safety checks still detect their registered state.
+Manifest phases are pending/prepared/copied/verified/references_updated/originals_removed/completed. Rollback ends in rolled_back. `-ResumeManifest` reads the recorded state and `-RollbackManifest` previews recovery before Apply. These explicit commands also accept validated pre-1.0 `tracker-migration` journals. Check and entity checks still detect their registered state.
 
 Optional ReviewPath binds repository/sourceSha256 and explicit task status/dependency decisions with reasons. Its exact bytes/hash remain in manifest/history. It classifies imported data; it does not qualify application acceptance.
 
@@ -76,9 +76,9 @@ Apply needs the `planSha256` of a preview of the current state (it covers the so
 
 <a id="spostamenti-para"></a>
 
-## PARA moves and diagnostics
+## Entity status and migration diagnostics
 
-Archive/Restore update registered operational references in the same transaction while preserving original payload hashes. Pending import phases prevent moves. Completed/rolled-back imports may move; a later tracker edit can still prevent rollback. A move is never implicit authorization to archive/restore.
+Archive and restore change the entity status in place. Tracker migration recovery checks its registered references and original payload hashes. A later tracker edit can prevent rollback.
 
 Diagnostics separate stable code and localized message. Historical source text/provenance remain original. HistoryMessages is a derived language view; MigrateHistoryMessages previews then preserves originals on authorized Apply. This is not compaction.
 

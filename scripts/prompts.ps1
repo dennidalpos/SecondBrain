@@ -91,6 +91,7 @@ try {
     } elseif($PSCmdlet.ParameterSetName -eq 'List'){
         $listing=Format-SBWorkflowList $catalog $Category -Compact:$Compact -Packs @(Get-SBEnabledPromptPacks $brain)
         # #589: with -RepositoryPath, the private cards of that repository's dossier follow the public list; never without it.
+        $privateSet=$null
         if($RepositoryPath){
             Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Knowledge.psm1')
             Import-Module (Join-Path $PSScriptRoot 'SecondBrain.PrivateAssets.psm1')
@@ -101,6 +102,8 @@ try {
                 $listing=$listing.TrimEnd()+"`n"+(Format-SBPrivatePromptList $privateSet)
             }
         }
+        # Guided flows (wf-NAME) follow the cards, so a key such as wf-security-review can be found from any repository.
+        if(!$Category){$listing=$listing.TrimEnd()+"`n"+(Format-SBPresetList $brain $catalog $privateSet)}
         $listing
     } elseif($PSCmdlet.ParameterSetName -eq 'Packs'){
         if($Pack -and ($Enable -eq $Disable)){throw (New-SBError 'promptscli.pack.action')}
@@ -143,7 +146,16 @@ try {
         }
         if($Context){ConvertTo-SBJson $resolved}
         else {
-            if($Preset){
+            $privateKey=if($Preset){$Preset}else{$Prompt}
+            if($privateKey -and ($privateKey.Contains('/') -or ($Preset -and $Preset -cmatch '^wfl-[0-9a-f]{8}$' -and !@(Read-SBPromptWorkflows $brain $catalog|Where-Object {$_.id -ceq $Preset}).Count))){
+                # A private card or workflow (<repo-slug>/<name>) of this repository's dossier: only with its own dossier, never from another repository.
+                Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Knowledge.psm1')
+                Import-Module (Join-Path $PSScriptRoot 'SecondBrain.PrivateAssets.psm1')
+                $ownRepo=if($Repository){$Repository}elseif($resolved.repositories -and @($resolved.repositories).Count){[string]@($resolved.repositories)[0].identity}else{''}
+                if(!$ownRepo){throw (New-SBError 'private.notfound' @($privateKey))}
+                $ownSet=Read-SBPrivateAssets -Dossier (Join-Path $brain (Resolve-SBWorkingDossier $brain $ownRepo)) -Repository $ownRepo -PublicCatalog $catalog
+                $body=New-SBPrivateComposition $brain $catalog $ownSet $privateKey $resolved $Objective -Standalone:(!@($resolved.repositories).Count) -Degraded $degraded
+            } elseif($Preset){
                 $chosen=@{};if($Choose){foreach($k in $Choose.Keys){$chosen[[string]$k]=[string]$Choose[$k]}}
                 $body=New-SBWorkflowPresetRun $brain $catalog $Preset $resolved $Objective -Skip @($Skip|Where-Object {$_}) -Choose $chosen
             } else {

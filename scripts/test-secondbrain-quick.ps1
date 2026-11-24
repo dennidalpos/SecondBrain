@@ -121,7 +121,7 @@ try {
     Assert-Quick (!$literalOutputs.Count) ('no Write-Host/Warning/Error with literal text'+$(if($literalOutputs.Count){': '+(($literalOutputs|Select-Object -First 5) -join '; ')}))
     Assert-Quick (!$literalThrows.Count) ('no throw with literal text in modules and scripts'+$(if($literalThrows.Count){': '+(($literalThrows|Select-Object -First 5) -join '; ')}))
     Assert-Quick (!$scriptGaps.Count) ('every key used by the scripts has en text in the script'+$(if($scriptGaps.Count){': '+(($scriptGaps|Select-Object -Unique -First 5) -join '; ')}))
-    Assert-Quick ((Get-SBMessage 'para.status.invalid') -ceq 'Invalid PARA status') 'catalogo messaggi: Para in en'
+    Assert-Quick ((Get-SBMessage 'para.status.invalid') -ceq 'Invalid entity status') 'message catalog: entity status in English'
     # Facts quoted in the public documents derive from the code (tool count, prompt count, anchors, versions).
     $toolCount=@(& (Get-Module SecondBrain.Mcp) { Get-SBMcpToolDefinitions }).Count
     $promptCount=@((ConvertFrom-Json (Read-SBText (Join-Path $productRoot 'directives/prompts/catalog.json'))).prompts).Count

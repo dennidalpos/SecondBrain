@@ -48,7 +48,8 @@ Add-SBMessages @{
     'paracli.entity.archived' = @{ en = 'Entity archived: restore it before changing its status' }
     'paracli.status.invalid' = @{ en = 'Invalid status for {0}: allowed {1}' }
     'paracli.status.same' = @{ en = 'Status already set' }
-    'paracli.entity.unknown' = @{ en = 'PARA entity does not exist' }
+    'paracli.entity.unknown' = @{ en = 'Entity does not exist' }
+    'paracli.summary' = @{ en = 'Entities: {0}. Archive candidates: {1}.' }
     'paracli.entity.archivedalready' = @{ en = 'Entity already archived' }
     'paracli.entity.activealready' = @{ en = 'Entity already active' }
     'paracli.archive.blocked' = @{ en = 'Status or active Projects prevent archiving' }
@@ -58,8 +59,8 @@ Add-SBMessages @{
     'paracli.migrate.dirty' = @{ en = 'Dossier cannot be migrated ({0}): {1}' }
     'paracli.customer.required' = @{ en = 'Provide -Customer with a valid name (single line, at most 120 characters) or -Clear' }
     'paracli.customer.none' = @{ en = 'No repository dossier matches -Only' }
-    'paracli.customer.plan' = @{ en = 'Customer preview ({0} dossiers): rerun with -Apply to write repository.json (PARA ids and tasks unchanged)' }
-    'paracli.customer.done' = @{ en = 'Customer assigned to {0} dossiers; PARA ids, identities and tasks verified unchanged' }
+    'paracli.customer.plan' = @{ en = 'Customer preview ({0} dossiers): rerun with -Apply to write repository.json (entity IDs and tasks unchanged)' }
+    'paracli.customer.done' = @{ en = 'Customer assigned to {0} dossiers; entity IDs, identities and tasks verified unchanged' }
     'paracli.customer.diverged' = @{ en = 'Post-write check failed: identifiers diverge for {0}' }
     'paracli.gitupdate.confirm' = @{ en = 'Writing gitUpdate needs -Confirmed: the owner must explicitly accept this way of updating Git and GitHub' }
     'paracli.gitupdate.plan' = @{ en = 'gitUpdate preview ({0} dossiers): rerun with -Apply -Confirmed to write repository.json (identities and tasks unchanged)' }
@@ -94,7 +95,7 @@ try {
         $ops=@(@{path=(Join-Path $dir 'entity.json');expected='absent';bytes=[Text.Encoding]::UTF8.GetBytes((ConvertTo-SBJson $meta))},@{path=(Join-Path $dir 'brief.md');expected='absent';bytes=[Text.Encoding]::UTF8.GetBytes($brief)})
         Invoke-SBParaTransaction $ops $BackupRoot $config.brainRoot
     }elseif($NewArea){
-        # A PARA area is an ongoing responsibility without an end date (workstation/<id>); repository dossiers stay in repos.
+        # An area is an ongoing responsibility without an end date (workstation/<id>); repository dossiers stay in repos.
         if(!$Title.Trim() -or $Title -match '[\r\n]' -or !$Objective.Trim()){throw (New-SBError 'paracli.resource.fields')}
         if(@($index.entities|Where-Object id -eq $Id).Count){throw (New-SBError 'paracli.id.present')}
         $dir=Resolve-SBParaPath $config.brainRoot ('workstation/'+$Id)
@@ -113,7 +114,7 @@ try {
         $m=Read-SBJson $metaPath $null;$m.status=$Status
         Invoke-SBParaTransaction @(,@{path=$metaPath;expected=(Get-SBFileHash $metaPath);bytes=[Text.Encoding]::UTF8.GetBytes((ConvertTo-SBJson $m))}) $BackupRoot $config.brainRoot
     }elseif($SetCustomer){
-        # Customer grouping: only the "customer" field of repository.json changes (PARA id, repository identity, tracker and folder stay as they are).
+        # Customer grouping: only the "customer" field of repository.json changes (entity ID, repository identity, tracker and folder stay as they are).
         # Preview by default; -Apply writes every selected dossier in one transaction and verifies the identifiers afterwards.
         $wanted=if($Clear){''}else{([string]$Customer).Trim()}
         if(!$Clear -and (!$wanted -or $wanted.Length -gt 120 -or $wanted -match '[\p{Cc}\p{Cf}]')){throw (New-SBError 'paracli.customer.required')}
@@ -199,5 +200,5 @@ try {
     }
     if($writing){$index=Update-SBParaIndex $config}
     elseif(!$SuggestArchive){$index=Update-SBParaIndex $config -Check}
-    if($SuggestArchive){$index.candidates|ConvertTo-Json -Depth 5}else{"PARA: $($index.entities.Count) entita; $($index.candidates.Count) proposte di archiviazione"}
+    if($SuggestArchive){$index.candidates|ConvertTo-Json -Depth 5}else{Get-SBMessage 'paracli.summary' @($index.entities.Count,$index.candidates.Count)}
 } finally {Exit-SBOperation $lock}

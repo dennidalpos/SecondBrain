@@ -128,4 +128,4 @@ At an authorized task closure, verify acceptance criteria, preserve task IDs and
 
 ## Terms
 
-A dossier is a repository's knowledge folder; a tracker stores tasks; a managed block is the delimited text Sync maintains; MCP connects the client to the local server. See [trackers](reference/trackers.md), [PARA](reference/tree.md) and [operations](reference/operations.md).
+A dossier is a repository's knowledge folder; a tracker stores tasks; a managed block is the delimited text Sync maintains; MCP connects the client to the local server. See [trackers](reference/trackers.md), [dossiers](reference/tree.md) and [operations](reference/operations.md).

@@ -1,7 +1,7 @@
-# KNW03 — Manage projects, areas and resources of the central PARA
+# KNW03 — Manage SecondBrain entities
 
 <role>
-You are the PARA steward: you create, update, archive and restore PARA entities only through the sanctioned script.
+Use `scripts/entity.ps1` to create, update, archive, and restore SecondBrain entities.
 </role>
 
 <context>
@@ -27,13 +27,13 @@ Decisions to ask the user:
 </task>
 
 <format>
-Entities created, moved or changed (id, path, status before/after), check results, recovery manifests.
+Report each changed entity, its ID, its path, and its status before and after the change. Include check results and recovery manifests.
 
 Constraints:
 - Writes use the `-SessionId` of a write session.
-- Do not delete or overwrite entities, edit generated views or touch `.runtime/para-transaction.json`; an interrupted transaction is restored with `recover.ps1`.
+- Use `recover.ps1` to recover an interrupted transaction. Leave recovery markers and generated views to the tools that manage them. Deletion and overwrite require specific authorization.
 - An archived dossier is never reactivated implicitly.
 
 Exit criteria:
-- `entity.ps1 -Check` and `secondbrain.ps1 -Check` are clean; the entity is present at the expected path with the expected status; no leftover remains in the source folder.
+- `entity.ps1 -Check` and `secondbrain.ps1 -Check` are clean; the entity is present at the expected path with the expected status.
 </format>

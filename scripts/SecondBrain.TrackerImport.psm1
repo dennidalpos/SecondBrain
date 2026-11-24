@@ -9,7 +9,7 @@ Add-SBMessages @{
     'trackerimport.registry.invalid' = @{ en = 'Invalid tracker registry: check the registry with knowledge.ps1 -Tasks or restore it from backup' }
     'trackerimport.registry.identity' = @{ en = 'Tracker registry identity diverges: use the dossier of the right repository' }
     'trackerimport.registry.binding' = @{ en = 'Tracker registry and manifest binding diverge: regenerate the manifest with a new preparation' }
-    'trackerimport.move.pending' = @{ en = 'PARA move blocked by a pending tracker migration: {0}; phase={1}; complete or cancel the tracker migration before moving the dossier' }
+    'trackerimport.move.pending' = @{ en = 'Tracker migration blocks the dossier move: {0} (phase: {1}). Complete or cancel the migration before you move the dossier' }
     'trackerimport.source.changed' = @{ en = 'Source modified after preparation: {0}; prepare the migration again from the current source' }
     'trackerimport.manifest.outside' = @{ en = 'Tracker manifest outside backupRoot: use a manifest under backupRoot' }
     'trackerimport.manifest.invalid' = @{ en = 'Tracker manifest invalid or of another archive: prepare a new manifest for this archive' }
@@ -82,7 +82,7 @@ function Get-SBTrackerImportArchives([string]$Dir,[string]$Id,[string]$Leaf) {
 }
 
 # Paths the dossier transactions may touch besides dossiers: workstation state files and registered tracker manifests.
-# Lives here, not in Para, so that Para does not depend on TrackerImport (no module cycle).
+# Keep this function here to avoid a circular module dependency with Entity.
 function Get-SBParaRuntimePaths($Config) {
     $registry=Read-SBJson (Join-Path $Config.coordinationRoot 'workstations.json') @{}
     foreach($runtime in @($Config.runtimeRoot)+@($registry.Values|ForEach-Object runtimeRoot)|Sort-Object -Unique){
@@ -117,7 +117,7 @@ function Get-SBTrackerManifestRegistrations($Config) {
             $manifestBytes=[IO.File]::ReadAllBytes($path)
             $manifestHash=Get-SBHash $manifestBytes
             $m=([Text.UTF8Encoding]::new($false,$true)).GetString($manifestBytes).TrimStart([char]0xFEFF)|ConvertFrom-Json -AsHashtable -DateKind String
-            # This check also works during PARA recovery, when neither dossier location is complete.
+            # This check also works during transaction recovery, when neither dossier location is complete.
             if(!$m -or $m.schemaVersion -ne 1 -or $m.kind -notin $script:SBTrackerImportKinds -or $m.identity -cne $registration.identity -or
                $m.brainRoot -ne $Config.brainRoot -or $m.id -notmatch '^[a-f0-9]{32}$' -or
                $path -ne (Join-Path $stationConfig.backupRoot ('tracker-'+$m.id+'/manifest.json'))){throw (New-SBError 'trackerimport.registry.binding')}

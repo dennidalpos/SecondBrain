@@ -26,7 +26,7 @@ For team setup, pass `-TeamRoot '\\server\share'` for an existing authoritative 
 
 If a selected repository has an active dossier in both roots, `dossierConflicts` lists the identity, checkout and both dossier paths. Setup stops before writing. Review the dossiers against that checkout before agreeing on consolidation.
 
-Setup keeps the workstation configuration, inventory, discovery, selection, receipts and IDE state in the local state directory. The share receives dossier changes, generated PARA views and coordination records, including recovery journals under `.runtime/access/recovery`. Run subsequent commands from the authoritative root with the same local state setting.
+Setup keeps the workstation configuration, inventory, discovery, selection, receipts and IDE state in the local state directory. The share receives dossier changes, generated dossier views and coordination records, including recovery journals under `.runtime/access/recovery`. Run subsequent commands from the authoritative root with the same local state setting.
 
 <a id="controllo-e-sincronizzazione-su-richiesta"></a>
 
@@ -58,6 +58,8 @@ A permitted transition to done records closure advice/lastClosure. The closure-m
 ### Private cards and workflows
 
 A repository keeps its own cards in its dossier as `prompts/catalog.json` (`schemaVersion` 1, `repository`, `prompts[]` with `id` `pmt-…`, `key` `<repo-slug>/<name>`, `summary`, `mode`, `destructive`, `target: repository`, `revision`, `status`, `file: <name>.md`, optional `role` and `related`) plus `prompts/<name>.md`, and its workflows as `workflows/<name>.json` ([asset contracts, section 6](asset-contracts.md#6-placement-public-reusable-and-private-repository-specific)). The slug is the last segment of the repository identity, lowercased. A card file starts with `# <key> — <summary>` and has the RCTFE sections `role`, `context`, `task` (two or more numbered steps) and `format`, plus optional `examples`, in that order, within 3,500 characters (the earlier eight-section layout is refused, #747). `prompts.ps1 -List -RepositoryPath <checkout>` and MCP `list_prompts` with `repositoryPath` add the active private cards of that repository only; `get_prompt` with a private key (or a private `pmt-` ID) and `repositoryPath` composes it. `build-prompts.ps1 -Check` validates every dossier's private assets: namespaced keys, no ID, key or role shared with a public asset or another dossier, references only to public or same-dossier assets, workflow steps that exist, `confirm` gates on destructive steps and nesting of at most 2. It also refuses any public file under `directives/` (proposals excluded) that cites a private ID or key, and the publication scan reports the same case as `private-asset-reference`.
+
+A guided flow (preset) is found by its key from any repository: `sb prompt list` and MCP `list_prompts` end with the flows, `sb prompt wf-NAME: objective` and MCP `get_prompt` with `wf-NAME` (or a `wfl-` ID) compose the whole flow, and a private workflow composes the same way with its `<repo-slug>/<name>` key (MCP needs `repositoryPath`; the CLI uses the current repository). Running and tracking a flow is `scripts/workflow-runs.ps1`.
 
 ## Running tracker tasks in fresh sessions
 

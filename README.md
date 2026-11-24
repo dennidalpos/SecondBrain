@@ -103,7 +103,7 @@ See [Agents and MCP](docs/ide-e-mcp.md) for client scopes. An updated file or a 
 
 SECONDBRAIN_HOME can identify the checkout on your workstation; scripts can also bootstrap from their own checkout. SECONDBRAIN_STATE_ROOT selects local workstation state, including when dossiers use an explicitly configured shared root. Keep machine paths and receipts out of public repositories. [Configuration reference](docs/reference/portable-brain.md).
 
-PARA organizes the dossier; startup loads an essential layer before deeper history. [Architecture](docs/reference/architecture.md) describes the data boundaries and modules.
+Each repository has a dossier under `repos/`. Startup loads the essential dossier content first. [Architecture](docs/reference/architecture.md) describes the data boundaries and modules.
 
 ## Limits of the current version
 

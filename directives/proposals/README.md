@@ -8,6 +8,8 @@ After the user's explicit approval, change the sources, review the diff, update 
 
 | Proposal | Label | State |
 |---|---|---|
+| `2026-11-24-preset-lookup` | 1.7 | proposed, one line so agents find `wf-NAME` keys from any repository |
+| `2026-11-24-technical-writing` | 1.7 | proposed, ASD-STE100 for technical text |
 | `2026-11-22-mcp-write-workflow` | 1.6 | approved, active text (MCP write flow and `plan` argument in the managed repository block) |
 | `2026-11-20-task-self-sufficiency` | 1.6 | approved, text carried into the active block (tasks must be self-sufficient for the unattended runner) |
 | `2026-11-18-revision-1-5` | 1.5 | superseded by 1.6 (portable core, role-based references, user-file safety, English default) |

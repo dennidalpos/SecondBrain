@@ -5,7 +5,7 @@ Migrates the repository bindings of the workstation configuration to the minimal
 .DESCRIPTION
 A binding keeps identity, path and managed block hash. repositoryFiles (only when it is not the default list), remoteIdentity (only when it
 differs from the identity) and status (only when it is not managed) stay when they carry information; fingerprint and dossier are dropped
-(the dossier is resolved through PARA, the origin guard derives from the identity). Old and minimal bindings work side by side.
+(the repository identity identifies the dossier, the origin guard derives from the identity). Old and minimal bindings work side by side.
 Without -Apply it only previews. -Apply backs up the previous configuration and rewrites it; repeating it changes nothing.
 Exit code: 0 done or unchanged, 2 error, 3 busy, 4 write denied.
 .EXAMPLE

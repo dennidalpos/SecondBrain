@@ -13,7 +13,7 @@ flowchart LR
     S --> H[Isolated host and repository runtime]
 ~~~
 
-Dossiers, the PARA index, shared policy, directives and `.runtime/access` are shared. Team Setup places bindings, state, inventory, receipts and IDE files in the workstation's local state directory. Older deployments may have these files under `.runtime/hosts/<id>`. `SECONDBRAIN_HOME` belongs to each user's environment. Separate Git clones do not share ignored dossiers or queues.
+Dossiers, entity metadata, shared policy, directives and `.runtime/access` are shared. Team Setup places bindings, state, inventory, receipts and IDE files in the workstation's local state directory. Older deployments may have these files under `.runtime/hosts/<id>`. `SECONDBRAIN_HOME` belongs to each user's environment. Separate Git clones do not share ignored dossiers or queues.
 
 ## Permissions and activation
 
@@ -35,7 +35,7 @@ An interrupted dossier transaction blocks central writes. A different host may r
 
 ## Performance and operational limits
 
-UNC PARA scans have a short process cache invalidated by writes. Runtime work/cache/temp are host-scoped. The optional SECONDBRAIN_WORK_LOCAL_ROOT override is a declared tool capability, not a default relocation authorization; verify its local-only destination and output plan.
+UNC entity scans have a short process cache invalidated by writes. Runtime work/cache/temp are host-scoped. The optional SECONDBRAIN_WORK_LOCAL_ROOT override is a declared tool capability, not a default relocation authorization; verify its local-only destination and output plan.
 
 A slow network, lost session, ACL difference or NAS lease behavior can differ from loopback tests. FIFO tickets use producing-host UTC timestamps; clock skew across PCs can affect apparent arrival order.
 

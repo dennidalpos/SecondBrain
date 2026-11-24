@@ -39,7 +39,7 @@ Unrelated configuration is preserved where the supported format allows it. Inval
 
 Workstation backupRoot normally resides under .runtime/hosts/<id>/backups; MCP pairing also has .runtime/backups/mcp-pairing. New files have no original to back up. Dirty tracked files are refused by ordinary Sync; preserve the diff instead of bypassing the guard. Package export is an implementation exception: it does not use these protected writes or enforce a new/runtime-confined OutDir. Choose a new initialized runtime target and retain previous packages.
 
-Generated PARA and runtime indexes, dossier views, the generated global instructions and IDE files that consist entirely of the managed pointer use the journal without a separate binary copy. A pointer file with personal text retains the normal backup policy. PARA and tracker import transactions reuse their verified rollback payloads when writing a file. An interrupted replacement can retain an adjacent `.recovery` file.
+Generated entity views and runtime indexes, dossier views, the generated global instructions and IDE files that consist entirely of the managed pointer use the journal without a separate binary copy. A pointer file with personal text retains the normal backup policy. Dossier and tracker import transactions reuse their verified rollback payloads when writing a file. An interrupted replacement can retain an adjacent `.recovery` file.
 
 ~~~powershell
 pwsh -NoProfile -File scripts/restore-managed.ps1 -List -Path "$HOME/.claude/CLAUDE.md"
@@ -49,7 +49,7 @@ Choose verified MetadataPath before restore. It rejects altered backups or targe
 
 ## Whole-brain backup
 
-backup.ps1 archives local PARA knowledge/indexes and host runtime data with a SHA-256 manifest; Verify checks an archive. Default names avoid same-second overwrites through suffixes. Explicit OutputPath can replace its named archive. Regenerable runtime data is excluded (#396): `fixture`, `tmp`/`temp` and `fixture-*`, `tmp-*`, `tests-*` folders under `.runtime/hosts/<host>/repos/`, `sources/python`, any `cache` folder and `work` folders whose MANIFEST.json status is `closed`. Evidence, reports, open work, configuration and the dossier are always archived.
+backup.ps1 archives local dossiers and knowledge views and host runtime data with a SHA-256 manifest; Verify checks an archive. Default names avoid same-second overwrites through suffixes. Explicit OutputPath can replace its named archive. Regenerable runtime data is excluded (#396): `fixture`, `tmp`/`temp` and `fixture-*`, `tmp-*`, `tests-*` folders under `.runtime/hosts/<host>/repos/`, `sources/python`, any `cache` folder and `work` folders whose MANIFEST.json status is `closed`. Evidence, reports, open work, configuration and the dossier are always archived.
 
 It does not include external IDE configuration/product instructions and has no automatic archive-wide restore. Git pushes do not back up ignored dossiers/runtime.
 

@@ -1,0 +1,9 @@
+## SecondBrain
+
+Repository knowledge lives in the SecondBrain dossier; code, guides, and publishable assets stay here. This block is generated: write project rules outside it, because a sync replaces everything inside.
+
+- Load the slim startup with MCP get_startup_context or the startup mode of the SecondBrain knowledge tool, and follow its references for detail. If the checkout is unreachable, report the dossier as unavailable and continue from the repository files.
+- Write only to this repository's dossier `repos/<repo>/`, only through SecondBrain scripts or MCP write tools. Work folders come from the work tool's init mode; sessions, retention, and cleanup rules load from `sb prompt`.
+- MCP writes: call `preview_dossier_write`, then `submit_dossier_write` with the same `requestId` and `planHash`, and pass the whole previewed object as `plan` (a grant covers task status, update, evidence, new non-autonomous tasks, memory, activity and history of this dossier; evidence correction, `execution` and `requires` changes need the owner's per-plan approval). A refusal that names a missing grant on a repository that has one means `plan` was left out. Never ask the owner for a grant or approval without first retrying with `plan`; the owner's approval is never given in chat.
+- Commits, pushes, deletions, and publication require specific authorization.
+- Every task you create or update must run unattended. For an autonomous task, ask the user for what `needsInfo` or the readiness result reports missing (files in scope, checks to run, acceptance, inputs, decisions) with the client's structured question tool; skip it only when the user says otherwise, then set `execution` to `user_required`.

@@ -2,7 +2,7 @@
 # Private repository assets (asset contracts section 6, #589): cards and workflows of one repository kept in its dossier
 # (prompts/catalog.json with prompts/<name>.md, workflows/<name>.json). Keys are namespaced <repo-slug>/<name>, so they never
 # collide with or shadow a public code, key or role. A private asset may reference public assets; a public asset never
-# references a private one. Workflows are validated here; running them waits for the workflow engine.
+# references a private one. Workflows are validated here; scripts/workflow-runs.ps1 runs them through the workflow-run engine (#590).
 Set-StrictMode -Version Latest
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Messages.psm1')
@@ -229,7 +229,7 @@ function Format-SBPrivatePromptList($Set) {
     if(!$visible.Count -and !$flows.Count){return ''}
     $lines=@('','Private cards of '+$Set.repository+':')
     foreach($card in $visible){$lines+=('  '+$card.key+' | '+$card.summary+' ('+$card.mode+$(if($card.destructive){', destructive'}else{''})+$(if($card.status -eq 'deprecated'){', deprecated'}else{''})+')')}
-    if($flows.Count){$lines+='Private workflows (validated; running them needs the workflow engine):';foreach($flow in $flows){$lines+=('  '+$flow.key+' | '+$flow.title)}}
+    if($flows.Count){$lines+='Private workflows (run with workflow-runs.ps1 -Key <key>):';foreach($flow in $flows){$lines+=('  '+$flow.key+' | '+$flow.title)}}
     ($lines -join "`n")+"`n"
 }
 

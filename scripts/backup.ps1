@@ -168,7 +168,7 @@ $includeTargets = @(
 )
 
 if ($Customer) {
-    # Customer backup: only the repository dossiers of that customer (PARA entities, active or archived); workstation data and global indexes are left out.
+    # Customer backup: only the repository dossiers of that customer (active or archived); workstation data and global indexes are left out.
     $customerEntities = @(Get-SBParaEntities $brain @() | Where-Object { (Test-SBRepoDossier $_) -and (Test-SBCustomerMatch $_.customer $Customer) })
     if (!$customerEntities.Count) { throw (New-SBError 'backup.customer.none' @($Customer)) }
     $areaPatterns = Get-SBRuntimeAreaPatterns

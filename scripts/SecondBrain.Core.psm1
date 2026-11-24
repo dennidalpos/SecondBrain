@@ -1300,7 +1300,7 @@ function Get-SBBrainIdentity([string]$BrainRoot='') {
     ''
 }
 function Test-SBRepoDossier($Entity) {
-    # A repository dossier is a PARA entity bound to one repository: legacy kind 'area' (repos) or kind 'project' with repository.json (repos).
+    # A repository dossier is an entity bound to one repository: legacy kind 'area' (repos) or kind 'project' with repository.json (repos).
     if($null -eq $Entity){return $false}
     $kind=[string]$Entity.kind
     if($kind -eq 'area'){return $true}

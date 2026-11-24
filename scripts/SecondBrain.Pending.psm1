@@ -58,7 +58,7 @@ function Resolve-SBPendingDossier([string]$BrainRoot,[string]$Repository) {
     $dir
 }
 function Assert-SBPendingFile([string]$RelativePath) {
-    # Generated views, arbitrary attachments, configuration and PARA metadata are excluded.
+    # Generated views, arbitrary attachments, configuration and entity metadata are excluded.
     # decisions.json (#588) is written only as a whole file.save from decisions.ps1 and validated again when applied.
     # authoritative-sources.json (#769) is written only as a whole file.save validated against its schema and the dossier identity.
     if($RelativePath -cnotmatch '^(?:context\.md|memory\.md|decisions\.json|authoritative-sources\.json|history/[a-zA-Z0-9][a-zA-Z0-9_-]*/report\.md)$'){

@@ -20,7 +20,7 @@ pwsh -NoProfile -File scripts/knowledge.ps1 -PendingWrites -PendingState conflic
 
 Prepare content inside the managed runtime. Use the SHA-256 of the base actually read, or absent for a new target. Save replaces the expected base; Append preserves additions but does not reorganize memory. The request, including metadata, is limited to 2 MiB.
 
-Configuration, directives, PARA operations and arbitrary attachments are outside this queue. Session ownership does not replace operation locks or hash preconditions.
+Configuration, directives, entity operations and arbitrary attachments are outside this queue. Session ownership does not replace operation locks or hash preconditions.
 
 ## Automatic integration
 
