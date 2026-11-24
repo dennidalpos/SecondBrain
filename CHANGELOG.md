@@ -2,7 +2,17 @@
 
 Formato [Keep a Changelog](https://keepachangelog.com/it-IT/1.1.0/). La numerazione segue il file `VERSION`. Questo registro cambia solo quando accetti un cambio di versione: vedi [Cambiare versione](docs/daily-use.md).
 
-> Versione corrente: **4.0.0**, numerazione reimpostata il 2026-11-04 con le funzionalità attuali conservate. Le sezioni seguenti mantengono la cronologia dei rilasci precedenti.
+> Versione corrente: **4.0.1**, numerazione reimpostata il 2026-11-04 con le funzionalità attuali conservate. Le sezioni seguenti mantengono la cronologia dei rilasci precedenti.
+
+## [4.0.1] - 2026-11-24
+
+### Changed
+- Documentation consolidated and English-only (#584, task run 2026-11-24): `CREDITS.md` rewritten in English and the README "Italiano" section removed. The Italian anchors of `docs/reference/customizing-prompts-and-directives.md` are now `edit-prompts` and `edit-directives`.
+- CI: Dependabot also watches the npm and Cargo manifests of `app/orchestrator` (#813); the PowerShell MSI installed by the CI fallback is checked against the official SHA256 before `msiexec` runs (#814).
+
+### Removed
+- `docs/guida.md`: its content now lives in `docs/getting-started.md` (install, agent connection) and `docs/reference/operations.md` (environment variables, coordination and backups, lifecycle and limits).
+- `docs/product-flow.md`: its content now lives in `docs/daily-use.md#per-repository-workflow`.
 
 ## [4.0.0] - 2026-11-22
 

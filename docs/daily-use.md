@@ -39,7 +39,7 @@ The command words below remain unchanged in every documentation language.
 | `sb directives propose` | Prepare a directive revision as a proposal; approval and distribution stay explicit |
 | `sb prompts check` | Validate the prompt catalog and cards and report drift of the generated indexes |
 
-See the [per-repository workflow](product-flow.md) for the order of operations.
+See the [per-repository workflow](#per-repository-workflow) for the order of operations. `sb` commands are conventions written in managed instructions, not shell executables (see [one entry point](#one-entry-point-sb) for the terminal form).
 
 ### Mechanical compaction (no model)
 
@@ -54,6 +54,45 @@ The startup context has no character cap: the essential tiers load whole, and co
 ### Deeper pass with a cheap model
 
 `sb compact ai -Provider claude|codex|gemini` asks the light model of that provider (`roles.light` of `config/agent-models.json`: claude haiku, gemini flash-lite, codex with low effort; `agent-models.local.json` overrides it) to summarize `context.md` and `memory.md`. The model runs read-only and its answer becomes a candidate in a work folder. The command prints the sizes before and after and changes nothing; `sb compact ai -CandidatePath <candidate> -Apply -ReviewNote "<what you checked>"` applies it after your review and archives the originals by hash. `-ResultFile` reuses a saved answer without calling the model.
+
+## Per-repository workflow
+
+Use chat conventions or the same PowerShell scripts. Run central scripts from the SecondBrain checkout and identify the product checkout explicitly when needed.
+
+~~~mermaid
+flowchart LR
+    A[Activate] --> B[Sync]
+    B --> C[Load context]
+    C --> D[Choose ready work]
+    D --> E[Implement]
+    E --> F[Publication check]
+    F --> G[Close work]
+    G -.->|only when necessary| H[Compact]
+~~~
+
+| Step | Chat | CLI or action |
+|---|---|---|
+| Activate once per workstation | `sb activate` | `scripts/secondbrain.ps1 -Setup -Interactive` |
+| Sync approved instructions | `sb sync` | `scripts/secondbrain.ps1 -Sync` |
+| Verify the IDE integration | `sb prompt WKS05` | `scripts/ide-map.ps1 -Verify` plus live client evidence |
+| Load essential context | `sb prompt TRK01` | `scripts/knowledge.ps1 -Startup -CheckoutPath <product>` |
+| Choose ready work | `sb prompt TRK02` | `scripts/knowledge.ps1 -Tasks -ReadyOnly -CheckoutPath <product>` |
+| Implement authorized work | Agent in the product repository | Follow repository instructions and session permissions |
+| Check before any authorized push | `sb prompt RSK07` | `scripts/publication.ps1 -RepositoryPath <product>` |
+| Close authorized work | `sb prompt SES02` | Update permitted tracker/context/memory, then Sync and Check |
+| Compaction | `sb compact` · `sb compact ai` | Mechanical and lossless at every task close (`knowledge.ps1 -Compact -Mechanical`; add `-Apply` to write by hand); `scripts/compact-ai.ps1 -Provider <p>` for the light-model pass, then `-CandidatePath <file> -Apply -ReviewNote <text>` after your review |
+
+Knowledge lookups never write; pending writes are integrated only by an explicit `knowledge.ps1 -FlushPending`. Audits that propose tracker changes leave the tracker unchanged; do not close a task simply because some code exists.
+
+To show the current next step, run `pwsh -NoProfile -File scripts/prompts.ps1 -RepositoryPath C:/Projects/MyProduct` (MCP: `get_prompt_home` with `repositoryPath`). Without a checkout argument the menu is generic; the chat agent must supply the actual checkout rather than infer it from a dossier folder name.
+
+### Chat and CLI boundaries
+
+The CLI and MCP expose the same knowledge operations, but permissions and client approvals are separate. Installing an instruction file, registering an account/profile, successful stdio communication and proving live loading are separate checks.
+
+The product agent runs builds and tests and captures screenshots. Build output, caches, temporary files, fixtures and evidence stay in Git-ignored folders of the product checkout. A dedicated work folder created for a capture or test run (fixtures, fixture files, raw screenshots) is removed when the work ends, once the reviewed results are stored where they belong; nothing is left behind for later runs. The SecondBrain dossier retains summaries and references to those results.
+
+See [agents and MCP](ide-e-mcp.md), [trackers](reference/trackers.md) and [runtime maintenance](reference/runtime-maintenance.md).
 
 ## Folders and the dossier
 
@@ -104,7 +143,10 @@ Run these from the SecondBrain checkout, passing the product checkout explicitly
 pwsh -NoProfile -File scripts/knowledge.ps1 -Startup -NoRecovery -CheckoutPath C:/Projects/MyProduct
 pwsh -NoProfile -File scripts/knowledge.ps1 -Tasks -ReadyOnly -NoRecovery -CheckoutPath C:/Projects/MyProduct
 pwsh -NoProfile -File scripts/knowledge.ps1 -Task TASK-ID -NoRecovery -CheckoutPath C:/Projects/MyProduct
+pwsh -NoProfile -File scripts/knowledge.ps1 -Search "search terms" -NoRecovery -CheckoutPath C:/Projects/MyProduct
 ~~~
+
+The product path is explicit so the scripts resolve the correct identity and dossier. Task writes require the working repository and its declared tracker; never use another tracker as fallback.
 
 The global task view requires `-All` and is paginated. Task edits belong to the repository being worked on. An audit that only proposes tracker changes must leave the tracker untouched.
 

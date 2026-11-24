@@ -1,118 +1,118 @@
-# Credits e Attribuzioni Terze Parti
+# Credits and Third-Party Attributions
 
-Questo documento riconosce e ringrazia progetti, standard, toolchain e riferimenti metodologici open source che supportano l'architettura e l'operatività di **SecondBrain**.
+This document acknowledges the open-source projects, standards, toolchains and methodological references that support the architecture and operation of **SecondBrain**.
 
 ---
 
-## 1. Toolchain e Runtime
+## 1. Toolchain and Runtime
 
 ### PowerShell 7 (PowerShell Core)
-- **Autore / Manutentore**: Microsoft Corporation e PowerShell Team
-- **Licenza**: [MIT License](https://github.com/PowerShell/PowerShell/blob/master/LICENSE.txt)
-- **Descrizione**: Motore di automazione e linguaggio di scripting moderno, multipiattaforma e deterministico su Windows, Linux e macOS.
+- **Author / Maintainer**: Microsoft Corporation and the PowerShell Team
+- **License**: [MIT License](https://github.com/PowerShell/PowerShell/blob/master/LICENSE.txt)
+- **Description**: Modern, cross-platform and deterministic automation engine and scripting language for Windows, Linux and macOS.
 
 ### Git Version Control System
-- **Autore**: Linus Torvalds, Junio C Hamano e contributori Git
-- **Licenza**: GNU General Public License v2 (GPL-2.0)
-- **Descrizione**: Sistema di controllo di versione distribuito standard per il monitoraggio e la cooperazione deterministica tra repository e postazioni.
+- **Author**: Linus Torvalds, Junio C Hamano and Git contributors
+- **License**: GNU General Public License v2 (GPL-2.0)
+- **Description**: The standard distributed version control system used to track changes and coordinate repositories and workstations deterministically.
 
 ### MarkItDown
 
-Il convertitore opzionale delle fonti usa MarkItDown 0.1.9, sviluppato da Microsoft e distribuito con licenza MIT. Gli extra `pdf` e `docx` abilitano la conversione di questi formati in Markdown. [Release 0.1.9](https://pypi.org/project/markitdown/0.1.9/) · [Licenza upstream](https://github.com/microsoft/markitdown/blob/main/LICENSE)
+The optional source converter uses MarkItDown 0.1.9, developed by Microsoft and distributed under the MIT license. The `pdf` and `docx` extras enable converting those formats to Markdown. [Release 0.1.9](https://pypi.org/project/markitdown/0.1.9/) · [Upstream license](https://github.com/microsoft/markitdown/blob/main/LICENSE)
 
-Il [manifest](scripts/source-requirements.txt) dichiara `markitdown[pdf,docx]==0.1.9`. Il [lock](scripts/source-requirements.lock.txt) fissa le versioni di 30 pacchetti, incluso il convertitore, con gli hash sha256 richiesti da `pip --require-hashes`. L'ambiente Python 3.13 dedicato risiede nella sottocartella `sources/python` del runtime della postazione. I pacchetti si installano localmente e restano fuori dalle build dei prodotti e dalla distribuzione di SecondBrain. [Configurazione del convertitore](docs/reference/authoritative-sources.md)
+The [manifest](scripts/source-requirements.txt) declares `markitdown[pdf,docx]==0.1.9`. The [lock](scripts/source-requirements.lock.txt) pins the versions of 30 packages, including the converter, with the sha256 hashes required by `pip --require-hashes`. The dedicated Python 3.13 environment lives in the `sources/python` subfolder of the workstation runtime. The packages are installed locally and stay outside product builds and the SecondBrain distribution. [Converter configuration](docs/reference/authoritative-sources.md)
 
-### Orchestratore desktop (`app/orchestrator`)
+### Desktop orchestrator (`app/orchestrator`)
 
-Il repository contiene il sorgente dell'app e i lock delle dipendenze; nessun binario o pacchetto di installazione è distribuito: l'app si compila sulla postazione con `npm ci` e `cargo`. Versioni risolte dai lock, licenze dai metadati dei pacchetti (`package.json` installati, `cargo metadata`) del 2026-11-12, riverificate sui lock il 2026-11-14 (versioni e conteggi invariati). Il progetto è MIT (file `LICENSE`, dichiarato in `package.json` e `Cargo.toml`).
+The repository contains the app source and the dependency locks; no binary or installer is distributed: the app is built on the workstation with `npm ci` and `cargo`. Versions come from the locks and licenses from the package metadata (installed `package.json` files, `cargo metadata`) of 2026-11-12, rechecked against the locks on 2026-11-14 (versions and counts unchanged). The project is MIT (`LICENSE` file, declared in `package.json` and `Cargo.toml`).
 
-| Componente | Versione | Licenza (SPDX) | Ruolo | Sorgente |
+| Component | Version | License (SPDX) | Role | Source |
 | --- | --- | --- | --- | --- |
-| Tauri (`tauri`, `tauri-build`) | 2.12.5, 2.7.4 | Apache-2.0 OR MIT | Runtime dell'app e build | [tauri-apps/tauri](https://github.com/tauri-apps/tauri) |
-| `tauri-plugin-dialog` | 2.8.4 | Apache-2.0 OR MIT | Selettori di file e cartelle | [tauri-apps/plugins-workspace](https://github.com/tauri-apps/plugins-workspace) |
-| `serde`, `serde_json` | 1.0.229, 1.0.154 | MIT OR Apache-2.0 | Serializzazione | [serde-rs](https://github.com/serde-rs) |
-| `@tauri-apps/api`, `@tauri-apps/plugin-dialog` | 2.5.0, 2.2.2 | Apache-2.0 OR MIT | Interfaccia TypeScript | [tauri-apps](https://github.com/tauri-apps) |
-| Vite | 6.4.6 | MIT | Solo sviluppo: build del frontend | [vitejs/vite](https://github.com/vitejs/vite) |
-| TypeScript | 5.8.3 | Apache-2.0 | Solo sviluppo: compilatore | [microsoft/TypeScript](https://github.com/microsoft/TypeScript) |
-| Playwright (`@playwright/test`) | 1.65.0 | Apache-2.0 | Solo sviluppo: test end-to-end | [microsoft/playwright](https://github.com/microsoft/playwright) |
-| Tauri CLI (`@tauri-apps/cli`) | 2.5.0 | Apache-2.0 OR MIT | Solo sviluppo: build dell'app | [tauri-apps/tauri](https://github.com/tauri-apps/tauri) |
+| Tauri (`tauri`, `tauri-build`) | 2.12.5, 2.7.4 | Apache-2.0 OR MIT | App runtime and build | [tauri-apps/tauri](https://github.com/tauri-apps/tauri) |
+| `tauri-plugin-dialog` | 2.8.4 | Apache-2.0 OR MIT | File and folder pickers | [tauri-apps/plugins-workspace](https://github.com/tauri-apps/plugins-workspace) |
+| `serde`, `serde_json` | 1.0.229, 1.0.154 | MIT OR Apache-2.0 | Serialization | [serde-rs](https://github.com/serde-rs) |
+| `@tauri-apps/api`, `@tauri-apps/plugin-dialog` | 2.5.0, 2.2.2 | Apache-2.0 OR MIT | TypeScript interface | [tauri-apps](https://github.com/tauri-apps) |
+| Vite | 6.4.6 | MIT | Development only: frontend build | [vitejs/vite](https://github.com/vitejs/vite) |
+| TypeScript | 5.8.3 | Apache-2.0 | Development only: compiler | [microsoft/TypeScript](https://github.com/microsoft/TypeScript) |
+| Playwright (`@playwright/test`) | 1.65.0 | Apache-2.0 | Development only: end-to-end tests | [microsoft/playwright](https://github.com/microsoft/playwright) |
+| Tauri CLI (`@tauri-apps/cli`) | 2.5.0 | Apache-2.0 OR MIT | Development only: app build | [tauri-apps/tauri](https://github.com/tauri-apps/tauri) |
 
-Dipendenze transitive: 423 crate Rust nel lock (tutte le piattaforme) con licenze permissive, salvo 7 crate MPL-2.0 (`cssparser`, `cssparser-macros`, `selectors`, `dtoa-short`, `option-ext`; copyleft debole a livello di file) e 18 crate Unicode-3.0 (famiglia ICU4X, licenza permissiva con avviso); `r-efi` offre anche LGPL-2.1-or-later in alternativa a MIT e Apache-2.0. Gli 82 pacchetti npm del lock sono permissivi (MIT, ISC, Apache-2.0, BSD-3-Clause); i 60 binari opzionali per altre piattaforme di esbuild, Rollup e Tauri CLI non sono installati qui e la loro licenza non è stata letta. Se un binario dell'app viene distribuito, vanno allegati gli avvisi di licenza delle dipendenze incluse, l'indicazione del sorgente dei file MPL-2.0 e l'avviso Unicode-3.0.
+Transitive dependencies: 423 Rust crates in the lock (all platforms) with permissive licenses, except 7 MPL-2.0 crates (`cssparser`, `cssparser-macros`, `selectors`, `dtoa-short`, `option-ext`; weak file-level copyleft) and 18 Unicode-3.0 crates (the ICU4X family, a permissive license with a notice); `r-efi` also offers LGPL-2.1-or-later as an alternative to MIT and Apache-2.0. The 82 npm packages in the lock are permissive (MIT, ISC, Apache-2.0, BSD-3-Clause); the 60 optional binaries for other platforms from esbuild, Rollup and Tauri CLI are not installed here and their license was not read. If an app binary is distributed, the license notices of the included dependencies, the source indication for the MPL-2.0 files and the Unicode-3.0 notice must be attached.
 
-Icone dell'app (`app/orchestrator/src-tauri/icons/`): la provenienza delle icone originarie (commit 2e6d84b) non era documentata né ricostruibile dal repository, quindi non se ne poteva verificare la licenza e sono state sostituite il 2026-11-17. Le icone attuali sono un disegno originale del progetto (tre barre di coda con nodo iniziale), prodotto da `app/orchestrator/icon-source/make-icon.py` (Pillow, nessun elemento di terzi) e convertito nei formati richiesti con `tauri icon` (Tauri CLI, Apache-2.0 OR MIT). Licenza: MIT, come il resto del repository (`LICENSE`). Sorgente riproducibile: `app/orchestrator/icon-source/icon-source.png`.
+App icons (`app/orchestrator/src-tauri/icons/`): the origin of the original icons (commit 2e6d84b) was neither documented nor reconstructable from the repository, so their license could not be verified and they were replaced on 2026-11-17. The current icons are an original design of the project (three queue bars with a start node), produced by `app/orchestrator/icon-source/make-icon.py` (Pillow, no third-party artwork) and converted to the required formats with `tauri icon` (Tauri CLI, Apache-2.0 OR MIT). License: MIT, like the rest of the repository (`LICENSE`). Reproducible source: `app/orchestrator/icon-source/icon-source.png`.
 
 ---
 
-## 2. Standard e Specifiche Tecniche
+## 2. Standards and Technical Specifications
 
 ### JSON Schema (Draft 2020-12)
-- **Organizzazione**: Internet Engineering Task Force (IETF) / JSON Schema Community
-- **Sito web**: [json-schema.org](https://json-schema.org/)
-- **Descrizione**: Specifica per la validazione dichiarativa della struttura e dei contratti dati dei file di configurazione, cataloghi prompt e tracker.
+- **Organization**: Internet Engineering Task Force (IETF) / JSON Schema Community
+- **Website**: [json-schema.org](https://json-schema.org/)
+- **Description**: Specification for declaratively validating the structure and data contracts of configuration files, prompt catalogs and trackers.
 
 ### SPDX (Software Package Data Exchange)
-- **Organizzazione**: Linux Foundation
-- **Licenza**: Creative Commons Attribution License 3.0 (CC-BY-3.0)
-- **Sito web**: [spdx.dev](https://spdx.dev/)
-- **Descrizione**: Standard internazionale (ISO/IEC 5962:2021) per la comunicazione accurata delle informazioni su licenze e proprietà intellettuale del software.
+- **Organization**: Linux Foundation
+- **License**: Creative Commons Attribution License 3.0 (CC-BY-3.0)
+- **Website**: [spdx.dev](https://spdx.dev/)
+- **Description**: International standard (ISO/IEC 5962:2021) for accurately communicating software license and intellectual-property information.
 
 ### OWASP Top 10
-- **Organizzazione**: OWASP Foundation
-- **Licenza**: Creative Commons Attribution Share-Alike 4.0 (CC-BY-SA 4.0)
-- **Sito web**: [owasp.org](https://owasp.org/)
-- **Descrizione**: Documento di consenso e standard di consapevolezza sulle principali vulnerabilità di sicurezza e buone pratiche di hardening del codice.
+- **Organization**: OWASP Foundation
+- **License**: Creative Commons Attribution Share-Alike 4.0 (CC-BY-SA 4.0)
+- **Website**: [owasp.org](https://owasp.org/)
+- **Description**: Consensus document and awareness standard on the main security vulnerabilities and code-hardening practices.
 
 ---
 
-## 3. Riferimenti Metodologici
+## 3. Methodological References
 
-### Metodologia PARA (Projects, Areas, Resources, Archives)
-- **Autore**: Tiago Forte / Forte Labs
-- **Riferimento**: *Building a Second Brain* (2022)
-- **Descrizione**: Tassonomia concettuale adottata da SecondBrain per organizzare la conoscenza, le responsabilità continuative e le memorie di progetto senza dispersioni.
+### PARA method (Projects, Areas, Resources, Archives)
+- **Author**: Tiago Forte / Forte Labs
+- **Reference**: *Building a Second Brain* (2022)
+- **Description**: Conceptual taxonomy adopted by SecondBrain to organize knowledge, ongoing responsibilities and project memory without dispersion.
 
-### Guide e Specifiche di Prompt Engineering per Coding Agent
+### Prompt-engineering guides and specifications for coding agents
 - **Anthropic**: [Claude Prompt Library & Common Workflows](https://code.claude.com/docs/en/prompt-library)
 - **OpenAI**: [OpenAI Prompt Engineering Guides](https://developers.openai.com/api/docs/guides/prompt-engineering)
-- **Google DeepMind / Antigravity**: Linee guida di ingegneria dei prompt deterministici e architettura agentica per pair programming.
-- **Anthropic**: [Prompt engineering overview](https://docs.claude.com/en/docs/build-with-claude/prompt-engineering/overview) (ruolo, tag XML, formato di output esplicito) e [Claude Code memory](https://code.claude.com/docs/en/memory) (`CLAUDE.md` e import `@AGENTS.md`).
+- **Google DeepMind / Antigravity**: Guidelines for deterministic prompt engineering and agentic architecture for pair programming.
+- **Anthropic**: [Prompt engineering overview](https://docs.claude.com/en/docs/build-with-claude/prompt-engineering/overview) (role, XML tags, explicit output format) and [Claude Code memory](https://code.claude.com/docs/en/memory) (`CLAUDE.md` and the `@AGENTS.md` import).
 - **Google**: [Prompt design strategies](https://ai.google.dev/gemini-api/docs/prompting-strategies).
-- **AGENTS.md**: [agents.md](https://agents.md), formato aperto delle istruzioni per agenti di codifica.
-- **CO-STAR**: framework di struttura dei prompt (Context, Objective, Style, Tone, Audience, Response) del concorso GovTech Singapore.
+- **AGENTS.md**: [agents.md](https://agents.md), the open format for coding-agent instructions.
+- **CO-STAR**: prompt-structure framework (Context, Objective, Style, Tone, Audience, Response) from the GovTech Singapore competition.
 
 ---
 
-## 4. Testi di terzi nel registro delle fonti
+## 4. Third-party texts in the source registry
 
-`shared/authoritative-sources/entries/*/versions/` contiene, dal #478, trascrizioni in Markdown di fonti con `rights.status` `public-reusable`: conversioni di formato degli originali, che restano locali (`versions/*/originals/` è escluso da Git). I file sono identificati per hash e non si modificano; gli avvisi richiesti dalle licenze sono raccolti qui. Condizioni lette dalle pagine degli enti il 2026-11-12.
+Since #478, `shared/authoritative-sources/entries/*/versions/` contains Markdown transcripts of sources with `rights.status` `public-reusable`: format conversions of the originals, which stay local (`versions/*/originals/` is excluded from Git). Files are identified by hash and are not edited; the notices required by the licenses are collected here. Conditions were read from the publishers' pages on 2026-11-12.
 
-| Fonte (scheda) | Titolare | Condizioni | Obblighi per le copie nel repository |
+| Source (entry) | Rights holder | Terms | Obligations for the copies in the repository |
 | --- | --- | --- | --- |
-| OWASP ASVS 5.0.0 (`owasp-asvs`) | OWASP ASVS contributors | [CC-BY-SA-4.0](https://github.com/OWASP/ASVS/blob/master/LICENSE.md) | Attribuzione, link alla licenza, indicazione delle modifiche (conversione in Markdown); le trascrizioni derivate restano CC-BY-SA-4.0 |
-| OWASP Cheat Sheet Series: Password Storage, File Upload (`owasp-password-storage`, `owasp-file-upload`) | OWASP Cheat Sheet Series contributors | [CC-BY-SA-4.0](https://github.com/OWASP/CheatSheetSeries/blob/master/LICENSE.md) | Come sopra |
-| WCAG 2.2 (`w3c-wcag`) | World Wide Web Consortium | [W3C Document License 2023](https://www.w3.org/copyright/document-license-2023/) | Link all'originale, avviso di copyright e sezione STATUS conservati; nessuna presentazione della trascrizione come specifica tecnica |
-| NIST SP 800-63B-4, SP 800-218 (`nist-digital-identity`, `nist-ssdf`) | National Institute of Standards and Technology | [NIST Open License](https://www.nist.gov/open/license): opere di dipendenti federali non soggette a copyright negli USA (17 U.S.C. §105) | Citazione di NIST e degli autori; fuori dagli USA possono valere diritti riservati |
-| EFF Large Wordlist (`eff-diceware`) | Electronic Frontier Foundation | [Politica del sito EFF](https://www.eff.org/copyright): materiale originale CC-BY-4.0 | Attribuzione a EFF; la pagina della lista non nomina una licenza propria (da verificare) |
-| AI Act, GDPR e consolidati, Regolamento (UE) 2026/1744 (`eu-ai-act`, `eu-gdpr`, `eu-gdpr-consolidation`, `eu-ai-omnibus-2026`) | Unione europea | [Avviso legale EUR-Lex](https://eur-lex.europa.eu/content/legal-notice/legal-notice.html), decisione 2011/833/UE | Citazione della fonte; fa fede la Gazzetta ufficiale. Pagina EUR-Lex non leggibile il 2026-11-12 (risposta vuota): condizioni da riverificare |
-| Quadro AI della Commissione (`ec-ai-framework`) | Commissione europea | [Avviso legale](https://commission.europa.eu/legal-notice_en): CC-BY-4.0 salvo indicazione contraria | Attribuzione «© European Union», indicazione delle modifiche; esclusi contenuti di terzi e loghi |
-| Quadro giuridico EDPB (`edpb-legal-framework`) | European Data Protection Board | [Copyright EDPB](https://www.edpb.europa.eu/copyright_en): riuso anche commerciale | Citazione della fonte, nessuna distorsione del significato, indicazioni di autore e fonte invariate |
-| L. 132/2025, D.Lgs. 151/2015, D.Lgs. 185/2016 (`it-ai-law-132-2025`, `it-dlgs-151-2015`, `it-dlgs-185-2016`) | Repubblica italiana (Gazzetta Ufficiale) | [Art. 5 L. 633/1941](https://www.normattiva.it/uri-res/N2Ls?urn:nir:stato:legge:1941-04-22;633~art5): la legge sul diritto d'autore non si applica agli atti ufficiali | Citazione della fonte; i fascicoli GU contengono anche altri atti, conservati come contesto |
+| OWASP ASVS 5.0.0 (`owasp-asvs`) | OWASP ASVS contributors | [CC-BY-SA-4.0](https://github.com/OWASP/ASVS/blob/master/LICENSE.md) | Attribution, link to the license, indication of changes (conversion to Markdown); derived transcripts remain CC-BY-SA-4.0 |
+| OWASP Cheat Sheet Series: Password Storage, File Upload (`owasp-password-storage`, `owasp-file-upload`) | OWASP Cheat Sheet Series contributors | [CC-BY-SA-4.0](https://github.com/OWASP/CheatSheetSeries/blob/master/LICENSE.md) | As above |
+| WCAG 2.2 (`w3c-wcag`) | World Wide Web Consortium | [W3C Document License 2023](https://www.w3.org/copyright/document-license-2023/) | Link to the original, copyright notice and STATUS section kept; the transcript is not presented as a technical specification |
+| NIST SP 800-63B-4, SP 800-218 (`nist-digital-identity`, `nist-ssdf`) | National Institute of Standards and Technology | [NIST Open License](https://www.nist.gov/open/license): works of federal employees are not subject to copyright in the US (17 U.S.C. §105) | Cite NIST and the authors; outside the US, reserved rights may apply |
+| EFF Large Wordlist (`eff-diceware`) | Electronic Frontier Foundation | [EFF site policy](https://www.eff.org/copyright): original material CC-BY-4.0 | Attribution to EFF; the wordlist page names no license of its own (to be verified) |
+| AI Act, GDPR and consolidated texts, Regulation (EU) 2026/1744 (`eu-ai-act`, `eu-gdpr`, `eu-gdpr-consolidation`, `eu-ai-omnibus-2026`) | European Union | [EUR-Lex legal notice](https://eur-lex.europa.eu/content/legal-notice/legal-notice.html), Decision 2011/833/EU | Cite the source; the Official Journal is authentic. The EUR-Lex page was unreadable on 2026-11-12 (empty response): conditions to be rechecked |
+| Commission AI framework (`ec-ai-framework`) | European Commission | [Legal notice](https://commission.europa.eu/legal-notice_en): CC-BY-4.0 unless stated otherwise | Attribution "© European Union", indication of changes; third-party content and logos excluded |
+| EDPB legal framework (`edpb-legal-framework`) | European Data Protection Board | [EDPB copyright](https://www.edpb.europa.eu/copyright_en): reuse allowed, including commercial | Cite the source, do not distort the meaning, keep author and source indications unchanged |
+| Law 132/2025, Legislative Decrees 151/2015 and 185/2016 (`it-ai-law-132-2025`, `it-dlgs-151-2015`, `it-dlgs-185-2016`) | Italian Republic (Gazzetta Ufficiale) | [Art. 5 of Law 633/1941](https://www.normattiva.it/uri-res/N2Ls?urn:nir:stato:legge:1941-04-22;633~art5): the copyright law does not apply to official acts | Cite the source; the Gazzetta Ufficiale issues also contain other acts, kept as context |
 
-Avviso richiesto dalla W3C Document License: Copyright © 2020-2024 World Wide Web Consortium. W3C®. This software or document includes material copied from or derived from Web Content Accessibility Guidelines (WCAG) 2.2, https://www.w3.org/TR/WCAG22/.
+Notice required by the W3C Document License: Copyright © 2020-2024 World Wide Web Consortium. W3C®. This software or document includes material copied from or derived from Web Content Accessibility Guidelines (WCAG) 2.2, https://www.w3.org/TR/WCAG22/.
 
-## 5. Note Legali
+## 5. Legal Notes
 
-Tutti i marchi, loghi e nomi commerciali registrati citati in questo repository appartengono ai rispettivi proprietari. Il software **SecondBrain** è distribuito sotto licenza [MIT](LICENSE).
+All registered trademarks, logos and trade names mentioned in this repository belong to their respective owners. **SecondBrain** is distributed under the [MIT](LICENSE) license.
 
-### Compatibilità con la licenza MIT del progetto
+### Compatibility with the project's MIT license
 
-| Componente | Licenza | Uso in SecondBrain | Esito |
+| Component | License | Use in SecondBrain | Outcome |
 | --- | --- | --- | --- |
-| PowerShell 7 | MIT | Runtime richiesto, non ridistribuito | Compatibile |
-| Git | GPL-2.0 | Strumento esterno invocato da riga di comando, non incorporato né ridistribuito | Compatibile (nessun lavoro derivato) |
-| MarkItDown 0.1.9 | MIT | Dipendenza diretta opzionale per la conversione delle fonti, installata nel runtime | Licenza del pacchetto diretto |
-| Tauri, serde e dipendenze dell'orchestratore | Apache-2.0 OR MIT; transitive con MPL-2.0 e Unicode-3.0 | Sorgente e lock nel repository, compilati in locale; nessun binario distribuito | Licenze permissive; obblighi di avviso solo se si distribuisce un binario |
-| Trascrizioni del registro delle fonti | CC-BY-SA-4.0, W3C Document License, CC-BY-4.0, condizioni EDPB e NIST, atti ufficiali | Testi inclusi nel repository (§4) | Licenze proprie, non coperte dalla licenza MIT; avvisi in §4 |
-| JSON Schema, SPDX, PARA | Specifiche e riferimenti | Citati nella documentazione, nessun codice incorporato | Compatibile |
+| PowerShell 7 | MIT | Required runtime, not redistributed | Compatible |
+| Git | GPL-2.0 | External tool invoked from the command line, neither embedded nor redistributed | Compatible (no derivative work) |
+| MarkItDown 0.1.9 | MIT | Optional direct dependency for source conversion, installed in the runtime | License of the direct package |
+| Tauri, serde and the orchestrator dependencies | Apache-2.0 OR MIT; transitive with MPL-2.0 and Unicode-3.0 | Source and lock in the repository, built locally; no binary distributed | Permissive licenses; notice obligations only if a binary is distributed |
+| Source-registry transcripts | CC-BY-SA-4.0, W3C Document License, CC-BY-4.0, EDPB and NIST terms, official acts | Texts included in the repository (§4) | Their own licenses, not covered by the MIT license; notices in §4 |
+| JSON Schema, SPDX, PARA | Specifications and references | Cited in the documentation, no code embedded | Compatible |
 
-La licenza MIT copre il codice e i testi originali di SecondBrain; i testi di terzi del §4 restano sotto le rispettive condizioni. Per i pacchetti del lock Python valgono le licenze e gli avvisi dei rispettivi progetti. L'inventario delle versioni è nel lock. Strumenti opzionali usati localmente per le catture restano fuori dalla distribuzione.
+The MIT license covers SecondBrain's code and original texts; the third-party texts in §4 stay under their own terms. For the packages in the Python lock, the licenses and notices of the respective projects apply. The inventory of versions is in the lock. Optional tools used locally for captures stay outside the distribution.

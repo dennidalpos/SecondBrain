@@ -2,7 +2,7 @@
 
 Prompt cards, common instructions, deployment and live client loading have separate approval/verification boundaries. Use DIR01 for card/catalog changes and the common revision workflow for new shared prescriptions.
 
-<a id="modifica-dei-prompt"></a>
+<a id="edit-prompts"></a>
 
 ## Prompt catalog
 
@@ -17,7 +17,7 @@ pwsh -NoProfile -File scripts/build-prompts.ps1 -Check
 
 Prompt commands never write to the dossier. Generated README indexes are not manual edit targets. After an authorized catalog/card change, regenerate with build-prompts then validate both language cards/IDs/indexes. Stable codes are not reused after retirement/merger; numbering gaps are intentional.
 
-<a id="modifica-delle-direttive"></a>
+<a id="edit-directives"></a>
 <a id="3-ciclo-di-approvazione-e-distribuzione-delle-direttive"></a>
 
 ## Common instruction changes

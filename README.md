@@ -1,7 +1,6 @@
 # SecondBrain for Coding Agents
 
-![Version 4.0.0](https://img.shields.io/badge/version-4.0.0-blue) ![Windows](https://img.shields.io/badge/Windows-0078D6) ![PowerShell 7.5+](https://img.shields.io/badge/PowerShell-7.5%2B-5391FE)
-English · [Italiano](#italiano)
+![Version 4.0.1](https://img.shields.io/badge/version-4.0.1-blue) ![Windows](https://img.shields.io/badge/Windows-0078D6) ![PowerShell 7.5+](https://img.shields.io/badge/PowerShell-7.5%2B-5391FE)
 
 **Project context, decisions, tasks and shared rules for coding agents on Windows.**
 
@@ -30,7 +29,7 @@ Two profiles are supported:
 
 Isolation is per repository: a dossier is read and written only for its own repository, and cross-project reads are refused unless the workstation configuration explicitly allows them. Dossiers are private local data and are never part of the public Git content.
 
-SecondBrain also holds a registry of authoritative sources (laws, standards, product documentation) with a verification state per source ([guide](docs/reference/authoritative-sources.md)). The registry, its tooling and the Markdown transcripts of reusable sources are in the repository, each under its own terms ([CREDITS](CREDITS.md#4-testi-di-terzi-nel-registro-delle-fonti)); the downloaded originals stay local and are not distributed by Git.
+SecondBrain also holds a registry of authoritative sources (laws, standards, product documentation) with a verification state per source ([guide](docs/reference/authoritative-sources.md)). The registry, its tooling and the Markdown transcripts of reusable sources are in the repository, each under its own terms ([CREDITS](CREDITS.md#4-third-party-texts-in-the-source-registry)); the downloaded originals stay local and are not distributed by Git.
 
 Alternatives are often enough. Prefer a plain `AGENTS.md` or `CLAUDE.md` file for a single small repository whose notes fit in one page. Do not use SecondBrain if you are not on Windows, if you cannot run PowerShell 7.5+, or if you need context captured automatically from every chat: loading is explicit and native capture is partial (see the limits below).
 
@@ -116,7 +115,7 @@ Each repository has a dossier under `repos/`. Startup loads the essential dossie
 
 ## Help and contributor checks
 
-Start with [Getting started](docs/getting-started.md), [daily use](docs/daily-use.md), the [single guide](docs/guida.md) or the [technical reference](docs/reference/operations.md).
+Start with [Getting started](docs/getting-started.md), [daily use](docs/daily-use.md) or the [technical reference](docs/reference/operations.md).
 
 Report defects through the [bug form](https://github.com/dennidalpos/secondbrain/issues/new/choose). Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md). Contributions follow [CONTRIBUTING.md](CONTRIBUTING.md).
 
@@ -131,29 +130,3 @@ pwsh -NoProfile -File scripts/check-distribution.ps1
 [Verification levels](docs/reference/runtime-maintenance.md#verification-levels) distinguish Quick, Fast, Full and live qualification. [RSK07](docs/reference/operations.md#publication) separately checks text and Git inventory before publication. Passing one level does not imply the others passed.
 
 MIT License. [Sources and acknowledgements](CREDITS.md).
-
----
-
-## Italiano
-
-**Contesto, decisioni, task e regole condivise per gli agenti di sviluppo su Windows.**
-
-SecondBrain conserva dossier privati che l'agente consulta tramite PowerShell o il server MCP locale facoltativo. Distribuisce i blocchi di istruzioni approvati nei repository selezionati. Il clone Git non contiene né salva i dossier ignorati.
-
-### Per chi, isolamento e quando non usarlo
-
-Due profili: **singolo utente** (una persona, una postazione Windows, le stesse note per ogni agente) e **studio di progettazione e sviluppo** (un dossier per cliente o progetto, separato dal repository del cliente; la modalità con radice condivisa non è ancora qualificata su una share di rete reale né con account distinti: è una prova). L'isolamento è per repository: ogni dossier si legge e si scrive solo per il proprio repository, salvo consenso esplicito nella configurazione. Il registro delle fonti autorevoli e le trascrizioni delle fonti riutilizzabili sono nel repository, ciascuna con le proprie condizioni ([CREDITS](CREDITS.md#4-testi-di-terzi-nel-registro-delle-fonti)); gli originali scaricati restano locali e non sono distribuiti da Git. Per un solo repository piccolo bastano un file `AGENTS.md` o `CLAUDE.md`; non serve SecondBrain senza Windows e PowerShell 7.5+, né se vuoi la cattura automatica di ogni chat.
-
-### Inizia con un progetto
-
-Servono Windows, PowerShell 7.5+ e Git 2.42+. I comandi copiabili sono nella sezione [Quick start](#quick-start-load-one-projects-context): scegli un repository Git locale, leggi l'anteprima, autorizza Setup e carica il contesto con Startup. L'esempio non seleziona IDE né registra la variabile utente. [Guida di avvio](docs/getting-started.md).
-
-### Compiti comuni e configurazione
-
-Consulta i task pronti, carica il dossier e usa una delle 130 schede prompt o uno dei 15 preset. Le scritture MCP richiedono un piano e una ricevuta CLI locale per operazione. [Uso quotidiano](docs/daily-use.md) · [Scritture approvate](docs/reference/mcp-writes.md) · [Agenti e MCP](docs/ide-e-mcp.md).
-
-### Limiti e aiuto
-
-Il contesto va richiesto: Setup non rende automatica la memoria di ogni chat. La cattura nativa è parziale: il bridge accetta solo l'evento Stop e Permit Apply è vincolato all'hash dell'anteprima, verificati solo su fixture sintetiche. [Limiti osservati](docs/reference/memory-cycle.md#known-limits).
-
-Le fixture non qualificano sessioni IDE reali, account o share fra PC fisici. I controlli per contributori sono nella sezione [Help and contributor checks](#help-and-contributor-checks). Problemi di sicurezza: [SECURITY.md](SECURITY.md). Licenza MIT.

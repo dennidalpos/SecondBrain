@@ -137,6 +137,37 @@ pwsh -NoProfile -File scripts/publication.ps1 -RepositoryPath C:/Projects/MyProd
 
 Distribution checks the Git public boundary, not general working-tree cleanliness. RSK07 separately examines working tree, index and relevant history, with findings/incomplete coverage. Commit, push, tags and releases remain separately authorized.
 
+## Environment
+
+| Variable | Purpose |
+|---|---|
+| `SECONDBRAIN_HOME` | User-local clone location. Confirmed Setup registers it unless `-NoRegisterEnvironment` is used; lower-level Activate uses explicit `-RegisterEnvironment`. Restart open IDEs afterward. |
+| `SECONDBRAIN_LANG` | Removed in 3.0: messages are English only, so `-Language` and this variable have no effect. |
+| `SECONDBRAIN_LOCK_WAIT_SECONDS` | Writer-lock wait, default 60 seconds, also controlled by `-WaitSeconds` where supported. |
+| `SECONDBRAIN_PENDING_WAIT_SECONDS` | How long a CLI dossier write waits for the lock before staying `deferred` (0-120, default 8). |
+| `SECONDBRAIN_SKIP_PRE_PUSH` | Explicit one-push hook bypass; it does not qualify the publication or resolve findings. |
+
+Scripts can bootstrap from the checkout without the environment variable. A configured pre-push hook fails closed if its runtime or brain root cannot be resolved. Do not copy workstation paths into public instructions.
+
+## Coordination and backups
+
+~~~powershell
+pwsh -NoProfile -File scripts/access.ps1 -Status
+pwsh -NoProfile -File scripts/access.ps1 -Queue
+~~~
+
+Knowledge reads avoid blocking locks and never process queued writes. Writers serialize through a FIFO queue and return exit 3 when the wait limit expires. Do not remove lock files or incomplete-transaction markers.
+
+Longer writes use Start/End in the same script with try/finally and pass SessionId to the invoked CLIs. Initialize work folders for SecondBrain activities with `work.ps1 -Category <category> -Slug <slug> -Init` and a manifest. Product agents verify tool-specific output paths in Git-ignored folders of their own checkout.
+
+Clean tracked files are recoverable by recorded Git commit/blob; local files use verified backups. Dirty tracked files are protected from overwrite. See [safe writes](safety-backups.md) and [recovery](recovery.md).
+
+## Lifecycle and limits
+
+Greenfield state is declared in dossier `repository.json`; Check reports incompatible version/changelog/schema changes. Changing lifecycle is a separate TRK11 decision.
+
+Dossiers, backups and evidence are not covered by a Git push. Account login is manual. Product builds/tests belong to product agents. Shared-brain and SMB behavior requires its own real-host qualification. See [portable configuration](portable-brain.md), [shared brain](shared-brain.md) and [runtime maintenance](runtime-maintenance.md).
+
 ## Exit codes
 
 | Code | Meaning |
