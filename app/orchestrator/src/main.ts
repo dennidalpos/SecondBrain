@@ -9,6 +9,7 @@ import { initRegistry, showRegistry } from "./registry";
 import { initPrompts, showPrompts } from "./prompts";
 import { initWorkflows, showWorkflows } from "./workflows";
 import { initLibrary, showLibrary } from "./library";
+import { initDecisions, showDecisions } from "./decisions";
 import { refreshHomeStatus } from "./home";
 import { initWorkstation, refreshWorkstation } from "./workstation";
 import { initTracker, showRunEndNextSteps, showTracker } from "./tracker";
@@ -117,6 +118,7 @@ function selectTab(name: string) {
   if (name === "tracker") showTracker();
   if (name === "prompts") void showPrompts();
   if (name === "workflows") void showWorkflows();
+  if (name === "decisions") void showDecisions();
   if (name === "assets") void showLibrary();
   if (name === "workstation") void refreshWorkstation();
 }
@@ -289,6 +291,7 @@ async function doLoadRepository(path: string): Promise<boolean> {
     }
     state.repo = path; state.identity = repo.identity;
     if (state.tab === "workflows") void showWorkflows();
+    if (state.tab === "decisions") void showDecisions();
     if (state.tab === "assets") void showLibrary();
     $("repo-label").textContent = repo.identity;
     $("repo-tracker").textContent = repo.tracker ?? "";
@@ -946,6 +949,7 @@ async function start() {
   initPrompts(currentLight, () => state.repo ?? "");
   initWorkflows(() => state.identity ?? "");
   initLibrary(() => state.identity ?? "");
+  initDecisions(() => state.repo ?? "");
   initTracker();
   initWorkstation(() => state.identity ?? "");
   initAnalysis({ repo: () => state.repo, identity: () => state.identity, light: currentLight, onChange: () => { renderSkipped(); } });

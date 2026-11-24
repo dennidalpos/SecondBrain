@@ -31,6 +31,7 @@
       <button role="tab" id="tabbtn-tracker" aria-controls="tab-tracker" data-tab="tracker">Tracker</button>
       <span class="steps-sep" aria-hidden="true"></span>
       <button role="tab" id="tabbtn-workflows" aria-controls="tab-workflows" data-tab="workflows">Workflows</button>
+      <button role="tab" id="tabbtn-decisions" aria-controls="tab-decisions" data-tab="decisions">Decisions</button>
       <button role="tab" id="tabbtn-assets" aria-controls="tab-assets" data-tab="assets">Assets</button>
       <button role="tab" id="tabbtn-prompts" aria-controls="tab-prompts" data-tab="prompts">Prompts</button>
       <span class="spacer"></span>
@@ -414,6 +415,21 @@
           </div>
           <div class="row"><button id="wf-resume" hidden>Resume</button><button id="wf-stop" hidden>Stop run</button><span id="wf-done" class="muted small" hidden>All steps are done.</span><span class="spacer"></span><button id="wf-close">Close</button></div>
         </div>
+      </section>
+      <section id="tab-decisions" class="panel" role="tabpanel" aria-labelledby="tabbtn-decisions" hidden>
+        <h2>Decisions</h2>
+        <p class="muted">Questions an agent could not answer for you, stored in the repository's dossier. Only you answer: pick a listed option or write your own answer. A recommendation is never an answer, nothing is chosen by default and a decision never expires.</p>
+        <div class="row" id="dec-kinds" role="group" aria-label="Status of the decisions">
+          <button data-status="open" aria-pressed="true">Open</button>
+          <button data-status="answered" aria-pressed="false">Answered</button>
+          <button data-status="withdrawn" aria-pressed="false">Withdrawn</button>
+          <span class="spacer"></span>
+          <span id="dec-state" class="muted small"></span>
+          <button id="dec-refresh">Refresh</button>
+        </div>
+        <p id="dec-error" class="error" hidden></p>
+        <div id="dec-list" class="home-actions"></div>
+        <p id="dec-empty" class="muted small" hidden></p>
       </section>
       <section id="tab-assets" class="panel" role="tabpanel" aria-labelledby="tabbtn-assets" hidden>
         <h2>Library management</h2>

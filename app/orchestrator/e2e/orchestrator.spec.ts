@@ -1037,6 +1037,63 @@ test("library management: prompts, workflows and agents are searchable with a pr
   await closeApp(again);
 });
 
+test("decisions: only the person answers, nothing is preselected, a recommendation is not an answer and an unanswered decision stays open (#616)", async () => {
+  test.setTimeout(600_000);
+  const file = path.join(fixture.dossier, "decisions.json");
+  const asked = { at: "2026-11-24T10:00:00.0000000+00:00", through: "structured-tool", by: "agent" };
+  const option = (id: string, label: string, recommended?: boolean) => ({ id, label, description: `${label} for the e2e fixture`, ...(recommended ? { recommended: true } : {}) });
+  const record = (id: string, question: string, scope: string, extra: object = {}) => ({ id, kind: "choice", question, options: [option("per-dossier", "Per dossier", true), option("global", "Global")], context: {}, asked, scope, status: "open", ...extra });
+  fs.writeFileSync(file, JSON.stringify({ schemaVersion: 1, repository: fixture.identity, decisions: [
+    record("dec-0a1b2c3d", "Which lock key?", "task"),
+    record("dec-1b2c3d4e", "Which retention rule?", "durable"),
+    record("dec-2c3d4e5f", "Which export format?", "task"),
+  ] }, null, 2));
+  const memory = path.join(fixture.dossier, "memory.md");
+  const memoryBefore = fs.existsSync(memory) ? fs.readFileSync(memory, "utf8") : "";
+  const app = await launch({ repo: fixture.checkout });
+  const { page } = app;
+  const calls = watchCalls(page);
+  await expect(page.locator("#repo-label")).toHaveText(fixture.identity, { timeout: 60_000 });
+  await page.locator('.steps button[data-tab="decisions"]').click();
+  await expect(page.locator("#dec-list article")).toHaveCount(3, { timeout: 60_000 });
+  const card = (id: string) => page.locator(`#dec-list article[data-id="${id}"]`);
+  // Nothing is chosen for the person: no option is checked, the recommended one is only marked and the button stays disabled.
+  await expect(page.locator('#dec-list input[type="radio"]:checked')).toHaveCount(0);
+  await expect(card("dec-0a1b2c3d")).toContainText("(recommended)");
+  await expect(card("dec-0a1b2c3d").locator("button[type=submit]")).toBeDisabled();
+  expect(calls("decisions")).toBe(1);
+  // One listed option: the record keeps the option ID and answer.by = user.
+  await card("dec-0a1b2c3d").locator('input[value="global"]').check();
+  await card("dec-0a1b2c3d").locator("button[type=submit]").click();
+  await expect(page.locator("#dec-list article")).toHaveCount(2, { timeout: 60_000 });
+  const read = () => JSON.parse(fs.readFileSync(file, "utf8")).decisions as { id: string; status: string; answer?: { optionId?: string; text?: string; by: string } }[];
+  await expect.poll(() => read().find((d) => d.id === "dec-0a1b2c3d")?.status, { timeout: 60_000 }).toBe("answered");
+  expect(read().find((d) => d.id === "dec-0a1b2c3d")!.answer).toMatchObject({ optionId: "global", by: "user" });
+  // A durable decision needs the lesson before the button is enabled; the lesson goes to memory with the decision ID.
+  await card("dec-1b2c3d4e").locator('input[value="per-dossier"]').check();
+  await expect(card("dec-1b2c3d4e").locator("button[type=submit]")).toBeDisabled();
+  await card("dec-1b2c3d4e").locator('input[aria-label="Lesson for memory"]').fill("Decision: keep per-dossier retention — Reason: e2e check");
+  await card("dec-1b2c3d4e").locator("button[type=submit]").click();
+  await expect.poll(() => read().find((d) => d.id === "dec-1b2c3d4e")?.status, { timeout: 60_000 }).toBe("answered");
+  await expect.poll(() => fs.readFileSync(memory, "utf8"), { timeout: 60_000 }).toContain("(dec-1b2c3d4e)");
+  expect(fs.readFileSync(memory, "utf8").length).toBeGreaterThan(memoryBefore.length);
+  // The third decision was never answered: it is still open and no timeout, default or recommendation changed it.
+  expect(read().find((d) => d.id === "dec-2c3d4e5f")).toMatchObject({ status: "open" });
+  expect(read().find((d) => d.id === "dec-2c3d4e5f")!.answer).toBeUndefined();
+  // Free text under "Other": the typed answer is recorded as text, without an option ID.
+  await card("dec-2c3d4e5f").locator('input[aria-label="Other: write your own answer"]').fill("CSV with a header row");
+  await expect(card("dec-2c3d4e5f").locator('input[aria-label="Other answer"]')).toBeChecked();
+  await card("dec-2c3d4e5f").locator("button[type=submit]").click();
+  await expect.poll(() => read().find((d) => d.id === "dec-2c3d4e5f")?.status, { timeout: 60_000 }).toBe("answered");
+  expect(read().find((d) => d.id === "dec-2c3d4e5f")!.answer).toMatchObject({ text: "CSV with a header row", by: "user" });
+  expect(read().find((d) => d.id === "dec-2c3d4e5f")!.answer!.optionId).toBeUndefined();
+  // Answered decisions are listed under their own filter and no open one remains.
+  await expect(page.locator("#dec-empty")).toBeVisible({ timeout: 60_000 });
+  await page.locator('#dec-kinds button[data-status="answered"]').click();
+  await expect(page.locator("#dec-list article")).toHaveCount(3, { timeout: 60_000 });
+  await closeApp(app);
+});
+
 test("screenshots of every tab with synthetic data (only with SB_E2E_SHOTS)", async () => {
   const out = process.env.SB_E2E_SHOTS;
   test.skip(!out, "SB_E2E_SHOTS not set");

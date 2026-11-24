@@ -393,6 +393,57 @@ async fn library(app: AppHandle, operation: String, identity: String, kind: Stri
     script(app, "library.ps1", args).await
 }
 
+/// Arguments of `decisions.ps1`: the decisions of the working repository (read-only) or the answer to one open decision. The answer is
+/// exactly one listed option ID or free text typed by the person; the window never sends a default, a recommendation or a timeout (#616).
+fn decisions_args(operation: &str, repo_path: &str, id: &str, option: &str, text: &str, lesson: &str) -> Result<Vec<String>, String> {
+    let dir = checkout(repo_path)?;
+    match operation {
+        "list" => Ok(vec!["-List".into(), "-CheckoutPath".into(), dir]),
+        "answer" => {
+            if !is_hex_id(id, "dec-") {
+                return Err("Invalid decision ID.".into());
+            }
+            let has_option = !option.is_empty();
+            let has_text = !text.trim().is_empty();
+            if has_option == has_text {
+                return Err("Choose one option or write one answer.".into());
+            }
+            let mut args: Vec<String> = vec!["-Answer".into(), id.into()];
+            if has_option {
+                if option.len() > 32 || !option.chars().next().is_some_and(|c| c.is_ascii_lowercase() || c.is_ascii_digit()) || !option.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-') {
+                    return Err("Invalid option ID.".into());
+                }
+                args.push("-Option".into());
+                args.push(option.into());
+            } else {
+                if text.len() > 2000 || text.chars().any(|c| c.is_control() && c != '\n') {
+                    return Err("The answer is too long or has control characters.".into());
+                }
+                args.push("-Text".into());
+                args.push(text.trim().into());
+            }
+            if lesson.len() > 600 || lesson.chars().any(|c| c.is_control()) {
+                return Err("The lesson is too long or has control characters.".into());
+            }
+            if !lesson.trim().is_empty() {
+                args.push("-Lesson".into());
+                args.push(lesson.trim().into());
+            }
+            args.push("-CheckoutPath".into());
+            args.push(dir);
+            Ok(args)
+        }
+        _ => Err("Unknown decisions operation.".into()),
+    }
+}
+
+#[tauri::command]
+async fn decisions(app: AppHandle, operation: String, repo: String, id: Option<String>, option: Option<String>, text: Option<String>, lesson: Option<String>) -> Result<Value, String> {
+    // User decision records (decisions.ps1, decisions.json of the dossier): listing reads; an answer is queued as one reviewed file.save.
+    let args = decisions_args(&operation, &repo, id.as_deref().unwrap_or(""), option.as_deref().unwrap_or(""), text.as_deref().unwrap_or(""), lesson.as_deref().unwrap_or(""))?;
+    script(app, "decisions.ps1", args).await
+}
+
 #[tauri::command]
 async fn read_setup_status(app: AppHandle) -> Result<Value, String> {
     // Setup status as JSON (setup-status.ps1); -ExitZero keeps "recommendations pending" (exit 1) from being read as a failure.
@@ -1248,6 +1299,7 @@ pub fn run() {
             read_workflows,
             workflow_run,
             library,
+            decisions,
             read_setup_status,
             list_tasks,
             read_directives,
@@ -1288,7 +1340,7 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-    use super::{library_args, workflow_run_args, compose_args, workstation_args, workstation_command_line, WorkstationRequest, followup_args, analysis_args, browser_args, enrichment_decision_args, git_update_args, agent_wizard_args, queue_args, registry_args, repo_argument, valid_token, QueueRequest, RegistryQuery};
+    use super::{decisions_args, library_args, workflow_run_args, compose_args, workstation_args, workstation_command_line, WorkstationRequest, followup_args, analysis_args, browser_args, enrichment_decision_args, git_update_args, agent_wizard_args, queue_args, registry_args, repo_argument, valid_token, QueueRequest, RegistryQuery};
 
     #[test]
     fn workflow_run_args_validate_every_field_and_apply_only_changes() {
@@ -1309,6 +1361,29 @@ mod tests {
         assert!(workflow_run_args("start", id, "wf-fix-defect", "", "", "", "", "", "", "", &["Bad Step".to_string()]).is_err());
         let started = workflow_run_args("start", id, "wf-fix-defect", "", "", "", "", "", "", " Crash ", &["review-change".to_string(), "x".to_string()]).unwrap();
         assert!(started.windows(2).any(|w| w == ["-Objective", "Crash"]) && started.windows(2).any(|w| w == ["-Skip", "review-change,x"]));
+    }
+
+    #[test]
+    fn decisions_args_send_only_what_the_person_chose() {
+        let dir = std::env::temp_dir().to_string_lossy().into_owned();
+        // Listing is read-only and needs an existing checkout.
+        assert_eq!(decisions_args("list", &dir, "", "", "", "").unwrap()[..2], ["-List", "-CheckoutPath"]);
+        assert!(decisions_args("list", "Z:/no/such/folder", "", "", "", "").is_err());
+        assert!(decisions_args("withdraw", &dir, "dec-0a1b2c3d", "a", "", "").is_err());
+        // An answer is exactly one listed option ID or free text: neither or both is refused, so no default can be sent.
+        assert!(decisions_args("answer", &dir, "dec-0a1b2c3d", "", "", "").is_err());
+        assert!(decisions_args("answer", &dir, "dec-0a1b2c3d", "yes", "also this", "").is_err());
+        assert!(decisions_args("answer", &dir, "dec-0A1B2C3D", "yes", "", "").is_err());
+        assert!(decisions_args("answer", &dir, "-Apply", "yes", "", "").is_err());
+        assert!(decisions_args("answer", &dir, "dec-0a1b2c3d", "-Apply", "", "").is_err());
+        assert!(decisions_args("answer", &dir, "dec-0a1b2c3d", "", &"x".repeat(2001), "").is_err());
+        assert!(decisions_args("answer", &dir, "dec-0a1b2c3d", "yes", "", "bell\u{7}").is_err());
+        let by_option = decisions_args("answer", &dir, "dec-0a1b2c3d", "per-dossier", "", "").unwrap();
+        assert_eq!(by_option[..4], ["-Answer", "dec-0a1b2c3d", "-Option", "per-dossier"]);
+        assert!(!by_option.contains(&"-Text".to_string()));
+        let by_text = decisions_args("answer", &dir, "dec-0a1b2c3d", "", "  my own answer ", "Decision: x - Reason: y").unwrap();
+        assert_eq!(by_text[..4], ["-Answer", "dec-0a1b2c3d", "-Text", "my own answer"]);
+        assert_eq!(by_text[4..6], ["-Lesson", "Decision: x - Reason: y"]);
     }
 
     #[test]
