@@ -24,18 +24,18 @@ The [manifest](scripts/source-requirements.txt) declares `markitdown[pdf,docx]==
 
 ### Desktop orchestrator (`app/orchestrator`)
 
-The repository contains the app source and the dependency locks; no binary or installer is distributed: the app is built on the workstation with `npm ci` and `cargo`. Versions come from the locks and licenses from the package metadata (installed `package.json` files, `cargo metadata`) of 2026-11-12, rechecked against the locks on 2026-11-14 (versions and counts unchanged). The project is MIT (`LICENSE` file, declared in `package.json` and `Cargo.toml`).
+The repository contains the app source and the dependency locks; no binary or installer is distributed: the app is built on the workstation with `npm ci` and `cargo`. Versions come from the locks and licenses from the package metadata (installed `package.json` files, `cargo metadata`) of 2026-11-12, rechecked against the locks on 2026-11-14 (versions and counts unchanged); component versions updated on 2026-11-24 after the Dependabot merges (package counts and license tallies below were not recomputed). The project is MIT (`LICENSE` file, declared in `package.json` and `Cargo.toml`).
 
 | Component | Version | License (SPDX) | Role | Source |
 | --- | --- | --- | --- | --- |
-| Tauri (`tauri`, `tauri-build`) | 2.12.5, 2.7.4 | Apache-2.0 OR MIT | App runtime and build | [tauri-apps/tauri](https://github.com/tauri-apps/tauri) |
+| Tauri (`tauri`, `tauri-build`) | 2.12.7, 2.7.6 | Apache-2.0 OR MIT | App runtime and build | [tauri-apps/tauri](https://github.com/tauri-apps/tauri) |
 | `tauri-plugin-dialog` | 2.8.4 | Apache-2.0 OR MIT | File and folder pickers | [tauri-apps/plugins-workspace](https://github.com/tauri-apps/plugins-workspace) |
 | `serde`, `serde_json` | 1.0.229, 1.0.154 | MIT OR Apache-2.0 | Serialization | [serde-rs](https://github.com/serde-rs) |
-| `@tauri-apps/api`, `@tauri-apps/plugin-dialog` | 2.5.0, 2.2.2 | Apache-2.0 OR MIT | TypeScript interface | [tauri-apps](https://github.com/tauri-apps) |
-| Vite | 6.4.6 | MIT | Development only: frontend build | [vitejs/vite](https://github.com/vitejs/vite) |
+| `@tauri-apps/api`, `@tauri-apps/plugin-dialog` | 2.12.5, 2.8.4 | Apache-2.0 OR MIT | TypeScript interface | [tauri-apps](https://github.com/tauri-apps) |
+| Vite | 8.3.8 | MIT | Development only: frontend build | [vitejs/vite](https://github.com/vitejs/vite) |
 | TypeScript | 5.8.3 | Apache-2.0 | Development only: compiler | [microsoft/TypeScript](https://github.com/microsoft/TypeScript) |
-| Playwright (`@playwright/test`) | 1.65.0 | Apache-2.0 | Development only: end-to-end tests | [microsoft/playwright](https://github.com/microsoft/playwright) |
-| Tauri CLI (`@tauri-apps/cli`) | 2.5.0 | Apache-2.0 OR MIT | Development only: app build | [tauri-apps/tauri](https://github.com/tauri-apps/tauri) |
+| Playwright (`@playwright/test`) | 1.65.1 | Apache-2.0 | Development only: end-to-end tests | [microsoft/playwright](https://github.com/microsoft/playwright) |
+| Tauri CLI (`@tauri-apps/cli`) | 2.12.6 | Apache-2.0 OR MIT | Development only: app build | [tauri-apps/tauri](https://github.com/tauri-apps/tauri) |
 
 Transitive dependencies: 423 Rust crates in the lock (all platforms) with permissive licenses, except 7 MPL-2.0 crates (`cssparser`, `cssparser-macros`, `selectors`, `dtoa-short`, `option-ext`; weak file-level copyleft) and 18 Unicode-3.0 crates (the ICU4X family, a permissive license with a notice); `r-efi` also offers LGPL-2.1-or-later as an alternative to MIT and Apache-2.0. The 82 npm packages in the lock are permissive (MIT, ISC, Apache-2.0, BSD-3-Clause); the 60 optional binaries for other platforms from esbuild, Rollup and Tauri CLI are not installed here and their license was not read. If an app binary is distributed, the license notices of the included dependencies, the source indication for the MPL-2.0 files and the Unicode-3.0 notice must be attached.
 
