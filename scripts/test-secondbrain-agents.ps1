@@ -373,4 +373,7 @@ try{
     $env:SB_FAKE_MODE='draftbad';$env:SB_FAKE_LOG=Join-Path $fixture 'oneshot-log/draftbad';[IO.Directory]::CreateDirectory($env:SB_FAKE_LOG)|Out-Null
     Assert-AgentError {Invoke-SBPromptDraft @draftCommon -Goal 'Review a diff' -OutputFolder (Join-Path $fixture 'draft-out/bad')} 'numbered steps' 'a draft with one task step is refused'
 }finally{$env:SB_FAKE_MODE=$savedMode;$env:SB_FAKE_LOG=$savedLog}
+# sb compact ai with a fake agent on a synthetic dossier (#807).
+$compactRun=@(& pwsh -NoProfile -File (Join-Path $PSScriptRoot 'test-secondbrain-compactai.ps1') 2>&1|ForEach-Object {[string]$_})
+Assert-Agent ($LASTEXITCODE -eq 0 -and ($compactRun -join "`n") -match 'SUCCESS COMPACTAI') ('compact ai test: '+($compactRun|Select-Object -Last 3) -join ' ')
 'SUCCESS AGENTS: '+$script:agentChecks+' checks; retained fixture '+$fixture

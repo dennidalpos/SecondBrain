@@ -17,7 +17,7 @@ pwsh -NoProfile -File scripts/compact-ai.ps1 -Provider claude -Apply -ReviewNote
 [CmdletBinding()]
 param([ValidateSet('claude','codex','gemini')][string]$Provider,[string]$Model,[string]$Effort,[string]$CheckoutPath='.',
     [string]$ResultFile,[switch]$Apply,[string]$ReviewNote,[string]$CandidatePath,
-    [ValidateRange(60,3600)][int]$TimeoutSeconds=900,[string]$ConfigPath,[string]$SessionId)
+    [ValidateRange(60,3600)][int]$TimeoutSeconds=900,[string]$ConfigPath,[string]$SessionId,[string]$AgentPath)
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Core.psm1')
@@ -80,7 +80,7 @@ if($ResultFile){
     $slug='compact'
     $workOut=(& pwsh -NoProfile -File (Join-Path $PSScriptRoot 'work.ps1') -Repository $repository -Category work -Slug $slug -Init -Task 'Model-assisted dossier compaction' -Client agent @configArgs @sessionArgs|Out-String)|ConvertFrom-Json -AsHashtable
     $outFolder=[string]$workOut.root
-    $run=Invoke-SBAgentOneShot -Provider $Provider -Model $Model -Effort $Effort -Prompt $prompt -SchemaPath (Join-Path $brain 'config/analysis/compact.schema.json') -CheckoutPath ([IO.Path]::GetFullPath($CheckoutPath)) -OutputFolder $outFolder -BrainRoot $brain -TimeoutSeconds $TimeoutSeconds -AllowCustomModel:([bool]$Model)
+    $run=Invoke-SBAgentOneShot -Provider $Provider -Model $Model -Effort $Effort -Prompt $prompt -SchemaPath (Join-Path $brain 'config/analysis/compact.schema.json') -CheckoutPath ([IO.Path]::GetFullPath($CheckoutPath)) -OutputFolder $outFolder -BrainRoot $brain -TimeoutSeconds $TimeoutSeconds -AgentPath $AgentPath -AllowCustomModel:([bool]$Model)
     $answer=$run.result;$modelLabel=$(if($run.model){$run.model}else{'CLI default'});$effortLabel=$(if($run.effort){'effort '+$run.effort}else{'default effort'})
 }
 if($answer -isnot [hashtable] -or !$answer.ContainsKey('context') -or !$answer.ContainsKey('memory')){throw (New-SBError 'compactai.result.invalid')}
