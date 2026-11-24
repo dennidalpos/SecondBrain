@@ -8,6 +8,8 @@ Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Tracker.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Knowledge.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Pending.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SecondBrain.Mcp.psm1')
+. (Join-Path $PSScriptRoot 'test-git-environment.ps1')
+$null=Enter-SBTestGitEnvironment # process-only Git configuration, so the suite also runs on its own (#822)
 . (Join-Path $PSScriptRoot 'test-helpers.ps1')
 $checks=0
 function Assert-Pending($Value,[string]$Message){if(!$Value){throw ('FAIL PENDING: '+$Message)};$script:checks++;'PASS PENDING: '+$Message}

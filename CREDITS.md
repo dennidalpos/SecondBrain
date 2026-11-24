@@ -33,7 +33,7 @@ The repository contains the app source and the dependency locks; no binary or in
 | `serde`, `serde_json` | 1.0.229, 1.0.154 | MIT OR Apache-2.0 | Serialization | [serde-rs](https://github.com/serde-rs) |
 | `@tauri-apps/api`, `@tauri-apps/plugin-dialog` | 2.12.5, 2.8.4 | Apache-2.0 OR MIT | TypeScript interface | [tauri-apps](https://github.com/tauri-apps) |
 | Vite | 8.3.8 | MIT | Development only: frontend build | [vitejs/vite](https://github.com/vitejs/vite) |
-| TypeScript | 5.8.3 | Apache-2.0 | Development only: compiler | [microsoft/TypeScript](https://github.com/microsoft/TypeScript) |
+| TypeScript | 7.0.2 | Apache-2.0 | Development only: compiler | [microsoft/TypeScript](https://github.com/microsoft/TypeScript) |
 | Playwright (`@playwright/test`) | 1.65.1 | Apache-2.0 | Development only: end-to-end tests | [microsoft/playwright](https://github.com/microsoft/playwright) |
 | Tauri CLI (`@tauri-apps/cli`) | 2.12.6 | Apache-2.0 OR MIT | Development only: app build | [tauri-apps/tauri](https://github.com/tauri-apps/tauri) |
 

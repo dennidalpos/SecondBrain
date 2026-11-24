@@ -109,7 +109,7 @@ pub fn script_command(pwsh: &str, root: &Path, script: &str, args: &[String]) ->
 
 /// The SecondBrain CLIs print one JSON document on stdout, possibly after other lines: parse from the first bracket.
 pub fn parse_json_output(stdout: &str) -> Result<Value, String> {
-    let start = stdout.find(|c| c == '{' || c == '[').ok_or_else(|| "No JSON in the script output.".to_string())?;
+    let start = stdout.find(['{', '[']).ok_or_else(|| "No JSON in the script output.".to_string())?;
     // The first JSON value only: some scripts print a plain-text summary line after it.
     match serde_json::Deserializer::from_str(stdout[start..].trim()).into_iter::<Value>().next() {
         Some(Ok(v)) => Ok(v),

@@ -274,6 +274,7 @@ fn is_slug(value: &str) -> bool {
 
 /// Arguments of `workflow-runs.ps1` for one operation, validated here so the window can only ask for what the script documents.
 /// Operations that change a run carry -Apply: the click on the button is the explicit call, and nothing resumes by itself.
+#[allow(clippy::too_many_arguments)] // one positional value per script parameter; the call sites and tests stay flat
 fn workflow_run_args(operation: &str, identity: &str, key: &str, run_id: &str, step: &str, option: &str, answer: &str, outcome: &str, evidence: &str, objective: &str, skip: &[String]) -> Result<Vec<String>, String> {
     if identity.trim().is_empty() || identity.len() > 200 || identity.starts_with('-') {
         return Err("Select a repository first.".into());
@@ -446,6 +447,7 @@ fn decisions_args(operation: &str, repo_path: &str, id: &str, option: &str, text
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)] // Tauri maps each named argument from the window's invoke payload
 async fn decisions(app: AppHandle, operation: String, repo: String, id: Option<String>, option: Option<String>, text: Option<String>, relayed: Option<String>, lesson: Option<String>) -> Result<Value, String> {
     // User decision records (decisions.ps1, decisions.json of the dossier): listing reads; an answer is queued as one reviewed file.save.
     let args = decisions_args(&operation, &repo, id.as_deref().unwrap_or(""), option.as_deref().unwrap_or(""), text.as_deref().unwrap_or(""), relayed.as_deref().unwrap_or(""), lesson.as_deref().unwrap_or(""))?;
