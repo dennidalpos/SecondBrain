@@ -2,6 +2,7 @@
 name = "secondbrain"
 version = "5.0.0-alpha.1"
 edition = "2024"
+rust-version = "1.88"
 description = "Private project context, decisions and tasks for coding agents"
 license = "MIT"
 repository = "https://github.com/dennidalpos/secondbrain"

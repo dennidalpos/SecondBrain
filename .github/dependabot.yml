@@ -12,3 +12,7 @@ updates:
     directory: "/app/orchestrator/src-tauri"
     schedule:
       interval: "weekly"
+  - package-ecosystem: "cargo"
+    directory: "/cli"
+    schedule:
+      interval: "weekly"
