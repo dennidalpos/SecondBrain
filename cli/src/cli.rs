@@ -1,5 +1,6 @@
 //! Command-line interface: `sb <command>`.
 
+use crate::check;
 use crate::mcp;
 use crate::migrate;
 use crate::ops;
@@ -88,6 +89,25 @@ pub enum Cmd {
         #[arg(long)]
         link: bool,
     },
+    /// Scan what a push would publish for secrets, personal data and dossier text (exit 2 on findings)
+    Check {
+        /// Repository folder (default: the current folder)
+        path: Option<PathBuf>,
+        /// Scan every commit of every branch, not only the unpushed ones
+        #[arg(long)]
+        history: bool,
+        #[arg(long)]
+        json: bool,
+        /// Install a Git pre-push hook that runs `sb check`
+        #[arg(long, conflicts_with_all = ["uninstall_hook", "hook"])]
+        install_hook: bool,
+        /// Remove the pre-push hook installed by sb
+        #[arg(long, conflicts_with = "hook")]
+        uninstall_hook: bool,
+        /// Used by the pre-push hook: reads the pushed refs on standard input
+        #[arg(long, hide = true)]
+        hook: bool,
+    },
     /// Work through the open tasks unattended, one agent process per task, on an sb/run-* branch
     Run {
         /// claude, codex or gemini (asked when omitted)
@@ -159,6 +179,56 @@ pub enum TaskCmd {
 pub enum RulesCmd {
     /// Rewrite the SecondBrain block in every linked repository from rules.md
     Sync,
+}
+
+/// An outcome that is not an error but needs a non-zero exit code (for example `sb check` findings).
+#[derive(Debug)]
+pub struct Exit {
+    pub code: i32,
+    pub text: String,
+}
+
+impl std::fmt::Display for Exit {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.text)
+    }
+}
+
+impl std::error::Error for Exit {}
+
+fn check(home: &Home, folder: &Path, history: bool, json: bool, hook: bool) -> Result<String> {
+    let (root, identity) = ops::checkout(folder)?;
+    let root = PathBuf::from(root);
+    let dossier = if home.is_initialized() {
+        home.find(&identity)?
+    } else {
+        None
+    };
+    let range = if hook {
+        let mut input = String::new();
+        std::io::stdin().read_to_string(&mut input)?;
+        check::Range::Revs(check::hook_revs(&input))
+    } else if history {
+        check::Range::History
+    } else {
+        check::Range::Unpushed
+    };
+    let report = check::scan(&root, dossier.as_ref(), &range)?;
+    let text = if json {
+        serde_json::to_string_pretty(&report.findings)? + "\n"
+    } else {
+        check::report_text(&report)
+    };
+    if report.findings.is_empty() {
+        Ok(text)
+    } else {
+        let text = if hook {
+            format!("{text}Push blocked by `sb check`.\n")
+        } else {
+            text
+        };
+        Err(Exit { code: 2, text }.into())
+    }
 }
 
 /// Runs a command and returns what to print.
@@ -323,6 +393,26 @@ pub fn run(cli: Cli, cwd: &Path) -> Result<String> {
             ops::sync_rules(&home)
         }
         Cmd::Migrate { file, link } => migrate::run(&home, &file, link),
+        Cmd::Check {
+            path,
+            history,
+            json,
+            install_hook,
+            uninstall_hook,
+            hook,
+        } => {
+            let folder = path.unwrap_or_else(|| cwd.to_path_buf());
+            if install_hook || uninstall_hook {
+                let (root, _) = ops::checkout(&folder)?;
+                let root = PathBuf::from(root);
+                return if install_hook {
+                    check::install_hook(&root)
+                } else {
+                    check::uninstall_hook(&root)
+                };
+            }
+            check(&home, &folder, history, json, hook)
+        }
         Cmd::Run {
             agent,
             agent_cmd,

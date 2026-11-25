@@ -45,6 +45,28 @@ sb run --agent-cmd "my-agent --flag" --task 12
 - The run stops when an agent switches branch or its output looks like a usage limit. Without a terminal, `--agent` or `--agent-cmd` is required.
 - Review with `git log main..sb/run-...`, then merge or delete the branch.
 
+## Publication check
+
+```sh
+sb check                     # working tree + commits not on any remote; exit 2 on findings
+sb check --history           # every commit of every branch
+sb check --json
+sb check --install-hook      # Git pre-push hook that blocks the push on findings (--uninstall-hook)
+```
+
+- **Rules:** secrets (private keys; AWS, GitHub, Anthropic, OpenAI, Slack, Google and Stripe live keys; `password = "..."` assignments; credentials in URLs) and personal data (email addresses, home folders such as `C:\Users\<name>` or `/home/<name>`).
+- **Dossier leaks:** text from the repository's own dossier (task titles, context and decisions) copied into a file. Only SecondBrain can check this one.
+- **Kept quiet on purpose:**
+  - placeholders (`${VAR}`, `your-key`, `example`);
+  - safe addresses (`example.com`, `.invalid`, noreply);
+  - SSH remotes (`git@host:`);
+  - personal data in license, notice, lockfile and vendored files;
+  - generic credential values in test files;
+  - the repository's own user in containers;
+  - binary formats.
+- **Silencing a reviewed false positive:** add `sb-check: ignore` to the line, or put its fingerprint (shown in brackets) and a reason in a tracked `.sbcheck-ignore`.
+- **A secret that was already committed** stays in the history even after you delete the file: rotate it, then rewrite the unpushed commits.
+
 ## Data
 
 ```text

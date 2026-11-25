@@ -2,6 +2,7 @@
 //! kept outside the repositories and shared by the CLI (`sb`) and an MCP server (`sb mcp`).
 
 pub mod block;
+pub mod check;
 pub mod cli;
 pub mod date;
 pub mod git;
