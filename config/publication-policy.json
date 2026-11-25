@@ -3767,6 +3767,78 @@
       "path": "web/index.html",
       "reason": "Proposed 2026-11-21 (#075, not approved): published project contact address.",
       "rule": "personal-email"
+    },
+    {
+      "fingerprint": "61A5AC22A379359760BBEA85FD906C4E9C7D824F5D8B0AF16422688F2A6E2857",
+      "path": "cli/src/check.rs",
+      "reason": "Reviewed 2026-11-25: placeholder value (${VAR}, your-api-key-here, $OPENAI_...) in an sb check unit test that asserts the value is not reported; no secret.",
+      "rule": "credential"
+    },
+    {
+      "fingerprint": "82AD1875E9FC41F53744D28AD638CE3E6180BC394CE739C3CABA9CF272ED2E4F",
+      "path": "cli/src/check.rs",
+      "reason": "Reviewed 2026-11-25: placeholder value (${VAR}, your-api-key-here, $OPENAI_...) in an sb check unit test that asserts the value is not reported; no secret.",
+      "rule": "credential"
+    },
+    {
+      "fingerprint": "A7CAF789E2D4CB16E6D6923ED5F8CEFBCDFFCF3DDBFB870247F6B88372F5E353",
+      "path": "cli/src/check.rs",
+      "reason": "Reviewed 2026-11-25: placeholder value (${VAR}, your-api-key-here, $OPENAI_...) in an sb check unit test that asserts the value is not reported; no secret.",
+      "rule": "credential"
+    },
+    {
+      "fingerprint": "EF69FF33C4ED2E72DDEEA6D3699C1D3B79086B59CD95485F0DEBAFAB8D3A109F",
+      "path": "cli/README.md",
+      "reason": "Reviewed 2026-11-25: documentation of the sb check home-path rule (generic C:\\Users\\<name> and /home/<name> forms); no real user name.",
+      "rule": "host-path"
+    },
+    {
+      "fingerprint": "3EB8BF9DDE0A97CA204C5E93B36927AD262DCCD3FD6B0884F032FD1C49C1A261",
+      "path": "cli/src/check.rs",
+      "reason": "Reviewed 2026-11-25: generic system users (Public, runner) in an sb check unit test that asserts they are not reported; no personal path.",
+      "rule": "host-path"
+    },
+    {
+      "fingerprint": "0449C86BBA5876DEA0AAABE4AF58DFEB7715D86437B816377640E115E833A14B",
+      "path": "cli/src/check.rs",
+      "reason": "Reviewed 2026-11-25: Git remote address (git@host:owner/name, https://user:tok@host) in v5 code, comments or tests; not an email address and no personal data.",
+      "rule": "personal-email"
+    },
+    {
+      "fingerprint": "2F64521192023E70CB7BEA82847D149E10ED761A4B7D9DF2F777449FC7EFCFF4",
+      "path": "cli/src/check.rs",
+      "reason": "Reviewed 2026-11-25: Git remote address (git@host:owner/name, https://user:tok@host) in v5 code, comments or tests; not an email address and no personal data.",
+      "rule": "personal-email"
+    },
+    {
+      "fingerprint": "E0CC395A47893DE778CF3AE2184C94C67F3A53FE6D760CA949B27B269B93401E",
+      "path": "cli/src/check.rs",
+      "reason": "Reviewed 2026-11-25: Git remote address (git@host:owner/name, https://user:tok@host) in v5 code, comments or tests; not an email address and no personal data.",
+      "rule": "personal-email"
+    },
+    {
+      "fingerprint": "07E270F2ADCBEB963376AF9C50036C59B67330F737C7D4905D161A8116E29C12",
+      "path": "cli/src/git.rs",
+      "reason": "Reviewed 2026-11-25: Git remote address (git@host:owner/name, https://user:tok@host) in v5 code, comments or tests; not an email address and no personal data.",
+      "rule": "personal-email"
+    },
+    {
+      "fingerprint": "855355783E1B33EE530640BBC1243255DEF1348EB0B4275C96EF6859E1B53B83",
+      "path": "cli/src/git.rs",
+      "reason": "Reviewed 2026-11-25: Git remote address (git@host:owner/name, https://user:tok@host) in v5 code, comments or tests; not an email address and no personal data.",
+      "rule": "personal-email"
+    },
+    {
+      "fingerprint": "E310E6E5E9C26521BFCE7AF0CA4D88A66950B8BD1A9801A315A9E4B3531BB054",
+      "path": "cli/src/git.rs",
+      "reason": "Reviewed 2026-11-25: Git remote address (git@host:owner/name, https://user:tok@host) in v5 code, comments or tests; not an email address and no personal data.",
+      "rule": "personal-email"
+    },
+    {
+      "fingerprint": "9294DD5E95DB53BD3051031E8F5E5BBD423B003EABA8797E9156002E8E3AE127",
+      "path": "cli/tests/flow.rs",
+      "reason": "Reviewed 2026-11-25: Git remote address (git@host:owner/name, https://user:tok@host) in v5 code, comments or tests; not an email address and no personal data.",
+      "rule": "personal-email"
     }
   ],
   "binaryReviews": [
