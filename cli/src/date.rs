@@ -11,6 +11,17 @@ pub fn today() -> String {
     from_days(secs.div_euclid(86_400))
 }
 
+/// The current UTC time as YYYYMMDD-HHMMSS, for branch and log names.
+pub fn stamp() -> String {
+    let secs = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+    let day = from_days(secs.div_euclid(86_400)).replace('-', "");
+    let t = secs.rem_euclid(86_400);
+    format!("{day}-{:02}{:02}{:02}", t / 3600, t % 3600 / 60, t % 60)
+}
+
 /// Converts days since 1970-01-01 to YYYY-MM-DD (proleptic Gregorian calendar).
 pub fn from_days(days: i64) -> String {
     let z = days + 719_468;

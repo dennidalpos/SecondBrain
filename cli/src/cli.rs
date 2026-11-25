@@ -3,6 +3,7 @@
 use crate::mcp;
 use crate::migrate;
 use crate::ops;
+use crate::run;
 use crate::store::Home;
 use crate::task::{Status, one_line};
 use anyhow::{Result, bail};
@@ -86,6 +87,27 @@ pub enum Cmd {
         /// Also link AGENTS.md and CLAUDE.md in each recorded checkout
         #[arg(long)]
         link: bool,
+    },
+    /// Work through the open tasks unattended, one agent process per task, on an sb/run-* branch
+    Run {
+        /// claude, codex or gemini (asked when omitted)
+        #[arg(long)]
+        agent: Option<String>,
+        /// Any other agent: a command that reads the prompt on standard input
+        #[arg(long, conflicts_with = "agent")]
+        agent_cmd: Option<String>,
+        /// Run only this task
+        #[arg(long)]
+        task: Option<u32>,
+        /// Run at most this many tasks
+        #[arg(long)]
+        limit: Option<usize>,
+        /// Minutes before an agent is stopped
+        #[arg(long, default_value_t = 30)]
+        timeout: u64,
+        /// List the tasks that would run, then stop
+        #[arg(long)]
+        dry_run: bool,
     },
     /// Run the MCP server on standard input and output
     Mcp,
@@ -301,6 +323,24 @@ pub fn run(cli: Cli, cwd: &Path) -> Result<String> {
             ops::sync_rules(&home)
         }
         Cmd::Migrate { file, link } => migrate::run(&home, &file, link),
+        Cmd::Run {
+            agent,
+            agent_cmd,
+            task,
+            limit,
+            timeout,
+            dry_run,
+        } => {
+            let opts = run::RunOptions {
+                agent,
+                agent_cmd,
+                task,
+                limit,
+                timeout_minutes: timeout,
+                dry_run,
+            };
+            run::run(&home, cwd, opts, &mut |line| println!("{line}"))
+        }
         Cmd::Mcp => {
             mcp::serve(home)?;
             Ok(String::new())

@@ -29,6 +29,22 @@ sb migrate open-tasks.json   # import the open tasks exported from SecondBrain 4
 
 `--repo` accepts an identity (`github.com/owner/name`), its last part (`name`) or a folder.
 
+## Unattended runs
+
+```sh
+sb run --dry-run             # which tasks would run: open, todo, not waiting on you
+sb run                       # asks which agent to use (claude, codex, gemini found on the PATH)
+sb run --agent claude --limit 3 --timeout 30
+sb run --agent-cmd "my-agent --flag" --task 12
+```
+
+- The working tree must be clean. The run creates an `sb/run-<UTC time>` branch from the current one, or reuses it if you are already on one.
+- Each task gets a fresh agent process. The prompt (the task, the project context and the rules) goes to its standard input, and the agent must end with one of three lines: `SB-RESULT: done`, `SB-RESULT: blocked <reason>` or `SB-RESULT: needs-user <what is needed>`.
+- Agents may only edit files: Claude Code runs with `--permission-mode acceptEdits`, Gemini CLI with `--approval-mode auto_edit`, Codex in its `workspace-write` sandbox. Commands that need approval, such as tests and builds, are refused.
+- `sb` commits each task's changes locally: `<title> (sb #id)` when it is done, `Not done: ...` otherwise. It never pushes. Tasks become `done`, `blocked`, or `todo` with "needs you"; each gets a dated note and the path of its log, which stays in the dossier, not in the repository.
+- The run stops when an agent switches branch or its output looks like a usage limit. Without a terminal, `--agent` or `--agent-cmd` is required.
+- Review with `git log main..sb/run-...`, then merge or delete the branch.
+
 ## Data
 
 ```text

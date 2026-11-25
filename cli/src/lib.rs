@@ -8,5 +8,6 @@ pub mod git;
 pub mod mcp;
 pub mod migrate;
 pub mod ops;
+pub mod run;
 pub mod store;
 pub mod task;
