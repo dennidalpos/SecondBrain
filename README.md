@@ -18,14 +18,27 @@ It does not scan your computer, sync to a cloud, or need a server, a database or
 
 ## Install
 
-Build it from source with Rust 1.88 or later:
+Download the archive for your system from the [releases page](https://github.com/dennidalpos/SecondBrain/releases), check it against `SHA256SUMS`, and put `sb` (`sb.exe` on Windows) in a folder on your PATH.
+
+Archives are named `sb-<version>-<target>`:
+
+| System | Target | Format |
+|---|---|---|
+| Windows x64 | `x86_64-pc-windows-msvc` | `.zip` |
+| Windows ARM64 | `aarch64-pc-windows-msvc` | `.zip` |
+| macOS Apple Silicon | `aarch64-apple-darwin` | `.tar.gz` |
+| macOS Intel | `x86_64-apple-darwin` | `.tar.gz` |
+| Linux x64 (static, any distribution) | `x86_64-unknown-linux-musl` | `.tar.gz` |
+| Linux ARM64 (static, any distribution) | `aarch64-unknown-linux-musl` | `.tar.gz` |
+
+The binaries are not signed: macOS may ask you to allow `sb` in System Settings, Privacy & Security (or run `xattr -d com.apple.quarantine sb`), and Windows SmartScreen may warn on first run.
+
+To build from source instead, with Rust 1.88 or later:
 
 ```sh
 git clone https://github.com/dennidalpos/secondbrain
 cargo install --path secondbrain/cli
 ```
-
-`sb` lands in `~/.cargo/bin`. There are no prebuilt binaries yet.
 
 ## Quick start
 
@@ -75,7 +88,7 @@ Push this folder only to a private remote: it holds your clients' notes.
 
 ## Limits
 
-- Alpha: no prebuilt binaries, no signed releases, and the formats can change before 5.0.0.
+- Alpha: the binaries are not signed or notarized, and the formats can change before 5.0.0.
 - `sb run` lets agents edit files only. Commands that need approval, such as tests and builds, are refused, so review the run branch before merging it.
 - `sb check` uses built-in rules. It is a safety net, not a replacement for a dedicated secret scanner.
 

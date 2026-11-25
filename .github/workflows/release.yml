@@ -1,0 +1,139 @@
+name: Release
+
+# Builds sb for six targets and attaches the archives, their checksums and the
+# third-party license texts to a GitHub release. Runs when a release is
+# published, or by hand for an existing release tag.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to build and upload, for example v5.0.0-alpha.1
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.event.release.tag_name || inputs.tag }}
+  cancel-in-progress: false
+
+env:
+  TAG: ${{ github.event.release.tag_name || inputs.tag }}
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { target: x86_64-pc-windows-msvc, os: windows-latest, native: true }
+          - { target: aarch64-pc-windows-msvc, os: windows-latest, native: false }
+          - { target: aarch64-apple-darwin, os: macos-latest, native: true }
+          - { target: x86_64-apple-darwin, os: macos-latest, native: false }
+          - { target: x86_64-unknown-linux-musl, os: ubuntu-latest, native: true }
+          - { target: aarch64-unknown-linux-musl, os: ubuntu-24.04-arm, native: true }
+    defaults:
+      run:
+        shell: bash
+    env:
+      TARGET: ${{ matrix.target }}
+    steps:
+      - name: Check out the release tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/tags/${{ env.TAG }}
+          persist-credentials: false
+
+      # The packaging script comes from the workflow's own commit, so an older
+      # tag can be rebuilt with the current script.
+      - name: Check out the packaging script
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: .release-tools
+          sparse-checkout: .github/scripts
+          persist-credentials: false
+
+      - name: Check that the tag matches the crate version
+        run: |
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]] || { echo "::error::unexpected tag $TAG"; exit 1; }
+          version=$(sed -n 's/^version = "\(.*\)"$/\1/p' cli/Cargo.toml | head -1)
+          [ "v$version" = "$TAG" ] || { echo "::error::tag $TAG does not match cli/Cargo.toml version $version"; exit 1; }
+
+      - name: Install the stable Rust toolchain for the target
+        run: |
+          if ! command -v rustup >/dev/null; then
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain none
+            echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+            export PATH="$HOME/.cargo/bin:$PATH"
+          fi
+          rustup toolchain install stable --profile minimal --target "$TARGET"
+          rustup default stable
+          rustc --version
+
+      - name: Install the musl tools
+        if: contains(matrix.target, 'musl')
+        run: sudo apt-get update -q && sudo apt-get install -y -q musl-tools
+
+      - name: Build
+        run: cargo build --locked --release --target "$TARGET" --manifest-path cli/Cargo.toml
+
+      - name: Smoke run
+        if: matrix.native
+        run: |
+          bin="cli/target/$TARGET/release/sb"
+          [ -f "$bin.exe" ] && bin="$bin.exe"
+          "$bin" --version
+          "$bin" --home "$RUNNER_TEMP/sb-home" init
+          "$bin" --home "$RUNNER_TEMP/sb-home" repos
+          if command -v file >/dev/null; then file "$bin"; fi
+
+      - name: Package
+        run: |
+          name="sb-$TAG-$TARGET"
+          mkdir -p "dist/$name"
+          exe=sb
+          case "$TARGET" in *windows*) exe=sb.exe ;; esac
+          cp "cli/target/$TARGET/release/$exe" LICENSE README.md CHANGELOG.md "dist/$name/"
+          if python3 -c 1 2>/dev/null; then py=python3; else py=python; fi
+          "$py" .release-tools/.github/scripts/third_party_licenses.py "$TARGET" "dist/$name/THIRD-PARTY-LICENSES.txt"
+          cd dist
+          case "$TARGET" in
+            *windows*) archive="$name.zip"; pwsh -NoProfile -Command "Compress-Archive -Path '$name' -DestinationPath '$archive'" ;;
+            *) archive="$name.tar.gz"; tar -czf "$archive" "$name" ;;
+          esac
+          if command -v sha256sum >/dev/null; then sha256sum "$archive" | sed 's/ \*/  /' > "$archive.sha256"; else shasum -a 256 "$archive" > "$archive.sha256"; fi
+          cat "$archive.sha256"
+          echo "ARCHIVE=dist/$archive" >> "$GITHUB_ENV"
+
+      - name: Upload to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$TAG" "$ARCHIVE" "$ARCHIVE.sha256" --clobber --repo "$GITHUB_REPOSITORY"
+
+  checksums:
+    name: SHA256SUMS
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Combine the checksums
+        run: |
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern '*.sha256' --dir sums
+          cat sums/*.sha256 | sort -k2 > SHA256SUMS
+          cat SHA256SUMS
+          [ "$(wc -l < SHA256SUMS)" -eq 6 ] || { echo "::error::expected 6 archives"; exit 1; }
+          gh release upload "$TAG" SHA256SUMS --clobber --repo "$GITHUB_REPOSITORY"

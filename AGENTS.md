@@ -6,6 +6,7 @@ SecondBrain 5 is a single Rust binary, `sb`, in `cli/`. Everything else in the r
 - `cli/src/`: one module per area (`store`, `task`, `ops`, `block`, `git`, `mcp`, `mcp_install`, `run`, `check`, `migrate`, `cli`, `date`).
 - `cli/tests/`: integration tests (`flow`, `run`, `check`), each against a temporary `SB_HOME` and temporary Git repositories.
 - `.github/workflows/cli.yml`: fmt, clippy, tests and a release smoke run on Ubuntu, macOS and Windows.
+- `.github/workflows/release.yml` and `.github/scripts/third_party_licenses.py`: build the six release archives and attach them to a published release (or by hand, for an existing tag).
 - `.claude/skills/` and `.agents/skills/`: the same skills for Claude Code and for other agents; keep the two copies identical.
 
 ## Checks

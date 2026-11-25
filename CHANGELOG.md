@@ -2,6 +2,11 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). The version is in `VERSION` and `cli/Cargo.toml`.
 
+## [Unreleased]
+
+### Added
+- Release workflow (`.github/workflows/release.yml`): prebuilt `sb` archives for Windows (x64, ARM64), macOS (Apple Silicon, Intel) and Linux (x64, ARM64, static musl), each with `LICENSE`, `README.md`, `CHANGELOG.md` and the third-party license texts, plus `SHA256SUMS`. It runs when a release is published, or by hand for an existing tag; 5.0.0-alpha.1 got its binaries this way.
+
 ## [5.0.0-alpha.1] - 2026-11-25
 
 ### Added

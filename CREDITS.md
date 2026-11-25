@@ -14,7 +14,7 @@ SecondBrain is distributed under the [MIT](LICENSE) license. This page lists wha
 | [serde](https://github.com/serde-rs/serde) | 1.0.229 | MIT OR Apache-2.0 | Serialization |
 | [serde_json](https://github.com/serde-rs/json) (`preserve_order`) | 1.0.154 | MIT OR Apache-2.0 | JSON for MCP and client configuration files |
 
-Transitive dependencies: 37 crates in the lock (all platforms), all permissive: MIT OR Apache-2.0 (31), Unlicense OR MIT (2), MIT (2), Zlib (1), and `unicode-ident` under (MIT OR Apache-2.0) AND Unicode-3.0. If a binary is distributed, attach the license notices of the included crates and the Unicode-3.0 notice.
+Transitive dependencies: 37 crates in the lock (all platforms), all permissive: MIT OR Apache-2.0 (31), Unlicense OR MIT (2), MIT (2), Zlib (1), and `unicode-ident` under (MIT OR Apache-2.0) AND Unicode-3.0. Each release archive carries these notices, the Unicode-3.0 one included, in `THIRD-PARTY-LICENSES.txt`.
 
 ## Tools and formats
 
