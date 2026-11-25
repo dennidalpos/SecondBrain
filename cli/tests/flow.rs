@@ -8,14 +8,24 @@ use serde_json::json;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+/// A new, empty folder per call. The counter keeps parallel tests apart where the
+/// clock is coarse (macOS reports microseconds).
 fn temp(name: &str) -> PathBuf {
+    static NEXT: AtomicU32 = AtomicU32::new(0);
+    let n = NEXT.fetch_add(1, Ordering::Relaxed);
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_nanos();
-    let p = std::env::temp_dir().join(format!("sb-test-{name}-{}-{nanos}", std::process::id()));
+    let p = std::env::temp_dir().join(format!("sb-test-{name}-{}-{nanos}-{n}", std::process::id()));
+    assert!(
+        !p.exists(),
+        "temporary folder already exists: {}",
+        p.display()
+    );
     fs::create_dir_all(&p).unwrap();
     p
 }
