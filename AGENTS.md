@@ -34,3 +34,14 @@ Repository knowledge lives in the SecondBrain dossier; code, guides, and publish
 ## Security
 - No secrets, personal paths or account data in the repository; publication scans (`scripts/publication.ps1` or MCP `check_publication`) come before every push.
 - `.runtime` cleanups and migrations (`scripts/cleanup.ps1 -Migrate`, `-Regenerable`) preview by default and need `-Apply` with an explicit `-Authorization`.
+
+<!-- secondbrain:begin -->
+## SecondBrain
+
+This repository's private context, decisions and tasks live in SecondBrain, outside the repository.
+
+- At the start of a session run `sb context` (MCP tool `get_context`) and work from it.
+- Track work with `sb task add`, `sb task list` and `sb task done` (MCP task tools).
+- Record durable decisions with `sb decide "..."` and keep the current state with `sb context --set`.
+- Never copy dossier content into the repository.
+<!-- secondbrain:end -->

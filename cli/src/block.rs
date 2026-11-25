@@ -14,7 +14,11 @@ pub fn body(rules: &str) -> String {
          - Never copy dossier content into the repository.\n",
     );
     let rules = strip_comments(rules);
-    if !rules.trim().is_empty() {
+    // A rules file with headings only (the untouched template) adds nothing.
+    let has_rules = rules
+        .lines()
+        .any(|l| !l.trim().is_empty() && !l.trim_start().starts_with('#'));
+    if has_rules {
         s.push('\n');
         s.push_str(rules.trim());
         s.push('\n');
@@ -106,8 +110,11 @@ mod tests {
 
     #[test]
     fn body_drops_template_comments() {
-        let b = body("# Shared rules\n<!-- hint -->\n");
-        assert!(b.contains("# Shared rules") && !b.contains("hint"));
+        let template = body("# Shared rules\n\n<!-- hint -->\n");
+        assert!(!template.contains("Shared rules") && !template.contains("hint"));
+        let b = body("# Shared rules\n<!-- hint -->\n- Write tests first.\n");
+        assert!(b.contains("# Shared rules") && b.contains("- Write tests first."));
+        assert!(!b.contains("hint"));
         assert!(!body("<!-- only a hint -->").contains("<!--"));
     }
 }
