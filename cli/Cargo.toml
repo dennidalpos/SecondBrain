@@ -1,0 +1,29 @@
+[package]
+name = "secondbrain"
+version = "5.0.0-alpha.1"
+edition = "2024"
+description = "Private project context, decisions and tasks for coding agents"
+license = "MIT"
+repository = "https://github.com/dennidalpos/secondbrain"
+readme = "README.md"
+keywords = ["agents", "mcp", "tasks", "cli", "ai"]
+categories = ["command-line-utilities", "development-tools"]
+
+[lib]
+name = "secondbrain"
+path = "src/lib.rs"
+
+[[bin]]
+name = "sb"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
