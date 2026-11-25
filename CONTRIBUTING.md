@@ -4,14 +4,14 @@ Thank you for your interest in SecondBrain.
 
 ## Before you start
 
-- Read [README.md](README.md) for the supported platforms, prerequisites and validation commands.
+- Read [README.md](README.md) for the prerequisites and [AGENTS.md](AGENTS.md) for the layout, the checks and the code style.
 - For a bug or an idea, open an issue first using the matching form, so the change can be discussed before work starts.
 - Security problems are never reported in public issues: follow [SECURITY.md](SECURITY.md).
 
 ## Making a change
 
 1. Keep the change focused on a single topic.
-2. Run the checks documented in the README and make sure they pass.
+2. Run `cargo fmt --check`, `cargo clippy --locked --all-targets -- -D warnings` and `cargo test --locked` in `cli/`, and `sb check` before pushing.
 3. Use synthetic or redacted data only: no secrets, credentials, personal data, host paths or raw logs in code, tests, screenshots or issues.
 4. Open a pull request and fill in the template.
 

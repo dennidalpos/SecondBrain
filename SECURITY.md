@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-Security fixes are applied to the latest version published on `master` (see `VERSION`).
+Security fixes are applied to the latest version on `master` (see `VERSION`). 4.x is no longer maintained.
 
 ## Reporting a vulnerability
 
@@ -14,4 +14,4 @@ Replies are sent in the same private conversation. The fix is published before t
 
 ## Scope
 
-SecondBrain is a local tool: the PowerShell scripts, the local stdio MCP server (`scripts/mcp-server.ps1`, read-only except `submit_dossier_write`, which applies one reviewed request with a local approval receipt, or, for task operations only, under an owner-issued time-limited grant per repository: `mcp-write.ps1 -Grant`, see the [write guide](docs/reference/mcp-writes.md)) and the IDE configuration files it generates. Vulnerabilities in the IDEs, Git or PowerShell themselves are out of scope.
+SecondBrain is a local tool: the `sb` binary, its stdio MCP server (`sb mcp`), the blocks it writes in `AGENTS.md` and `CLAUDE.md`, the client configuration entries written by `sb mcp install`, the Git hook written by `sb check --install-hook`, and the agent processes started by `sb run`. Vulnerabilities in Git, the agents or the MCP clients themselves are out of scope.

@@ -5,19 +5,10 @@ description: Orients the agent in the repository layout. Use at the start of a t
 
 # Repository map
 
-Use this map to find where things live before searching broadly.
+- `cli/`: the `sb` crate (Rust). `src/` holds one module per area, `tests/` the integration tests, `README.md` the detailed user guide.
+- `.github/`: CI (`workflows/cli.yml`), Dependabot, issue and pull request templates.
+- `.claude/skills/` and `.agents/skills/`: agent skills, two identical copies.
+- Root: `README.md`, `AGENTS.md`, `CHANGELOG.md`, `VERSION`, `CREDITS.md`, `CONTRIBUTING.md`, `SECURITY.md`, `LICENSE`.
 
-Top-level folders (detected, may be incomplete):
-- `.github/`
-- `app/`
-- `config/`
-- `directives/`
-- `docs/`
-- `repos/` (one dossier per managed repository; contents ignored by Git)
-- `scripts/`
-- `shared/` (shared references: sources, architecture, radar, troubleshooting)
-- `workstation/` (governance, workstation and directive dossiers; contents ignored by Git)
-
-- Read the folder's own README or instructions before editing inside it.
 - Prefer existing patterns in the neighbouring files over new ones.
 - Update this skill when the layout changes.
