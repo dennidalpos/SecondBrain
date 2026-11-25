@@ -56,6 +56,7 @@ $allowedRootFiles = @(
     'start.ps1',
     '.gitattributes',
     '.gitignore',
+    '.sbcheck-ignore',
     '.claude/settings.json'
 )
 

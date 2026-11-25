@@ -1,0 +1,27 @@
+# Reviewed `sb check` findings: fingerprint, then the reason. Reviewed 2026-11-25.
+# Official public contact addresses printed in the published texts kept in the source registry
+# (shared/authoritative-sources/entries/*/versions/*/transcript*.md); no personal data.
+
+# Gazzetta Ufficiale (Italian official journal) contact addresses, it-ai-law-132-2025 transcripts
+cc73b76b81965844  Gazzetta Ufficiale certified address, it-ai-law-132-2025 transcript.columns.md
+2c5e2e9e21a914fe  Gazzetta Ufficiale address, it-ai-law-132-2025 transcript.columns.md
+04136ef3ad8e7f71  Gazzetta Ufficiale certified address, it-ai-law-132-2025 transcript.layout.md
+5b46158d80247e98  Gazzetta Ufficiale address, it-ai-law-132-2025 transcript.layout.md
+96e958db13c17bdf  Gazzetta Ufficiale address, it-ai-law-132-2025 transcript.layout.md
+5544738ffd0816d9  Gazzetta Ufficiale certified address, it-ai-law-132-2025 transcript.md
+f2658af31f709530  Gazzetta Ufficiale address, it-ai-law-132-2025 transcript.md
+ae1513c6685e29f3  Gazzetta Ufficiale certified address, it-ai-law-132-2025 transcript.verified.md
+1cc8375aa997a121  Gazzetta Ufficiale address, it-ai-law-132-2025 transcript.verified.md
+
+# Gazzetta Ufficiale contact addresses, it-dlgs-185-2016 transcript
+580d47b885796104  Gazzetta Ufficiale certified address, it-dlgs-185-2016 transcript.md
+57de3c252550d1be  Gazzetta Ufficiale address, it-dlgs-185-2016 transcript.md
+
+# NIST SSDF (SP 800-218) public comment address
+81420fff5c2bb141  NIST SSDF comment address, nist-ssdf transcript.layout.md
+1b25d8023828d339  NIST SSDF comment address, nist-ssdf transcript.md
+22a9825f0aab92e3  NIST SSDF comment address, nist-ssdf transcript.verified.md
+
+# W3C WCAG public comments mailing list
+8f0a695b4409b62b  W3C AG WG public comments list, w3c-wcag transcript.md
+03e1a79886cb9697  W3C AG WG public comments list, w3c-wcag transcript.verified.md
