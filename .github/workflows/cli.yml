@@ -3,13 +3,7 @@ name: CLI
 on:
   push:
     branches: [master, main, v5]
-    paths:
-      - "cli/**"
-      - ".github/workflows/cli.yml"
   pull_request:
-    paths:
-      - "cli/**"
-      - ".github/workflows/cli.yml"
 
 permissions:
   contents: read

@@ -1,5 +1,5 @@
 name: Feature request
-description: Propose an improvement to the scripts, the prompt catalog or the MCP server
+description: Propose an improvement to the `sb` command or its MCP server
 title: "[Feature]: "
 labels: ["enhancement"]
 body:
@@ -31,6 +31,6 @@ body:
     id: version
     attributes:
       label: Version
-      description: Content of the VERSION file.
+      description: Output of `sb --version`.
     validations:
       required: true

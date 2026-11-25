@@ -1,5 +1,5 @@
 name: Bug report
-description: Report a defect in the scripts, the prompt catalog or the MCP server
+description: Report a defect in the `sb` command or its MCP server
 title: "[Bug]: "
 labels: ["bug"]
 body:
@@ -18,9 +18,9 @@ body:
     id: steps
     attributes:
       label: Steps to reproduce
-      description: The commands or prompt codes that reproduce the problem, in order.
+      description: The `sb` commands that reproduce the problem, in order.
       placeholder: |
-        1. pwsh -NoProfile -File scripts/...
+        1. sb ...
         2. ...
     validations:
       required: true
@@ -28,14 +28,14 @@ body:
     id: version
     attributes:
       label: Version
-      description: Content of the VERSION file.
+      description: Output of `sb --version`.
     validations:
       required: true
   - type: input
     id: environment
     attributes:
       label: Environment
-      description: Windows build, PowerShell version (`$PSVersionTable.PSVersion`) and Git version.
+      description: Operating system, Git version and, for MCP problems, the client and its version.
     validations:
       required: true
   - type: textarea

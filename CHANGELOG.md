@@ -1,8 +1,19 @@
-# Registro delle modifiche
+# Changelog
 
-Formato [Keep a Changelog](https://keepachangelog.com/it-IT/1.1.0/). La numerazione segue il file `VERSION`. Questo registro cambia solo quando accetti un cambio di versione: vedi [Cambiare versione](docs/daily-use.md).
+Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). The version is in `VERSION` and `cli/Cargo.toml`.
 
-> Versione corrente: **4.0.1**, numerazione reimpostata il 2026-11-04 con le funzionalità attuali conservate. Le sezioni seguenti mantengono la cronologia dei rilasci precedenti.
+## [5.0.0-alpha.1] - 2026-11-25
+
+### Added
+- `sb`, a single Rust binary for Windows, macOS and Linux (`cli/`): `init`, `add`, `unlink`, `repos`, `context`, `decide`, `task`, `search`, `rules sync` and `migrate` (imports the open tasks exported from 4.x).
+- Data in `~/.secondbrain` (or `SB_HOME`): one dossier per repository, identified by its `origin` remote, with `context.md`, `decisions.md` and one Markdown file per task.
+- `sb mcp`: MCP server over stdio with 9 tools; `sb mcp install|uninstall|config|clients` registers it with Claude Desktop, Claude Code, Codex, Cursor, VS Code, Windsurf and Gemini CLI.
+- `sb run`: unattended task runs, one agent process per task (Claude Code, Codex or Gemini CLI, edits only), local commits on an `sb/run-*` branch, never pushed.
+- `sb check`: publication scan of the working tree and unpushed commits for secrets, personal data and dossier text, with an opt-in pre-push hook.
+- CI for `cli/` on Ubuntu, macOS and Windows.
+
+### Removed
+- All of SecondBrain 4: the PowerShell scripts and modules, the prompt catalog and directives, the desktop orchestrator (`app/`), the source registry (`shared/`), the documentation site (`docs/`), the configuration (`config/`), `start.ps1`, the task-queue agent and the v4 CI. They stay in the Git history before this release.
 
 ## [4.0.1] - 2026-11-24
 
