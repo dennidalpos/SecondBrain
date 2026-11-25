@@ -85,11 +85,29 @@ Plain files: edit them by hand, back them up with Git, and push them only to a p
 ## MCP
 
 `sb mcp` serves the same operations over stdio: `list_repos`, `get_context`, `list_tasks`, `get_task`,
-`add_task`, `update_task`, `add_decision`, `set_context`, `search`. Example client entry:
+`add_task`, `update_task`, `add_decision`, `set_context`, `search`.
 
-```json
-{ "mcpServers": { "secondbrain": { "command": "sb", "args": ["mcp"] } } }
+```sh
+sb mcp install               # asks which client; or --client claude-desktop
+sb mcp install --client codex
+sb mcp uninstall --client cursor
+sb mcp config --client vscode   # print the entry to add by hand
+sb mcp clients               # supported clients and their files on this computer
 ```
+
+| Client | Where the entry goes |
+|---|---|
+| `claude-desktop` | `claude_desktop_config.json` in the Claude folder (`%APPDATA%`, `~/Library/Application Support`, `~/.config`) |
+| `claude-code` | `claude mcp add --scope user` |
+| `codex` | `~/.codex/config.toml`, `[mcp_servers.secondbrain]` |
+| `cursor` | `~/.cursor/mcp.json` |
+| `vscode` | the user `mcp.json` in `Code/User` |
+| `windsurf` | `~/.codeium/windsurf/mcp_config.json` |
+| `gemini` | `~/.gemini/settings.json` |
+
+- **Which binary:** the entry uses the absolute path of the `sb` that ran the command, because desktop apps do not see your shell's PATH. When `--home` or `SB_HOME` is set, the entry also sets `SB_HOME`.
+- **Existing configuration:** other servers and settings are kept in their order. Before the first change the original file is copied to `<file>.sb-backup`. Files with comments (JSONC) are refused, so add the entry by hand with `sb mcp config`.
+- **No search:** each client has one known file per OS; nothing on the computer is scanned. Restart the client after installing.
 
 ## Develop
 

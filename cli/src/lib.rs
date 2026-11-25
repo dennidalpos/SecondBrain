@@ -7,6 +7,7 @@ pub mod cli;
 pub mod date;
 pub mod git;
 pub mod mcp;
+pub mod mcp_install;
 pub mod migrate;
 pub mod ops;
 pub mod run;

@@ -2,6 +2,7 @@
 
 use crate::check;
 use crate::mcp;
+use crate::mcp_install;
 use crate::migrate;
 use crate::ops;
 use crate::run;
@@ -129,8 +130,33 @@ pub enum Cmd {
         #[arg(long)]
         dry_run: bool,
     },
-    /// Run the MCP server on standard input and output
-    Mcp,
+    /// Run the MCP server on standard input and output, or register it with a client
+    Mcp {
+        #[command(subcommand)]
+        cmd: Option<McpCmd>,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum McpCmd {
+    /// Add `sb mcp` to a client's configuration (asked when --client is omitted)
+    Install {
+        /// claude-desktop, claude-code, codex, cursor, vscode, windsurf or gemini
+        #[arg(long)]
+        client: Option<String>,
+    },
+    /// Remove `sb mcp` from a client's configuration
+    Uninstall {
+        #[arg(long)]
+        client: Option<String>,
+    },
+    /// Print the entry to add by hand, and the file it goes in
+    Config {
+        #[arg(long)]
+        client: Option<String>,
+    },
+    /// List the supported clients and their configuration files
+    Clients,
 }
 
 #[derive(Subcommand)]
@@ -233,6 +259,8 @@ fn check(home: &Home, folder: &Path, history: bool, json: bool, hook: bool) -> R
 
 /// Runs a command and returns what to print.
 pub fn run(cli: Cli, cwd: &Path) -> Result<String> {
+    let custom_home =
+        cli.home.is_some() || std::env::var_os("SB_HOME").is_some_and(|v| !v.is_empty());
     let home = Home::resolve(cli.home.as_deref())?;
     match cli.cmd {
         Cmd::Init => {
@@ -431,9 +459,45 @@ pub fn run(cli: Cli, cwd: &Path) -> Result<String> {
             };
             run::run(&home, cwd, opts, &mut |line| println!("{line}"))
         }
-        Cmd::Mcp => {
+        Cmd::Mcp { cmd: None } => {
             mcp::serve(home)?;
             Ok(String::new())
+        }
+        Cmd::Mcp { cmd: Some(cmd) } => {
+            let dirs = mcp_install::Dirs::from_env()?;
+            let exe = std::env::current_exe()?;
+            let exe = std::fs::canonicalize(&exe).unwrap_or(exe);
+            let mut command = exe.display().to_string();
+            if let Some(stripped) = command.strip_prefix(r"\\?\") {
+                command = stripped.to_string();
+            }
+            let launch = mcp_install::Launch {
+                command,
+                sb_home: custom_home.then(|| home.root.display().to_string()),
+            };
+            match cmd {
+                McpCmd::Install { client } => {
+                    mcp_install::install(&mcp_install::choose(client.as_deref())?, &dirs, &launch)
+                }
+                McpCmd::Uninstall { client } => {
+                    mcp_install::uninstall(&mcp_install::choose(client.as_deref())?, &dirs)
+                }
+                McpCmd::Config { client } => Ok(mcp_install::config_text(
+                    &mcp_install::choose(client.as_deref())?,
+                    &dirs,
+                    &launch,
+                )),
+                McpCmd::Clients => {
+                    let mut s = String::new();
+                    for c in mcp_install::CLIENTS {
+                        let place = mcp_install::config_path(c, &dirs)
+                            .map(|p| p.display().to_string())
+                            .unwrap_or_else(|| "via `claude mcp add`".into());
+                        s.push_str(&format!("{:<15} {:<26} {place}\n", c.id, c.name));
+                    }
+                    Ok(s)
+                }
+            }
         }
     }
 }
