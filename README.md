@@ -2,62 +2,9 @@
 
 Private context, decisions and tasks for your coding agents, kept outside your repositories.
 
-`sb` is a single program for Windows, macOS and Linux. It keeps one plain-Markdown dossier per Git repository in a private folder and shares it with your agents (Claude Code, Codex, Gemini CLI, Cursor, VS Code and others) through the shell or MCP.
+## Purpose
 
-> **Version: 1.0.0.**
-
-## Quick setup
-
-You need [Git](https://git-scm.com/downloads) and a terminal. Five steps:
-
-1. **Install `sb`.** Download the archive for your system from [GitHub releases](https://github.com/dennidalpos/SecondBrain/releases), or build it with Rust 1.89 or later:
-
-   ```sh
-   cargo install --locked --path ./cli
-   ```
-
-   Full instructions, checksums and `PATH` setup for every system are in [Install](cli/README.md#install).
-
-2. **Check it works.** Open a new terminal:
-
-   ```sh
-   sb --version
-   ```
-
-3. **Create your data folder** (once per machine):
-
-   ```sh
-   sb init
-   ```
-
-4. **Link a project** (once per Git repository, from inside it):
-
-   ```sh
-   cd path/to/project
-   sb add
-   ```
-
-   This adds a short managed block to `AGENTS.md` and a `CLAUDE.md` that points to it. Commit them if you want the project's agents to find it.
-
-5. **Connect your agent** (optional, for desktop apps and IDEs), then reopen the client:
-
-   ```sh
-   sb mcp install --client claude-code
-   ```
-
-   Other clients: `codex`, `claude-desktop`, `cursor`, `vscode`, `gemini`, `copilot`, `windsurf`, `devin`. List them with `sb mcp clients`.
-
-Then run `sb start` to see the state of the project and the next steps. In a connected chat, ask the agent: "Onboard this repository" (it reads `sb guide onboarding`), or "Run the next 3 eligible tasks here".
-
-### Your first task
-
-```sh
-sb task add "Fix the login redirect" --body "Keep the requested return URL" --priority 2
-sb task ready          # what can start now
-sb run --dry-run       # preview an unattended run, nothing is executed
-```
-
-## How it fits together
+`sb` is a single program for Windows, macOS and Linux. It keeps one plain-Markdown dossier per Git repository in a private folder and shares it with your agents (Claude Code, Codex, Gemini CLI, Cursor, VS Code and others) through the shell or MCP. The dossier never lives in the repository, and `sb check` scans a push for secrets, personal data and copied dossier text. Version 1.0.0.
 
 ```mermaid
 flowchart LR
@@ -66,22 +13,41 @@ flowchart LR
     S <--> D[("Private dossier<br/>context, decisions, tasks")]
 ```
 
-The dossier lives in your user data folder, never in the repository. [Data layout](cli/README.md#data)
+## Requirements
 
-## What you get
+[Git](https://git-scm.com/downloads) and a terminal. To build from source, Rust 1.89 or later.
 
-- **Context per repository:** current state, dated decisions and tasks.
-- **Tasks for agents:** ready queue, claims with a lease, interviews with `sb task prepare`, unattended runs with `sb run` on a separate branch (local commits only).
-- **Sources and search:** `sb kb add` stores documents; `sb search` ranks with SQLite FTS5 and BM25, no model and no network.
-- **Publication check:** `sb check` scans for secrets, personal data and copied dossier text before you push.
-- **Backup and sync:** `sb export`, `sb import` and `sb sync` move the dossier between machines.
+## First setup
 
-## Documentation
+1. **Install `sb`:** download the archive for your system from [GitHub releases](https://github.com/dennidalpos/SecondBrain/releases), or build it:
 
-- [User guide](cli/README.md): install, rules, tasks, unattended runs, publication checks, data and MCP setup.
-- [Command reference](COMMANDS.md): every command, parameter and MCP tool with examples. `sb commands` prints it in the terminal.
-- [Contributing](CONTRIBUTING.md) and [security policy](SECURITY.md).
+   ```sh
+   cargo install --locked --path ./cli
+   ```
 
-## License
+   Checksums and `PATH` setup are in [Install](cli/README.md#install). Check it with `sb --version` in a new terminal.
 
-MIT. See [LICENSE](LICENSE) and [CREDITS.md](CREDITS.md).
+2. **Create your data folder** (once per machine): `sb init`
+3. **Link a project** (once per Git repository, from inside it): `sb add`. This adds a managed block to `AGENTS.md` and a `CLAUDE.md` that points to it; commit them if you want the project's agents to find it.
+4. **Connect your agent** (optional), then reopen the client: `sb mcp install --client claude-code`. Other clients: `sb mcp clients`.
+
+Then run `sb start` to see the state of the project and the next steps.
+
+## Usage
+
+```sh
+sb task add "Fix the login redirect" --body "Keep the requested return URL" --priority 2
+sb task ready          # what can start now
+sb run --dry-run       # preview an unattended run, nothing is executed
+sb check               # before every push
+```
+
+Also: decisions (`sb decide`), sources and search (`sb kb add`, `sb search`), and backup or sync between machines (`sb export`, `sb import`, `sb sync`). In a connected chat, ask the agent: "Onboard this repository", or "Run the next 3 eligible tasks here".
+
+## Build and test
+
+From `cli/`: `cargo fmt --check`, `cargo clippy --locked --all-targets -- -D warnings` and `cargo test --locked`. See [Contributing](CONTRIBUTING.md).
+
+## Documentation and security
+
+[User guide](cli/README.md) · [Command reference](COMMANDS.md) (`sb commands` prints it) · [Contributing](CONTRIBUTING.md) · [Security policy](SECURITY.md) · [License](LICENSE) (MIT; [CREDITS.md](CREDITS.md)).
