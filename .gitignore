@@ -1,0 +1,17 @@
+*.tmp
+*.bak
+*~
+.DS_Store
+Thumbs.db
+.scratch/
+.worktrees/
+.vs/
+.vscode/
+.idea/
+cli/target/
+.runtime/
+
+# Local agent files
+.claude/settings.local.json
+.claude/worktrees/
+CLAUDE.local.md

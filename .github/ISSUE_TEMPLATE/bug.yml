@@ -1,0 +1,48 @@
+name: Bug report
+description: Report a defect in the `sb` command or its MCP server
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use synthetic or redacted data only: no secrets, personal data, host paths or raw logs.
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened
+      description: The observed behavior and the expected one.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The `sb` commands that reproduce the problem, in order.
+      placeholder: |
+        1. sb ...
+        2. ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `sb --version`.
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Operating system, Git version and, for MCP problems, the client and its version.
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Relevant output
+      description: Error message or message code, redacted.
+      render: text
+    validations:
+      required: false

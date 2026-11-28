@@ -1,0 +1,23 @@
+# Contributing to SecondBrain
+
+Thank you for your interest in SecondBrain.
+
+## Before you start
+
+- Read [README.md](README.md) for the prerequisites and [AGENTS.md](AGENTS.md) for the layout, the checks and the code style.
+- For a bug or an idea, open an issue first using the matching form, so the change can be discussed before work starts.
+- Security problems are never reported in public issues: follow [SECURITY.md](SECURITY.md).
+
+## Making a change
+
+1. Keep the change focused on a single topic.
+2. Run `cargo fmt --check`, `cargo clippy --locked --all-targets -- -D warnings` and `cargo test --locked` in `cli/`, and `sb check` before pushing.
+3. Update [COMMANDS.md](COMMANDS.md) for public CLI or MCP changes and the [user guide](cli/README.md) for workflow changes.
+4. Use synthetic or redacted data only: no secrets, credentials, personal data, host paths or raw logs in code, tests, screenshots or issues.
+5. Open a pull request and fill in the template.
+
+## Licensing
+
+By contributing you agree that your contribution is licensed under the project's MIT License (see [LICENSE](LICENSE)).
+
+Participation is governed by the [Code of Conduct](CODE_OF_CONDUCT.md).

@@ -1,0 +1,32 @@
+[package]
+name = "secondbrain"
+version = "1.0.0"
+edition = "2024"
+rust-version = "1.89"
+description = "Private project context, decisions and tasks for coding agents"
+license = "MIT"
+repository = "https://github.com/dennidalpos/secondbrain"
+readme = "README.md"
+keywords = ["agents", "mcp", "tasks", "cli", "ai"]
+categories = ["command-line-utilities", "development-tools"]
+
+[lib]
+name = "secondbrain"
+path = "src/lib.rs"
+
+[[bin]]
+name = "sb"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+regex = "1.13.2"
+rusqlite = { version = "0.41", features = ["bundled"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
